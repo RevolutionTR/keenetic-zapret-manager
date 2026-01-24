@@ -1655,6 +1655,84 @@ get_manager_latest_version() {
     fi
 }
 
+
+# --- Version compare helper (returns 0 if $1 > $2) ---
+ver_is_newer() {
+    # usage: ver_is_newer "v26.1.24.2" "v26.1.24"
+    _va="${1#v}"; _vb="${2#v}"
+    # replace non-digit/dot just in case
+    _va="$(echo "$_va" | tr -cd '0-9.')"
+    _vb="$(echo "$_vb" | tr -cd '0-9.')"
+    set -- $(echo "$_va" | tr '.' ' ')
+    _a1=${1:-0}; _a2=${2:-0}; _a3=${3:-0}; _a4=${4:-0}
+    set -- $(echo "$_vb" | tr '.' ' ')
+    _b1=${1:-0}; _b2=${2:-0}; _b3=${3:-0}; _b4=${4:-0}
+    [ "$_a1" -gt "$_b1" ] && return 0
+    [ "$_a1" -lt "$_b1" ] && return 1
+    [ "$_a2" -gt "$_b2" ] && return 0
+    [ "$_a2" -lt "$_b2" ] && return 1
+    [ "$_a3" -gt "$_b3" ] && return 0
+    [ "$_a3" -lt "$_b3" ] && return 1
+    [ "$_a4" -gt "$_b4" ] && return 0
+    return 1
+}
+
+download_file() {
+    # usage: download_file URL OUTFILE
+    _url="$1"; _out="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -L -s -o "$_out" "$_url" && [ -s "$_out" ] && return 0
+    fi
+    if command -v wget >/dev/null 2>&1; then
+        wget -q -O "$_out" "$_url" && [ -s "$_out" ] && return 0
+    fi
+    return 1
+}
+
+update_manager_script() {
+    TARGET_SCRIPT="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    DL_URL="https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest/download/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    TMP_FILE="/tmp/keenetic_zapret_manager_update.$$"
+    BACKUP_FILE="${TARGET_SCRIPT}.bak_${SCRIPT_VERSION#v}_$(date +%Y%m%d_%H%M%S 2>/dev/null)"
+
+    echo "$(T mgr_update_start 'Betik indiriliyor (GitHub)...' 'Downloading script (GitHub)...')"
+    if ! download_file "$DL_URL" "$TMP_FILE"; then
+        echo "$(T mgr_update_dl_fail 'Indirme basarisiz (curl/wget/SSL kontrol edin).' 'Download failed (check curl/wget/SSL).')"
+        rm -f "$TMP_FILE" 2>/dev/null
+        return 1
+    fi
+
+    # Basic sanity: should look like a shell script and include expected markers
+    if ! grep -q "SCRIPT_VERSION" "$TMP_FILE" 2>/dev/null; then
+        echo "$(T mgr_update_bad 'Indirilen dosya beklenen formatta degil, iptal edildi.' 'Downloaded file is not in expected format, aborting.')"
+        rm -f "$TMP_FILE" 2>/dev/null
+        return 1
+    fi
+
+    # Syntax check (best-effort)
+    if sh -n "$TMP_FILE" >/dev/null 2>&1; then
+        :
+    else
+        echo "$(T mgr_update_syntax 'Indirilen dosyada syntax hatasi var, iptal edildi.' 'Downloaded file has syntax errors, aborting.')"
+        rm -f "$TMP_FILE" 2>/dev/null
+        return 1
+    fi
+
+    # Backup current script if present
+    if [ -f "$TARGET_SCRIPT" ]; then
+        cp -f "$TARGET_SCRIPT" "$BACKUP_FILE" 2>/dev/null
+        echo "$(T mgr_update_backup 'Yedek alindi:' 'Backup created:') $BACKUP_FILE"
+    fi
+
+    # Replace
+    cp -f "$TMP_FILE" "$TARGET_SCRIPT" 2>/dev/null && chmod +x "$TARGET_SCRIPT" 2>/dev/null
+    rm -f "$TMP_FILE" 2>/dev/null
+
+    echo "$(T mgr_update_done 'Guncelleme tamamlandi. Lutfen betigi yeniden calistirin.' 'Update completed. Please re-run the script.')"
+    return 0
+}
+
+
 check_manager_update() {
     echo "$(T checking_github "$TXT_CHECKING_GITHUB_TR" "$TXT_CHECKING_GITHUB_EN")"
     MANAGER_API_URL="https://api.github.com/repos/RevolutionTR/keenetic-zapret-manager/releases/latest"
@@ -1683,12 +1761,23 @@ check_manager_update() {
     echo "--------------------------------------------------"
 
     if [ -n "$REMOTE_VER" ]; then
-        _a="${SCRIPT_VERSION#v}"
-        _b="${REMOTE_VER#v}"
-        if [ "$_a" = "$_b" ]; then
+        if [ "${SCRIPT_VERSION#v}" = "${REMOTE_VER#v}" ]; then
             echo "$(T uptodate "$TXT_UPTODATE_TR" "$TXT_UPTODATE_EN")"
         else
-            echo "$(T new_version 'YENI SURUM MEVCUT!' 'NEW VERSION AVAILABLE!')"
+            if ver_is_newer "$REMOTE_VER" "$SCRIPT_VERSION"; then
+                echo "$(T new_version 'YENI SURUM MEVCUT!' 'NEW VERSION AVAILABLE!')"
+                _ASK_UPD="$(T mgr_ask 'Guncellemek ister misiniz? (e/h): ' 'Update now? (y/n): ')"
+                read -r -p "$_ASK_UPD" _ans
+                case "$_ans" in
+                    e|E|y|Y)
+                        update_manager_script
+                        ;;
+                    *) ;;
+                esac
+            else
+                # Local is newer or different; treat as up-to-date
+                echo "$(T uptodate "$TXT_UPTODATE_TR" "$TXT_UPTODATE_EN")"
+            fi
         fi
     fi
 
