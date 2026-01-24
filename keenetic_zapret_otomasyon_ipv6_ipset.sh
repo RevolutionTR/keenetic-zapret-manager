@@ -40,7 +40,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.24.2"
+SCRIPT_VERSION="v26.1.24.3"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
