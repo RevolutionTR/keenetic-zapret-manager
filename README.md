@@ -3,6 +3,17 @@
 📦 **Latest Release (recommended):**  
 https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
 
+## ✅ Test Edilen Keenetic OS Sürümleri
+
+Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
+
+- **Keenetic OS 5.0.4**
+- **Keenetic OS 4.3.6.3**
+
+> Daha eski Keenetic OS sürümlerinde test edilmemiştir.  
+> Eski sürümlerde OPKG/Entware paketleri, iptables/ipset davranışı veya binary uyumluluğu farklı olabilir.
+
+
 **Keenetic router’lar için Zapret yönetim ve otomasyon betiği**
 
 Bu proje, Zapret’in Keenetic cihazlarda **kolay kurulumu**, **DPI profili yönetimi**,  
