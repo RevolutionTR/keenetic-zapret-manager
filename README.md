@@ -20,6 +20,21 @@ Bu proje, Zapret’in Keenetic cihazlarda **kolay kurulumu**, **DPI profili yön
 **IPSET ile istemci seçimi**, **menü tabanlı kullanım** ve  
 **GitHub üzerinden sürüm takibi** için hazırlanmıştır.
 
+## DNS Hakkında Önemli Not
+
+Zapret, DPI (Deep Packet Inspection) tabanlı engellemeleri aşmak için tasarlanmıştır.
+DNS tabanlı engellemeleri veya ISS DNS manipülasyonunu çözmez.
+
+Bu nedenle, bazı ISS'lerde Zapret kullanılırken:
+- DoH (DNS over HTTPS),
+- DoT (DNS over TLS),
+- veya güvenilir bir üçüncü taraf DNS
+
+kullanılması **şiddetle tavsiye edilir**.
+
+ISS DNS sunucuları, engelli alan adları için hatalı IP döndürebilir.
+Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
+
 ---
 
 ## 🚀 Özellikler
