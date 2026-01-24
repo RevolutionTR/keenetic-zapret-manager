@@ -21,6 +21,21 @@ This project is designed to provide **easy installation**, **DPI profile managem
 **IPSET-based client selection**, **menu-driven usage**, and  
 **GitHub-based version tracking** for Zapret on Keenetic devices.
 
+## Important Note About DNS
+
+Zapret is designed to bypass DPI (Deep Packet Inspection) based blocking.
+It does not handle DNS poisoning or DNS-level manipulation by ISPs.
+
+For this reason, when using Zapret:
+- DoH (DNS over HTTPS),
+- DoT (DNS over TLS),
+- or a trusted third-party DNS resolver
+
+is **strongly recommended**.
+
+If an ISP DNS server returns incorrect IP addresses for blocked domains,
+Zapret may be running correctly but the connection will still fail.
+
 ---
 
 ## 🚀 Features
