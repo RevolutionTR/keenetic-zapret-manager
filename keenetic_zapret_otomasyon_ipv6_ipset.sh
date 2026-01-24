@@ -40,7 +40,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.24.3"
+SCRIPT_VERSION="v26.1.24.4"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -108,6 +108,9 @@ TXT_MENU_10_EN=" 9. Change DPI Profile"
 TXT_MENU_11_TR="10. Betik Guncelleme Kontrolu (GitHub)"
 TXT_MENU_11_EN="10. Script Update Check (GitHub)"
 
+TXT_MENU_B_TR=" B. Blockcheck (DPI Test Raporu)"
+TXT_MENU_B_EN=" B. Blockcheck (DPI Test Report)"
+
 
 TXT_MENU_L_TR=" L. Dil Degistir (TR/EN)"
 TXT_MENU_L_EN=" L. Switch Language (TR/EN)"
@@ -118,8 +121,8 @@ TXT_MENU_0_EN=" 0. Exit"
 TXT_MENU_FOOT_TR="--------------------------------------------------------------------------------------------"
 TXT_MENU_FOOT_EN="--------------------------------------------------------------------------------------------"
 
-TXT_PROMPT_MAIN_TR="Seciminizi yapin (0-10 veya L): "
-TXT_PROMPT_MAIN_EN="Select an option (0-10 or L): "
+TXT_PROMPT_MAIN_TR="Seciminizi yapin (0-10, L veya B): "
+TXT_PROMPT_MAIN_EN="Select an option (0-10, L or B): "
 
 TXT_LANG_NOW_TR="Dil: Turkce"
 TXT_LANG_NOW_EN="Language: English"
@@ -1817,12 +1820,93 @@ display_menu() {
     echo "$(T TXT_MENU_9)"
     echo "$(T TXT_MENU_10)"
     echo "$(T TXT_MENU_11)"
+    echo "$(T TXT_MENU_B)"
     echo "$(T TXT_MENU_L)  ($(lang_label))"
     echo "$(T TXT_MENU_0)"
     echo "$(T TXT_MENU_FOOT)"
     echo
     printf "$(T TXT_PROMPT_MAIN)"
 
+}
+
+# --- BLOCKCHECK (DPI TEST) ---
+run_blockcheck() {
+    local BLOCKCHECK="/opt/zapret/blockcheck.sh"
+    local DEF_DOMAIN="roblox.com"
+    local domains report today was_running stop_ans do_stop stopped_by_us
+
+    echo "--------------------------------------------------"
+    echo "$(T blk_title 'Blockcheck (DPI Test Raporu)' 'Blockcheck (DPI Test Report)')"
+    echo "--------------------------------------------------"
+
+    if [ ! -x "$BLOCKCHECK" ]; then
+        echo "$(T blk_missing 'HATA: /opt/zapret/blockcheck.sh bulunamadi veya calistirilabilir degil.' 'ERROR: /opt/zapret/blockcheck.sh not found or not executable.')"
+        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+        clear
+        return 1
+    fi
+
+    # Domain(ler)
+    read -r -p "$(T blk_domain 'Test edilecek domain(ler) (Enter=roblox.com, 0=Iptal): ' 'Domain(s) to test (Enter=roblox.com, 0=Cancel): ')" domains
+    if [ "$domains" = "0" ]; then
+        clear
+        return 0
+    fi
+    [ -z "$domains" ] && domains="$DEF_DOMAIN"
+
+    today="$(date +%Y%m%d 2>/dev/null)"
+    [ -z "$today" ] && today="00000000"
+    report="/opt/zapret/blockcheck_${today}.txt"
+
+    # Zapret calisiyorsa blockcheck genelde "bypass kapali olmali" diye uyarir.
+    was_running=0
+    do_stop=0
+    stopped_by_us=0
+    if is_zapret_running; then
+        was_running=1
+        echo "$(T blk_running 'Not: Zapret su anda calisiyor. Blockcheck testi icin gecici olarak durdurulmesi onerilir.' 'Note: Zapret is currently running. It is recommended to stop it temporarily for blockcheck.')"
+        read -r -p "$(T blk_stopq 'Zapret gecici olarak durdurulsun mu? (e/h) [e]: ' 'Stop Zapret temporarily? (y/n) [y]: ')" stop_ans
+        case "$stop_ans" in
+            [hHnN]) do_stop=0 ;;
+            *) do_stop=1 ;;
+        esac
+        if [ "$do_stop" -eq 1 ]; then
+            stop_zapret >/dev/null 2>&1
+            stopped_by_us=1
+        fi
+    fi
+
+    echo
+    echo "$(T blk_running2 "Calistiriliyor... (Rapor: ${report})" "Running... (Report: ${report})")"
+    echo "--------------------------------------------------"
+
+    # blockcheck kendi icinde domain prompt'u aciyor; stdin'e domainleri basarak takilmasini engelliyoruz.
+    # stdout+stderr rapora yazilsin diye tee kullan.
+    # (tee yoksa sadece > ile yazar)
+    if command -v tee >/dev/null 2>&1; then
+        printf "%s\n" "$domains" | sh "$BLOCKCHECK" 2>&1 | tee "$report"
+    else
+        printf "%s\n" "$domains" | sh "$BLOCKCHECK" >"$report" 2>&1
+        cat "$report" 2>/dev/null
+    fi
+
+    echo "--------------------------------------------------"
+    echo "$(T blk_done "Bitti. Rapor dosyasi: ${report}" "Done. Report file: ${report}")"
+
+    # Daha once calisiyorduysa ve biz durdurduysak geri ac
+    if [ "$was_running" -eq 1 ] && [ "$stopped_by_us" -eq 1 ]; then
+        echo "$(T blk_restarting 'Zapret tekrar baslatiliyor...' 'Starting Zapret again...')"
+        start_zapret >/dev/null 2>&1
+        if is_zapret_running; then
+            echo "$(T blk_started 'Zapret tekrar baslatildi.' 'Zapret started again.')"
+        else
+            echo "$(T blk_startfail 'UYARI: Zapret tekrar baslatilamadi. Elle baslatmaniz gerekebilir.' 'WARNING: Could not restart Zapret. You may need to start it manually.')"
+        fi
+    fi
+
+    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+    clear
+    return 0
 }
 
 
@@ -1848,6 +1932,7 @@ main_menu_loop() {
                 apply_dpi_profile_now
             fi
             ;;
+B|b) run_blockcheck ;;
 L|l) toggle_lang ;; 
             0) echo "Cikis yapiliyor..."; break ;;
             *) echo "Gecersiz secim! Lutfen 0 ile 10 arasinda bir sayi girin." ;;
