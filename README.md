@@ -1,5 +1,8 @@
 # keenetic-zapret-manager
 
+📦 **Latest Release (recommended):**  
+https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
+
 **Keenetic router’lar için Zapret yönetim ve otomasyon betiği**
 
 Bu proje, Zapret’in Keenetic cihazlarda **kolay kurulumu**, **DPI profili yönetimi**,  
