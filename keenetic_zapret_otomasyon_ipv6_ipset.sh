@@ -40,7 +40,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.25"
+SCRIPT_VERSION="v26.1.26"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -203,11 +203,11 @@ TXT_GITHUB_FAIL_TR="HATA: GitHub uzerinden surum bilgisi alinamadi."
 TXT_GITHUB_FAIL_EN="ERROR: Could not fetch version info from GitHub."
 
 
-TXT_ADD_IP_TR="Eklenecek IP: "
-TXT_ADD_IP_EN="IP to add: "
+TXT_ADD_IP_TR="Eklenecek IP (Enter=Vazgec): "
+TXT_ADD_IP_EN="IP to add (Enter=cancel): "
 
-TXT_DEL_IP_TR="Silinecek IP: "
-TXT_DEL_IP_EN="IP to remove: "
+TXT_DEL_IP_TR="Silinecek IP (Enter=Vazgec): "
+TXT_DEL_IP_EN="IP to remove (Enter=cancel): "
 T() {
     # Kullanım:
     #   T KEY                 -> sözlükten KEY_TR / KEY_EN
@@ -397,6 +397,65 @@ enforce_wan_if_nfqueue_rules() {
 }
 
 
+# --- Keenetic: persistently pin NFQUEUE POSTROUTING rules to real WAN (-o ppp0/wgX) ---
+create_keenetic_fw_post_up_hook() {
+    # Creates /opt/zapret/keenetic_fw_post_up.sh (idempotent).
+    # This hook can be invoked manually and by patched zapret init script.
+    local HOOK="/opt/zapret/keenetic_fw_post_up.sh"
+    mkdir -p /opt/zapret >/dev/null 2>&1
+    cat > "$HOOK" <<'EOF'
+#!/bin/sh
+# Keenetic post-up helper: pin NFQUEUE POSTROUTING rules that use zapret_clients/nozapret ipsets to the real default WAN iface.
+# Works even if default route line is "default dev ppp0 ..." (Keenetic).
+WAN="$(ip route 2>/dev/null | awk '/^default/ {for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+[ -z "$WAN" ] && WAN="ppp0"
+
+# For each NFQUEUE rule in POSTROUTING that matches zapret ipsets but has no "-o", re-add it with "-o $WAN".
+# Keep it safe: only touch rules that contain "match-set zapret_clients src" OR "match-set nozapret".
+iptables -t mangle -S POSTROUTING 2>/dev/null | grep NFQUEUE 2>/dev/null | while IFS= read -r r; do
+    echo "$r" | grep -q -- " -o " && continue
+    echo "$r" | grep -Eq -- 'match-set (zapret_clients src|nozapret)' || continue
+
+    del="${r/-A /-D }"
+    add="$(echo "$r" | sed "s/ -j NFQUEUE/ -o $WAN -j NFQUEUE/")"
+    iptables -t mangle $del >/dev/null 2>&1
+    iptables -t mangle $add >/dev/null 2>&1
+done
+
+exit 0
+EOF
+    chmod +x "$HOOK" >/dev/null 2>&1
+}
+
+patch_zapret_real_to_run_post_hook() {
+    # zapret upstream init script does not always support config-level hooks on Keenetic builds.
+    # So we patch zapret.real to execute the post-up hook right after each zapret_apply_firewall call.
+    local REAL="/opt/zapret/init.d/sysv/zapret.real"
+    local HOOK="/opt/zapret/keenetic_fw_post_up.sh"
+    [ -f "$REAL" ] || return 0
+    [ -x "$HOOK" ] || return 0
+
+    # Already patched?
+    grep -q "keenetic_fw_post_up.sh" "$REAL" 2>/dev/null && return 0
+
+    local BAK="${REAL}.bak_$(date +%Y%m%d_%H%M%S 2>/dev/null)"
+    cp -a "$REAL" "$BAK" >/dev/null 2>&1 || return 0
+
+    awk '
+    {
+        print $0
+        # After any zapret_apply_firewall invocation (either "zapret_apply_firewall;" or "{ zapret_apply_firewall; }")
+        if ($0 ~ /zapret_apply_firewall/) {
+            print "        [ -x /opt/zapret/keenetic_fw_post_up.sh ] && /opt/zapret/keenetic_fw_post_up.sh >/dev/null 2>&1"
+        }
+    }' "$BAK" > "$REAL" 2>/dev/null || {
+        cp -a "$BAK" "$REAL" >/dev/null 2>&1
+        return 0
+    }
+    chmod +x "$REAL" >/dev/null 2>&1
+}
+
+
 # --- DPI PROFIL SECIMI (NFQWS_OPT) ---
 DPI_PROFILE_FILE="/opt/zapret/dpi_profile"
 
@@ -525,7 +584,9 @@ apply_dpi_profile_now() {
         return 1
     fi
     update_nfqws_parameters
-    /opt/zapret/init.d/sysv/zapret restart-fw >/dev/null 2>&1 || true
+    restart_zapret >/dev/null 2>&1 || true
+    enforce_client_mode_rules >/dev/null 2>&1 || true
+    enforce_wan_if_nfqueue_rules >/dev/null 2>&1 || true
     echo "$(T dpi_applied "DPI profili uygulandi." "DPI profile applied.")"
     read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
 }
@@ -1172,9 +1233,15 @@ echo "Zapret yapilandirma sihirbazi calistiriliyor (IPv6: $IPV6_ANSWER)..."
     allow_firewall
     add_auto_start_zapret
 
+    # Keenetic: ensure post-up hook exists and is automatically executed after firewall applies
+    create_keenetic_fw_post_up_hook
+    patch_zapret_real_to_run_post_hook
+
+
     # FW kurallarini ve servisi tazele
     /opt/zapret/init.d/sysv/zapret restart-fw &> /dev/null
     restart_zapret
+    /opt/zapret/keenetic_fw_post_up.sh >/dev/null 2>&1
     enforce_wan_if_nfqueue_rules >/dev/null 2>&1
 
     echo "IPv6 destegi ayari tamamlandi."
@@ -1236,20 +1303,16 @@ del_nfqueue_chain() {
 
 # İpSet'e bağlı NFQUEUE kurallarını ekle (üstten insert)
 add_ipset_rules() {
-    iptables -t mangle -I POSTROUTING 1 -p tcp -m multiport --dports 80,443 \
+    # Keenetic'te bazen default route satiri "default dev ppp0 scope link" seklinde gelir.
+    # Bu yuzden arayuzu, "dev" alanini bularak cekiyoruz.
+    WAN="$(ip route 2>/dev/null | awk '/^default/ {for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+
+    iptables -t mangle -I POSTROUTING 1 ${WAN:+-o $WAN} -p tcp -m multiport --dports 80,443 \
         -m set --match-set "$IPSET_NAME" src \
         -j NFQUEUE --queue-num "$QNUM" --queue-bypass >/dev/null 2>&1
 
-    iptables -t mangle -I POSTROUTING 1 -p udp -m multiport --dports 443 \
+    iptables -t mangle -I POSTROUTING 1 ${WAN:+-o $WAN} -p udp -m multiport --dports 443 \
         -m set --match-set "$IPSET_NAME" src \
-        -j NFQUEUE --queue-num "$QNUM" --queue-bypass >/dev/null 2>&1
-
-    iptables -I INPUT 1 -p tcp -m multiport --sports 80,443 \
-        -m set --match-set "$IPSET_NAME" dst \
-        -j NFQUEUE --queue-num "$QNUM" --queue-bypass >/dev/null 2>&1
-
-    iptables -I FORWARD 1 -p tcp -m multiport --sports 80,443 \
-        -m set --match-set "$IPSET_NAME" dst \
         -j NFQUEUE --queue-num "$QNUM" --queue-bypass >/dev/null 2>&1
 }
 
@@ -1412,6 +1475,12 @@ manage_ipset_clients() {
                     echo "Bu menu sadece \"Secili IP'lere Uygula\" (mod=list) acikken kullanilabilir. Once 2'yi secin."
                 else
                 read -r -p "$(T add_ip_prompt "$TXT_ADD_IP_TR" "$TXT_ADD_IP_EN")" oneip
+                if [ -z "$oneip" ]; then
+                    echo "$(T cancelled "Islem iptal edildi." "Cancelled.")"
+                    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    clear
+                    continue
+                fi
                 # Basit IPv4 dogrulama
                 echo "$oneip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$' || { echo "Gecersiz IP!"; }
                 if echo "$oneip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
@@ -1421,6 +1490,8 @@ manage_ipset_clients() {
                     echo "Tamam: IP eklendi."
                 fi
                 fi
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                clear
                 ;;
 
             5)
@@ -1430,6 +1501,12 @@ manage_ipset_clients() {
                     echo "Bu menu sadece \"Secili IP'lere Uygula\" (mod=list) acikken kullanilabilir. Once 2'yi secin."
                 else
                 read -r -p "$(T del_ip_prompt "$TXT_DEL_IP_TR" "$TXT_DEL_IP_EN")" oneip
+                if [ -z "$oneip" ]; then
+                    echo "$(T cancelled "Islem iptal edildi." "Cancelled.")"
+                    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    clear
+                    continue
+                fi
                 if [ -f "$IPSET_CLIENT_FILE" ]; then
                     tmpf="/tmp/ipset_clients.$$"
                     grep -Fvx "$oneip" "$IPSET_CLIENT_FILE" > "$tmpf" 2>/dev/null && mv "$tmpf" "$IPSET_CLIENT_FILE"
@@ -1439,6 +1516,8 @@ manage_ipset_clients() {
                     echo "IP listesi dosyasi yok."
                 fi
                 fi
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                clear
                 ;;
             0)
                 echo "Ana menuye donuluyor..."
