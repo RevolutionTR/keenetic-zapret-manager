@@ -40,7 +40,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.24.4"
+SCRIPT_VERSION="v26.1.25"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -240,6 +240,15 @@ T() {
     printf '%s' "$v"
 }
 
+# Enter'a basinca devam et (TR/EN)
+press_enter_to_continue() {
+    # Not: read -p ile prompt yazdiriyoruz, sonra ekrani temizleyip menuye donuyoruz.
+    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _
+    clear
+}
+
+
+
 load_lang() {
     if [ -f "$LANG_FILE" ]; then
         LANG="$(cat "$LANG_FILE" 2>/dev/null | tr -d '\r\n\t ' )"
@@ -297,19 +306,63 @@ get_wan_if() {
     echo "$w"
 }
 
+# WAN arayuzu icin ifindex bilgisi (install_easy.sh arayuz secimi icin)
+get_ifindex_by_iface() {
+    local ifc="$1"
+    [ -z "$ifc" ] && return 1
+    cat "/sys/class/net/${ifc}/ifindex" 2>/dev/null
+}
+
+# Zapret config icinde IFACE_WAN degerini secilen WAN arayuzu ile esitle
+sync_zapret_iface_wan_config() {
+    local ifc="$(get_wan_if)"
+    [ -z "$ifc" ] && return 0
+    [ ! -d /opt/zapret ] && return 0
+    # config dosyasi yoksa dokunma (zapret kurulu degilse)
+    [ ! -f /opt/zapret/config ] && return 0
+    if grep -q '^IFACE_WAN=' /opt/zapret/config 2>/dev/null; then
+        sed -i "s/^IFACE_WAN=.*/IFACE_WAN=${ifc}/" /opt/zapret/config 2>/dev/null
+    else
+        echo "IFACE_WAN=${ifc}" >> /opt/zapret/config 2>/dev/null
+    fi
+}
+
+# NFQUEUE kurallarinda eski/yanlis arayuz kalintilarini temizle (sadece secili WAN kalsin)
+cleanup_nfqueue_rules_except_selected_wan() {
+    local WAN="$(get_wan_if)"
+    [ -z "$WAN" ] && return 0
+
+    # yalnizca NFQUEUE iceren kurallari tara; secili WAN disindakileri sil
+    iptables -t mangle -S 2>/dev/null | grep -F ' -j NFQUEUE' | while IFS= read -r line; do
+        # line: -A CHAIN ...
+        if echo "$line" | grep -Eq -- "(^-A (INPUT|FORWARD) -i ${WAN} )|(-A POSTROUTING -o ${WAN} )"; then
+            continue
+        fi
+        # baska bir arayuze bagli kurali silmeyi dene
+        local del
+        del="$(echo "$line" | sed 's/^-A /-D /')"
+        iptables -t mangle $del 2>/dev/null
+    done
+}
+
+
 select_wan_if() {
     # Kurulumda (ve gerekirse sonradan) WAN arayuzunu belirle.
     local rec="$(detect_recommended_wan_if)"
     [ -z "$rec" ] && rec="ppp0"
     echo "--------------------------------------------------"
-    echo " Zapret cikis arayuzu secimi"
+printf " \033[1;33mZapret cikis arayuzu secimi\033[0m\n"
     echo " (Ornek: ppp0 = WAN, wg0/wg1 = WireGuard)"
     echo " Su anki: $(get_wan_if)"
     echo " Onerilen: $rec"
     echo "--------------------------------------------------"
-    printf "Arayuz adini yazin (Enter = %s): " "$rec"
+    printf "\033[1;32mArayuz adini yazin (Enter = %s)\033[0m: " "$rec"
     read -r ans
     [ -z "$ans" ] && ans="$rec"
+    # bazen kopyala-yapistir ile sonuna nokta gelebiliyor (ppp0.)
+    if [ -n "$ans" ] && [ ! -d "/sys/class/net/$ans" ] && [ -d "/sys/class/net/${ans%\.}" ]; then
+        ans="${ans%.}"
+    fi
     [ -z "$ans" ] && return 0
     mkdir -p /opt/zapret 2>/dev/null
     echo "$ans" > "$WAN_IF_FILE" 2>/dev/null
@@ -443,6 +496,9 @@ select_dpi_profile() {
         7) set_dpi_profile vodafone_mob ;;
         0|*) return 1 ;;
     esac
+
+    # DPI profiline gore NFQWS parametrelerini guncelle
+    update_nfqws_parameters >/dev/null 2>&1
 
     echo "--------------------------------------------------"
     echo "$(T dpi_restart_msg 'DPI profili uygulaniyor, Zapret yeniden baslatiliyor...' 'Applying DPI profile, restarting Zapret...')"
@@ -692,17 +748,19 @@ ${L3} \\
 
     local tmp="/tmp/zapret_config.$$"
     awk -v repl="$NFQWS_BLOCK" '
-        BEGIN { inblock=0 }
+        BEGIN { cleanup=0 }
         /^NFQWS_OPT="/ {
             print repl
-            inblock=1
+            cleanup=1
             next
         }
-        inblock && /^"$/ {
-            inblock=0
-            next
+        # Cleanup stray legacy multi-line NFQWS_OPT continuations (they start with --filter- and end with a lone ").
+        cleanup==1 {
+            if ($0 ~ /^--filter-/) next
+            if ($0 ~ /^"[[:space:]]*([#;].*)?$/) { cleanup=0; next }
+            cleanup=0
         }
-        !inblock { print }
+        { print }
     ' /opt/zapret/config > "$tmp" && mv "$tmp" /opt/zapret/config
 
     if grep -q '^NFQWS_OPT="' /opt/zapret/config 2>/dev/null; then
@@ -1066,13 +1124,19 @@ configure_zapret_ipv6_support() {
     # Secimi global degiskene yaz (NFQWS_OPT ttl6/ttl icin)
     ZAPRET_IPV6="$IPV6_ANSWER"
 
-    
-    # DPI profili secimi (kurulumdan once)
-    if select_dpi_profile; then
-        echo "$(T dpi_selected "DPI profili secildi." "DPI profile selected.")"
-    else
-        echo "$(T dpi_keep "DPI profili degistirilmedi (mevcut kalacak)." "DPI profile not changed (keeping current).")"
-    fi
+# Mevcut IPv6 durumunu algila (config icinden)
+CURRENT_IPV6="n"
+if [ -f "/opt/zapret/config" ] && grep -q -- "--dpi-desync-ttl6" /opt/zapret/config 2>/dev/null; then
+    CURRENT_IPV6="y"
+fi
+
+# Kullanici secimi mevcut durumla ayniysa hicbir islem yapma
+if [ "$IPV6_ANSWER" = "$CURRENT_IPV6" ]; then
+    echo "$(T ipv6_no_change 'Degisiklik yok (IPv6 destegi zaten bu durumda).' 'No change (IPv6 support is already in this state).')"
+    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    clear
+    return 0
+fi
 
 echo "Zapret yapilandirma sihirbazi calistiriliyor (IPv6: $IPV6_ANSWER)..."
 
@@ -1087,8 +1151,12 @@ echo "Zapret yapilandirma sihirbazi calistiriliyor (IPv6: $IPV6_ANSWER)..."
         echo "n"    # TPWS transparent etkinlestirilsin mi? (hayir)
         echo "y"    # NFQWS etkinlestirilsin mi? (evet)
         echo "n"    # Yapilandirma düzenlensin mi? (hayir)
+        WAN_IFINDEX="$(get_ifindex_by_iface "$(get_wan_if)")"
+        [ -z "$WAN_IFINDEX" ] && WAN_IFINDEX="1"
+        printf "\033[1;32m[INFO] WAN IFINDEX selected: %s\033[0m\n" "$WAN_IFINDEX" >&2
+        echo "WAN_IFINDEX: $WAN_IFINDEX" >&2
         echo "1"    # LAN arayüzü seçimi (1 = none)
-        echo "1"    # WAN arayüzü seçimi (1 = none)
+        echo "${WAN_IFINDEX:-1}"    # WAN arayüzü seçimi (1 = none)
     ) | /opt/zapret/install_easy.sh &> /dev/null || {
         echo "HATA: Zapret yapilandirma betigi calistirilirken hata olustu."
         read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
@@ -1302,12 +1370,27 @@ manage_ipset_clients() {
                 clear
                 ;;
             2)
-                echo "list" > "$IPSET_CLIENT_MODE_FILE"
                 echo "Ornek: 192.168.1.10 192.168.1.20 (bosluk/virgul ile ayirabilirsiniz)"
-                read -r -p "IP'leri girin: " ips
-                echo "$ips" | tr ',;' '  ' | tr ' ' '\n' | sed '/^$/d' > "$IPSET_CLIENT_FILE"
-                apply_ipset_client_settings
-                echo "Tamam: Zapret sadece bu IP'lere uygulanacak."
+                read -r -p "IP'leri girin (Enter=iptal): " ips
+
+                if [ -z "$ips" ]; then
+                    echo "$(T ipset_cancelled 'Iptal edildi. Degisiklik yapilmadi.' 'Cancelled. No changes made.')"
+                else
+                    tmp_ips="/tmp/ipset_clients.$$"
+                    echo "$ips" | tr ',;' '  ' | tr ' ' '\n' | sed '/^$/d' > "$tmp_ips"
+
+                    if [ ! -s "$tmp_ips" ]; then
+                        rm -f "$tmp_ips" 2>/dev/null
+                        echo "$(T ipset_invalid 'Gecersiz IP listesi. Degisiklik yapilmadi.' 'Invalid IP list. No changes made.')"
+                    else
+                        mv "$tmp_ips" "$IPSET_CLIENT_FILE" 2>/dev/null
+                        echo "list" > "$IPSET_CLIENT_MODE_FILE" 2>/dev/null
+
+                        apply_ipset_client_settings
+                        echo "Tamam: Zapret sadece bu IP'lere uygulanacak."
+                    fi
+                fi
+
                 read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
                 clear
                 ;;
@@ -1507,21 +1590,22 @@ cleanup_only_leftovers() {
 
 # Zapret'i kaldirir
 uninstall_zapret() {
-    # Ilk kurulumda varsayilan DPI profili (Turk Telekom Fiber - TTL2 fake)
-    # DPI profili yoksa otomatik ata
-    if [ ! -f "$DPI_PROFILE_FILE" ] || [ -z "$(get_dpi_profile 2>/dev/null)" ]; then
-        mkdir -p "$(dirname "$DPI_PROFILE_FILE")" 2>/dev/null
-        set_dpi_profile tt_default
-    fi
 
-
-    if ! is_zapret_installed; then
+if ! is_zapret_installed; then
         echo "Zapret yuklu degil. Kaldirma islemi yapilamaz."
         echo ""
         echo "Ama NFQUEUE/IPSET gibi kalintilar kalmis olabilir."
         read -r -p "Kalintilari temizlemek ister misiniz? (e/h): " _cc
-        echo "$_cc" | grep -qi '^e' && { cleanup_zapret_firewall_leftovers; remove_nfqueue_rules_200; echo "Kalintilar temizlendi."; return 0; }
-        return 1
+        if echo "$_cc" | grep -qi '^e'; then
+            cleanup_zapret_firewall_leftovers
+            remove_nfqueue_rules_200
+            echo "Kalintilar temizlendi."
+        else
+            echo "Iptal edildi."
+        fi
+        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        clear
+        return 0
     fi
 
     read -r -p "Zapret'i kaldirmak istediginizden emin misiniz? (e/h): " uninstall_confirmation
@@ -1595,7 +1679,8 @@ install_zapret() {
 
     keenetic_compatibility || echo "UYARI: Keenetic uyumlulugu ayarlanirken bir sorun olustu."
 
-    read -r -p "Zapret icin IPv6 destegi etkinlestirilsin mi? (e/h): " ipv6_ans
+printf "\033[1;32mZapret icin IPv6 destegi etkinlestirilsin mi? (e/h):\033[0m "
+read -r ipv6_ans
     if echo "$ipv6_ans" | grep -qi "^e"; then
         ZAPRET_IPV6="y"
     else
@@ -1618,8 +1703,12 @@ install_zapret() {
         echo "n"    # TPWS transparent etkinlestirilsin mi? (hayir)
         echo "y"    # NFQWS etkinlestirilsin mi? (evet)
         echo "n"    # Yapilandirma düzenlensin mi? (hayir)
+        WAN_IFINDEX="$(get_ifindex_by_iface "$(get_wan_if)")"
+        [ -z "$WAN_IFINDEX" ] && WAN_IFINDEX="1"
+        printf "\033[1;32m[INFO] WAN IFINDEX selected: %s\033[0m\n" "$WAN_IFINDEX" >&2
+        echo "WAN_IFINDEX: $WAN_IFINDEX" >&2
         echo "1"    # LAN arayüzü seçimi (1 = none)
-        echo "1"    # WAN arayüzü seçimi (1 = none)   
+        echo "${WAN_IFINDEX:-1}"    # WAN arayüzü seçimi (1 = none)   
     ) | /opt/zapret/install_easy.sh &> /dev/null || \
     { echo "HATA: Zapret yapilandirma betigi calistirilirken hata olustu."; return 1; }
     
@@ -1634,7 +1723,9 @@ install_zapret() {
 
     echo "Zapret basariyla kuruldu ve yapilandirildi."
 
+    sync_zapret_iface_wan_config
     restart_zapret
+    cleanup_nfqueue_rules_except_selected_wan
     read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
 	clear 
     return 0 
@@ -1918,11 +2009,11 @@ main_menu_loop() {
     clear  # clear_after_choice_main
         echo ""
         case "$choice" in
-            1) install_zapret ;;
+            1) install_zapret; press_enter_to_continue ;;
             2) uninstall_zapret ;;
-            3) start_zapret ;;
-            4) stop_zapret ;;
-            5) restart_zapret ;;
+            3) start_zapret; press_enter_to_continue ;;
+            4) stop_zapret; press_enter_to_continue ;;
+            5) restart_zapret; press_enter_to_continue ;;
             6) check_remote_update ;;
         10) check_manager_update ;;
         7) configure_zapret_ipv6_support ;;
