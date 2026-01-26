@@ -40,7 +40,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.26"
+SCRIPT_VERSION="v26.1.26.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -2024,9 +2024,10 @@ run_blockcheck() {
     fi
     [ -z "$domains" ] && domains="$DEF_DOMAIN"
 
-    today="$(date +%Y%m%d 2>/dev/null)"
-    [ -z "$today" ] && today="00000000"
-    report="/opt/zapret/blockcheck_${today}.txt"
+	now="$(date +%Y%m%d%H%M 2>/dev/null)"
+	[ -z "$now" ] && now="000000000000"
+	report="/opt/zapret/blockcheck_${now}.txt"
+
 
     # Zapret calisiyorsa blockcheck genelde "bypass kapali olmali" diye uyarir.
     was_running=0
