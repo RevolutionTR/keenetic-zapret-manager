@@ -40,29 +40,59 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.26.1"
+SCRIPT_VERSION="v26.1.27"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
+# -------------------------------------------------------------------
+# Renkler (ANSI) - sadece terminal (TTY) ise etkin
+# -------------------------------------------------------------------
+if [ -t 1 ]; then
+    CLR_CYAN="$(printf '\033[36m')"
+    CLR_YELLOW="$(printf '\033[33m')"
+    CLR_GREEN="$(printf '\033[32m')"
+    CLR_RED="$(printf '\033[31m')"
+    CLR_BOLD="$(printf '\033[1m')"
+    CLR_RESET="$(printf '\033[0m')"
+else
+    CLR_CYAN=""
+    CLR_YELLOW=""
+    CLR_GREEN=""
+    CLR_RED=""
+    CLR_BOLD=""
+    CLR_RESET=""
+fi
+
+color_mode_name() {
+    # outputs colored mode name for menu display
+    case "$1" in
+        autohostlist) printf '%b' "${CLR_GREEN}autohostlist${CLR_RESET}" ;;
+        hostlist)     printf '%b' "${CLR_YELLOW}hostlist${CLR_RESET}" ;;
+        none|"")      printf '%b' "${CLR_RED}none${CLR_RESET}" ;;
+        *)            printf '%b' "$1" ;;
+    esac
+}
+
+
 
 # Sozluk: TXT_*_TR / TXT_*_EN
-TXT_MAIN_TITLE_TR="Keenetic icin Zapret Yonetim Scripti"
-TXT_MAIN_TITLE_EN="Zapret Management Script for Keenetic"
+TXT_MAIN_TITLE_TR=" Keenetic icin Zapret Yonetim Scripti"
+TXT_MAIN_TITLE_EN=" Zapret Management Script for Keenetic"
 
-TXT_OPTIMIZED_TR="Turk Telekom Icin Optimize Edilmistir !!!"
-TXT_OPTIMIZED_EN="Optimized for Turk Telekom !!!"
+TXT_OPTIMIZED_TR=" Turk Telekom Icin Optimize Edilmistir !!!"
+TXT_OPTIMIZED_EN=" Optimized for Turk Telekom !!!"
 
-TXT_DPI_WARNING_TR="Diger DPI Profillerinin Calismasi Garanti Edilemez"
-TXT_DPI_WARNING_EN="Other DPI profiles are NOT guaranteed to work"
+TXT_DPI_WARNING_TR=" Diger DPI Profillerinin Calismasi Garanti Edilemez"
+TXT_DPI_WARNING_EN=" Other DPI profiles are NOT guaranteed to work"
 
-TXT_DEVELOPER_TR="Gelistirici : RevolutionTR"
-TXT_DEVELOPER_EN="Developer  : RevolutionTR"
+TXT_DEVELOPER_TR=" Gelistirici : RevolutionTR"
+TXT_DEVELOPER_EN=" Developer  : RevolutionTR"
 
-TXT_EDITOR_TR="Duzenleyen  : RevolutionTR"
-TXT_EDITOR_EN="Maintainer : RevolutionTR"
+TXT_EDITOR_TR=" Duzenleyen  : RevolutionTR"
+TXT_EDITOR_EN=" Maintainer : RevolutionTR"
 
-TXT_VERSION_TR="Surum       : ${SCRIPT_VERSION}"
-TXT_VERSION_EN="Version     : ${SCRIPT_VERSION}"
+TXT_VERSION_TR=" Surum       : ${SCRIPT_VERSION}"
+TXT_VERSION_EN=" Version    : ${SCRIPT_VERSION}"
 
 TXT_DESC1_TR="Bu betik, Keenetic cihazlari uzerinde Zapret"
 TXT_DESC1_EN="This script helps you install and manage Zapret"
@@ -102,11 +132,167 @@ TXT_MENU_8_EN=" 7. Zapret IPv6 Support (Wizard)"
 
 TXT_MENU_9_TR=" 8. IPSET (Yerel ağda sadece statik IP kullanan cihazlarla çalışır – DHCP desteklenmez!)"
 TXT_MENU_9_EN=" 8. IPSET (Works only with static IP addresses on the local network – DHCP is NOT supported!))"
+
 TXT_MENU_10_TR=" 9. DPI Profilini Degistir"
 TXT_MENU_10_EN=" 9. Change DPI Profile"
 
 TXT_MENU_11_TR="10. Betik Guncelleme Kontrolu (GitHub)"
 TXT_MENU_11_EN="10. Script Update Check (GitHub)"
+
+TXT_MENU_12_TR="11. Hostlist / Autohostlist (Filtreleme)"
+TXT_MENU_12_EN="11. Hostlist / Autohostlist (Filtering)"
+
+
+# -------------------------------------------------------------------
+# Hostlist / Autohostlist (Menu 11) - i18n
+# -------------------------------------------------------------------
+TXT_HL_TITLE_TR="Hostlist / Autohostlist Menusu"
+TXT_HL_TITLE_EN="Hostlist / Autohostlist Menu"
+
+TXT_SCOPE_MODE_TR="Kapsam Modu (Global/Akilli)"
+TXT_SCOPE_MODE_EN="Scope Mode (Global/Smart)"
+
+TXT_SCOPE_GLOBAL_DESC_TR="Tum Agda Aktif - Mevcut Davranis"
+TXT_SCOPE_GLOBAL_DESC_EN="Active Across the Whole Network - Current Behavior"
+
+TXT_SCOPE_SMART_DESC_TR="Sadece DPI Olan Hostlar - autohostlist"
+TXT_SCOPE_SMART_DESC_EN="Only DPI-Affected hosts - autohostlist"
+
+TXT_SCOPE_GLOBAL_TR="Global"
+TXT_SCOPE_GLOBAL_EN="Global"
+
+TXT_SCOPE_SMART_TR="Akilli"
+TXT_SCOPE_SMART_EN="Smart"
+
+TXT_SCOPE_BACK_TR="Geri"
+TXT_SCOPE_BACK_EN="Back"
+
+TXT_SCOPE_PROMPT_TR="Seciminiz (0-2): "
+TXT_SCOPE_PROMPT_EN="Select (0-2): "
+
+TXT_SCOPE_CHANGED_TR="Kapsam Modu Degistirildi: %s"
+TXT_SCOPE_CHANGED_EN="Scope Mode Changed: %s"
+
+TXT_SCOPE_INVALID_TR="Gecersiz Secim."
+TXT_SCOPE_INVALID_EN="Invalid Choice."
+
+TXT_HL_CURRENT_MODE_TR="Mevcut Mod: "
+TXT_HL_CURRENT_MODE_EN="Current Mode: "
+
+TXT_HL_COUNTS_TR="User/Exclude/Auto Sayilari: "
+TXT_HL_COUNTS_EN="User/Exclude/Auto Counts: "
+
+TXT_HL_OPT_1_TR="Filtreleme Modunu Degistir"
+TXT_HL_OPT_1_EN="Change Filtering Mode"
+
+TXT_HL_OPT_2_TR="User hostlist: Domain Ekle"
+TXT_HL_OPT_2_EN="User hostlist: Add Domain"
+
+TXT_HL_OPT_3_TR="User hostlist: Domain Sil"
+TXT_HL_OPT_3_EN="User hostlist: Remove Domain"
+
+TXT_HL_OPT_4_TR="Exclude (Domain): Ekle (Islenmesin)"
+TXT_HL_OPT_4_EN="Exclude: Add Domain (Do not Process)"
+
+TXT_HL_OPT_5_TR="Exclude (Domain): Sil"
+TXT_HL_OPT_5_EN="Exclude: Remove (Domain)"
+
+TXT_HL_OPT_6_TR="Listeleri Goster"
+TXT_HL_OPT_6_EN="Show Lists"
+
+TXT_HL_OPT_7_TR="Otomatik Listeyi Temizle"
+TXT_HL_OPT_7_EN="Clear Auto List"
+
+TXT_HL_WARN_AUTOCLEAR_1_TR="UYARI: Otomatik listeyi temizlemek tum ogrenilen domainleri silecek!"
+TXT_HL_WARN_AUTOCLEAR_1_EN="WARNING: Clearing the auto list will delete all learned domains!"
+
+TXT_HL_WARN_AUTOCLEAR_2_TR="Bu islem geri alinamaz."
+TXT_HL_WARN_AUTOCLEAR_2_EN="This action cannot be undone."
+
+TXT_HL_BULK_HINT_TR="Birden fazla domain girebilirsiniz (virgul/noktalivirgul/bosluk ile ayirin)."
+TXT_HL_BULK_HINT_EN="You can enter multiple domains (separate with comma/semicolon/space)."
+
+TXT_HL_BULK_HINT2_TR="Alt alta yapistirabilirsiniz. Yapistirma bittikten sonra bir kez daha ENTER'a basin (bos satir)."
+TXT_HL_BULK_HINT2_EN="You can paste multiple lines. After pasting, press ENTER once more on an empty line to finish."
+
+TXT_HL_CANCELLED_TR="Iptal edildi."
+TXT_HL_CANCELLED_EN="Cancelled."
+
+TXT_HL_OPT_8_TR="Kapsam Modunu Degistir (Global/Akilli)"
+TXT_HL_OPT_8_EN="Change Scope Mode (Global/Smart)"
+
+TXT_HL_OPT_0_TR="Geri"
+TXT_HL_OPT_0_EN="Back"
+
+
+# Hostlist / Autohostlist (MODE_FILTER) sub-menu
+TXT_HL_MODE_TITLE_TR="Hostlist / Autohostlist (MODE_FILTER)"
+TXT_HL_MODE_TITLE_EN="Hostlist / Autohostlist (MODE_FILTER)"
+
+TXT_HL_MODE_NONE_DESC_TR="Filtre Yok (Mevcut Davranis)"
+TXT_HL_MODE_NONE_DESC_EN="No Filtering (Current Behavior)"
+
+TXT_HL_MODE_HOSTLIST_DESC_TR="Sadece Listedeki Domainler"
+TXT_HL_MODE_HOSTLIST_DESC_EN="Only Domains in List"
+
+TXT_HL_MODE_AUTO_DESC_TR="Otomatik Ogren + Liste"
+TXT_HL_MODE_AUTO_DESC_EN="Auto-Learn + List"
+
+TXT_HL_PICK_TR="Secim: "
+TXT_HL_PICK_EN="Choice: "
+
+TXT_HL_WARN_EMPTY_TR="UYARI: User hostlist bos. Hostlist modunda etki goremeyebilirsiniz."
+TXT_HL_WARN_EMPTY_EN="WARNING: User hostlist is empty. Hostlist mode may have no effect."
+
+TXT_HL_SET_OK_TR="MODE_FILTER Ayarlandi:"
+TXT_HL_SET_OK_EN="MODE_FILTER Set:"
+
+TXT_HL_SET_FAIL_TR="HATA: MODE_FILTER Ayarlanamadi"
+TXT_HL_SET_FAIL_EN="ERROR: Failed to set MODE_FILTER"
+
+TXT_HL_RESTART_TR="Zapret yeniden baslatildi."
+TXT_HL_RESTART_EN="Zapret restarted."
+
+TXT_HL_DONE_TR="Tamam."
+TXT_HL_DONE_EN="Done."
+
+TXT_HL_BAD_TR="Gecersiz secim."
+TXT_HL_BAD_EN="Invalid choice."
+
+TXT_HL_NEED_TR="Gerekli: "
+TXT_HL_NEED_EN="Required: "
+
+TXT_HL_DOMAIN_ADD_TR="Domain eklendi: "
+TXT_HL_DOMAIN_ADD_EN="Domain added: "
+
+TXT_HL_DOMAIN_DEL_TR="Domain silindi: "
+TXT_HL_DOMAIN_DEL_EN="Domain removed: "
+
+TXT_HL_CLEARED_TR="Auto list temizlendi."
+TXT_HL_CLEARED_EN="Auto list cleared."
+
+
+# Hostlist prompts & messages
+TXT_HL_ERR_NOT_INSTALLED_TR="HATA: Zapret yuklu degil."
+TXT_HL_ERR_NOT_INSTALLED_EN="ERROR: Zapret is not installed."
+
+TXT_HL_PROMPT_ADD_TR="Eklenecek Domain (0=iptal): "
+TXT_HL_PROMPT_ADD_EN="Domain to Add (0=cancel): "
+
+TXT_HL_PROMPT_DEL_TR="Silinecek Domain (0=iptal): "
+TXT_HL_PROMPT_DEL_EN="Domain to Remove (0=cancel): "
+
+TXT_HL_INVALID_DOMAIN_TR="Gecersiz Domain."
+TXT_HL_INVALID_DOMAIN_EN="Invalid Domain."
+
+TXT_HL_MSG_ADDED_TR="Eklendi: "
+TXT_HL_MSG_ADDED_EN="Added: "
+
+TXT_HL_MSG_REMOVED_TR="Silindi: "
+TXT_HL_MSG_REMOVED_EN="Removed: "
+
+TXT_HL_WARN_EMPTY_STRICT_TR="UYARI: User hostlist bos. Bu durumda zapret, exclude haric tum hostlari isleyebilir. Devam etmek icin en az bir domain ekleyin veya exclude kullanin."
+TXT_HL_WARN_EMPTY_STRICT_EN="WARNING: User hostlist is empty. In this case, zapret may process all hosts except exclude. Add at least one domain or use exclude before enabling."
 
 TXT_MENU_B_TR=" B. Blockcheck (DPI Test Raporu)"
 TXT_MENU_B_EN=" B. Blockcheck (DPI Test Report)"
@@ -121,8 +307,8 @@ TXT_MENU_0_EN=" 0. Exit"
 TXT_MENU_FOOT_TR="--------------------------------------------------------------------------------------------"
 TXT_MENU_FOOT_EN="--------------------------------------------------------------------------------------------"
 
-TXT_PROMPT_MAIN_TR="Seciminizi yapin (0-10, L veya B): "
-TXT_PROMPT_MAIN_EN="Select an option (0-10, L or B): "
+TXT_PROMPT_MAIN_TR="Seciminizi Yapin (0-11, L veya B): "
+TXT_PROMPT_MAIN_EN="Select an Option (0-11, L or B): "
 
 TXT_LANG_NOW_TR="Dil: Turkce"
 TXT_LANG_NOW_EN="Language: English"
@@ -131,43 +317,46 @@ TXT_LANG_NOW_EN="Language: English"
 TXT_IPSET_TITLE_TR=" Zapret IPSET (Istemci Secimi)"
 TXT_IPSET_TITLE_EN=" Zapret IPSET (Client Selection)"
 
-TXT_IPSET_1_TR=" 1. Tum Aga Uygula (client filtresi kapali)"
-TXT_IPSET_1_EN=" 1. Apply to whole network (client filter off)"
+TXT_IPSET_1_TR=" 1. Tum Aga Uygula (client Filtresi Kapali)"
+TXT_IPSET_1_EN=" 1. Apply to Whole Network (Client Filter Off)"
 
 TXT_IPSET_2_TR=" 2. Secili IP'lere Uygula (IP gir)"
-TXT_IPSET_2_EN=" 2. Apply to selected IPs (enter IPs)"
+TXT_IPSET_2_EN=" 2. Apply to Selected IPs (enter IPs)"
 
 TXT_IPSET_3_TR=" 3. Mevcut IP Listesini Goster"
-TXT_IPSET_3_EN=" 3. Show current IP list"
+TXT_IPSET_3_EN=" 3. Show Current IP list"
 
 TXT_IPSET_4_TR=" 4. Listeye Tek IP Ekle"
-TXT_IPSET_4_EN=" 4. Add a single IP to list"
+TXT_IPSET_4_EN=" 4. Add a Single IP to list"
 
 TXT_IPSET_5_TR=" 5. Listeden Tek IP Sil"
-TXT_IPSET_5_EN=" 5. Remove a single IP from list"
+TXT_IPSET_5_EN=" 5. Remove a Single IP from list"
 
 TXT_IPSET_0_TR=" 0. Ana Menuye Don"
-TXT_IPSET_0_EN=" 0. Back to main menu"
+TXT_IPSET_0_EN=" 0. Back to Main Menu"
 
 TXT_PROMPT_IPSET_TR=" Seciminizi Yapin (0-5): "
-TXT_PROMPT_IPSET_EN=" Select an option (0-5): "
+TXT_PROMPT_IPSET_EN=" Select an Option (0-5): "
 
 TXT_PROMPT_IPSET_BASIC_TR=" Seciminizi Yapin (0-2): "
-TXT_PROMPT_IPSET_BASIC_EN=" Select an option (0-2): "
+TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-2): "
 
 # Ceviri secici
 # --- EK DIL METINLERI (TR/EN) ---
 TXT_PRESS_ENTER_TR="Devam etmek icin Enter'a basin..."
 TXT_PRESS_ENTER_EN="Press Enter to continue..."
+
 TXT_SCRIPT_INSTALLED_TR="Kurulu Betik Surumu : "
 TXT_SCRIPT_INSTALLED_EN="Installed Script Ver : "
+
 TXT_GITHUB_LATEST_SIMPLE_TR="GitHub Guncel Surum : "
 TXT_GITHUB_LATEST_SIMPLE_EN="GitHub Latest Ver  : "
+
 TXT_GITHUB_NOINFO_TR="Bilgi alinamadi"
 TXT_GITHUB_NOINFO_EN="Unable to fetch info"
+
 TXT_REPO_LABEL_TR="Repo               : "
 TXT_REPO_LABEL_EN="Repo               : "
-
 
 TXT_EMPTY_TR="(bos)"
 TXT_EMPTY_EN="(empty)"
@@ -175,17 +364,17 @@ TXT_EMPTY_EN="(empty)"
 TXT_IPSET_MODE_LIST_TR="Mod: Secili IP"
 TXT_IPSET_MODE_LIST_EN="Mode: Selected IPs"
 
-TXT_IPSET_MODE_ALL_TR="Mod: Tum ag"
-TXT_IPSET_MODE_ALL_EN="Mode: Whole network"
+TXT_IPSET_MODE_ALL_TR="Mod: Tum Ag"
+TXT_IPSET_MODE_ALL_EN="Mode: Whole Network"
 
 TXT_IP_LIST_FILE_TR="IP Listesi (dosya): "
 TXT_IP_LIST_FILE_EN="IP List (file): "
 
 TXT_IPSET_MEMBERS_TR="IPSET Uyeleri (aktif): "
-TXT_IPSET_MEMBERS_EN="IPSET members (active): "
+TXT_IPSET_MEMBERS_EN="IPSET Members (active): "
 
 TXT_VERSION_INSTALLED_TR="Kurulu Surum: "
-TXT_VERSION_INSTALLED_EN="Installed version: "
+TXT_VERSION_INSTALLED_EN="Installed Version: "
 
 TXT_CHECKING_GITHUB_TR="GitHub uzerinden en guncel surum sorgulaniyor..."
 TXT_CHECKING_GITHUB_EN="Checking latest version on GitHub..."
@@ -204,10 +393,10 @@ TXT_GITHUB_FAIL_EN="ERROR: Could not fetch version info from GitHub."
 
 
 TXT_ADD_IP_TR="Eklenecek IP (Enter=Vazgec): "
-TXT_ADD_IP_EN="IP to add (Enter=cancel): "
+TXT_ADD_IP_EN="IP to add (Enter=Cancel): "
 
 TXT_DEL_IP_TR="Silinecek IP (Enter=Vazgec): "
-TXT_DEL_IP_EN="IP to remove (Enter=cancel): "
+TXT_DEL_IP_EN="IP to remove (Enter=Cancel): "
 T() {
     # Kullanım:
     #   T KEY                 -> sözlükten KEY_TR / KEY_EN
@@ -740,6 +929,15 @@ update_kernel_module_config() {
 update_nfqws_parameters() {
     local profile="$(get_dpi_profile)"
     local ipv6="$ZAPRET_IPV6"
+    # Kapsam modu: global (tum ag) | smart (yalnizca listeler/auto)
+    local scope="$(get_scope_mode)"
+    local mf="$(get_mode_filter)"
+    local HOST_MARKER=""
+    if [ "$scope" = "smart" ]; then
+        # zapret init scripts replace <HOSTLIST> depending on MODE_FILTER
+        HOST_MARKER="<HOSTLIST>"
+    fi
+
 
     # Profil parametreleri (varsayilanlar)
     local DESYNC="fake"
@@ -762,7 +960,11 @@ update_nfqws_parameters() {
     build_line() {
         # $1 proto(tcp/udp) $2 port(s) $3 extra endflag(--new or empty)
         local proto="$1" ports="$2" endflag="$3"
-        local line="--filter-${proto}=${ports} --dpi-desync=${DESYNC}"
+        local line="--filter-${proto}=${ports}"
+
+        # Smart modda hostlist/autohostlist marker eklenir (global modda bos)
+        [ -n "$HOST_MARKER" ] && line="${line} ${HOST_MARKER}"
+        line="${line} --dpi-desync=${DESYNC}"
 
         [ -n "$FOOLING" ] && line="${line} --dpi-desync-fooling=${FOOLING}"
         [ -n "$SPLITPOS" ] && line="${line} --dpi-desync-split-pos=${SPLITPOS}"
@@ -802,6 +1004,7 @@ ${L3} \\
     fi
 
     # /opt/zapret/config icinde NFQWS_OPT bloğunu guvenli sekilde guncelle
+    ensure_zapret_config >/dev/null 2>&1
     if [ ! -f /opt/zapret/config ]; then
         echo "$(T nfqws_cfg_missing "UYARI: /opt/zapret/config bulunamadi." "WARNING: /opt/zapret/config not found.")"
         return 1
@@ -875,10 +1078,10 @@ stop() {
     sysctl -w net.netfilter.nf_conntrack_checksum=1 &> /dev/null
 }
 case "$1" in
-    '\''start'\'')
+    '''start''')
         start
         ;;
-    '\''stop'\'')
+    '''stop''')
         stop
         ;;
     *)
@@ -963,6 +1166,7 @@ EOF
 flush_nfqueue_by_linenum() {
     local table="$1" chain="$2" ln
     while true; do
+        clear
         if [ -n "$table" ]; then
             ln="$(iptables -t "$table" -L "$chain" -n --line-numbers 2>/dev/null \
                 | sed -n "/NFQUEUE/{s/^ *\\([0-9]\\+\\).*/\\1/p; q}")"
@@ -1152,9 +1356,9 @@ check_zapret_ipv6_status() {
     fi
 
     if grep -q -- "--dpi-desync-ttl6" /opt/zapret/config 2>/dev/null; then
-        echo "$(T ipv6_status_on 'Zapret IPv6 destegi: ACIK' 'Zapret IPv6 support: ON')"
+        echo "${CLR_BOLD}${CLR_GREEN}$(T ipv6_status_on 'Zapret IPv6 destegi: ACIK' 'Zapret IPv6 support: ON')${CLR_RESET}"
     else
-        echo "$(T ipv6_status_off 'Zapret IPv6 destegi: KAPALI' 'Zapret IPv6 support: OFF')"
+        echo "${CLR_BOLD}${CLR_RED}$(T ipv6_status_off 'Zapret IPv6 destegi: KAPALI' 'Zapret IPv6 support: OFF')${CLR_RESET}"
     fi
     return 0
 }
@@ -1524,7 +1728,7 @@ manage_ipset_clients() {
                 break
                 ;;
             *)
-                echo "$(T invalid_main 'Gecersiz secim! Lutfen 0 ile 10 arasinda bir sayi veya L girin.' 'Invalid choice! Please enter a number between 0 and 10 or L.')"
+                echo "$(T invalid_main 'Gecersiz secim! Lutfen 0 ile 11 arasinda bir sayi veya L girin.' 'Invalid choice! Please enter a number between 0 and 11 or L.')"
                 read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
                 clear
                 ;;
@@ -1965,16 +2169,596 @@ check_manager_update() {
 
 
 # --- Ana Menu Fonksiyonu ---
+# -------------------------------------------------------------------
+# Hostlist / Autohostlist (MODE_FILTER) Yonetimi
+# -------------------------------------------------------------------
+HOSTLIST_DIR="/opt/zapret/ipset"
+HOSTLIST_USER="${HOSTLIST_DIR}/zapret-hosts-user.txt"
+HOSTLIST_EXCLUDE_DOM="${HOSTLIST_DIR}/zapret-hosts-user-exclude.txt"
+HOSTLIST_EXCLUDE_IP="${HOSTLIST_DIR}/zapret-hosts-localnets.txt"
+HOSTLIST_AUTO="${HOSTLIST_DIR}/zapret-hosts-auto.txt"
+HOSTLIST_MODE_FILE="/opt/zapret/hostlist_mode"
+HOSTLIST_AUTO_DEBUG="/opt/zapret/nfqws_autohostlist.log"
+SCOPE_MODE_FILE="/opt/zapret/scope_mode"
+
+ensure_hostlist_files() {
+    [ -d "$HOSTLIST_DIR" ] || mkdir -p "$HOSTLIST_DIR" >/dev/null 2>&1
+    [ -f "$HOSTLIST_USER" ] || : > "$HOSTLIST_USER"
+        # IP/localnets exclude (legacy/compat)
+    if [ ! -f "$HOSTLIST_EXCLUDE_IP" ]; then
+        cat > "$HOSTLIST_EXCLUDE_IP" <<'EOF'
+127.0.0.0/8
+10.0.0.0/8
+172.16.0.0/12
+192.168.0.0/16
+169.254.0.0/16
+100.64.0.0/10
+::1
+fc00::/7
+fe80::/10
+EOF
+    fi
+    # Domain exclude (our menu manages this)
+    [ -f "$HOSTLIST_EXCLUDE_DOM" ] || : > "$HOSTLIST_EXCLUDE_DOM"
+    # AUTO dosyasi zapret tarafindan doldurulur; yoksa gosterebilmek icin olusturuyoruz
+    [ -f "$HOSTLIST_AUTO" ] || : > "$HOSTLIST_AUTO"
+}
+
+
+ensure_zapret_config() {
+    # zapret upstream expects /opt/zapret/config (optional). If missing, try to create it.
+    if [ -f /opt/zapret/config ]; then
+        return 0
+    fi
+    if [ -f /opt/zapret/config.default ]; then
+        cp -f /opt/zapret/config.default /opt/zapret/config >/dev/null 2>&1 && return 0
+    fi
+    # minimal safe config (only what we touch)
+    cat > /opt/zapret/config <<'EOF'
+# this file is included from init scripts
+# change values here
+
+# filtering mode : none|ipset|hostlist|autohostlist
+MODE_FILTER=none
+
+# use <HOSTLIST> and <HOSTLIST_NOAUTO> placeholders to engage standard hostlists and autohostlist in ipset dir
+# hostlist markers are replaced to empty string if MODE_FILTER does not satisfy
+# <HOSTLIST_NOAUTO> appends ipset/zapret-hosts-auto.txt as normal list
+
+# nfqws options (filled/updated by management script)
+NFQWS_OPT=""
+EOF
+    [ -f /opt/zapret/config ]
+}
+
+get_scope_mode() {
+    # global|smart (default: global)
+    if [ -f "$SCOPE_MODE_FILE" ]; then
+        sm="$(head -n1 "$SCOPE_MODE_FILE" 2>/dev/null | tr -d '\r\n' | tr 'A-Z' 'a-z')"
+        case "$sm" in
+            global|smart) echo "$sm"; return 0 ;;
+        esac
+    fi
+    echo "global"
+}
+
+pretty_scope_mode() {
+    # UI helper: keep stored values (global/smart) but show localized label
+    case "$(get_scope_mode)" in
+        global) echo "$(T TXT_SCOPE_GLOBAL)" ;;
+        smart)  echo "$(T TXT_SCOPE_SMART)" ;;
+        *)      echo "$(get_scope_mode)" ;;
+    esac
+}
+
+
+set_scope_mode() {
+    # $1: global|smart
+    [ -z "$1" ] && return 1
+    case "$1" in
+        global|smart) ;;
+        *) return 1 ;;
+    esac
+    echo "$1" > "$SCOPE_MODE_FILE" 2>/dev/null || return 1
+    return 0
+}
+
+get_mode_filter() {
+    # priority: state file -> zapret config -> default none
+    if [ -f "$HOSTLIST_MODE_FILE" ]; then
+        mf="$(head -n1 "$HOSTLIST_MODE_FILE" 2>/dev/null | tr -d '\r\n' | tr 'A-Z' 'a-z')"
+        case "$mf" in
+            none|hostlist|autohostlist|ipset) echo "$mf"; return 0 ;;
+        esac
+    fi
+    if [ -f /opt/zapret/config ]; then
+        mf="$(sed -n 's/^MODE_FILTER=\(.*\)$/\1/p' /opt/zapret/config 2>/dev/null | head -n1)"
+        [ -n "$mf" ] && { echo "$mf"; return 0; }
+    fi
+    echo "none"
+}
+
+
+set_mode_filter() {
+    # $1: none|hostlist|autohostlist|ipset
+    [ -z "$1" ] && return 1
+    ensure_hostlist_files
+
+    # persist for this script (works even if /opt/zapret/config is absent)
+    echo "$1" > "$HOSTLIST_MODE_FILE" 2>/dev/null || return 1
+
+    # best-effort: also write to zapret config if present/creatable (for compatibility)
+    ensure_zapret_config >/dev/null 2>&1
+    if [ -f /opt/zapret/config ]; then
+        if grep -q '^MODE_FILTER=' /opt/zapret/config 2>/dev/null; then
+            sed -i "s/^MODE_FILTER=.*/MODE_FILTER=$1/" /opt/zapret/config 2>/dev/null
+        else
+            echo "MODE_FILTER=$1" >> /opt/zapret/config
+        fi
+    fi
+    return 0
+}
+
+
+normalize_domain() {
+    # stdin or $1; output normalized domain or empty
+    d="$1"
+    [ -z "$d" ] && read -r d
+    d="$(echo "$d" | tr -d '\r' | tr 'A-Z' 'a-z' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    d="$(echo "$d" | sed 's#^[a-z]\+://##')"
+    d="$(echo "$d" | sed 's#/.*$##')"
+    d="$(echo "$d" | sed 's/^\.*//')"
+    # basic allow: letters digits dot hyphen, must contain a dot or be wildcard like *.domain.tld (we store without *)
+    d="$(echo "$d" | sed 's/^\*\.\(.*\)$/\1/')"
+    echo "$d" | grep -Eq '^[a-z0-9][a-z0-9.-]*[a-z0-9]$' || { echo ""; return 1; }
+    echo "$d"
+}
+
+file_has_line() {
+    # $1 file $2 line exact
+    [ -f "$1" ] || return 1
+    grep -Fxq -- "$2" "$1" 2>/dev/null
+}
+
+add_line_unique() {
+    # $1 file $2 line
+    [ -f "$1" ] || : > "$1"
+    if ! file_has_line "$1" "$2"; then
+        printf "%s\n" "$2" >> "$1"
+    fi
+}
+
+remove_line_exact() {
+    # $1 file $2 line
+    [ -f "$1" ] || return 0
+    tmp="/tmp/hostlist.$$"
+    grep -Fvx -- "$2" "$1" 2>/dev/null > "$tmp" && mv "$tmp" "$1"
+}
+
+hostlist_stats() {
+    # $1 file
+    [ -f "$1" ] || { echo "0"; return; }
+    awk 'NF && $0 !~ /^[[:space:]]*#/' "$1" 2>/dev/null | wc -l | tr -d ' '
+}
+
+show_hostlist_tail() {
+    # $1 file $2 title
+    f="$1"; t="$2"
+    c="$(hostlist_stats "$f")"
+    echo "--------------------------------------------------"
+    echo "$t (count: $c)"
+    echo "--------------------------------------------------"
+    if [ "$c" -eq 0 ]; then
+        echo "(empty)"
+    else
+        awk 'NF && $0 !~ /^[[:space:]]*#/' "$f" 2>/dev/null | tail -n 30
+        if [ "$c" -gt 30 ]; then
+            echo "..."
+        fi
+    fi
+}
+
+choose_mode_filter_interactive() {
+    cur="$(get_mode_filter)"
+
+    # NOTE:
+    # This function is used inside command substitution:
+    #   mode="$(choose_mode_filter_interactive)"
+    # If we print the menu to STDOUT, the caller will capture it and the UI will look "frozen".
+    # Therefore, ALL menu/UI output goes to STDERR. Only the final selected mode is echoed to STDOUT.
+    {
+        echo "--------------------------------------------------"
+        echo "$(T TXT_HL_MODE_TITLE)"
+        echo "--------------------------------------------------"
+        printf '%b\n' "$(T TXT_HL_CURRENT_MODE)$(color_mode_name "$cur")"
+        echo ""
+        echo " 1) none     ($(T TXT_HL_MODE_NONE_DESC))"
+        echo " 2) hostlist ($(T TXT_HL_MODE_HOSTLIST_DESC))"
+        echo " 3) autohostlist ($(T TXT_HL_MODE_AUTO_DESC))"
+        echo " 0) $(T TXT_SCOPE_BACK)"
+        echo ""
+        printf "%s" "$(T TXT_HL_PICK)"
+    } >&2
+
+    # Prefer reading from TTY (works reliably even in $(...)). Fallback to normal stdin.
+    if [ -r /dev/tty ]; then
+        read -r msel </dev/tty
+    else
+        read -r msel
+    fi
+
+    case "$msel" in
+        1) echo "none" ;;
+        2) echo "hostlist" ;;
+        3) echo "autohostlist" ;;
+        0) echo "" ;;
+        *) echo "__invalid__" ;;
+    esac
+}
+
+
+apply_mode_filter() {
+    # $1 mode
+    mode="$1"
+    [ -z "$mode" ] && return 0
+    ensure_hostlist_files
+
+    # hostlist/autohostlist modunda, listeler BOS ise zapret "include yok" gibi davranabilir (exclude hariç herseyi isler).
+    # Bu sebeple kullaniciyi uyar.
+    if [ "$mode" = "hostlist" ] || [ "$mode" = "autohostlist" ]; then
+        ucnt="$(hostlist_stats "$HOSTLIST_USER")"
+        if [ "$ucnt" -eq 0 ]; then
+            echo "$(T TXT_HL_WARN_EMPTY_STRICT)"
+            read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+        fi
+    fi
+
+    if set_mode_filter "$mode"; then
+        echo "$(T TXT_HL_SET_OK) $mode"
+        restart_zapret >/dev/null 2>&1
+        echo "$(T TXT_HL_RESTART)"
+    else
+        echo "$(T TXT_HL_SET_FAIL)"
+    fi
+}
+
+apply_scope_mode() {
+    # $1 scope: global|smart
+    scope="$1"
+    [ -z "$scope" ] && return 0
+    ensure_hostlist_files
+
+    if ! set_scope_mode "$scope"; then
+        echo "$(T TXT_HL_SET_FAIL)"
+        return 1
+    fi
+
+    case "$scope" in
+        global)
+            # Global mod: her seye uygula (mevcut davranis). MODE_FILTER anlamsiz kalmasin diye none yap.
+            set_mode_filter none >/dev/null 2>&1
+            ;;
+        smart)
+            # Smart modun amaci: sadece gerekli hostlarda calis (otomatik ogrenme icin autohostlist)
+            set_mode_filter autohostlist >/dev/null 2>&1
+            ;;
+    esac
+
+    # NFQWS_OPT satirlarini kapsam moduna gore yeniden yaz
+    update_nfqws_parameters >/dev/null 2>&1
+    restart_zapret >/dev/null 2>&1
+    echo "$(T TXT_HL_RESTART)"
+    return 0
+}
+
+
+manage_hostlist_menu() {
+    if ! is_zapret_installed; then
+        echo "$(T TXT_HL_ERR_NOT_INSTALLED)"
+        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+        clear
+        return 1
+    fi
+
+    ensure_hostlist_files
+
+    while true; do
+        clear
+        cur="$(get_mode_filter)"
+        ucnt="$(hostlist_stats "$HOSTLIST_USER")"
+        ecnt="$(hostlist_stats "$HOSTLIST_EXCLUDE_DOM")"
+        acnt="$(hostlist_stats "$HOSTLIST_AUTO")"
+        echo "====================================================="
+        echo "$(T TXT_HL_TITLE)"
+        echo "====================================================="
+        printf '%b\n' "$(T TXT_HL_CURRENT_MODE)$(color_mode_name "$cur")"
+        echo "$(T TXT_HL_COUNTS)${ucnt}/${ecnt}/${acnt}"
+        echo "--------------------------------------------------"
+        echo " 1. $(T TXT_HL_OPT_1)"
+        echo " 2. $(T TXT_HL_OPT_2)"
+        echo " 3. $(T TXT_HL_OPT_3)"
+        echo " 4. $(T TXT_HL_OPT_4)"
+        echo " 5. $(T TXT_HL_OPT_5)"
+        echo " 6. $(T TXT_HL_OPT_6)"
+        echo " 7. $(T TXT_HL_OPT_7)"
+        echo " 8. $(T TXT_HL_OPT_8)"
+        echo " 0. $(T TXT_HL_OPT_0)"
+        echo "--------------------------------------------------"
+        printf "%s" "$(T TXT_HL_PICK)"
+        read -r sel
+
+        case "$sel" in
+            1)
+                mode="$(choose_mode_filter_interactive)"
+                [ "$mode" = "__invalid__" ] && { echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')"; continue; }
+                [ -n "$mode" ] && apply_mode_filter "$mode"
+                if type press_enter_to_continue >/dev/null 2>&1; then
+                    press_enter_to_continue
+                else
+                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                fi
+                clear
+                ;;
+
+            2)
+echo "$(T TXT_HL_BULK_HINT)"
+echo "$(T TXT_HL_BULK_HINT2)"
+added=0
+already=0
+invalid=0
+cancelled=0
+
+# Prompt only once so multi-line paste doesn't spam the screen.
+# Read until an empty line. "0" cancels.
+printf "%s" "$(T TXT_HL_PROMPT_ADD)"
+while :; do
+    IFS= read -r d || break
+
+    # Normalize input (CRLF terminals + trim)
+    d="$(printf '%s' "$d" | tr -d '
+' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+
+    # Cancel (0 / 00 / 000 ...) and return to menu immediately
+    if [ -n "$d" ]; then
+        case "$d" in
+            *[!0]*) : ;;   # not all zeros
+            *)
+                cancelled=1
+                echo "$(T TXT_HL_CANCELLED)"
+                break
+                ;;
+        esac
+    fi
+
+    [ -z "$d" ] && break
+
+    # Split current line by comma/semicolon/whitespace
+    for one in $(echo "$d" | tr ',;	' '   '); do
+        nd="$(normalize_domain "$one")"
+        # Reject entries without a dot (prevents accidentally adding "0", "00", etc.)
+        case "$nd" in
+            *.*) : ;;
+            *) nd="";;
+        esac
+        if [ -z "$nd" ]; then
+            invalid=$((invalid+1))
+            continue
+        fi
+        [ -f "$HOSTLIST_USER" ] || : > "$HOSTLIST_USER"
+        if grep -Fqx "$nd" "$HOSTLIST_USER" 2>/dev/null; then
+            already=$((already+1))
+            continue
+        fi
+        echo "$nd" >> "$HOSTLIST_USER"
+        echo "$(T TXT_HL_MSG_ADDED)$nd"
+        added=$((added+1))
+    done
+done
+
+if [ "$cancelled" -eq 1 ]; then
+    # Cancel should return to menu immediately (no extra prompt)
+    sleep 0.2
+    clear
+    continue
+fi
+
+echo "$(T X 'Ozet:' 'Summary:') $(T X 'Eklendi' 'Added')=$added, $(T X 'Zaten vardi' 'Already existed')=$already, $(T X 'Gecersiz' 'Invalid')=$invalid"
+if type press_enter_to_continue >/dev/null 2>&1; then
+    press_enter_to_continue
+else
+    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+fi
+clear
+
+    ;;
+            3)
+                read -r -p "$(T TXT_HL_PROMPT_DEL)" d
+                [ "$d" = "0" ] && continue
+                nd="$(normalize_domain "$d")"
+                [ -z "$nd" ] && { echo "$(T TXT_HL_INVALID_DOMAIN)"; continue; }
+                remove_line_exact "$HOSTLIST_USER" "$nd"
+                echo "$(T TXT_HL_MSG_REMOVED)$nd"
+                ;;
+
+            4)
+echo "$(T TXT_HL_BULK_HINT)"
+echo "$(T TXT_HL_BULK_HINT2)"
+added=0
+already=0
+invalid=0
+cancelled=0
+
+# Prompt only once so multi-line paste doesn't spam the screen.
+# Read until an empty line. "0" cancels.
+printf "%s" "$(T TXT_HL_PROMPT_ADD)"
+while :; do
+    IFS= read -r d || break
+
+    # Normalize input (CRLF terminals + trim)
+    d="$(printf '%s' "$d" | tr -d '
+' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+
+    # Cancel (0 / 00 / 000 ...) and return to menu immediately
+    if [ -n "$d" ]; then
+        case "$d" in
+            *[!0]*) : ;;   # not all zeros
+            *)
+                cancelled=1
+                echo "$(T TXT_HL_CANCELLED)"
+                break
+                ;;
+        esac
+    fi
+
+    [ -z "$d" ] && break
+
+    # Split current line by comma/semicolon/whitespace
+    for one in $(echo "$d" | tr ',;	' '   '); do
+        nd="$(normalize_domain "$one")"
+        # Reject entries without a dot (prevents accidentally adding "0", "00", etc.)
+        case "$nd" in
+            *.*) : ;;
+            *) nd="";;
+        esac
+        if [ -z "$nd" ]; then
+            invalid=$((invalid+1))
+            continue
+        fi
+        [ -f "$HOSTLIST_EXCLUDE_DOM" ] || : > "$HOSTLIST_EXCLUDE_DOM"
+        if grep -Fqx "$nd" "$HOSTLIST_EXCLUDE_DOM" 2>/dev/null; then
+            already=$((already+1))
+            continue
+        fi
+        echo "$nd" >> "$HOSTLIST_EXCLUDE_DOM"
+        echo "$(T TXT_HL_MSG_ADDED)$nd"
+        added=$((added+1))
+    done
+done
+
+if [ "$cancelled" -eq 1 ]; then
+    # Cancel should return to menu immediately (no extra prompt)
+    sleep 0.2
+    clear
+    continue
+fi
+
+echo "$(T X 'Ozet:' 'Summary:') $(T X 'Eklendi' 'Added')=$added, $(T X 'Zaten vardi' 'Already existed')=$already, $(T X 'Gecersiz' 'Invalid')=$invalid"
+if type press_enter_to_continue >/dev/null 2>&1; then
+    press_enter_to_continue
+else
+    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+fi
+clear
+
+    ;;
+            5)
+                read -r -p "$(T TXT_HL_PROMPT_DEL)" d
+                [ "$d" = "0" ] && continue
+                nd="$(normalize_domain "$d")"
+                [ -z "$nd" ] && { echo "$(T TXT_HL_INVALID_DOMAIN)"; continue; }
+                remove_line_exact "$HOSTLIST_EXCLUDE_DOM" "$nd"
+                echo "$(T TXT_HL_MSG_REMOVED)$nd"
+                ;;
+            6)
+                show_hostlist_tail "$HOSTLIST_USER"    "/opt/zapret/ipset/zapret-hosts-user.txt"
+                echo ""
+                show_hostlist_tail "$HOSTLIST_EXCLUDE_DOM" "/opt/zapret/ipset/zapret-hosts-user-exclude.txt"
+                echo ""
+                show_hostlist_tail "$HOSTLIST_EXCLUDE_IP"  "/opt/zapret/ipset/zapret-hosts-localnets.txt"
+                echo ""
+                show_hostlist_tail "$HOSTLIST_AUTO"    "/opt/zapret/ipset/zapret-hosts-auto.txt"
+                if type press_enter_to_continue >/dev/null 2>&1; then
+                    press_enter_to_continue
+                else
+                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                fi
+                clear
+                ;;
+            7)
+                echo "--------------------------------------------------"
+                printf '%b
+' "${CLR_BOLD}${CLR_RED}$(T TXT_HL_WARN_AUTOCLEAR_1)${CLR_RESET}"
+                printf '%b
+' "${CLR_BOLD}${CLR_RED}$(T TXT_HL_WARN_AUTOCLEAR_2)${CLR_RESET}"
+                echo "--------------------------------------------------"
+                printf "%s" "$(T confirm_autolist_q 'Onayliyor musunuz? (e=Evet, h=Hayir, 0=Geri): ' 'Confirm? (y=Yes, n=No, 0=Back): ')"
+                read -r ans
+                case "$ans" in
+                    0) ;;
+                    e|E|y|Y)
+                        : > "$HOSTLIST_AUTO"
+                        echo "$(T TXT_HL_CLEARED)"
+                        ;;
+                    *)
+                        echo "$(T cancelled 'Islem iptal edildi.' 'Cancelled.')"
+                        ;;
+                esac
+                if type press_enter_to_continue >/dev/null 2>&1; then
+                    press_enter_to_continue
+                else
+                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                fi
+                clear
+                ;;
+
+            8)
+                echo "--------------------------------------------------"
+                printf '%b
+' "${CLR_BOLD}${CLR_CYAN}$(T TXT_SCOPE_MODE): $(pretty_scope_mode)${CLR_RESET}"
+                echo "--------------------------------------------------"
+                echo ""
+                gdesc="$(T TXT_SCOPE_GLOBAL_DESC)"
+            sdesc="$(T TXT_SCOPE_SMART_DESC)"
+echo " 1) $(T TXT_SCOPE_GLOBAL) (${gdesc})"
+echo " 2) $(T TXT_SCOPE_SMART)  (${sdesc})"
+                echo " 0) $(T TXT_SCOPE_BACK)"
+                echo ""
+                printf "%s" "$(T TXT_HL_PICK)"
+
+                if [ -r /dev/tty ]; then
+                    read -r ssel </dev/tty
+                else
+                    read -r ssel
+                fi
+
+case "$ssel" in
+                    1) apply_scope_mode global ;;
+                    2) apply_scope_mode smart ;;
+                    0) : ;;
+                    *) echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')" ;;
+                esac
+
+                if type press_enter_to_continue >/dev/null 2>&1; then
+                    press_enter_to_continue
+                else
+                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                fi
+                clear
+                ;;
+
+            0)
+                clear
+                return 0
+                ;;
+            *)
+                echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')"
+                ;;
+        esac
+        echo ""
+    done
+}
+
 display_menu() {
-    echo "=================================================="
+    echo "====================================================="
     echo "$(T TXT_MAIN_TITLE)"
     echo "$(T TXT_OPTIMIZED)"
     _dpi_warn="$(T dpi_warn "$TXT_DPI_WARNING_TR" "$TXT_DPI_WARNING_EN")"
     echo "$_dpi_warn"
-    echo "$(T TXT_DEVELOPER)"
-    echo "$(T TXT_EDITOR)"
-    echo "$(T TXT_VERSION)"
-    echo "=================================================="
+    printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_DEVELOPER)${CLR_RESET}"
+    printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_EDITOR)${CLR_RESET}"
+    printf '%b\n' "${CLR_YELLOW}$(T TXT_VERSION)${CLR_RESET}"
+    echo "====================================================="
+	echo
     echo " $(T TXT_DESC1)"
     echo " $(T TXT_DESC2)"
     echo " $(T TXT_DESC3)"
@@ -1990,6 +2774,7 @@ display_menu() {
     echo "$(T TXT_MENU_9)"
     echo "$(T TXT_MENU_10)"
     echo "$(T TXT_MENU_11)"
+    echo "$(T TXT_MENU_12)"
     echo "$(T TXT_MENU_B)"
     echo "$(T TXT_MENU_L)  ($(lang_label))"
     echo "$(T TXT_MENU_0)"
@@ -2103,10 +2888,11 @@ main_menu_loop() {
                 apply_dpi_profile_now
             fi
             ;;
+        11) manage_hostlist_menu ;;
 B|b) run_blockcheck ;;
 L|l) toggle_lang ;; 
             0) echo "Cikis yapiliyor..."; break ;;
-            *) echo "Gecersiz secim! Lutfen 0 ile 10 arasinda bir sayi girin." ;;
+            *) echo "Gecersiz secim! Lutfen 0 ile 11 arasinda bir sayi girin." ;;
         esac
         echo ""
     done
