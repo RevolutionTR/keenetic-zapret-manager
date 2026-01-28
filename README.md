@@ -14,6 +14,25 @@ Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
 > Eski sürümlerde OPKG/Entware paketleri, iptables/ipset davranışı veya binary uyumluluğu farklı olabilir.
 
 
+⚠️ ÖNEMLİ: USB + Entware Zorunluluğu
+
+Bu betik USB bellek + Entware kurulu Keenetic cihazlar için tasarlanmıştır.
+
+USB olmadan (cihazın dahili hafızasına / geçici ortama kurulum) yapılması durumunda aşağıdaki sorunlar kaçınılmazdır:
+	•	🔄 Otomatik güncelleme (GitHub) çalışmayabilir
+	•	💾 Ayarlar reboot / elektrik kesintisi sonrası silinebilir
+	•	📋 Hostlist / Autohostlist / IPSET listeleri kalıcı olmaz
+	•	🧷 keenetic / keenetic-zapret CLI kısayolları kaybolabilir
+	•	📦 Yedekleme / geri yükleme güvenilir çalışmaz
+	•	⚠️ “Çalışıyor gibi görünüp” DPI sitelerine erişim kesilebilir
+
+Bu bir betik hatası değildir.
+Sebep, USB olmadan /opt dizininin kalıcı olmamasıdır.
+
+✅ Önerilen Kurulum
+	•	Keenetic’e USB bellek takılı
+	•	Entware USB’ye kurulu
+	•	Betik ve Zapret /opt altında çalışıyor olmalı
 **Keenetic router/modem’ler için Zapret yönetim ve otomasyon betiği**
 
 Bu proje, Zapret’in Keenetic cihazlarda **kolay kurulumu**, **DPI profili yönetimi**,  
