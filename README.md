@@ -14,7 +14,7 @@ Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
 > Eski sürümlerde OPKG/Entware paketleri, iptables/ipset davranışı veya binary uyumluluğu farklı olabilir.
 
 
-**Keenetic router’lar için Zapret yönetim ve otomasyon betiği**
+**Keenetic router/modem’ler için Zapret yönetim ve otomasyon betiği**
 
 Bu proje, Zapret’in Keenetic cihazlarda **kolay kurulumu**, **DPI profili yönetimi**,  
 **IPSET ile istemci seçimi**, **menü tabanlı kullanım** ve  
