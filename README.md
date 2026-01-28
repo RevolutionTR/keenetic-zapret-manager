@@ -1,8 +1,18 @@
 # keenetic-zapret-manager
 
+Bu betik USB bellek + Entware kurulu Keenetic cihazlar için tasarlanmıştır.
+
 📦 **Latest Release (recommended):**  
 https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
-
+<br>
+<br>
+<br>
+⚠️ **ÖNEMLİ UYARI:**  
+Bu betik **USB bellek (Entware /opt)** üzerinde çalışacak şekilde tasarlanmıştır.  
+USB olmadan kurulumda **güncelleme, yedekleme ve kalıcılık sorunları yaşanır.**
+<br>
+<br>
+<br>
 ## ✅ Test Edilen Keenetic OS Sürümleri
 
 Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
