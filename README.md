@@ -40,15 +40,22 @@ Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
 ## 🚀 Özellikler
 
 - Zapret otomatik kurulum / kaldırma
-- DPI profili seçimi (TT, Superonline, Mobil operatörler vb.)
+- DPI profili seçimi  
+  (Turk Telekom, Superonline, Superonline Fiber, KabloNet, Mobil operatörler)
 - DPI değişiminden sonra **otomatik Zapret restart**
 - IPSET ile:
-  - Tüm ağa uygula
-  - Sadece seçili IP’lere uygula
+  - Tüm ağa uygula (Global)
+  - Sadece seçili IP’lere uygula (Smart)
+- Hostlist / Autohostlist  
+  (manuel domain ekleme + otomatik DPI tespiti)
 - IPv6 desteği (isteğe bağlı)
 - Zapret sürüm bilgisi (GitHub)
 - Manager (betik) sürüm kontrolü (GitHub)
-- TR / EN dil desteği
+- Yedekleme / Geri yükleme  
+  (hostlist, autohostlist ve ipset .txt dosyaları)
+- CLI kısayolları  
+  (`keenetic`, `keenetic-zapret`)
+- TR / EN dil desteği (sözlük tabanlı)
 - Renkli, okunabilir ve kullanıcı dostu menü arayüzü
 
 ---
