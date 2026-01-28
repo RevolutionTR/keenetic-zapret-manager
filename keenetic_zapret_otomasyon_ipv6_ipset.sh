@@ -25,6 +25,43 @@
 
 # BETIK BILGILENDIRME
 # Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
+# -------------------------------------------------------------------
+# CLI KISAYOL (keenetic / keenetic-zapret)
+# -------------------------------------------------------------------
+ensure_cli_shortcut() {
+    # Script her seferinde tam path ile calistirilmasin diye
+    # /opt/bin altina kisa komutlar ekler (idempotent).
+
+    local CURRENT TARGET WRAP1 WRAP2
+
+    CURRENT="$(readlink -f "$0" 2>/dev/null)"
+    TARGET="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+
+    [ -f "$TARGET" ] || TARGET="$CURRENT"
+
+    WRAP1="/opt/bin/keenetic-zapret"
+    WRAP2="/opt/bin/keenetic"
+
+    # keenetic-zapret her zaman yarat / guncelle
+    cat > "$WRAP1" <<EOF
+#!/opt/bin/sh
+exec /opt/bin/sh "$TARGET" "\$@"
+EOF
+    chmod +x "$WRAP1" 2>/dev/null
+
+    # keenetic sadece yoksa olustur
+    if [ ! -e "$WRAP2" ]; then
+        ln -s "$WRAP1" "$WRAP2" 2>/dev/null || cp -a "$WRAP1" "$WRAP2"
+        chmod +x "$WRAP2" 2>/dev/null
+    fi
+
+    return 0
+}
+
+# Ilk calistirmada CLI kisayolunu garanti altina al
+ensure_cli_shortcut
+
+# -------------------------------------------------------------------
 
 # Zapret IPv6 destegi secimi (y/n). Varsayilan: n
 ZAPRET_IPV6="n"
@@ -40,7 +77,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.27"
+SCRIPT_VERSION="v26.1.28.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -124,23 +161,66 @@ TXT_MENU_5_EN=" 5. Restart Zapret"
 TXT_MENU_6_TR=" 6. Zapret Surum Bilgisi (Guncel/Kurulu - GitHub)"
 TXT_MENU_6_EN=" 6. Zapret Version Info (Latest/Installed - GitHub)"
 
-TXT_MENU_7_TR=" 7. Yeni Versiyon Sorgula (GitHub)"
-TXT_MENU_7_EN=" 7. Check Latest Version (GitHub)"
+TXT_MENU_7_TR=" 7. Zapret IPv6 Destegi (Sihirbaz)"
+TXT_MENU_7_EN=" 7. Zapret IPv6 support (Wizard)"
 
-TXT_MENU_8_TR=" 7. Zapret IPv6 Destegi (Sihirbaz)"
-TXT_MENU_8_EN=" 7. Zapret IPv6 Support (Wizard)"
+TXT_MENU_8_TR=" 8. IPSET (Statik IP kullanan cihazlarla calisir – DHCP desteklenmez!)"
+TXT_MENU_8_EN=" 8. IPSET (Works with static IP devices – DHCP is not supported!)"
 
-TXT_MENU_9_TR=" 8. IPSET (Yerel ağda sadece statik IP kullanan cihazlarla çalışır – DHCP desteklenmez!)"
-TXT_MENU_9_EN=" 8. IPSET (Works only with static IP addresses on the local network – DHCP is NOT supported!))"
+TXT_MENU_9_TR=" 9. DPI Profilini Degistir"
+TXT_MENU_9_EN=" 9. Change DPI profile"
 
-TXT_MENU_10_TR=" 9. DPI Profilini Degistir"
-TXT_MENU_10_EN=" 9. Change DPI Profile"
+TXT_MENU_10_TR="10. Betik Guncelleme Kontrolu (GitHub)"
+TXT_MENU_10_EN="10. Script update check (GitHub)"
 
-TXT_MENU_11_TR="10. Betik Guncelleme Kontrolu (GitHub)"
-TXT_MENU_11_EN="10. Script Update Check (GitHub)"
+TXT_MENU_11_TR="11. Hostlist / Autohostlist (Filtreleme)"
+TXT_MENU_11_EN="11. Hostlist / Autohostlist (Filtering)"
 
-TXT_MENU_12_TR="11. Hostlist / Autohostlist (Filtreleme)"
-TXT_MENU_12_EN="11. Hostlist / Autohostlist (Filtering)"
+TXT_MENU_12_TR="12. Zapret Yedekle / Geri Yukle"
+TXT_MENU_12_EN="12. Zapret Backup / Restore"
+
+TXT_BACKUP_MENU_TITLE_TR="Zapret Yedekleme / Geri Yukleme"
+TXT_BACKUP_MENU_TITLE_EN="Zapret Backup / Restore"
+
+TXT_BACKUP_SUB_BACKUP_TR="1. Yedekle"
+TXT_BACKUP_SUB_BACKUP_EN="1. Backup"
+
+TXT_BACKUP_SUB_RESTORE_TR="2. Geri Yukle"
+TXT_BACKUP_SUB_RESTORE_EN="2. Restore"
+
+TXT_BACKUP_SUB_SHOW_TR="3. Yedekleri Goster"
+TXT_BACKUP_SUB_SHOW_EN="3. Show Backups"
+
+TXT_BACKUP_SUB_BACK_TR="0. Geri"
+TXT_BACKUP_SUB_BACK_EN="0. Back"
+
+TXT_BACKUP_NO_SRC_TR="HATA: /opt/zapret/ipset/ altinda yedeklenecek .txt dosyasi bulunamadi."
+TXT_BACKUP_NO_SRC_EN="ERROR: No .txt files found under /opt/zapret/ipset/ to backup."
+
+TXT_BACKUP_DONE_TR="Yedekleme tamamlandi."
+TXT_BACKUP_DONE_EN="Backup completed."
+
+TXT_RESTORE_DONE_TR="Geri yukleme tamamlandi."
+TXT_RESTORE_DONE_EN="Restore completed."
+
+TXT_RESTORE_RESTARTING_TR="Zapret yeniden baslatiliyor..."
+TXT_RESTORE_RESTARTING_EN="Restarting Zapret..."
+
+TXT_RESTORE_RESTART_OK_TR="Zapret yeniden baslatildi."
+TXT_RESTORE_RESTART_OK_EN="Zapret restarted."
+
+TXT_RESTORE_RESTART_FAIL_TR="UYARI: Zapret yeniden baslatilamadi."
+TXT_RESTORE_RESTART_FAIL_EN="WARNING: Zapret could not be restarted."
+
+TXT_BACKUP_NO_BACKUP_TR="HATA: Yedek bulunamadi."
+TXT_BACKUP_NO_BACKUP_EN="ERROR: No backups found."
+
+TXT_SELECT_FILE_TR="Dosya secin"
+TXT_SELECT_FILE_EN="Select a file"
+
+TXT_SELECT_ACTION_TR="Seciminizi yapin"
+TXT_SELECT_ACTION_EN="Make your selection"
+
 
 
 # -------------------------------------------------------------------
@@ -307,8 +387,8 @@ TXT_MENU_0_EN=" 0. Exit"
 TXT_MENU_FOOT_TR="--------------------------------------------------------------------------------------------"
 TXT_MENU_FOOT_EN="--------------------------------------------------------------------------------------------"
 
-TXT_PROMPT_MAIN_TR="Seciminizi Yapin (0-11, L veya B): "
-TXT_PROMPT_MAIN_EN="Select an Option (0-11, L or B): "
+TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-12, L veya B): "
+TXT_PROMPT_MAIN_EN=" Select an Option (0-12, L or B): "
 
 TXT_LANG_NOW_TR="Dil: Turkce"
 TXT_LANG_NOW_EN="Language: English"
@@ -542,7 +622,7 @@ select_wan_if() {
     echo "--------------------------------------------------"
 printf " \033[1;33mZapret cikis arayuzu secimi\033[0m\n"
     echo " (Ornek: ppp0 = WAN, wg0/wg1 = WireGuard)"
-    echo " Su anki: $(get_wan_if)"
+    echo " Su Anki: $(get_wan_if)"
     echo " Onerilen: $rec"
     echo "--------------------------------------------------"
     printf "\033[1;32mArayuz adini yazin (Enter = %s)\033[0m: " "$rec"
@@ -652,7 +732,7 @@ get_dpi_profile() {
     local p="tt_default"
     [ -f "$DPI_PROFILE_FILE" ] && p="$(cat "$DPI_PROFILE_FILE" 2>/dev/null)"
     case "$p" in
-        tt_default|tt_fiber|tt_alt|sol|sol_alt|turkcell_mob|vodafone_mob) echo "$p" ;;
+        tt_default|tt_fiber|tt_alt|sol|sol_alt|sol_fiber|turkcell_mob|vodafone_mob) echo "$p" ;;
         *) echo "tt_default" ;;
     esac
 }
@@ -667,9 +747,10 @@ dpi_profile_name_tr() {
     case "$1" in
         tt_default) echo "Turk Telekom Fiber (TTL2 fake)";;
         tt_fiber)   echo "Turk Telekom Fiber (TTL4 fake)";;
-        tt_alt)     echo "Turk Telekom Alternatif (TTL3 fake)";;
+        tt_alt)     echo "KabloNet (TTL3 fake)";;
         sol)        echo "Superonline (fake + m5sig)";;
         sol_alt)    echo "Superonline Alternatif (TTL3 fake + m5sig)";;
+        sol_fiber) echo "Superonline Fiber (TTL5 fake + badsum)";;
         turkcell_mob) echo "Turkcell Mobil (TTL1 + AutoTTL3 fake)";;
         vodafone_mob) echo "Vodafone Mobil (multisplit split-pos=2)";;
         *) echo "$1";;
@@ -680,9 +761,10 @@ dpi_profile_name_en() {
     case "$1" in
         tt_default) echo "Turk Telekom Fiber (TTL2 fake)";;
         tt_fiber)   echo "Turk Telekom Fiber (TTL4 fake)";;
-        tt_alt)     echo "Turk Telekom Alternative (TTL3 fake)";;
+        tt_alt)     echo "KabloNet (TTL3 fake)";;
         sol)        echo "Superonline (fake + m5sig)";;
         sol_alt)    echo "Superonline Alternative (TTL3 fake + m5sig)";;
+        sol_fiber)  echo "Superonline Fiber (TTL5 fake + badsum)";;
         turkcell_mob) echo "Turkcell Mobile (TTL1 + AutoTTL3 fake)";;
         vodafone_mob) echo "Vodafone Mobile (multisplit split-pos=2)";;
         *) echo "$1";;
@@ -694,12 +776,12 @@ select_dpi_profile() {
     echo "--------------------------------------------------"
     echo "$(T dpi_title "DPI Profili Secimi" "DPI Profile Selection")"
     echo "--------------------------------------------------"
-    printf "\033[1;32m%s: %s\033[0m\n" "$(T dpi_current 'Su anki' 'Current')" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")"
+    printf "\033[1;32m%s: %s\033[0m\n" "$(T dpi_current 'Su Anki' 'Current')" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")"
     echo "--------------------------------------------------"
         # Menu satirlarinda:
     # - Varsayilan profil (tt_default) her zaman "Default/Varsayilan" olarak isaretlenir
     # - Kullanilan profil "ACTIVE/AKTIF" olarak isaretlenir
-    for _id in tt_default tt_fiber tt_alt sol sol_alt turkcell_mob vodafone_mob; do
+    for _id in tt_default tt_fiber tt_alt sol sol_alt sol_fiber turkcell_mob vodafone_mob; do
         _num=""
         case "$_id" in
             tt_default) _num="1" ;;
@@ -707,8 +789,9 @@ select_dpi_profile() {
             tt_alt)     _num="3" ;;
             sol)        _num="4" ;;
             sol_alt)    _num="5" ;;
-            turkcell_mob) _num="6" ;;
-            vodafone_mob) _num="7" ;;
+            sol_fiber)  _num="6" ;;
+            turkcell_mob) _num="7" ;;
+            vodafone_mob) _num="8" ;;
         esac
 
         _name_tr="$(dpi_profile_name_tr "$_id")"
@@ -733,15 +816,16 @@ select_dpi_profile() {
     done
     echo " 0. $(T back_main 'Ana Menuye Don' 'Back')"
     echo "--------------------------------------------------"
-    read -r -p "$(T dpi_prompt "Seciminizi yapin (0-7): " "Select an option (0-7): ")" sel
+    read -r -p "$(T dpi_prompt "Seciminizi yapin (0-8): " "Select an option (0-8): ")" sel
     case "$sel" in
         1) set_dpi_profile tt_default ;;
         2) set_dpi_profile tt_fiber ;;
         3) set_dpi_profile tt_alt ;;
         4) set_dpi_profile sol ;;
         5) set_dpi_profile sol_alt ;;
-        6) set_dpi_profile turkcell_mob ;;
-        7) set_dpi_profile vodafone_mob ;;
+        6) set_dpi_profile sol_fiber ;;
+        7) set_dpi_profile turkcell_mob ;;
+        8) set_dpi_profile vodafone_mob ;;
         0|*) return 1 ;;
     esac
 
@@ -952,6 +1036,7 @@ update_nfqws_parameters() {
         tt_alt)     DESYNC="fake"; TTL="3" ;;
         sol)        DESYNC="fake"; FOOLING="m5sig" ;;
         sol_alt)    DESYNC="fake"; TTL="3"; FOOLING="m5sig" ;;
+        sol_fiber)  DESYNC="fake"; TTL="5"; FOOLING="badsum" ;;
         turkcell_mob) DESYNC="fake"; TTL="1"; AUTOTTL="3" ;;
         vodafone_mob) DESYNC="multisplit"; SPLITPOS="2" ;;
         *) DESYNC="fake"; TTL="2"; profile="tt_default" ;;
@@ -2123,18 +2208,18 @@ check_manager_update() {
     _LBL_REPO="$(T lbl_repo 'Repo' 'Repository')"
 
     # Kurulu betik surumu (sari)
-    printf "%-22s: \033[1;33m%s\033[0m\n" "$_LBL_SCRIPT" "$SCRIPT_VERSION"
+    printf "%-26s: \033[1;33m%s\033[0m\n" "$_LBL_SCRIPT" "$SCRIPT_VERSION"
 
     if [ -z "$REMOTE_VER" ]; then
         # Bilgi alinamadi (kirmizi)
-        printf "%-22s: \033[1;31m%s\033[0m\n" "$_LBL_GH" "$(T github_noinfo 'Bilgi alinamadi' 'Unable to fetch info')"
+        printf "%-26s: \033[1;31m%s\033[0m\n" "$_LBL_GH" "$(T github_noinfo 'Bilgi alinamadi' 'Unable to fetch info')"
     else
         # GitHub surumu (yesil)
-        printf "%-22s: \033[1;32m%s\033[0m\n" "$_LBL_GH" "$REMOTE_VER"
+        printf "%-26s: \033[1;32m%s\033[0m\n" "$_LBL_GH" "$REMOTE_VER"
     fi
 
     # Repo (renksiz)
-    printf "%-22s: %s\n" "$_LBL_REPO" "$SCRIPT_REPO"
+    printf "%-26s: %s\n" "$_LBL_REPO" "$SCRIPT_REPO"
     echo "--------------------------------------------------"
 
     if [ -n "$REMOTE_VER" ]; then
@@ -2770,6 +2855,7 @@ display_menu() {
     echo "$(T TXT_MENU_4)"
     echo "$(T TXT_MENU_5)"
     echo "$(T TXT_MENU_6)"
+    echo "$(T TXT_MENU_7)"
     echo "$(T TXT_MENU_8)"
     echo "$(T TXT_MENU_9)"
     echo "$(T TXT_MENU_10)"
@@ -2866,6 +2952,146 @@ run_blockcheck() {
 }
 
 
+# --------------------------------------------------
+# Zapret backup/restore (.txt) - /opt/zapret/ipset -> /opt/zapret_backups
+# --------------------------------------------------
+backup_restore_menu() {
+    local BACKUP_BASE SRC_DIR CUR_DIR HIST_DIR TS
+    BACKUP_BASE="/opt/zapret_backups"
+    SRC_DIR="/opt/zapret/ipset"
+    CUR_DIR="${BACKUP_BASE}/current"
+    HIST_DIR="${BACKUP_BASE}/history"
+
+    mkdir -p "$CUR_DIR" "$HIST_DIR" 2>/dev/null
+
+    while true; do
+        clear
+        echo "=================================================="
+        echo "$(T TXT_BACKUP_MENU_TITLE)"
+        echo "=================================================="
+        echo "  $(T TXT_BACKUP_SUB_BACKUP)"
+        echo "  $(T TXT_BACKUP_SUB_RESTORE)"
+        echo "  $(T TXT_BACKUP_SUB_SHOW)"
+        echo "  $(T TXT_BACKUP_SUB_BACK)"
+        echo "--------------------------------------------------"
+        printf "%s: " "$(T TXT_SELECT_ACTION)"
+        read -r CH
+
+        case "$CH" in
+            1)
+                # Backup: copy all existing .txt files to current + history timestamp
+                if [ ! -d "$SRC_DIR" ] || ! ls "$SRC_DIR"/*.txt >/dev/null 2>&1; then
+                    echo "$(T TXT_BACKUP_NO_SRC)"
+                    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    continue
+                fi
+                TS="$(date +%Y%m%d_%H%M%S)"
+                mkdir -p "$HIST_DIR/$TS" 2>/dev/null
+                for f in "$SRC_DIR"/*.txt; do
+                    [ -f "$f" ] || continue
+                    cp -a "$f" "$CUR_DIR/$(basename "$f")" 2>/dev/null
+                    cp -a "$f" "$HIST_DIR/$TS/$(basename "$f")" 2>/dev/null
+                done
+                echo "$(T TXT_BACKUP_DONE)"
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                ;;
+            2)
+                # Restore: let user pick a file from current backups
+                if [ ! -d "$CUR_DIR" ] || ! ls "$CUR_DIR"/*.txt >/dev/null 2>&1; then
+                    echo "$(T TXT_BACKUP_NO_BACKUP)"
+                    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    continue
+                fi
+                restore_single_from_current "$CUR_DIR" "$SRC_DIR"
+                ;;
+            3)
+                clear
+                echo "=================================================="
+                echo "$(T TXT_BACKUP_MENU_TITLE)"
+                echo "=================================================="
+                echo "Backup base: $BACKUP_BASE"
+                echo
+                echo "[current]"
+                ls -la "$CUR_DIR" 2>/dev/null | sed -n '1,200p'
+                echo
+                echo "[history - last 5]"
+                ls -1 "$HIST_DIR" 2>/dev/null | tail -n 5
+                echo "--------------------------------------------------"
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                ;;
+            0)
+                return 0
+                ;;
+            *)
+                ;;
+        esac
+    done
+}
+
+restore_single_from_current() {
+    # $1: current backup dir, $2: src dir
+    local CUR_DIR SRC_DIR i f files sel
+    CUR_DIR="$1"
+    SRC_DIR="$2"
+    mkdir -p "$SRC_DIR" 2>/dev/null
+
+    # build file list
+    files=""
+    for f in "$CUR_DIR"/*.txt; do
+        [ -f "$f" ] || continue
+        files="${files}${f}
+"
+    done
+
+    if [ -z "$files" ]; then
+        echo "$(T TXT_BACKUP_NO_BACKUP)"
+        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        return 0
+    fi
+
+    while true; do
+        clear
+        echo "=================================================="
+        echo "$(T TXT_BACKUP_MENU_TITLE)"
+        echo "=================================================="
+        echo "$(T TXT_SELECT_FILE):"
+        echo "--------------------------------------------------"
+        i=1
+        for f in $files; do
+            [ -f "$f" ] || continue
+            echo " $i) $(basename "$f")"
+            i=$((i+1))
+        done
+        echo " 0) $(T TXT_BACKUP_SUB_BACK)"
+        echo "--------------------------------------------------"
+        printf "%s: " "$(T TXT_SELECT_ACTION)"
+        read -r sel
+        [ "$sel" = "0" ] && return 0
+
+        i=1
+        for f in $files; do
+            [ -f "$f" ] || continue
+            if [ "$sel" = "$i" ]; then
+                cp -a "$f" "$SRC_DIR/$(basename "$f")" 2>/dev/null
+                echo "$(T TXT_RESTORE_DONE)"
+                # Restore sonrasi zapret'i yeniden baslat (kurallar tekrar uygulansin)
+                if is_zapret_installed; then
+        echo "$(T TXT_RESTORE_RESTARTING)"
+        # Menu 5 ile ayni akisi kullan: stop/resume/start + WAN pin kontrolleri
+        if restart_zapret; then
+            echo "$(T TXT_RESTORE_RESTART_OK)"
+        else
+            echo "$(T TXT_RESTORE_RESTART_FAIL)"
+        fi
+    fi
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                return 0
+            fi
+            i=$((i+1))
+        done
+    done
+}
+
 main_menu_loop() {
     while true; do
     clear  # clear_on_start_main_loop
@@ -2889,6 +3115,7 @@ main_menu_loop() {
             fi
             ;;
         11) manage_hostlist_menu ;;
+            12) backup_restore_menu ;;
 B|b) run_blockcheck ;;
 L|l) toggle_lang ;; 
             0) echo "Cikis yapiliyor..."; break ;;
