@@ -39,24 +39,57 @@ Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
 
 ## 🚀 Özellikler
 
-- Zapret otomatik kurulum / kaldırma
-- DPI profili seçimi  
-  (Turk Telekom, Superonline, Superonline Fiber, KabloNet, Mobil operatörler)
-- DPI değişiminden sonra **otomatik Zapret restart**
-- IPSET ile:
-  - Tüm ağa uygula (Global)
-  - Sadece seçili IP’lere uygula (Smart)
-- Hostlist / Autohostlist  
-  (manuel domain ekleme + otomatik DPI tespiti)
-- IPv6 desteği (isteğe bağlı)
-- Zapret sürüm bilgisi (GitHub)
+### Zapret Kurulum ve Yönetimi
+- Zapret otomatik kurulum ve kaldırma
+- Tek menüden tam kurulum / temiz kaldırma
+- Zapret dosyalarının sistemden güvenli şekilde yönetilmesi
+
+### DPI Profil Yönetimi
+- Turk Telekom (Fiber / Alternatif)
+- Superonline
+- Superonline Fiber
+- KabloNet
+- Mobil operatörler (Turkcell / Vodafone)
+- Profil değişiminden sonra **otomatik Zapret restart**
+
+### IPSET Tabanlı Trafik Kontrolü
+- Tüm ağa Zapret uygulama (**Global mod**)
+- Sadece seçili IP’lere Zapret uygulama (**Smart mod**)
+- IPSET listesi ile istemci bazlı kontrol
+
+### Hostlist / Autohostlist Sistemi
+- DPI algılanan domain’lerin otomatik öğrenilmesi (Autohostlist)
+- Manuel domain ekleme / çıkarma (User hostlist)
+- Hariç tutulan domain listesi (Exclude)
+
+### IPv6 Desteği
+- IPv6 Zapret desteği (isteğe bağlı)
+- Menüden IPv6 açma / kapatma
+- Durum ekranında renkli IPv6 gösterimi
+
+### Yedekleme ve Geri Yükleme
+- IPSET altında oluşan `.txt` dosyalarını tek tek yedekleme
+- Seçili dosyaları geri yükleme
+- Geri yükleme sonrası **otomatik Zapret restart**
+
+### Sürüm ve Güncelleme Kontrolleri
+- Kurulu Zapret sürüm bilgisi
 - Manager (betik) sürüm kontrolü (GitHub)
-- Yedekleme / Geri yükleme  
-  (hostlist, autohostlist ve ipset .txt dosyaları)
-- CLI kısayolları  
-  (`keenetic`, `keenetic-zapret`)
-- TR / EN dil desteği (sözlük tabanlı)
-- Renkli, okunabilir ve kullanıcı dostu menü arayüzü
+- Güncel sürüm uyarıları
+
+### CLI Kısayollar
+- `keenetic`
+- `keenetic-zapret`
+- Script’i tam path yazmadan çalıştırabilme
+
+### Çok Dilli Arayüz
+- Türkçe / İngilizce (TR / EN) dil desteği
+- Sözlük tabanlı çeviri sistemi
+
+### Kullanıcı Dostu Arayüz
+- Renkli ve okunabilir menü yapısı
+- Net durum göstergeleri
+- Hatalı yapılandırmalara karşı korumalar
 
 ---
 
