@@ -1,7 +1,17 @@
 # keenetic-zapret-manager
 
+This script is designed for **Keenetic devices with USB storage + Entware installed**.
+
 📦 **Latest Release (recommended):**  
 https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
+
+---
+
+⚠️ **IMPORTANT WARNING**  
+This script is designed to run **on USB storage (Entware `/opt`)**.  
+If installed **without USB**, you may experience **update, backup, and persistence issues**.
+
+---
 
 ## ✅ Tested Keenetic OS Versions
 
@@ -10,47 +20,63 @@ This script has been tested on the following Keenetic OS versions:
 - **Keenetic OS 5.0.4**
 - **Keenetic OS 4.3.6.3**
 
-> Older Keenetic OS versions have not been tested.  
-> On older releases, OPKG/Entware packages, iptables/ipset behavior, or binary compatibility may differ.
-
----
-
-**Zapret management and automation script for Keenetic routers**
-
-This project is designed to provide **easy installation**, **DPI profile management**,  
-**IPSET-based client selection**, **menu-driven usage**, and  
-**GitHub-based version tracking** for Zapret on Keenetic devices.
-
-## Important Note About DNS
-
-Zapret is designed to bypass DPI (Deep Packet Inspection) based blocking.
-It does not handle DNS poisoning or DNS-level manipulation by ISPs.
-
-For this reason, when using Zapret:
-- DoH (DNS over HTTPS),
-- DoT (DNS over TLS),
-- or a trusted third-party DNS resolver
-
-is **strongly recommended**.
-
-If an ISP DNS server returns incorrect IP addresses for blocked domains,
-Zapret may be running correctly but the connection will still fail.
+> Older Keenetic OS versions have **not been tested**.  
+> On older versions, OPKG/Entware packages, iptables/ipset behavior, or binary compatibility may differ.
 
 ---
 
 ## 🚀 Features
 
-- Automatic Zapret installation / removal
-- DPI profile selection (TT, Superonline, mobile operators, etc.)
-- **Automatic Zapret restart** after DPI profile changes
-- IPSET support:
-  - Apply to the entire network
-  - Apply only to selected IP addresses
-- Optional IPv6 support
-- Zapret version check via GitHub
+### Zapret Management
+- Automatic Zapret **install / uninstall**
+- Full installation and clean removal from a single menu
+- Zapret files are safely managed within the system
+
+### DPI Profile Management
+- Turk Telekom (Fiber / Alternative)
+- Superonline / Superonline Fiber
+- KabloNet
+- Mobile operators (Turkcell / Vodafone)
+- **Automatic Zapret restart after profile change**
+
+### IPSET-Based Traffic Control
+- Apply Zapret to the **entire network** (Global mode)
+- Apply Zapret to **selected IPs only** (Smart mode)
+- Client-based control using IPSET lists
+
+### Hostlist / Autohostlist System
+- Automatic learning of DPI-detected domains (Autohostlist)
+- Manual domain add / remove
+- Excluded (bypass) domain list
+
+### IPv6 Support
+- Optional IPv6 Zapret support
+- Enable / disable IPv6 from menu
+- Colored IPv6 status display
+
+### Backup & Restore
+- Backup individual `.txt` files created under IPSET
+- Restore selected files only
+- **Automatic Zapret restart after restore**
+
+### Version & Update Checks
+- Installed Zapret version display
 - Manager (script) version check via GitHub
-- TR / EN language support
-- Colored, readable, and user-friendly menu interface
+- Update availability notifications
+
+### CLI Shortcuts
+- `keenetic`
+- `keenetic-zapret`
+- Run the script without typing the full path
+
+### Multilingual Interface
+- Turkish / English (TR / EN) language support
+- Dictionary-based translation system
+
+### User-Friendly Interface
+- Colorful and readable menu
+- Clear status indicators
+- Safeguards against misconfiguration
 
 ---
 
@@ -60,155 +86,3 @@ Zapret may be running correctly but the connection will still fail.
 
 From the Keenetic web interface:
 
-```
-Applications → Entware
-```
-
-After installation, verify via SSH:
-
-```sh
-opkg --version
-```
-
----
-
-### 2️⃣ Required OPKG packages
-
-The script automatically checks and installs missing packages.  
-If you want to install them manually:
-
-```sh
-opkg update
-opkg install curl wget ipset iptables
-```
-
----
-
-## 📦 Installation
-
-### 1️⃣ Download the script
-
-Download the following file from the GitHub repository or **Releases** section:
-
-```
-keenetic_zapret_otomasyon_ipv6_ipset.sh
-```
-
----
-
-### 2️⃣ Copy the script under `/opt`
-
-> ⚠️ The script **must be executed from under `/opt`**.
-
-```sh
-scp keenetic_zapret_otomasyon_ipv6_ipset.sh \
-root@192.168.1.1:/opt/lib/opkg/
-```
-
----
-
-### 3️⃣ Grant execute permission
-
-```sh
-chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
-```
-
----
-
-### 4️⃣ Run the script
-
-```sh
-/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
-```
-
----
-
-## 🧩 What Happens During First Installation?
-
-- OPKG packages are checked
-- Zapret is downloaded and adapted for Keenetic
-- Outgoing interface is requested (example: `ppp0`)
-- The default DPI profile is applied:  
-  **Turk Telekom Fiber (TTL2 fake)**
-- Zapret is started automatically
-
-> DPI profiles can be changed later via the menu.
-
----
-
-## 🎛️ DPI Profile Management
-
-- When a DPI profile is selected from the menu:
-  - The profile is applied
-  - **Zapret is automatically restarted**
-- No manual restart is required
-
-The active DPI profile is:
-- Displayed **in green**
-- Marked with **ACTIVE** in the menu
-
----
-
-## 🌐 IPSET (Client Selection)
-
-The active mode is automatically displayed at the top of the IPSET menu:
-
-- 🟢 **Mode: Entire network**  
-  → Zapret is applied to all LAN clients
-
-- 🟡 **Mode: Selected IPs**  
-  → Zapret is applied only to specified **static IP addresses**
-
-Local networks (RFC1918, loopback, CGNAT, etc.) are always bypassed internally via `nozapret`.
-
----
-
-## 🔄 Version Checking
-
-- Zapret version is queried from GitHub
-- Manager (script) version is compared against the GitHub Release tag
-
-### Version format
-
-```
-YY.MM.DD(.N)
-```
-
-Examples:
-- `v26.1.24`
-- `v26.1.24.2` → second release on the same day
-
----
-
-## 📜 License
-
-This project is licensed under **GNU GPLv3**.
-
-You are free to:
-- Use
-- Modify
-- Distribute
-
-As long as the project is shared under the **same license**.
-
----
-
-## ⚠️ Disclaimer
-
-This script affects:
-- Network traffic
-- DPI / iptables / ipset configurations
-
-Incorrect configuration may cause connectivity issues.  
-Usage is entirely **at the user’s own responsibility**.
-
----
-
-## 🤝 Contribution & Feedback
-
-- You can open issues
-- Submit feature requests
-- Pull Requests are welcome
-
-📌 GitHub Repository:  
-https://github.com/RevolutionTR/keenetic-zapret-manager
