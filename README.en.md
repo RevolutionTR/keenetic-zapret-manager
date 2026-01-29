@@ -1,17 +1,9 @@
 # keenetic-zapret-manager
 
-This script is designed for **Keenetic devices with USB storage + Entware installed**.
 
 📦 **Latest Release (recommended):**  
 https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
 
----
-
-⚠️ **IMPORTANT WARNING**  
-This script is designed to run **on USB storage (Entware `/opt`)**.  
-If installed **without USB**, you may experience **update, backup, and persistence issues**.
-
----
 
 ## ✅ Tested Keenetic OS Versions
 
