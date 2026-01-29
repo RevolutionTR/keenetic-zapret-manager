@@ -14,11 +14,6 @@ Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
 > Eski sürümlerde OPKG/Entware paketleri, iptables/ipset davranışı veya binary uyumluluğu farklı olabilir.
 
 
-
-⚠️ ÖNEMLİ: USB + Entware Zorunluluğu
-
-Bu betik USB bellek + Entware kurulu Keenetic cihazlar için tasarlanmıştır.
-
 USB olmadan (cihazın dahili hafızasına / geçici ortama kurulum) yapılması durumunda aşağıdaki sorunlar kaçınılmazdır:
 - Otomatik güncelleme (GitHub) çalışmayabilir
 - Ayarlar reboot / elektrik kesintisi sonrası silinebilir
