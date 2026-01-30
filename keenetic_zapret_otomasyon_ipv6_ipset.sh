@@ -77,7 +77,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.30.1"
+SCRIPT_VERSION="v26.1.30.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -496,8 +496,8 @@ TXT_HL_OPT_0_EN="Back"
 TXT_HL_MODE_TITLE_TR="Hostlist / Autohostlist (MODE_FILTER)"
 TXT_HL_MODE_TITLE_EN="Hostlist / Autohostlist (MODE_FILTER)"
 
-TXT_HL_MODE_NONE_DESC_TR="Filtre Yok (Mevcut Davranis)"
-TXT_HL_MODE_NONE_DESC_EN="No Filtering (Current Behavior)"
+TXT_HL_MODE_NONE_DESC_TR="Filtre Yok"
+TXT_HL_MODE_NONE_DESC_EN="No Filtering"
 
 TXT_HL_MODE_HOSTLIST_DESC_TR="Sadece Listedeki Domainler"
 TXT_HL_MODE_HOSTLIST_DESC_EN="Only Domains in List"
@@ -505,6 +505,8 @@ TXT_HL_MODE_HOSTLIST_DESC_EN="Only Domains in List"
 TXT_HL_MODE_AUTO_DESC_TR="Otomatik Ogren + Liste"
 TXT_HL_MODE_AUTO_DESC_EN="Auto-Learn + List"
 
+TXT_HL_ACTIVE_MARK_TR=" [36m(AKTIF)[0m"
+TXT_HL_ACTIVE_MARK_EN=" [36m(ACTIVE)[0m"
 TXT_HL_PICK_TR="Secim: "
 TXT_HL_PICK_EN="Choice: "
 
@@ -1034,6 +1036,8 @@ select_dpi_profile() {
     else
         printf "\033[1;32m%s: %s\033[0m\n" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")"
     fi
+							 
+																																	  
 
     print_line "-"
 
@@ -1081,8 +1085,8 @@ else
             _suf_tr="${_suf_tr} (Taban)"
             _suf_en="${_suf_en} (Base)"
         else
-            _suf_tr="${_suf_tr} (AKTIF)"
-            _suf_en="${_suf_en} (ACTIVE)"
+            _suf_tr="${_suf_tr} ${CLR_CYAN}(AKTIF)${CLR_RESET}"
+            _suf_en="${_suf_en} ${CLR_CYAN}(ACTIVE)${CLR_RESET}"
         fi
     fi
 fi
@@ -1121,6 +1125,7 @@ fi
         6) set_dpi_profile sol_fiber ;;
         7) set_dpi_profile turkcell_mob ;;
         8) set_dpi_profile vodafone_mob ;;
+	   
         0) return 1 ;;
         *) return 1 ;;
     esac
@@ -2757,10 +2762,15 @@ choose_mode_filter_interactive() {
         print_line "-"
         printf '%b\n' "$(T TXT_HL_CURRENT_MODE)$(color_mode_name "$cur")"
         echo ""
-        echo " 1. none     ($(T TXT_HL_MODE_NONE_DESC))"
-        echo " 2. hostlist ($(T TXT_HL_MODE_HOSTLIST_DESC))"
-        echo " 3. autohostlist ($(T TXT_HL_MODE_AUTO_DESC))"
-        echo " 0. $(T TXT_SCOPE_BACK)"
+        _a1=""; _a2=""; _a3=""
+[ "$cur" = "none" ] && _a1="$(T TXT_HL_ACTIVE_MARK)"
+[ "$cur" = "hostlist" ] && _a2="$(T TXT_HL_ACTIVE_MARK)"
+[ "$cur" = "autohostlist" ] && _a3="$(T TXT_HL_ACTIVE_MARK)"
+
+echo " 1. none     ($(T TXT_HL_MODE_NONE_DESC))${_a1}"
+echo " 2. hostlist ($(T TXT_HL_MODE_HOSTLIST_DESC))${_a2}"
+echo " 3. autohostlist ($(T TXT_HL_MODE_AUTO_DESC))${_a3}"
+echo " 0. $(T TXT_SCOPE_BACK)"
         echo ""
         printf "%s" "$(T TXT_HL_PICK)"
     } >&2
