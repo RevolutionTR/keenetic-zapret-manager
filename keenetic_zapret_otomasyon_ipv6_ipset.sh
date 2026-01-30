@@ -77,19 +77,21 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.28.1"
+SCRIPT_VERSION="v26.1.30"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
 # -------------------------------------------------------------------
 # Renkler (ANSI) - sadece terminal (TTY) ise etkin
 # -------------------------------------------------------------------
-if [ -t 1 ]; then
+# NO_COLOR=1 -> renk kapali
+if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && [ "${NO_COLOR:-0}" != "1" ]; then
     CLR_CYAN="$(printf '\033[36m')"
     CLR_YELLOW="$(printf '\033[33m')"
     CLR_GREEN="$(printf '\033[32m')"
     CLR_RED="$(printf '\033[31m')"
     CLR_BOLD="$(printf '\033[1m')"
+    CLR_DIM="$(printf '\033[2m')"
     CLR_RESET="$(printf '\033[0m')"
 else
     CLR_CYAN=""
@@ -97,8 +99,63 @@ else
     CLR_GREEN=""
     CLR_RED=""
     CLR_BOLD=""
+    CLR_DIM=""
     CLR_RESET=""
 fi
+
+
+
+# -------------------------------------------------------------------
+# UI: Dinamik cizgi (terminal genisligine gore)
+#  - UI_COLS=100 ile elle zorlanabilir
+#  - tput/stty yoksa 80 kolon varsayilir
+# -------------------------------------------------------------------
+get_term_cols() {
+    # Prefer UI_COLS override
+    if [ -n "${UI_COLS:-}" ]; then
+        printf '%s' "${UI_COLS}"
+        return 0
+    fi
+
+    # Prefer tput, fallback to stty, fallback to 80
+    c="$(tput cols 2>/dev/null)"
+    if [ -n "$c" ]; then
+        printf '%s' "$c"
+        return 0
+    fi
+
+    c="$(stty size 2>/dev/null | awk '{print $2}')"
+    if [ -n "$c" ]; then
+        printf '%s' "$c"
+        return 0
+    fi
+
+    printf '%s' "80"
+    return 0
+}
+
+print_line() {
+    # Usage: print_line "="  OR  print_line "-"
+    ch="${1:-=}"
+    cols="$(get_term_cols)"
+    [ -z "$cols" ] && cols=80
+    # minimum width
+    if [ "$cols" -lt 50 ] 2>/dev/null; then cols=50; fi
+    # print repeated character up to terminal width
+    printf "%*s\n" "$cols" "" | tr " " "$ch"
+}
+
+hc_word() {
+    # PASS/WARN/FAIL kelimesini renklendirir (renk kapaliysa sade basar)
+    case "$1" in
+        PASS) printf '%b' "${CLR_GREEN}PASS${CLR_RESET}" ;;
+        WARN) printf '%b' "${CLR_YELLOW}WARN${CLR_RESET}" ;;
+        INFO) printf '%b' "${CLR_CYAN}INFO${CLR_RESET}" ;;
+        FAIL) printf '%b' "${CLR_RED}FAIL${CLR_RESET}" ;;
+        *)    printf '%s' "$1" ;;
+    esac
+}
+
 
 color_mode_name() {
     # outputs colored mode name for menu display
@@ -113,14 +170,14 @@ color_mode_name() {
 
 
 # Sozluk: TXT_*_TR / TXT_*_EN
-TXT_MAIN_TITLE_TR=" Keenetic icin Zapret Yonetim Scripti"
-TXT_MAIN_TITLE_EN=" Zapret Management Script for Keenetic"
+TXT_MAIN_TITLE_TR=" [36mKeenetic icin Zapret Yonetim Scripti[0m"
+TXT_MAIN_TITLE_EN=" [36mZapret Management Script for Keenetic[0m"
 
-TXT_OPTIMIZED_TR=" Turk Telekom Icin Optimize Edilmistir !!!"
-TXT_OPTIMIZED_EN=" Optimized for Turk Telekom !!!"
+TXT_OPTIMIZED_TR=" Varsayilan ayarlar Turk Telekom uzerinde test edilerek optimize edilmistir"
+TXT_OPTIMIZED_EN=" Default settings are optimized based on testing on Turk Telekom"
 
-TXT_DPI_WARNING_TR=" Diger DPI Profillerinin Calismasi Garanti Edilemez"
-TXT_DPI_WARNING_EN=" Other DPI profiles are NOT guaranteed to work"
+TXT_DPI_WARNING_TR=" Not: DPI profillerinin basarimi ISS, hat tipi ve bolgeye gore degisebilir"
+TXT_DPI_WARNING_EN=" Note: DPI profile effectiveness may vary by ISP, line type, and region"
 
 TXT_DEVELOPER_TR=" Gelistirici : RevolutionTR"
 TXT_DEVELOPER_EN=" Developer  : RevolutionTR"
@@ -164,11 +221,41 @@ TXT_MENU_6_EN=" 6. Zapret Version Info (Latest/Installed - GitHub)"
 TXT_MENU_7_TR=" 7. Zapret IPv6 Destegi (Sihirbaz)"
 TXT_MENU_7_EN=" 7. Zapret IPv6 support (Wizard)"
 
-TXT_MENU_8_TR=" 8. IPSET (Statik IP kullanan cihazlarla calisir – DHCP desteklenmez!)"
-TXT_MENU_8_EN=" 8. IPSET (Works with static IP devices – DHCP is not supported!)"
+TXT_MENU_8_TR=" 8. Zapret Yedekle / Geri Yukle"
+TXT_MENU_8_EN=" 8. Zapret Backup / Restore"
 
 TXT_MENU_9_TR=" 9. DPI Profilini Degistir"
 TXT_MENU_9_EN=" 9. Change DPI profile"
+
+TXT_ACTIVE_DPI_TR=" Aktif DPI Profili"
+TXT_ACTIVE_DPI_EN=" Active DPI Profile"
+
+TXT_ACTIVE_DPI_AUTO_TR=" Blockcheck (Otomatik)"
+TXT_ACTIVE_DPI_AUTO_EN=" Blockcheck (Auto)"
+
+TXT_ACTIVE_DPI_DEFAULT_TR=" Varsayilan / Manuel"
+TXT_ACTIVE_DPI_DEFAULT_EN=" Default / Manual"
+
+TXT_ACTIVE_DPI_PARAMS_TR=" Parametreler"
+TXT_ACTIVE_DPI_PARAMS_EN=" Parameters"
+
+TXT_DPI_BASE_TR=" (Taban)"
+TXT_DPI_BASE_EN=" (Base)"
+
+TXT_DPI_BASE_PROFILE_TR="Taban Profil"
+TXT_DPI_BASE_PROFILE_EN="Base Profile"
+
+TXT_DPI_AUTO_DISABLE_PROMPT_TR="Blockcheck (Otomatik) aktif. Manuel profile gecmek otomatik modu kapatir. Devam edilsin mi? (e/h) [e]: "
+TXT_DPI_AUTO_DISABLE_PROMPT_EN="Blockcheck (Auto) is active. Switching to a manual profile will disable auto mode. Continue? (y/n) [y]: "
+
+TXT_BLOCKCHECK_APPLY_TR=" Bu ayarlari DPI profili olarak uygulamak ister misiniz? (e/h) [e]: "
+TXT_BLOCKCHECK_APPLY_EN=" Apply these settings as DPI profile? (y/n) [y]: "
+
+TXT_BLOCKCHECK_APPLIED_TR=" Ayarlar uygulandi ve Zapret yeniden baslatildi."
+TXT_BLOCKCHECK_APPLIED_EN=" Settings applied and Zapret restarted."
+
+TXT_BLOCKCHECK_NO_STRAT_TR=" UYARI: Uygulanabilir nfqws stratejisi bulunamadi."
+TXT_BLOCKCHECK_NO_STRAT_EN=" WARNING: No applicable nfqws strategy found."
 
 TXT_MENU_10_TR="10. Betik Guncelleme Kontrolu (GitHub)"
 TXT_MENU_10_EN="10. Script update check (GitHub)"
@@ -176,8 +263,105 @@ TXT_MENU_10_EN="10. Script update check (GitHub)"
 TXT_MENU_11_TR="11. Hostlist / Autohostlist (Filtreleme)"
 TXT_MENU_11_EN="11. Hostlist / Autohostlist (Filtering)"
 
-TXT_MENU_12_TR="12. Zapret Yedekle / Geri Yukle"
-TXT_MENU_12_EN="12. Zapret Backup / Restore"
+TXT_MENU_12_TR="12. IPSET (Statik IP kullanan cihazlarla calisir – DHCP desteklenmez!)"
+TXT_MENU_12_EN="12. IPSET (Works with static IP devices – DHCP is not supported!)"
+
+TXT_MENU_13_TR="13. Betik: Yedekten Geri Don (Rollback)"
+TXT_MENU_13_EN="13. Script: Roll Back from Backup"
+
+TXT_MENU_14_TR="14. Saglik Kontrolu (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
+TXT_MENU_14_EN="14. Health Check (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
+
+# Health check menu
+TXT_HEALTH_TITLE_TR="Saglik Kontrolu"
+TXT_HEALTH_TITLE_EN="Health Check"
+
+TXT_HEALTH_OVERALL_TR="Genel Durum"
+TXT_HEALTH_OVERALL_EN="Overall Status"
+
+TXT_HEALTH_DNS_LOCAL_TR="DNS (Yerel resolver 127.0.0.1)"
+TXT_HEALTH_DNS_LOCAL_EN="DNS (Local resolver 127.0.0.1)"
+
+TXT_HEALTH_DNS_PUBLIC_TR="DNS (8.8.8.8)"
+TXT_HEALTH_DNS_PUBLIC_EN="DNS (8.8.8.8)"
+
+TXT_HEALTH_TIME_TR="Saat / NTP"
+TXT_HEALTH_TIME_EN="Time / NTP"
+
+TXT_HEALTH_GITHUB_TR="GitHub erisimi (api.github.com)"
+TXT_HEALTH_GITHUB_EN="GitHub access (api.github.com)"
+
+TXT_HEALTH_OPKG_TR="OPKG durumu"
+TXT_HEALTH_OPKG_EN="OPKG status"
+
+TXT_HEALTH_DISK_TR="Disk doluluk (/opt)"
+TXT_HEALTH_DISK_EN="Disk usage (/opt)"
+
+TXT_HEALTH_ZAPRET_TR="Zapret servis durumu"
+TXT_HEALTH_ZAPRET_EN="Zapret service status"
+
+TXT_HEALTH_DNS_MATCH_TR="DNS tutarliligi"
+TXT_HEALTH_DNS_MATCH_EN="DNS consistency"
+
+TXT_HEALTH_ROUTE_TR="Varsayilan rota (default gateway)"
+TXT_HEALTH_ROUTE_EN="Default route (gateway)"
+
+TXT_HEALTH_PING_TR="Internet erisimi (ping 1.1.1.1)"
+TXT_HEALTH_PING_EN="Internet connect (ping 1.1.1.1)"
+
+TXT_HEALTH_RAM_TR="RAM durumu (MemAvailable)"
+TXT_HEALTH_RAM_EN="RAM status (MemAvailable)"
+
+TXT_HEALTH_LOAD_TR="Sistem yuk (load avg)"
+TXT_HEALTH_LOAD_EN="System load (load avg)"
+
+TXT_ROLLBACK_TITLE_TR="Betik: Yedekten Geri Don (Rollback)"
+TXT_ROLLBACK_TITLE_EN="Script: Roll Back from Backup"
+
+TXT_BACK_TR="Geri"
+TXT_BACK_EN="Back"
+
+TXT_ROLLBACK_NO_BACKUP_TR="Yedek bulunamadi: /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*"
+TXT_ROLLBACK_NO_BACKUP_EN="No backups found: /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*"
+
+TXT_ROLLBACK_SELECT_TR="Geri donmek istediginiz yedegi secin:"
+TXT_ROLLBACK_SELECT_EN="Select the backup you want to restore:"
+
+TXT_ROLLBACK_RESTORED_TR="Geri yukleme tamamlandi. Lutfen betigi yeniden calistirin."
+TXT_ROLLBACK_RESTORED_EN="Rollback completed. Please re-run the script."
+
+TXT_ROLLBACK_CANCELLED_TR="Islem iptal edildi."
+TXT_ROLLBACK_CANCELLED_EN="Cancelled."
+
+TXT_ROLLBACK_GH_LIST_TR="GitHub'dan surum sec (Son 10)"
+TXT_ROLLBACK_GH_LIST_EN="Pick version from GitHub (last 10)"
+
+TXT_ROLLBACK_GH_TAG_TR="Sürüm etiketi yaz (Orn: v26.1.24.3)"
+TXT_ROLLBACK_GH_TAG_EN="Enter a release tag (e.g. v26.1.24.3)"
+
+TXT_ROLLBACK_GH_LOADING_TR="GitHub surum listesi aliniyor..."
+TXT_ROLLBACK_GH_LOADING_EN="Fetching GitHub release list..."
+
+TXT_ROLLBACK_LOCAL_MENU_TR="Yerel Depolama (Yedekler)"
+TXT_ROLLBACK_LOCAL_MENU_EN="Local Storage (Backups)"
+
+TXT_ROLLBACK_MAIN_PICK_TR="Secim: "
+TXT_ROLLBACK_MAIN_PICK_EN="Choice: "
+
+TXT_ROLLBACK_GH_NONE_TR="GitHub'dan uygun release bulunamadi."
+TXT_ROLLBACK_GH_NONE_EN="No suitable releases found on GitHub."
+
+TXT_ROLLBACK_GH_SELECT_TR="Kurmak istediginiz surumu secin"
+TXT_ROLLBACK_GH_SELECT_EN="Select the version to install"
+
+TXT_ROLLBACK_GH_TAGPROMPT_TR="Surum etiketini girin (orn: v26.1.24.3):"
+TXT_ROLLBACK_GH_TAGPROMPT_EN="Enter release tag (e.g. v26.1.24.3):"
+
+TXT_ROLLBACK_GH_DOWNLOADING_TR="Secilen surum indiriliyor..."
+TXT_ROLLBACK_GH_DOWNLOADING_EN="Downloading selected version..."
+
+TXT_ROLLBACK_GH_DONE_TR="Kurulum tamamlandi. Lutfen betigi yeniden calistirin."
+TXT_ROLLBACK_GH_DONE_EN="Install completed. Please re-run the script."
 
 TXT_BACKUP_MENU_TITLE_TR="Zapret Yedekleme / Geri Yukleme"
 TXT_BACKUP_MENU_TITLE_EN="Zapret Backup / Restore"
@@ -193,6 +377,9 @@ TXT_BACKUP_SUB_SHOW_EN="3. Show Backups"
 
 TXT_BACKUP_SUB_BACK_TR="0. Geri"
 TXT_BACKUP_SUB_BACK_EN="0. Back"
+
+TXT_BACKUP_SUB_BACK_LIST_TR="0. Geri"
+TXT_BACKUP_SUB_BACK_LIST_EN="0. Back"
 
 TXT_BACKUP_NO_SRC_TR="HATA: /opt/zapret/ipset/ altinda yedeklenecek .txt dosyasi bulunamadi."
 TXT_BACKUP_NO_SRC_EN="ERROR: No .txt files found under /opt/zapret/ipset/ to backup."
@@ -374,8 +561,26 @@ TXT_HL_MSG_REMOVED_EN="Removed: "
 TXT_HL_WARN_EMPTY_STRICT_TR="UYARI: User hostlist bos. Bu durumda zapret, exclude haric tum hostlari isleyebilir. Devam etmek icin en az bir domain ekleyin veya exclude kullanin."
 TXT_HL_WARN_EMPTY_STRICT_EN="WARNING: User hostlist is empty. In this case, zapret may process all hosts except exclude. Add at least one domain or use exclude before enabling."
 
-TXT_MENU_B_TR=" B. Blockcheck (DPI Test Raporu)"
-TXT_MENU_B_EN=" B. Blockcheck (DPI Test Report)"
+TXT_MENU_B_TR=" B. Blockcheck Test (Otomatik DPI)"
+TXT_MENU_B_EN=" B. Blockcheck Test (Auto DPI)"
+
+TXT_BLOCKCHECK_TEST_TITLE_TR="Blockcheck Test (Otomatik DPI)"
+TXT_BLOCKCHECK_TEST_TITLE_EN="Blockcheck Test (Auto DPI)"
+
+TXT_BLOCKCHECK_FULL_TR="Tam Test"
+TXT_BLOCKCHECK_FULL_EN="Full Test"
+
+TXT_BLOCKCHECK_SUMMARY_TR="Ozet (Sadece SUMMARY (Otomatik DPI Icin Kullanilir)"
+TXT_BLOCKCHECK_SUMMARY_EN="Summary (Save SUMMARY (Used for Auto DPI)"
+
+TXT_BLOCKCHECK_SUMMARY_SAVED_TR="Ozet rapor kaydedildi:"
+TXT_BLOCKCHECK_SUMMARY_SAVED_EN="Summary saved:"
+
+TXT_BLOCKCHECK_SUMMARY_NOT_FOUND_TR="UYARI: SUMMARY bolumu bulunamadi."
+TXT_BLOCKCHECK_SUMMARY_NOT_FOUND_EN="WARNING: SUMMARY section not found."
+
+TXT_PROMPT_SELECTION_TR=" Secim: "
+TXT_PROMPT_SELECTION_EN=" Selection: "
 
 
 TXT_MENU_L_TR=" L. Dil Degistir (TR/EN)"
@@ -387,8 +592,8 @@ TXT_MENU_0_EN=" 0. Exit"
 TXT_MENU_FOOT_TR="--------------------------------------------------------------------------------------------"
 TXT_MENU_FOOT_EN="--------------------------------------------------------------------------------------------"
 
-TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-12, L veya B): "
-TXT_PROMPT_MAIN_EN=" Select an Option (0-12, L or B): "
+TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-14, L veya B): "
+TXT_PROMPT_MAIN_EN=" Select an Option (0-14, L or B): "
 
 TXT_LANG_NOW_TR="Dil: Turkce"
 TXT_LANG_NOW_EN="Language: English"
@@ -619,12 +824,12 @@ select_wan_if() {
     # Kurulumda (ve gerekirse sonradan) WAN arayuzunu belirle.
     local rec="$(detect_recommended_wan_if)"
     [ -z "$rec" ] && rec="ppp0"
-    echo "--------------------------------------------------"
+    print_line "-"
 printf " \033[1;33mZapret cikis arayuzu secimi\033[0m\n"
     echo " (Ornek: ppp0 = WAN, wg0/wg1 = WireGuard)"
     echo " Su Anki: $(get_wan_if)"
     echo " Onerilen: $rec"
-    echo "--------------------------------------------------"
+    print_line "-"
     printf "\033[1;32mArayuz adini yazin (Enter = %s)\033[0m: " "$rec"
     read -r ans
     [ -z "$ans" ] && ans="$rec"
@@ -727,6 +932,33 @@ patch_zapret_real_to_run_post_hook() {
 
 # --- DPI PROFIL SECIMI (NFQWS_OPT) ---
 DPI_PROFILE_FILE="/opt/zapret/dpi_profile"
+DPI_PROFILE_ORIGIN_FILE="/opt/zapret/dpi_profile_origin"
+DPI_PROFILE_PARAMS_FILE="/opt/zapret/dpi_profile_params"
+BLOCKCHECK_AUTO_PARAMS_FILE="/opt/zapret/blockcheck_auto_params"
+
+get_dpi_origin() {
+    local o="manual"
+    [ -f "$DPI_PROFILE_ORIGIN_FILE" ] && o="$(cat "$DPI_PROFILE_ORIGIN_FILE" 2>/dev/null)"
+    case "$o" in
+        auto|manual) echo "$o" ;;
+        *) echo "manual" ;;
+    esac
+}
+
+set_dpi_origin() {
+    mkdir -p "$(dirname "$DPI_PROFILE_ORIGIN_FILE")" 2>/dev/null
+    echo "$1" > "$DPI_PROFILE_ORIGIN_FILE" 2>/dev/null
+}
+
+set_dpi_params() {
+    mkdir -p "$(dirname "$DPI_PROFILE_PARAMS_FILE")" 2>/dev/null
+    printf "%s" "$1" > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
+}
+
+get_dpi_params() {
+    [ -f "$DPI_PROFILE_PARAMS_FILE" ] && cat "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
+}
+
 
 get_dpi_profile() {
     local p="tt_default"
@@ -771,13 +1003,42 @@ dpi_profile_name_en() {
     esac
 }
 
+show_active_dpi_info() {
+    local origin="$(get_dpi_origin)"
+    local origin_label=""
+    if [ "$origin" = "auto" ]; then
+        origin_label="$(T TXT_ACTIVE_DPI_AUTO)"
+    else
+        origin_label="$(T TXT_ACTIVE_DPI_DEFAULT)"
+    fi
+
+    printf "%s : %s\n" "$(T TXT_ACTIVE_DPI)" "$origin_label"
+    if [ -s "$DPI_PROFILE_PARAMS_FILE" ]; then
+        printf "%s : %s\n" "$(T TXT_ACTIVE_DPI_PARAMS)" "$(cat "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null)"
+    fi
+}
+
 select_dpi_profile() {
     local cur="$(get_dpi_profile)"
-    echo "--------------------------------------------------"
+    local origin="$(get_dpi_origin)"
+    print_line "-"
     echo "$(T dpi_title "DPI Profili Secimi" "DPI Profile Selection")"
-    echo "--------------------------------------------------"
-    printf "\033[1;32m%s: %s\033[0m\n" "$(T dpi_current 'Su Anki' 'Current')" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")"
-    echo "--------------------------------------------------"
+    print_line "-"
+    local _cur_label_tr="Su Anki"
+    local _cur_label_en="Current"
+
+    if [ "$origin" = "auto" ]; then
+        # Auto: show current as Blockcheck, and show base profile separately
+        printf "\033[1;32m%s: %s\033[0m\n" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T TXT_ACTIVE_DPI_AUTO)"
+        printf "%s: %s\n" "$(T TXT_DPI_BASE_PROFILE)" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")"
+    else
+        printf "\033[1;32m%s: %s\033[0m\n" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")"
+    fi
+
+    print_line "-"
+
+show_active_dpi_info
+    print_line "-"
         # Menu satirlarinda:
     # - Varsayilan profil (tt_default) her zaman "Default/Varsayilan" olarak isaretlenir
     # - Kullanilan profil "ACTIVE/AKTIF" olarak isaretlenir
@@ -805,18 +1066,52 @@ select_dpi_profile() {
             _suf_tr=" (Varsayilan)"
             _suf_en=" (Default)"
         fi
-
-        # aktif isareti
-        if [ "$cur" = "$_id" ]; then
+# aktif/taban isareti
+if [ "$origin" = "auto" ]; then
+    # Blockcheck otomatik modunda "AKTIF" etiketi listeye yazilmaz.
+    # Bunun yerine mevcut (taban) profil "TABAN/BASE" olarak gosterilir.
+    if [ "$cur" = "$_id" ]; then
+        _suf_tr="${_suf_tr} (Taban)"
+        _suf_en="${_suf_en} (Base)"
+    fi
+else
+    # Manuel mod: secili profil "ACTIVE/AKTIF" olarak isaretlenir
+    if [ "$cur" = "$_id" ]; then
+        if [ "$origin" = "auto" ]; then
+            _suf_tr="${_suf_tr} (Taban)"
+            _suf_en="${_suf_en} (Base)"
+        else
             _suf_tr="${_suf_tr} (AKTIF)"
             _suf_en="${_suf_en} (ACTIVE)"
         fi
+    fi
+fi
 
         echo " ${_num}. $(T dpi_prof_${_id} "${_name_tr}${_suf_tr}" "${_name_en}${_suf_en}")"
     done
     echo " 0. $(T back_main 'Ana Menuye Don' 'Back')"
-    echo "--------------------------------------------------"
+    print_line "-"
     read -r -p "$(T dpi_prompt "Seciminizi yapin (0-8): " "Select an option (0-8): ")" sel
+    # sanitize selection (avoid "0 applies 1" edge cases)
+    sel="$(echo "$sel" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    if [ -z "$sel" ] || [ "$sel" = "0" ]; then
+        return 1
+    fi
+
+
+    # If auto profile is active, switching to a numbered profile disables auto (by user's choice)
+    if [ "$origin" = "auto" ] && echo "$sel" | grep -Eq '^[1-8]$'; then
+        local _ans
+        read -r -p "$(T TXT_DPI_AUTO_DISABLE_PROMPT)" _ans
+        local _def_yes="y"
+        [ "$LANG" = "tr" ] && _def_yes="e"
+        _ans="${_ans:-$_def_yes}"
+        case "$_ans" in
+            e|E|y|Y) : ;;
+            *) return 1 ;;
+        esac
+    fi
+
     case "$sel" in
         1) set_dpi_profile tt_default ;;
         2) set_dpi_profile tt_fiber ;;
@@ -826,13 +1121,18 @@ select_dpi_profile() {
         6) set_dpi_profile sol_fiber ;;
         7) set_dpi_profile turkcell_mob ;;
         8) set_dpi_profile vodafone_mob ;;
-        0|*) return 1 ;;
+        0) return 1 ;;
+        *) return 1 ;;
     esac
+
+    set_dpi_origin "manual"
+    : > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
+    rm -f "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null
 
     # DPI profiline gore NFQWS parametrelerini guncelle
     update_nfqws_parameters >/dev/null 2>&1
 
-    echo "--------------------------------------------------"
+    print_line "-"
     echo "$(T dpi_restart_msg 'DPI profili uygulaniyor, Zapret yeniden baslatiliyor...' 'Applying DPI profile, restarting Zapret...')"
     /opt/etc/init.d/S90-zapret restart >/dev/null 2>&1
     _rc=$?
@@ -1411,7 +1711,7 @@ check_remote_update() {
     if [ -z "$REMOTE_VER" ]; then
         echo "$(T github_fail "$TXT_GITHUB_FAIL_TR" "$TXT_GITHUB_FAIL_EN")"
     else
-        echo "--------------------------------------------------"
+        print_line "-"
         _LBL_LATEST="$(T lbl_latest 'Guncel' 'Latest')"
         _LBL_INSTALLED="$(T lbl_installed 'Kurulu' 'Installed')"
         printf "%-12s: [1;32m%s[0m
@@ -1420,7 +1720,7 @@ check_remote_update() {
             LOCAL_VER=$(cat /opt/zapret/version)
             printf "%-12s: [1;33m%s[0m
 " "$_LBL_INSTALLED" "$LOCAL_VER"
-            echo "--------------------------------------------------"
+            print_line "-"
             if [ "$REMOTE_VER" = "$LOCAL_VER" ]; then
                 echo "$(T uptodate "$TXT_UPTODATE_TR" "$TXT_UPTODATE_EN")"
             else
@@ -1682,9 +1982,9 @@ manage_ipset_clients() {
     fi
 
     while true; do
-        echo "--------------------------------------------------"
+        print_line "-"
         echo "$(T TXT_IPSET_TITLE)"
-        echo "--------------------------------------------------"
+        print_line "-"
         MODE="$(cat "$IPSET_CLIENT_MODE_FILE" 2>/dev/null)"
         [ -z "$MODE" ] && MODE="all"
 
@@ -1702,11 +2002,11 @@ manage_ipset_clients() {
             echo "$(T TXT_IPSET_4)"
             echo "$(T TXT_IPSET_5)"
             echo "$(T TXT_IPSET_0)"
-            echo "--------------------------------------------------"
+            print_line "-"
             printf "$(T TXT_PROMPT_IPSET)"
         else
             echo "$(T TXT_IPSET_0)"
-            echo "--------------------------------------------------"
+            print_line "-"
             printf "$(T TXT_PROMPT_IPSET_BASIC)"
         fi
         read -r ipset_choice
@@ -1936,9 +2236,9 @@ cleanup_files_after_uninstall() {
 
 # Zapret kurulu olmasa bile (kaldirmadan sonra) NFQUEUE/IPSET kalintilarini temizler
 cleanup_only_leftovers() {
-    echo "--------------------------------------------------"
+    print_line "-"
     echo " Kalinti Temizligi (Zapret olmasa da calisir)"
-    echo "--------------------------------------------------"
+    print_line "-"
     echo "Bu islem, NFQUEUE (qnum 200) iptables kurallarini ve zapret'e ait ipset/netfilter kalintilarini temizler."
     read -r -p "Devam edilsin mi? (e/h): " _c
     echo "$_c" | grep -qi '^e' || { echo "Iptal edildi."; return 0; }
@@ -2202,7 +2502,7 @@ check_manager_update() {
     # Yerel (kurulu) betik surumu + GitHub tag_name cek
     REMOTE_VER=$(curl -s "$MANAGER_API_URL" | grep "tag_name" | cut -d '"' -f4)
 
-    echo "--------------------------------------------------"
+    print_line "-"
     _LBL_SCRIPT="$(T lbl_script_ver 'Kurulu Betik Surumu' 'Installed Script Version')"
     _LBL_GH="$(T lbl_gh_ver 'GitHub Guncel Surum' 'GitHub Latest Version')"
     _LBL_REPO="$(T lbl_repo 'Repo' 'Repository')"
@@ -2220,7 +2520,7 @@ check_manager_update() {
 
     # Repo (renksiz)
     printf "%-26s: %s\n" "$_LBL_REPO" "$SCRIPT_REPO"
-    echo "--------------------------------------------------"
+    print_line "-"
 
     if [ -n "$REMOTE_VER" ]; then
         if [ "${SCRIPT_VERSION#v}" = "${REMOTE_VER#v}" ]; then
@@ -2430,9 +2730,9 @@ show_hostlist_tail() {
     # $1 file $2 title
     f="$1"; t="$2"
     c="$(hostlist_stats "$f")"
-    echo "--------------------------------------------------"
+    print_line "-"
     echo "$t (count: $c)"
-    echo "--------------------------------------------------"
+    print_line "-"
     if [ "$c" -eq 0 ]; then
         echo "(empty)"
     else
@@ -2452,15 +2752,15 @@ choose_mode_filter_interactive() {
     # If we print the menu to STDOUT, the caller will capture it and the UI will look "frozen".
     # Therefore, ALL menu/UI output goes to STDERR. Only the final selected mode is echoed to STDOUT.
     {
-        echo "--------------------------------------------------"
+        print_line "-"
         echo "$(T TXT_HL_MODE_TITLE)"
-        echo "--------------------------------------------------"
+        print_line "-"
         printf '%b\n' "$(T TXT_HL_CURRENT_MODE)$(color_mode_name "$cur")"
         echo ""
-        echo " 1) none     ($(T TXT_HL_MODE_NONE_DESC))"
-        echo " 2) hostlist ($(T TXT_HL_MODE_HOSTLIST_DESC))"
-        echo " 3) autohostlist ($(T TXT_HL_MODE_AUTO_DESC))"
-        echo " 0) $(T TXT_SCOPE_BACK)"
+        echo " 1. none     ($(T TXT_HL_MODE_NONE_DESC))"
+        echo " 2. hostlist ($(T TXT_HL_MODE_HOSTLIST_DESC))"
+        echo " 3. autohostlist ($(T TXT_HL_MODE_AUTO_DESC))"
+        echo " 0. $(T TXT_SCOPE_BACK)"
         echo ""
         printf "%s" "$(T TXT_HL_PICK)"
     } >&2
@@ -2553,12 +2853,12 @@ manage_hostlist_menu() {
         ucnt="$(hostlist_stats "$HOSTLIST_USER")"
         ecnt="$(hostlist_stats "$HOSTLIST_EXCLUDE_DOM")"
         acnt="$(hostlist_stats "$HOSTLIST_AUTO")"
-        echo "====================================================="
+        print_line "=" 
         echo "$(T TXT_HL_TITLE)"
-        echo "====================================================="
+        print_line "=" 
         printf '%b\n' "$(T TXT_HL_CURRENT_MODE)$(color_mode_name "$cur")"
         echo "$(T TXT_HL_COUNTS)${ucnt}/${ecnt}/${acnt}"
-        echo "--------------------------------------------------"
+        print_line "-"
         echo " 1. $(T TXT_HL_OPT_1)"
         echo " 2. $(T TXT_HL_OPT_2)"
         echo " 3. $(T TXT_HL_OPT_3)"
@@ -2568,7 +2868,7 @@ manage_hostlist_menu() {
         echo " 7. $(T TXT_HL_OPT_7)"
         echo " 8. $(T TXT_HL_OPT_8)"
         echo " 0. $(T TXT_HL_OPT_0)"
-        echo "--------------------------------------------------"
+        print_line "-"
         printf "%s" "$(T TXT_HL_PICK)"
         read -r sel
 
@@ -2760,12 +3060,12 @@ clear
                 clear
                 ;;
             7)
-                echo "--------------------------------------------------"
+                print_line "-"
                 printf '%b
 ' "${CLR_BOLD}${CLR_RED}$(T TXT_HL_WARN_AUTOCLEAR_1)${CLR_RESET}"
                 printf '%b
 ' "${CLR_BOLD}${CLR_RED}$(T TXT_HL_WARN_AUTOCLEAR_2)${CLR_RESET}"
-                echo "--------------------------------------------------"
+                print_line "-"
                 printf "%s" "$(T confirm_autolist_q 'Onayliyor musunuz? (e=Evet, h=Hayir, 0=Geri): ' 'Confirm? (y=Yes, n=No, 0=Back): ')"
                 read -r ans
                 case "$ans" in
@@ -2787,16 +3087,16 @@ clear
                 ;;
 
             8)
-                echo "--------------------------------------------------"
+                print_line "-"
                 printf '%b
 ' "${CLR_BOLD}${CLR_CYAN}$(T TXT_SCOPE_MODE): $(pretty_scope_mode)${CLR_RESET}"
-                echo "--------------------------------------------------"
+                print_line "-"
                 echo ""
                 gdesc="$(T TXT_SCOPE_GLOBAL_DESC)"
             sdesc="$(T TXT_SCOPE_SMART_DESC)"
-echo " 1) $(T TXT_SCOPE_GLOBAL) (${gdesc})"
-echo " 2) $(T TXT_SCOPE_SMART)  (${sdesc})"
-                echo " 0) $(T TXT_SCOPE_BACK)"
+echo " 1. $(T TXT_SCOPE_GLOBAL) (${gdesc})"
+echo " 2. $(T TXT_SCOPE_SMART)  (${sdesc})"
+                echo " 0. $(T TXT_SCOPE_BACK)"
                 echo ""
                 printf "%s" "$(T TXT_HL_PICK)"
 
@@ -2833,8 +3133,295 @@ case "$ssel" in
     done
 }
 
+# --- Betik: Yedekten Geri Don (Rollback) ---
+
+github_fetch_release_kv_last10() {
+    # outputs lines: tag|url  (tag list; not release assets)
+    local API
+    API="https://api.github.com/repos/RevolutionTR/keenetic-zapret-manager/tags?per_page=10"
+    {
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsSL -H "User-Agent: keenetic-zapret-manager" "$API"
+        elif command -v wget >/dev/null 2>&1; then
+            wget -qO- "$API"
+        else
+            return 1
+        fi
+    } | tr '\r\n' ' ' | sed 's/\"name\":/\n\"name\":/g' | awk -F'\"' '
+        $0 ~ /"name":/ {
+            tag=$4
+            if (tag != "") {
+                print tag "|" "https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/" tag "/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+            }
+        }
+    '
+}
+
+github_fetch_release_url_by_tag() {
+    # $1 = tag => prints raw url (may 404 if tag does not exist)
+    local TAG
+    TAG="$1"
+    [ -n "$TAG" ] || return 1
+    echo "https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/$TAG/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+}
+
+github_install_script_from_url() {
+    # $1=tag (for backup name), $2=url
+    local TAG URL TARGET TS BAK TMP
+    TAG="$1"
+    URL="$2"
+    TARGET="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    [ -f "$TARGET" ] || TARGET="$(readlink -f "$0" 2>/dev/null)"
+    [ -n "$URL" ] || return 1
+
+    TS="$(date +%Y%m%d_%H%M%S 2>/dev/null)"
+    [ -z "$TS" ] && TS="$(date +%Y%m%d%H%M%S 2>/dev/null)"
+    BAK="${TARGET}.bak_${TAG}_${TS}"
+    TMP="/tmp/keenetic_zapret_manager_dl.$$"
+
+    echo "$(T TXT_ROLLBACK_GH_DOWNLOADING)"
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$URL" -o "$TMP" || { rm -f "$TMP"; return 1; }
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$TMP" "$URL" || { rm -f "$TMP"; return 1; }
+    else
+        return 1
+    fi
+
+    head -n 1 "$TMP" 2>/dev/null | grep -q "^#!" || { rm -f "$TMP"; return 1; }
+
+    if [ -f "$TARGET" ]; then
+        cp -f "$TARGET" "$BAK" 2>/dev/null
+        chmod +x "$BAK" 2>/dev/null
+    fi
+
+    cp -f "$TMP" "$TARGET" 2>/dev/null && chmod +x "$TARGET" 2>/dev/null
+    rm -f "$TMP" 2>/dev/null
+
+    echo "$(T TXT_ROLLBACK_GH_DONE)"
+    press_enter_to_continue
+    return 0
+}
+
+github_install_from_releases_last10() {
+    local LIST TMP i sel line tag url
+    echo "$(T TXT_ROLLBACK_GH_LOADING)"
+    LIST="$(github_fetch_release_kv_last10 2>/dev/null)"
+    if [ -z "$LIST" ]; then
+        echo "$(T TXT_ROLLBACK_GH_NONE)"
+        press_enter_to_continue
+        return 0
+    fi
+
+    TMP="/tmp/keenetic_zapret_releases.$$"
+    printf "%s\n" "$LIST" > "$TMP" 2>/dev/null
+
+    print_line "-"
+    i=1
+    while IFS= read -r line; do
+        tag="${line%%|*}"
+        echo " $i. $tag"
+        i=$((i+1))
+    done < "$TMP"
+
+    echo " 0. $(T TXT_BACK)"
+    print_line "-"
+    printf "%s: " "$(T TXT_ROLLBACK_GH_SELECT)"
+    read sel
+
+    if [ "$sel" = "0" ] || [ -z "$sel" ]; then
+        rm -f "$TMP" 2>/dev/null
+        echo "$(T TXT_ROLLBACK_CANCELLED)"
+        press_enter_to_continue
+        return 0
+    fi
+
+    case "$sel" in
+        *[!0-9]*)
+            rm -f "$TMP" 2>/dev/null
+            echo "$(T TXT_INVALID_CHOICE)"
+            press_enter_to_continue
+            return 0
+            ;;
+    esac
+
+    i=1
+    while IFS= read -r line; do
+        if [ "$i" = "$sel" ]; then
+            tag="${line%%|*}"
+            url="${line#*|}"
+            rm -f "$TMP" 2>/dev/null
+            github_install_script_from_url "$tag" "$url"
+            if [ $? -ne 0 ]; then
+                echo "$(T TXT_GITHUB_FAIL)"
+                press_enter_to_continue
+                return 0
+            fi
+            return 0
+        fi
+        i=$((i+1))
+    done < "$TMP"
+
+    rm -f "$TMP" 2>/dev/null
+    echo "$(T TXT_INVALID_CHOICE)"
+    press_enter_to_continue
+    return 0
+}
+
+github_install_from_tag_prompt() {
+    local TAG URL
+    printf "%s " "$(T TXT_ROLLBACK_GH_TAGPROMPT)"
+    read TAG
+    if [ "$TAG" = "0" ]; then
+        echo "$(T TXT_ROLLBACK_CANCELLED)"
+        press_enter_to_continue
+        return 0
+    fi
+    if [ -z "$TAG" ]; then
+        echo "$(T TXT_ROLLBACK_CANCELLED)"
+        press_enter_to_continue
+        return 0
+    fi
+
+    URL="$(github_fetch_release_url_by_tag "$TAG" 2>/dev/null)"
+    if [ -z "$URL" ]; then
+        echo "$(T TXT_ROLLBACK_GH_NONE)"
+        press_enter_to_continue
+        return 0
+    fi
+
+    github_install_script_from_url "$TAG" "$URL"
+    if [ $? -ne 0 ]; then
+        echo "$(T TXT_GITHUB_FAIL)"
+        press_enter_to_continue
+        return 0
+    fi
+    return 0
+}
+
+
+
+rollback_local_storage_menu() {
+    local TARGET BACKUP_FILES sel i file found
+    TARGET="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    [ -f "$TARGET" ] || TARGET="$(readlink -f "$0" 2>/dev/null)"
+
+    while :; do
+        clear
+        BACKUP_FILES="$(ls -1t /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_* 2>/dev/null | grep -E '\.sh$' )"
+
+        print_line "=" 
+        echo "$(T TXT_ROLLBACK_LOCAL_MENU)"
+        print_line "=" 
+
+        if [ -z "$BACKUP_FILES" ]; then
+            echo "$(T TXT_ROLLBACK_NO_BACKUP)"
+            echo " 0. $(T TXT_BACK)"
+            print_line "-"
+            printf "%s" "$(T TXT_ROLLBACK_MAIN_PICK)"
+            read sel
+echo "$(T TXT_ROLLBACK_CANCELLED)"
+            press_enter_to_continue
+            return 0
+        fi
+
+        i=1
+        for file in $BACKUP_FILES; do
+            echo " $i. $(basename "$file")"
+            i=$((i+1))
+        done
+
+        echo " 0. $(T TXT_BACK)"
+        print_line "-"
+        printf "%s " "$(T TXT_ROLLBACK_SELECT)"
+        read sel
+
+        case "$sel" in
+            0|"")
+                echo "$(T TXT_ROLLBACK_CANCELLED)"
+                press_enter_to_continue
+                return 0
+                ;;
+        esac
+
+        case "$sel" in
+            *[!0-9]*)
+                echo "$(T TXT_INVALID_CHOICE)"
+                press_enter_to_continue
+                continue
+                ;;
+        esac
+
+        found=0
+        i=1
+        for file in $BACKUP_FILES; do
+            if [ "$i" = "$sel" ]; then
+                found=1
+                cp -f "$file" "$TARGET" 2>/dev/null && chmod +x "$TARGET" 2>/dev/null
+                if [ $? -eq 0 ]; then
+                    echo "$(T TXT_ROLLBACK_RESTORED)"
+                else
+                    echo "$(T TXT_ERROR)"
+                fi
+                press_enter_to_continue
+                break
+            fi
+            i=$((i+1))
+        done
+
+        if [ "$found" -eq 0 ]; then
+            echo "$(T TXT_INVALID_CHOICE)"
+            press_enter_to_continue
+        fi
+    done
+}
+
+script_rollback_menu() {
+    local sel
+
+    while :; do
+        clear
+        print_line "=" 
+        echo "$(T TXT_ROLLBACK_TITLE)"
+        print_line "=" 
+        echo " 1. $(T TXT_ROLLBACK_LOCAL_MENU)"
+        echo " 2. $(T TXT_ROLLBACK_GH_LIST)"
+        echo " 3. $(T TXT_ROLLBACK_GH_TAG)"
+        echo " 0. $(T TXT_BACK)"
+        print_line "-"
+        printf "%s" "$(T TXT_ROLLBACK_MAIN_PICK)"
+        read sel
+
+        case "$sel" in
+            0|"")
+                echo "$(T TXT_ROLLBACK_CANCELLED)"
+                press_enter_to_continue
+                return 0
+                ;;
+            1)
+                rollback_local_storage_menu
+                continue
+                ;;
+            2|G|g)
+                github_install_from_releases_last10
+                continue
+                ;;
+            3|T|t)
+                github_install_from_tag_prompt
+                continue
+                ;;
+            *)
+                echo "$(T TXT_INVALID_CHOICE)"
+                press_enter_to_continue
+                ;;
+        esac
+    done
+}
+
+
 display_menu() {
-    echo "====================================================="
+    print_line "=" 
     echo "$(T TXT_MAIN_TITLE)"
     echo "$(T TXT_OPTIMIZED)"
     _dpi_warn="$(T dpi_warn "$TXT_DPI_WARNING_TR" "$TXT_DPI_WARNING_EN")"
@@ -2842,13 +3429,13 @@ display_menu() {
     printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_DEVELOPER)${CLR_RESET}"
     printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_EDITOR)${CLR_RESET}"
     printf '%b\n' "${CLR_YELLOW}$(T TXT_VERSION)${CLR_RESET}"
-    echo "====================================================="
+    print_line "=" 
 	echo
     echo " $(T TXT_DESC1)"
     echo " $(T TXT_DESC2)"
     echo " $(T TXT_DESC3)"
     echo
-    echo "$(T TXT_MENU_HEADER)"
+    print_line "-"
     echo "$(T TXT_MENU_1)"
     echo "$(T TXT_MENU_2)"
     echo "$(T TXT_MENU_3)"
@@ -2861,24 +3448,233 @@ display_menu() {
     echo "$(T TXT_MENU_10)"
     echo "$(T TXT_MENU_11)"
     echo "$(T TXT_MENU_12)"
+    echo "$(T TXT_MENU_13)"
+    echo "$(T TXT_MENU_14)"
     echo "$(T TXT_MENU_B)"
     echo "$(T TXT_MENU_L)  ($(lang_label))"
     echo "$(T TXT_MENU_0)"
-    echo "$(T TXT_MENU_FOOT)"
+    print_line "-"
     echo
     printf "$(T TXT_PROMPT_MAIN)"
 
 }
 
+
+# --- SAGLIK KONTROLU (HEALTH CHECK) ---
+run_health_check() {
+    pass_n=0
+    info_n=0
+    warn_n=0
+    fail_n=0
+    total_n=0
+
+    HC_TMP="/tmp/healthcheck.$$"
+    : >"$HC_TMP" 2>/dev/null || {
+        HC_TMP="/opt/tmp/healthcheck.$$"
+        mkdir -p /opt/tmp 2>/dev/null
+        : >"$HC_TMP" 2>/dev/null || HC_TMP=""
+    }
+
+    add_line() {
+        # $1=label, $2=msg (already colored), $3=status PASS|WARN|FAIL
+        label="$1"
+        msg="$2"
+        st="$3"
+        total_n=$((total_n+1))
+        case "$st" in
+            PASS) pass_n=$((pass_n+1)) ;;
+            INFO) info_n=$((info_n+1)) ;;
+            WARN) warn_n=$((warn_n+1)) ;;
+            FAIL) fail_n=$((fail_n+1)) ;;
+        esac
+        if [ -n "$HC_TMP" ]; then
+            printf "%-35s : %b\n" "$label" "$msg" >>"$HC_TMP"
+        else
+            # Fallback: print directly (no summary at top in this rare case)
+            printf "%-35s : %b\n" "$label" "$msg"
+        fi
+    }
+
+    # ---- Checks (append to temp) ----
+
+    # DNS (local resolver)
+    if nslookup github.com 127.0.0.1 >/dev/null 2>&1; then
+        add_line "$(T TXT_HEALTH_DNS_LOCAL)" "$(hc_word PASS)" "PASS"
+    else
+        add_line "$(T TXT_HEALTH_DNS_LOCAL)" "$(hc_word FAIL)" "FAIL"
+    fi
+
+    # DNS (public)
+    if nslookup github.com 8.8.8.8 >/dev/null 2>&1; then
+        add_line "$(T TXT_HEALTH_DNS_PUBLIC)" "$(hc_word PASS)" "PASS"
+    else
+        add_line "$(T TXT_HEALTH_DNS_PUBLIC)" "$(hc_word FAIL)" "FAIL"
+    fi
+
+    # DNS consistency (compare first A/Address line for github.com between local and 8.8.8.8)
+    dns_local_ip="$(nslookup github.com 127.0.0.1 2>/dev/null | awk '/^Address [0-9]+:/{print $3; exit}')"
+    dns_pub_ip="$(nslookup github.com 8.8.8.8 2>/dev/null | awk '/^Address [0-9]+:/{print $3; exit}')"
+    if [ -n "$dns_local_ip" ] && [ -n "$dns_pub_ip" ]; then
+        if [ "$dns_local_ip" = "$dns_pub_ip" ]; then
+            add_line "$(T TXT_HEALTH_DNS_MATCH)" "$(hc_word PASS)  (${dns_local_ip})" "PASS"
+        else
+            add_line "$(T TXT_HEALTH_DNS_MATCH)" "$(hc_word INFO)  (ISS farkli IP donduruyor olabilir)" "INFO"
+        fi
+    else
+        add_line "$(T TXT_HEALTH_DNS_MATCH)" "$(hc_word INFO)  (ISS farkli IP donduruyor olabilir)" "INFO"
+    fi
+
+    # Default route
+    if ip route 2>/dev/null | grep -q '^default '; then
+        add_line "$(T TXT_HEALTH_ROUTE)" "$(hc_word PASS)" "PASS"
+    else
+        # Some systems lack 'ip'; try route
+        if route -n 2>/dev/null | awk '$1=="0.0.0.0"{found=1} END{exit !found}'; then
+            add_line "$(T TXT_HEALTH_ROUTE)" "$(hc_word PASS)" "PASS"
+        else
+            add_line "$(T TXT_HEALTH_ROUTE)" "$(hc_word WARN)" "WARN"
+        fi
+    fi
+
+    # Internet ping
+    if ping -c 1 -W 2 1.1.1.1 >/dev/null 2>&1; then
+        add_line "$(T TXT_HEALTH_PING)" "$(hc_word PASS)" "PASS"
+    else
+        add_line "$(T TXT_HEALTH_PING)" "$(hc_word WARN)" "WARN"
+    fi
+
+    # RAM (MemAvailable)
+    mem_av_kb="$(awk '/MemAvailable:/{print $2; exit}' /proc/meminfo 2>/dev/null)"
+    if [ -n "$mem_av_kb" ]; then
+        mem_av_mb="$(awk -v k="$mem_av_kb" 'BEGIN{printf "%d", (k/1024)}' 2>/dev/null)"
+        [ -z "$mem_av_mb" ] && mem_av_mb="N/A"
+        add_line "$(T TXT_HEALTH_RAM)" "$(hc_word PASS)  (~${mem_av_mb}MB)" "PASS"
+    else
+        add_line "$(T TXT_HEALTH_RAM)" "$(hc_word WARN)  (N/A)" "WARN"
+    fi
+
+    # Load avg
+    load_avg="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
+    [ -z "$load_avg" ] && load_avg="N/A"
+    add_line "$(T TXT_HEALTH_LOAD)" "$(hc_word PASS)  (${load_avg})" "PASS"
+
+    # Time / NTP (human-readable)
+    now_epoch="$(date +%s 2>/dev/null)"
+    now_human="$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+    if [ -n "$now_epoch" ] && [ "$now_epoch" -gt 1609459200 ] 2>/dev/null; then
+        add_line "$(T TXT_HEALTH_TIME)" "$(hc_word PASS)  (${now_human})" "PASS"
+    else
+        add_line "$(T TXT_HEALTH_TIME)" "$(hc_word WARN)  (${now_human})" "WARN"
+    fi
+
+    # GitHub access
+    code="$(curl -I -m 8 -s -o /dev/null -w "%{http_code}" https://api.github.com/ 2>/dev/null)"
+    case "$code" in
+        2*|3*) add_line "$(T TXT_HEALTH_GITHUB)" "$(hc_word PASS)  (HTTP ${code})" "PASS" ;;
+        403|429) add_line "$(T TXT_HEALTH_GITHUB)" "$(hc_word WARN)  (HTTP ${code})" "WARN" ;;
+        *) [ -z "$code" ] && code="N/A"
+           add_line "$(T TXT_HEALTH_GITHUB)" "$(hc_word FAIL)  (HTTP ${code})" "FAIL" ;;
+    esac
+
+    # opkg status
+    if command -v opkg >/dev/null 2>&1; then
+        if opkg --version >/dev/null 2>&1; then
+            add_line "$(T TXT_HEALTH_OPKG)" "$(hc_word PASS)" "PASS"
+        else
+            add_line "$(T TXT_HEALTH_OPKG)" "$(hc_word WARN)  (opkg)" "WARN"
+        fi
+    else
+        add_line "$(T TXT_HEALTH_OPKG)" "$(hc_word FAIL)  (opkg yok)" "FAIL"
+    fi
+
+    # Disk usage (/opt)
+    df_line="$(df -P /opt 2>/dev/null | awk 'NR==2{print $2" "$3" "$4}')"
+    if [ -n "$df_line" ]; then
+        size_k="$(printf "%s" "$df_line" | awk '{print $1}')"
+        used_k="$(printf "%s" "$df_line" | awk '{print $2}')"
+        avail_k="$(printf "%s" "$df_line" | awk '{print $3}')"
+        avail_mb="$(printf "%s" "$avail_k" | awk '{printf "%d", ($1/1024)}' 2>/dev/null)"
+        [ -z "$avail_mb" ] && avail_mb="N/A"
+        pct_dec="$(awk -v u="$used_k" -v s="$size_k" 'BEGIN{ if (s>0) printf "%.2f", (u/s)*100; }' 2>/dev/null)"
+        if [ -n "$pct_dec" ]; then
+            # PASS <90, WARN 90-95, FAIL >=95
+            if awk -v p="$pct_dec" 'BEGIN{exit !(p<90)}'; then
+                add_line "$(T TXT_HEALTH_DISK)" "$(hc_word PASS)  (${pct_dec}%, free ~${avail_mb}MB)" "PASS"
+            elif awk -v p="$pct_dec" 'BEGIN{exit !((p>=90)&&(p<95))}'; then
+                add_line "$(T TXT_HEALTH_DISK)" "$(hc_word WARN)  (${pct_dec}%, free ~${avail_mb}MB)" "WARN"
+            else
+                add_line "$(T TXT_HEALTH_DISK)" "$(hc_word FAIL)  (${pct_dec}%, free ~${avail_mb}MB)" "FAIL"
+            fi
+        else
+            add_line "$(T TXT_HEALTH_DISK)" "$(hc_word WARN)  (N/A)" "WARN"
+        fi
+    else
+        add_line "$(T TXT_HEALTH_DISK)" "$(hc_word WARN)  (df N/A)" "WARN"
+    fi
+
+    # Zapret service status
+    if is_zapret_installed; then
+        if is_zapret_running; then
+            add_line "$(T TXT_HEALTH_ZAPRET)" "$(hc_word PASS)" "PASS"
+        else
+            add_line "$(T TXT_HEALTH_ZAPRET)" "$(hc_word WARN)  (kurulu ama calismiyor)" "WARN"
+        fi
+    else
+        add_line "$(T TXT_HEALTH_ZAPRET)" "$(hc_word FAIL)  (kurulu degil)" "FAIL"
+    fi
+
+    # ---- Print (summary at top) ----
+    if [ "$fail_n" -gt 0 ] 2>/dev/null; then
+        overall_st="FAIL"
+    elif [ "$warn_n" -gt 0 ] 2>/dev/null; then
+        overall_st="WARN"
+    else
+        overall_st="PASS"
+    fi
+
+    ok_n=$((pass_n+info_n))
+
+    overall_msg="$(hc_word "$overall_st")  (${ok_n}/${total_n} OK"
+    if [ "$warn_n" -gt 0 ] 2>/dev/null; then
+        overall_msg="${overall_msg}, ${warn_n} WARN"
+    fi
+    if [ "$fail_n" -gt 0 ] 2>/dev/null; then
+        overall_msg="${overall_msg}, ${fail_n} FAIL"
+    fi
+    overall_msg="${overall_msg})"
+
+    clear
+    print_line "=" 
+    echo "$(T TXT_HEALTH_TITLE)"
+    print_line "=" 
+    printf "%-35s : %b\n" "$(T TXT_HEALTH_OVERALL)" "$overall_msg"
+    print_line "-"
+    if [ -n "$HC_TMP" ] && [ -f "$HC_TMP" ]; then
+        cat "$HC_TMP"
+        rm -f "$HC_TMP" 2>/dev/null
+    fi
+    print_line "-"
+
+    if type press_enter_to_continue >/dev/null 2>&1; then
+        press_enter_to_continue
+    else
+        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+    fi
+    clear
+}
+
+
+
+
 # --- BLOCKCHECK (DPI TEST) ---
 run_blockcheck() {
     local BLOCKCHECK="/opt/zapret/blockcheck.sh"
-    local DEF_DOMAIN="roblox.com"
+    local DEF_DOMAIN="pastebin.com"
     local domains report today was_running stop_ans do_stop stopped_by_us
 
-    echo "--------------------------------------------------"
+    print_line "-"
     echo "$(T blk_title 'Blockcheck (DPI Test Raporu)' 'Blockcheck (DPI Test Report)')"
-    echo "--------------------------------------------------"
+    print_line "-"
 
     if [ ! -x "$BLOCKCHECK" ]; then
         echo "$(T blk_missing 'HATA: /opt/zapret/blockcheck.sh bulunamadi veya calistirilabilir degil.' 'ERROR: /opt/zapret/blockcheck.sh not found or not executable.')"
@@ -2888,7 +3684,7 @@ run_blockcheck() {
     fi
 
     # Domain(ler)
-    read -r -p "$(T blk_domain 'Test edilecek domain(ler) (Enter=roblox.com, 0=Iptal): ' 'Domain(s) to test (Enter=roblox.com, 0=Cancel): ')" domains
+    read -r -p "$(T blk_domain 'Test edilecek domain(ler) (Enter=pastebin.com, 0=Iptal): ' 'Domain(s) to test (Enter=pastebin.com, 0=Cancel): ')" domains
     if [ "$domains" = "0" ]; then
         clear
         return 0
@@ -2900,6 +3696,7 @@ run_blockcheck() {
 	report="/opt/zapret/blockcheck_${now}.txt"
 
 
+	LAST_BLOCKCHECK_REPORT="$report"
     # Zapret calisiyorsa blockcheck genelde "bypass kapali olmali" diye uyarir.
     was_running=0
     do_stop=0
@@ -2920,7 +3717,7 @@ run_blockcheck() {
 
     echo
     echo "$(T blk_running2 "Calistiriliyor... (Rapor: ${report})" "Running... (Report: ${report})")"
-    echo "--------------------------------------------------"
+    print_line "-"
 
     # blockcheck kendi icinde domain prompt'u aciyor; stdin'e domainleri basarak takilmasini engelliyoruz.
     # stdout+stderr rapora yazilsin diye tee kullan.
@@ -2932,7 +3729,7 @@ run_blockcheck() {
         cat "$report" 2>/dev/null
     fi
 
-    echo "--------------------------------------------------"
+    print_line "-"
     echo "$(T blk_done "Bitti. Rapor dosyasi: ${report}" "Done. Report file: ${report}")"
 
     # Daha once calisiyorduysa ve biz durdurduysak geri ac
@@ -2952,6 +3749,148 @@ run_blockcheck() {
 }
 
 
+run_blockcheck_save_summary() {
+    # Run the full interactive test exactly like "Tam Test", then save only * SUMMARY * to a separate file.
+    run_blockcheck
+
+    local src_report ts summary_file
+    src_report="${LAST_BLOCKCHECK_REPORT}"
+    if [ -z "$src_report" ] || [ ! -f "$src_report" ]; then
+        src_report="$(ls -1t /opt/zapret/blockcheck_[0-9]*.txt 2>/dev/null | head -n 1)"
+
+    # Guard: avoid using an already-summarized file as the source report
+    case "$src_report" in
+        */blockcheck_summary_*.txt)
+            src_report="$(ls -1t /opt/zapret/blockcheck_[0-9]*.txt 2>/dev/null | head -n 1)"
+        ;;
+    esac
+
+    fi
+    if [ -z "$src_report" ] || [ ! -f "$src_report" ]; then
+        echo "$(T TXT_BLOCKCHECK_SUMMARY_NOT_FOUND)"
+        press_enter_to_continue
+        return 1
+    fi
+
+    ts="$(date +%Y%m%d%H%M%S 2>/dev/null)"
+    [ -z "$ts" ] && ts="$(date +%Y%m%d%H%M%S)"
+    summary_file="/opt/zapret/blockcheck_summary_${ts}.txt"
+
+# Marker detection WITHOUT awk (BusyBox-safe):
+# We want the LAST "clearing nfqws redirection" and the LAST "working strategy found" BEFORE it.
+clear_ln="$(grep -ni 'clearing nfqws redirection' "$src_report" 2>/dev/null | tail -n 1 | cut -d: -f1)"
+ws_ln="0"
+if [ -n "$clear_ln" ] && [ "$clear_ln" -gt 1 ] 2>/dev/null; then
+    ws_ln="$(sed -n "1,$((clear_ln-1))p" "$src_report" 2>/dev/null | grep -ni 'working strategy found' | tail -n 1 | cut -d: -f1)"
+fi
+
+if [ -n "$ws_ln" ] && [ "$ws_ln" -gt 0 ] 2>/dev/null; then
+    ws_line="$(sed -n "${ws_ln}p" "$src_report" 2>/dev/null)"
+    # Keep only the single "working strategy found" line in the summary output (minimal summary).
+    printf "%s
+" "$ws_line" > "$summary_file"
+else
+    # Fallback: keep first matching https_tls12 strategy line if present
+    ws_line="$(grep -i 'curl_test_https_tls12: working strategy found' "$src_report" 2>/dev/null | tail -n 1)"
+    if [ -n "$ws_line" ]; then
+        printf "%s
+" "$ws_line" > "$summary_file"
+    else
+        echo "$(T TXT_BLOCKCHECK_SUMMARY_NOT_FOUND)" > "$summary_file"
+    fi
+fi
+
+if [ ! -s "$summary_file" ]; then
+    echo "$(T TXT_BLOCKCHECK_SUMMARY_NOT_FOUND)" > "$summary_file"
+fi
+
+
+    # Optional: apply nfqws parameters as DPI profile (best-effort mapping to existing profiles)
+    if grep -qi "nfqws" "$summary_file" 2>/dev/null; then
+        local _line _params ans prof
+        _line="$(head -n 1 "$summary_file" 2>/dev/null)"
+        _params=""
+        # Extract only the parameters after "nfqws"
+        _params="$(echo "$_line" | sed -n 's/^.*: *nfqws[ ]*//p')"
+        # Clean up possible decorations (e.g. trailing exclamation marks)
+        _params="$(echo "$_params" | sed 's/!//g; s/[[:space:]]\+$//')"
+        if [ -n "$_params" ]; then
+            # Ask user
+            read -r -p "$(T TXT_BLOCKCHECK_APPLY)" ans
+            [ -z "$ans" ] && ans="$(T yes_short 'e' 'y')"
+            case "$ans" in
+                e|E|y|Y)
+                    prof=""
+                    if echo "$_params" | grep -q -- "--dpi-desync=multisplit"; then
+                        prof="vodafone_mob"
+                    elif echo "$_params" | grep -q -- "--dpi-desync-autottl"; then
+                        prof="turkcell_mob"
+                    elif echo "$_params" | grep -q -- "--dpi-desync-fooling=m5sig"; then
+                        if echo "$_params" | grep -q -- "--dpi-desync-ttl=3"; then
+                            prof="sol_alt"
+                        else
+                            prof="sol"
+                        fi
+                    elif echo "$_params" | grep -q -- "--dpi-desync-fooling=badsum"; then
+                        prof="sol_fiber"
+                    else
+                        # TTL-based mapping for fake
+                        if echo "$_params" | grep -q -- "--dpi-desync-ttl=4"; then
+                            prof="tt_fiber"
+                        elif echo "$_params" | grep -q -- "--dpi-desync-ttl=3"; then
+                            prof="tt_alt"
+                        elif echo "$_params" | grep -q -- "--dpi-desync-ttl=2"; then
+                            prof="tt_default"
+                        elif echo "$_params" | grep -q -- "--dpi-desync-ttl=5"; then
+                            prof="sol_fiber"
+                        else
+                            prof="tt_default"
+                        fi
+                    fi
+
+                    set_dpi_profile "$prof"
+                    set_dpi_origin "auto"
+                    printf "%s\n" "$_params" > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
+                    printf "%s\n" "$_params" > "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null
+                    update_nfqws_parameters >/dev/null 2>&1
+                    restart_zapret >/dev/null 2>&1 || /opt/etc/init.d/S90-zapret start >/dev/null 2>&1
+                    echo "$(T TXT_BLOCKCHECK_APPLIED)"
+                    ;;
+                *) : ;;
+            esac
+        fi
+    fi
+
+    # Summary mode: keep only the summary file (avoid creating an extra large report file)
+    if [ -n "$src_report" ] && [ -f "$src_report" ]; then
+        rm -f "$src_report" >/dev/null 2>&1
+    fi
+
+    echo "$(T TXT_BLOCKCHECK_SUMMARY_SAVED) $summary_file"
+    press_enter_to_continue
+}
+
+blockcheck_test_menu() {
+    clear
+    print_line "="
+    echo "$(T TXT_BLOCKCHECK_TEST_TITLE)"
+    print_line "="
+    echo " 1. $(T TXT_BLOCKCHECK_FULL)"
+    echo " 2. $(T TXT_BLOCKCHECK_SUMMARY)"
+    echo " 0. $(T TXT_BACK)"
+    print_line "-"
+    printf "%s" "$(T TXT_PROMPT_SELECTION)"
+    read bc_sel
+    case "$bc_sel" in
+        1) run_blockcheck ;;
+        2) run_blockcheck_save_summary ;;
+        0) return ;;
+        *) echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')"; press_enter_to_continue ;;
+    esac
+}
+
+
+
 # --------------------------------------------------
 # Zapret backup/restore (.txt) - /opt/zapret/ipset -> /opt/zapret_backups
 # --------------------------------------------------
@@ -2966,14 +3905,14 @@ backup_restore_menu() {
 
     while true; do
         clear
-        echo "=================================================="
+print_line "="
         echo "$(T TXT_BACKUP_MENU_TITLE)"
-        echo "=================================================="
+print_line "="
         echo "  $(T TXT_BACKUP_SUB_BACKUP)"
         echo "  $(T TXT_BACKUP_SUB_RESTORE)"
         echo "  $(T TXT_BACKUP_SUB_SHOW)"
         echo "  $(T TXT_BACKUP_SUB_BACK)"
-        echo "--------------------------------------------------"
+        print_line "-"
         printf "%s: " "$(T TXT_SELECT_ACTION)"
         read -r CH
 
@@ -3006,9 +3945,9 @@ backup_restore_menu() {
                 ;;
             3)
                 clear
-                echo "=================================================="
+print_line "="
                 echo "$(T TXT_BACKUP_MENU_TITLE)"
-                echo "=================================================="
+print_line "="
                 echo "Backup base: $BACKUP_BASE"
                 echo
                 echo "[current]"
@@ -3016,7 +3955,7 @@ backup_restore_menu() {
                 echo
                 echo "[history - last 5]"
                 ls -1 "$HIST_DIR" 2>/dev/null | tail -n 5
-                echo "--------------------------------------------------"
+                print_line "-"
                 read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
                 ;;
             0)
@@ -3051,19 +3990,19 @@ restore_single_from_current() {
 
     while true; do
         clear
-        echo "=================================================="
+print_line "="
         echo "$(T TXT_BACKUP_MENU_TITLE)"
-        echo "=================================================="
+print_line "="
         echo "$(T TXT_SELECT_FILE):"
-        echo "--------------------------------------------------"
+        print_line "-"
         i=1
         for f in $files; do
             [ -f "$f" ] || continue
-            echo " $i) $(basename "$f")"
+            echo " $i. $(basename "$f")"
             i=$((i+1))
         done
-        echo " 0) $(T TXT_BACKUP_SUB_BACK)"
-        echo "--------------------------------------------------"
+        echo " $(T TXT_BACKUP_SUB_BACK_LIST)"
+        print_line "-"
         printf "%s: " "$(T TXT_SELECT_ACTION)"
         read -r sel
         [ "$sel" = "0" ] && return 0
@@ -3108,18 +4047,24 @@ main_menu_loop() {
             6) check_remote_update ;;
         10) check_manager_update ;;
         7) configure_zapret_ipv6_support ;;
-        8) manage_ipset_clients ;;
+        8) backup_restore_menu ;;
         9)
-            if select_dpi_profile; then
-                apply_dpi_profile_now
-            fi
+            while true; do
+                if select_dpi_profile; then
+                    apply_dpi_profile_now
+                else
+                    break
+                fi
+            done
             ;;
         11) manage_hostlist_menu ;;
-            12) backup_restore_menu ;;
-B|b) run_blockcheck ;;
+            12) manage_ipset_clients ;;
+        13) script_rollback_menu ;;
+        14) run_health_check ;;
+B|b) blockcheck_test_menu ;;
 L|l) toggle_lang ;; 
             0) echo "Cikis yapiliyor..."; break ;;
-            *) echo "Gecersiz secim! Lutfen 0 ile 11 arasinda bir sayi girin." ;;
+            *) echo "Gecersiz secim! Lutfen 0 ile 14 arasinda bir sayi girin." ;;
         esac
         echo ""
     done
