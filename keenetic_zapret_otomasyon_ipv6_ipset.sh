@@ -77,7 +77,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.30"
+SCRIPT_VERSION="v26.1.30.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -912,7 +912,7 @@ patch_zapret_real_to_run_post_hook() {
     # Already patched?
     grep -q "keenetic_fw_post_up.sh" "$REAL" 2>/dev/null && return 0
 
-    local BAK="${REAL}.bak_$(date +%Y%m%d_%H%M%S 2>/dev/null)"
+    local BAK="${REAL}.bak_$(date +%Y%m%d_%H%M%S 2>/dev/null).sh"
     cp -a "$REAL" "$BAK" >/dev/null 2>&1 || return 0
 
     awk '
@@ -2455,7 +2455,7 @@ update_manager_script() {
     TARGET_SCRIPT="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     DL_URL="https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest/download/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     TMP_FILE="/tmp/keenetic_zapret_manager_update.$$"
-    BACKUP_FILE="${TARGET_SCRIPT}.bak_${SCRIPT_VERSION#v}_$(date +%Y%m%d_%H%M%S 2>/dev/null)"
+    BACKUP_FILE="${TARGET_SCRIPT}.bak_${SCRIPT_VERSION#v}_$(date +%Y%m%d_%H%M%S 2>/dev/null).sh"
 
     echo "$(T mgr_update_start 'Betik indiriliyor (GitHub)...' 'Downloading script (GitHub)...')"
     if ! download_file "$DL_URL" "$TMP_FILE"; then
@@ -3176,7 +3176,7 @@ github_install_script_from_url() {
 
     TS="$(date +%Y%m%d_%H%M%S 2>/dev/null)"
     [ -z "$TS" ] && TS="$(date +%Y%m%d%H%M%S 2>/dev/null)"
-    BAK="${TARGET}.bak_${TAG}_${TS}"
+    BAK="${TARGET}.bak_${TAG}_${TS}.sh"
     TMP="/tmp/keenetic_zapret_manager_dl.$$"
 
     echo "$(T TXT_ROLLBACK_GH_DOWNLOADING)"
