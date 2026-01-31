@@ -25,6 +25,62 @@
 
 # BETIK BILGILENDIRME
 # Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
+
+# -------------------------------------------------------------------
+# Dogru Dizin Uyarısı (keenetic / keenetic-zapret)
+# -------------------------------------------------------------------
+check_script_location_once() {
+    local EXPECTED="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    local CURRENT="$(readlink -f "$0" 2>/dev/null)"
+
+    [ -z "$CURRENT" ] && return
+
+    if [ "$CURRENT" != "$EXPECTED" ]; then
+        echo
+        printf "%b %s
+" \
+            "${CLR_RED}UYARI:${CLR_RESET}" \
+            "$(T TXT_WARN_BAD_PATH)"
+
+        echo
+        echo "$(T TXT_WARN_MOVE)"
+        echo "$(T TXT_WARN_CONTINUE)"
+        echo
+
+        read -r -p "$(T TXT_WARN_CHOICE)" sel
+        case "$sel" in
+            1)
+                if mv "$CURRENT" "$EXPECTED" 2>/dev/null; then
+                    chmod +x "$EXPECTED" 2>/dev/null
+                    if [ ! -x "$EXPECTED" ]; then
+                        echo
+                        printf "%b
+" "${CLR_RED}$(T TXT_WARN_CHMOD_FAIL)${CLR_RESET}"
+                        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _
+                        return
+                    fi
+                    echo
+                    printf "%b
+" "${CLR_GREEN}$(T TXT_WARN_MOVED_OK)${CLR_RESET}"
+                    exec "$EXPECTED"
+                else
+                    echo
+                    printf "%b
+" "${CLR_RED}$(T TXT_WARN_MOVE_FAIL)${CLR_RESET}"
+                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                fi
+                ;;
+            0|"")
+                return
+                ;;
+            *)
+                return
+                ;;
+        esac
+    fi
+}
+# -------------------------------------------------------------------
+
 # -------------------------------------------------------------------
 # CLI KISAYOL (keenetic / keenetic-zapret)
 # -------------------------------------------------------------------
@@ -77,7 +133,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.31.1"
+SCRIPT_VERSION="v26.1.31.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -287,6 +343,9 @@ TXT_HEALTH_OVERALL_EN="Overall Status"
 
 TXT_HEALTH_DNS_LOCAL_TR="DNS (Yerel resolver 127.0.0.1)"
 TXT_HEALTH_DNS_LOCAL_EN="DNS (Local resolver 127.0.0.1)"
+TXT_HEALTH_SCRIPT_PATH_TR="Betik Konumu (Dogru yerde mi?)"
+TXT_HEALTH_SCRIPT_PATH_EN="Script location (Correct path?)"
+
 
 TXT_HEALTH_DNS_PUBLIC_TR="DNS (8.8.8.8)"
 TXT_HEALTH_DNS_PUBLIC_EN="DNS (8.8.8.8)"
@@ -624,8 +683,10 @@ TXT_BLOCKCHECK_SUMMARY_EN="Summary (SUMMARY only) (Used for Auto DPI)"
 
 TXT_BLOCKCHECK_CLEAN_TR="Test Sonuçlarını Temizle"
 TXT_BLOCKCHECK_CLEAN_EN="Clean Test Results"
+
 TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test raporu yok."
 TXT_BLOCKCHECK_CLEAN_NONE_EN="No test reports to clean."
+
 TXT_BLOCKCHECK_CLEAN_DONE_TR="Test raporlari temizlendi."
 TXT_BLOCKCHECK_CLEAN_DONE_EN="Test reports cleaned."
 
@@ -718,6 +779,30 @@ TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-2): "
 # --- EK DIL METINLERI (TR/EN) ---
 TXT_PRESS_ENTER_TR="Devam etmek icin Enter'a basin..."
 TXT_PRESS_ENTER_EN="Press Enter to continue..."
+
+
+# --- Script path warning ---
+TXT_WARN_BAD_PATH_TR="UYARI: Betik beklenen dizinde degil!"
+TXT_WARN_BAD_PATH_EN="WARNING: Script is not in the expected directory!"
+
+TXT_WARN_MOVE_TR="[1] Dogru yere tasi"
+TXT_WARN_MOVE_EN="[1] Move to correct location"
+
+TXT_WARN_CONTINUE_TR="[0] Devam et"
+TXT_WARN_CONTINUE_EN="[0] Continue"
+
+TXT_WARN_CHOICE_TR="Secim: "
+TXT_WARN_CHOICE_EN="Choice: "
+
+TXT_WARN_MOVED_OK_TR="Betik dogru dizine tasindi."
+TXT_WARN_MOVED_OK_EN="Script moved to the correct location."
+
+TXT_WARN_MOVE_FAIL_TR="HATA: Betik tasinamadi."
+TXT_WARN_MOVE_FAIL_EN="ERROR: Failed to move the script."
+
+TXT_WARN_CHMOD_FAIL_TR="HATA: Calistirma izni verilemedi."
+TXT_WARN_CHMOD_FAIL_EN="ERROR: Could not set executable permission."
+
 
 TXT_SCRIPT_INSTALLED_TR="Kurulu Betik Surumu : "
 TXT_SCRIPT_INSTALLED_EN="Installed Script Ver : "
@@ -3677,6 +3762,15 @@ run_health_check() {
     # Default route
     if ip route 2>/dev/null | grep -q '^default '; then
         add_line "$(T TXT_HEALTH_ROUTE)" "$(hc_word PASS)" "PASS"
+
+    # Betik konumu kontrolu (dogru dizinden mi calisiyor?)
+    expected_script="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    actual_script="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+    if [ "$actual_script" = "$expected_script" ]; then
+        add_line "$(T TXT_HEALTH_SCRIPT_PATH)" "$(hc_word PASS)  ($actual_script)" "PASS"
+    else
+        add_line "$(T TXT_HEALTH_SCRIPT_PATH)" "$(hc_word WARN)  (Beklenen: $expected_script | Su an: $actual_script)" "WARN"
+    fi
     else
         # Some systems lack 'ip'; try route
         if route -n 2>/dev/null | awk '$1=="0.0.0.0"{found=1} END{exit !found}'; then
@@ -4248,6 +4342,7 @@ print_line "="
     done
 }
 
+check_script_location_once
 main_menu_loop() {
     while true; do
     clear  # clear_on_start_main_loop
