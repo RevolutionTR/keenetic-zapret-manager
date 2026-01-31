@@ -77,7 +77,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.30.2"
+SCRIPT_VERSION="v26.1.31"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -239,11 +239,15 @@ TXT_ACTIVE_DPI_DEFAULT_EN=" Default / Manual"
 TXT_ACTIVE_DPI_PARAMS_TR=" Parametreler"
 TXT_ACTIVE_DPI_PARAMS_EN=" Parameters"
 
+TXT_DPI_AUTO_NOTE_TR=" Not: Blockcheck (Otomatik) aktifken aşağıdaki 1–8 profilleri pasiftir."
+TXT_DPI_AUTO_NOTE_EN=" Note: While Blockcheck (Auto) is active, profiles 1–8 below are inactive."
+
+
 TXT_DPI_BASE_TR=" (Taban)"
 TXT_DPI_BASE_EN=" (Base)"
 
-TXT_DPI_BASE_PROFILE_TR="Taban Profil"
-TXT_DPI_BASE_PROFILE_EN="Base Profile"
+TXT_DPI_BASE_PROFILE_TR=" Taban Profil"
+TXT_DPI_BASE_PROFILE_EN=" Base Profile"
 
 TXT_DPI_AUTO_DISABLE_PROMPT_TR="Blockcheck (Otomatik) aktif. Manuel profile gecmek otomatik modu kapatir. Devam edilsin mi? (e/h) [e]: "
 TXT_DPI_AUTO_DISABLE_PROMPT_EN="Blockcheck (Auto) is active. Switching to a manual profile will disable auto mode. Continue? (y/n) [y]: "
@@ -256,6 +260,9 @@ TXT_BLOCKCHECK_APPLIED_EN=" Settings applied and Zapret restarted."
 
 TXT_BLOCKCHECK_NO_STRAT_TR=" UYARI: Uygulanabilir nfqws stratejisi bulunamadi."
 TXT_BLOCKCHECK_NO_STRAT_EN=" WARNING: No applicable nfqws strategy found."
+
+TXT_BLOCKCHECK_TPWS_WARN_TR=" UYARI: Bulunan strateji tpws. Guvenli oldugu icin otomatik uygulanmayacak. (Simdilik sadece nfqws destekleniyor.)"
+TXT_BLOCKCHECK_TPWS_WARN_EN=" WARNING: Found strategy is tpws. It will NOT be applied automatically for safety. (For now only nfqws is supported.)"
 
 TXT_MENU_10_TR="10. Betik Guncelleme Kontrolu (GitHub)"
 TXT_MENU_10_EN="10. Script update check (GitHub)"
@@ -507,6 +514,7 @@ TXT_HL_MODE_AUTO_DESC_EN="Auto-Learn + List"
 
 TXT_HL_ACTIVE_MARK_TR=" [36m(AKTIF)[0m"
 TXT_HL_ACTIVE_MARK_EN=" [36m(ACTIVE)[0m"
+
 TXT_HL_PICK_TR="Secim: "
 TXT_HL_PICK_EN="Choice: "
 
@@ -966,7 +974,7 @@ get_dpi_profile() {
     local p="tt_default"
     [ -f "$DPI_PROFILE_FILE" ] && p="$(cat "$DPI_PROFILE_FILE" 2>/dev/null)"
     case "$p" in
-        tt_default|tt_fiber|tt_alt|sol|sol_alt|sol_fiber|turkcell_mob|vodafone_mob) echo "$p" ;;
+        tt_default|tt_fiber|tt_alt|sol|sol_alt|sol_fiber|turkcell_mob|vodafone_mob|blockcheck_auto) echo "$p" ;;
         *) echo "tt_default" ;;
     esac
 }
@@ -987,6 +995,7 @@ dpi_profile_name_tr() {
         sol_fiber) echo "Superonline Fiber (TTL5 fake + badsum)";;
         turkcell_mob) echo "Turkcell Mobil (TTL1 + AutoTTL3 fake)";;
         vodafone_mob) echo "Vodafone Mobil (multisplit split-pos=2)";;
+        blockcheck_auto) echo "Blockcheck Otomatik (Auto)";;
         *) echo "$1";;
     esac
 }
@@ -1001,6 +1010,7 @@ dpi_profile_name_en() {
         sol_fiber)  echo "Superonline Fiber (TTL5 fake + badsum)";;
         turkcell_mob) echo "Turkcell Mobile (TTL1 + AutoTTL3 fake)";;
         vodafone_mob) echo "Vodafone Mobile (multisplit split-pos=2)";;
+        blockcheck_auto) echo "Blockcheck Auto";;
         *) echo "$1";;
     esac
 }
@@ -1014,9 +1024,17 @@ show_active_dpi_info() {
         origin_label="$(T TXT_ACTIVE_DPI_DEFAULT)"
     fi
 
-    printf "%s : %s\n" "$(T TXT_ACTIVE_DPI)" "$origin_label"
+    printf "%s : %s
+" "$(T TXT_ACTIVE_DPI)" "$origin_label"
     if [ -s "$DPI_PROFILE_PARAMS_FILE" ]; then
-        printf "%s : %s\n" "$(T TXT_ACTIVE_DPI_PARAMS)" "$(cat "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null)"
+        printf "%s : %s
+" "$(T TXT_ACTIVE_DPI_PARAMS)" "$(cat "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null)"
+    fi
+
+    # Bilgi (Auto): Blockcheck (Otomatik) aktifken listelenen 1-8 profilleri pasiftir
+    if [ "$origin" = "auto" ]; then
+        printf "%s
+" "$(T TXT_DPI_AUTO_NOTE)"
     fi
 }
 
@@ -1024,10 +1042,10 @@ select_dpi_profile() {
     local cur="$(get_dpi_profile)"
     local origin="$(get_dpi_origin)"
     print_line "-"
-    echo "$(T dpi_title "DPI Profili Secimi" "DPI Profile Selection")"
+    echo " $(T dpi_title "DPI Profili Secimi" "DPI Profile Selection")"
     print_line "-"
-    local _cur_label_tr="Su Anki"
-    local _cur_label_en="Current"
+    local _cur_label_tr=" Su Anki"
+    local _cur_label_en=" Current"
 
     if [ "$origin" = "auto" ]; then
         # Auto: show current as Blockcheck, and show base profile separately
@@ -1335,6 +1353,22 @@ update_nfqws_parameters() {
     local FOOLING=""
     local SPLITPOS=""
 
+    # blockcheck_auto: use parameters extracted from blockcheck summary (stored as raw nfqws args)
+    local AUTO_PARAMS _ttl
+    AUTO_PARAMS=""
+    if [ "$profile" = "blockcheck_auto" ] && [ -s "$BLOCKCHECK_AUTO_PARAMS_FILE" ]; then
+        AUTO_PARAMS="$(cat "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/^ *//; s/ *$//')"
+        AUTO_PARAMS="$(echo "$AUTO_PARAMS" | sed 's/^nfqws[[:space:]]\+//')"
+        # If IPv6 is enabled and ttl exists but ttl6 is missing, mirror ttl -> ttl6
+        if [ "$ipv6" = "y" ] || [ "$ipv6" = "Y" ]; then
+            if echo "$AUTO_PARAMS" | grep -q -- '--dpi-desync-ttl=' && ! echo "$AUTO_PARAMS" | grep -q -- '--dpi-desync-ttl6='; then
+                _ttl="$(echo "$AUTO_PARAMS" | sed -n 's/.*--dpi-desync-ttl=\([^[:space:]]\+\).*/\1/p')"
+                [ -n "$_ttl" ] && AUTO_PARAMS="${AUTO_PARAMS} --dpi-desync-ttl6=${_ttl}"
+            fi
+        fi
+    fi
+
+
     case "$profile" in
         tt_default) DESYNC="fake"; TTL="2" ;;
         tt_fiber)   DESYNC="fake"; TTL="4" ;;
@@ -1354,15 +1388,18 @@ update_nfqws_parameters() {
 
         # Smart modda hostlist/autohostlist marker eklenir (global modda bos)
         [ -n "$HOST_MARKER" ] && line="${line} ${HOST_MARKER}"
-        line="${line} --dpi-desync=${DESYNC}"
+        if [ -n "$AUTO_PARAMS" ]; then
+            line="${line} ${AUTO_PARAMS}"
+        else
+            line="${line} --dpi-desync=${DESYNC}"
+            [ -n "$FOOLING" ] && line="${line} --dpi-desync-fooling=${FOOLING}"
+            [ -n "$SPLITPOS" ] && line="${line} --dpi-desync-split-pos=${SPLITPOS}"
+            [ -n "$TTL" ] && line="${line} --dpi-desync-ttl=${TTL}"
+            [ -n "$AUTOTTL" ] && line="${line} --dpi-desync-autottl=${AUTOTTL}"
+        fi
 
-        [ -n "$FOOLING" ] && line="${line} --dpi-desync-fooling=${FOOLING}"
-        [ -n "$SPLITPOS" ] && line="${line} --dpi-desync-split-pos=${SPLITPOS}"
-        [ -n "$TTL" ] && line="${line} --dpi-desync-ttl=${TTL}"
-        [ -n "$AUTOTTL" ] && line="${line} --dpi-desync-autottl=${AUTOTTL}"
-
-        # IPv6 tarafinda TTL6 ekle (TTL varsa)
-        if [ "$ipv6" = "y" ] || [ "$ipv6" = "Y" ]; then
+        # IPv6 tarafinda TTL6 ekle (TTL varsa) - sadece sabit profillerde
+        if [ -z "$AUTO_PARAMS" ] && { [ "$ipv6" = "y" ] || [ "$ipv6" = "Y" ]; }; then
             [ -n "$TTL" ] && line="${line} --dpi-desync-ttl6=${TTL}"
         fi
 
@@ -3786,92 +3823,87 @@ run_blockcheck_save_summary() {
     [ -z "$ts" ] && ts="$(date +%Y%m%d%H%M%S)"
     summary_file="/opt/zapret/blockcheck_summary_${ts}.txt"
 
-# Marker detection WITHOUT awk (BusyBox-safe):
-# We want the LAST "clearing nfqws redirection" and the LAST "working strategy found" BEFORE it.
+# Build a compact summary file:
+# 1) Keep the last "working strategy found ..." line (if any)
+# 2) Append the * SUMMARY section (if present)
+: > "$summary_file" 2>/dev/null || true
+
+# Find the LAST "working strategy found" line (prefer the one before "clearing nfqws redirection" when possible)
 clear_ln="$(grep -ni 'clearing nfqws redirection' "$src_report" 2>/dev/null | tail -n 1 | cut -d: -f1)"
 ws_ln="0"
 if [ -n "$clear_ln" ] && [ "$clear_ln" -gt 1 ] 2>/dev/null; then
     ws_ln="$(sed -n "1,$((clear_ln-1))p" "$src_report" 2>/dev/null | grep -ni 'working strategy found' | tail -n 1 | cut -d: -f1)"
+else
+    ws_ln="$(grep -ni 'working strategy found' "$src_report" 2>/dev/null | tail -n 1 | cut -d: -f1)"
 fi
 
 if [ -n "$ws_ln" ] && [ "$ws_ln" -gt 0 ] 2>/dev/null; then
     ws_line="$(sed -n "${ws_ln}p" "$src_report" 2>/dev/null)"
-    # Keep only the single "working strategy found" line in the summary output (minimal summary).
-    printf "%s
-" "$ws_line" > "$summary_file"
-else
-    # Fallback: keep first matching https_tls12 strategy line if present
-    ws_line="$(grep -i 'curl_test_https_tls12: working strategy found' "$src_report" 2>/dev/null | tail -n 1)"
-    if [ -n "$ws_line" ]; then
-        printf "%s
-" "$ws_line" > "$summary_file"
-    else
-        echo "$(T TXT_BLOCKCHECK_SUMMARY_NOT_FOUND)" > "$summary_file"
-    fi
+    [ -n "$ws_line" ] && printf "%s
+" "$ws_line" >> "$summary_file"
+fi
+
+sum_ln="$(grep -ni '^\* SUMMARY' "$src_report" 2>/dev/null | tail -n 1 | cut -d: -f1)"
+if [ -n "$sum_ln" ] && [ "$sum_ln" -gt 0 ] 2>/dev/null; then
+    sed -n "${sum_ln},\$p" "$src_report" 2>/dev/null >> "$summary_file"
 fi
 
 if [ ! -s "$summary_file" ]; then
     echo "$(T TXT_BLOCKCHECK_SUMMARY_NOT_FOUND)" > "$summary_file"
 fi
+    # Optional: extract nfqws parameters from the summary and apply as special DPI profile "blockcheck_auto"
+    local chosen_line raw_params params_filtered ans
 
+    chosen_line=""
+    # Prefer the "working strategy found ..." line if it contains nfqws/tpws
+    chosen_line="$(grep -i 'working strategy found' "$summary_file" 2>/dev/null | tail -n 1)"
 
-    # Optional: apply nfqws parameters as DPI profile (best-effort mapping to existing profiles)
-    if grep -qi "nfqws" "$summary_file" 2>/dev/null; then
-        local _line _params ans prof
-        _line="$(head -n 1 "$summary_file" 2>/dev/null)"
-        _params=""
-        # Extract only the parameters after "nfqws"
-        _params="$(echo "$_line" | sed -n 's/^.*: *nfqws[ ]*//p')"
-        # Clean up possible decorations (e.g. trailing exclamation marks)
-        _params="$(echo "$_params" | sed 's/!//g; s/[[:space:]]\+$//')"
-        if [ -n "$_params" ]; then
-            # Ask user
+    if [ -z "$chosen_line" ]; then
+        # Fall back to * SUMMARY block candidates (prefer https_tls12, then tls13, then http)
+        chosen_line="$(grep -i 'curl_test_https_tls12' "$summary_file" 2>/dev/null | grep -i ' nfqws ' | grep -i -- '--dpi-desync=' | tail -n 1)"
+        [ -z "$chosen_line" ] && chosen_line="$(grep -i 'curl_test_https_tls13' "$summary_file" 2>/dev/null | grep -i ' nfqws ' | grep -i -- '--dpi-desync=' | tail -n 1)"
+        [ -z "$chosen_line" ] && chosen_line="$(grep -i 'curl_test_http' "$summary_file" 2>/dev/null | grep -i ' nfqws ' | grep -i -- '--dpi-desync=' | tail -n 1)"
+    fi
+
+    if echo "$chosen_line" | grep -qi ': *tpws '; then
+        # For safety, we do not auto-apply tpws yet.
+        echo "$(T blockcheck_tpws_warn "$TXT_BLOCKCHECK_TPWS_WARN_TR" "$TXT_BLOCKCHECK_TPWS_WARN_EN")"
+    elif echo "$chosen_line" | grep -qi ': *nfqws '; then
+        raw_params="$(echo "$chosen_line" | sed -n 's/^.*:[[:space:]]*nfqws[[:space:]]*//p' | sed 's/!//g; s/[[:space:]]\+$//')"
+
+        # Keep only safe nfqws flags we support writing (avoid accidental config corruption)
+        params_filtered=""
+        for tok in $raw_params; do
+            case "$tok" in
+                --dpi-desync=*|--dpi-desync-ttl=*|--dpi-desync-fooling=*|--dpi-desync-autottl=*|--dpi-desync-split-pos=*|--disorder)
+                    params_filtered="${params_filtered} ${tok}"
+                ;;
+            esac
+        done
+        params_filtered="$(echo "$params_filtered" | sed 's/^ *//; s/ *$//')"
+
+        if [ -z "$params_filtered" ]; then
+            echo "$(T TXT_BLOCKCHECK_NO_STRAT)"
+        else
             read -r -p "$(T TXT_BLOCKCHECK_APPLY)" ans
             [ -z "$ans" ] && ans="$(T yes_short 'e' 'y')"
             case "$ans" in
                 e|E|y|Y)
-                    prof=""
-                    if echo "$_params" | grep -q -- "--dpi-desync=multisplit"; then
-                        prof="vodafone_mob"
-                    elif echo "$_params" | grep -q -- "--dpi-desync-autottl"; then
-                        prof="turkcell_mob"
-                    elif echo "$_params" | grep -q -- "--dpi-desync-fooling=m5sig"; then
-                        if echo "$_params" | grep -q -- "--dpi-desync-ttl=3"; then
-                            prof="sol_alt"
-                        else
-                            prof="sol"
-                        fi
-                    elif echo "$_params" | grep -q -- "--dpi-desync-fooling=badsum"; then
-                        prof="sol_fiber"
-                    else
-                        # TTL-based mapping for fake
-                        if echo "$_params" | grep -q -- "--dpi-desync-ttl=4"; then
-                            prof="tt_fiber"
-                        elif echo "$_params" | grep -q -- "--dpi-desync-ttl=3"; then
-                            prof="tt_alt"
-                        elif echo "$_params" | grep -q -- "--dpi-desync-ttl=2"; then
-                            prof="tt_default"
-                        elif echo "$_params" | grep -q -- "--dpi-desync-ttl=5"; then
-                            prof="sol_fiber"
-                        else
-                            prof="tt_default"
-                        fi
-                    fi
-
-                    set_dpi_profile "$prof"
+                    set_dpi_profile "blockcheck_auto"
                     set_dpi_origin "auto"
-                    printf "%s\n" "$_params" > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
-                    printf "%s\n" "$_params" > "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null
+                    printf "%s
+" "$params_filtered" > "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null
+                    printf "%s
+" "$params_filtered" > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
                     update_nfqws_parameters >/dev/null 2>&1
                     restart_zapret >/dev/null 2>&1 || /opt/etc/init.d/S90-zapret start >/dev/null 2>&1
                     echo "$(T TXT_BLOCKCHECK_APPLIED)"
-                    ;;
-                *) : ;;
+                ;;
             esac
         fi
     fi
 
-    # Summary mode: keep only the summary file (avoid creating an extra large report file)
+    # Summary mode: keep only the summary file (avoid creating an extra large report file) (avoid creating an extra large report file)
     if [ -n "$src_report" ] && [ -f "$src_report" ]; then
         rm -f "$src_report" >/dev/null 2>&1
     fi
