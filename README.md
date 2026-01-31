@@ -107,6 +107,78 @@ Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
 - Net durum göstergeleri
 - Hatalı yapılandırmalara karşı korumalar
 
+
+
+
+🔍 Blockcheck → Otomatik DPI Akıllı Akışı
+
+Blockcheck Özet (SUMMARY) sonucundan en stabil DPI parametresi otomatik tespit ediliyor
+
+Kullanıcıya karar ekranı sunuluyor:
+
+[1] Uygula → Parametre DPI profili olarak aktif edilir
+
+[2] Parametreyi İncele
+
+[3] Sadece Kaydet
+
+[0] Vazgeç
+
+Otomatik DPI yalnızca özet testten çalışır (tam test direkt uygulamaz)
+
+Aktif DPI durumu menüde açıkça gösterilir:
+
+Varsayılan / Manuel
+
+Blockcheck (Otomatik)
+
+Uygulanan parametreler ayrıca listelenir
+
+📊 DPI Sağlık Skoru (Yeni)
+
+Blockcheck sonrası DPI Health Score hesaplanır (örn. 8.5 / 10)
+
+Alt kontroller kullanıcıya açık biçimde gösterilir:
+
+✔ DNS tutarlılığı
+
+✔ TLS 1.2 durumu
+
+⚠ UDP 443 zayıf / riskli
+
+Semboller ve metinler terminal uyumlu, okunabilir biçimde düzenlendi
+
+🧹 Test Sonuçlarını Temizleme (Yeni)
+
+B. Blockcheck Test menüsüne yeni seçenek eklendi:
+
+“Test Sonuçlarını Temizle”
+
+Aşağıdaki dosyalar güvenli şekilde silinir:
+
+blockcheck_*.txt
+
+blockcheck_summary_*.txt
+
+Uzun vadede /opt/zapret dizininin şişmesi engellenir
+
+💾 Script Yedekleri Yönetimi (İyileştirme)
+
+Script güncelleme sırasında otomatik yedek alınır
+
+Yedekler artık .sh uzantılı ve geri yüklenebilir durumda:
+
+keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_26.1.30_YYYYMMDD_HHMMSS.sh
+
+
+Yerel Depolama (Yedekler) menüsüne yeni seçenek eklendi:
+
+“Yedekleri Temizle”
+
+Sadece bu betiğe ait yedekler temizlenir:
+
+keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*
+
 ---
 
 ## ⚠️ Ön Koşullar (ZORUNLU)
