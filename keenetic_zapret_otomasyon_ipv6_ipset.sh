@@ -77,7 +77,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.31"
+SCRIPT_VERSION="v26.1.31.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -242,7 +242,6 @@ TXT_ACTIVE_DPI_PARAMS_EN=" Parameters"
 TXT_DPI_AUTO_NOTE_TR=" Not: Blockcheck (Otomatik) aktifken aşağıdaki 1–8 profilleri pasiftir."
 TXT_DPI_AUTO_NOTE_EN=" Note: While Blockcheck (Auto) is active, profiles 1–8 below are inactive."
 
-
 TXT_DPI_BASE_TR=" (Taban)"
 TXT_DPI_BASE_EN=" (Base)"
 
@@ -324,6 +323,36 @@ TXT_HEALTH_LOAD_EN="System load (load avg)"
 
 TXT_ROLLBACK_TITLE_TR="Betik: Yedekten Geri Don (Rollback)"
 TXT_ROLLBACK_TITLE_EN="Script: Roll Back from Backup"
+# -----------------------------
+# Common UI
+# -----------------------------
+TXT_CHOICE_TR="Seçim:"
+TXT_CHOICE_EN="Choice:"
+
+# -----------------------------
+# Rollback / Local backups
+# -----------------------------
+TXT_ROLLBACK_NO_LOCAL_BACKUP_TR="Yerel yedek bulunamadı."
+TXT_ROLLBACK_NO_LOCAL_BACKUP_EN="No local backup found."
+
+TXT_ROLLBACK_CLEAN_LOCAL_BACKUPS_TR="Yedekleri Temizle"
+TXT_ROLLBACK_CLEAN_LOCAL_BACKUPS_EN="Clean Backups"
+
+TXT_ROLLBACK_CLEAN_DONE_TR="Temizlendi: %s yedek silindi."
+TXT_ROLLBACK_CLEAN_DONE_EN="Cleaned: %s backup(s) deleted."
+
+TXT_ROLLBACK_CLEAN_NONE_TR="Temizlenecek yerel yedek bulunamadı."
+TXT_ROLLBACK_CLEAN_NONE_EN="No local backups to clean."
+
+# -----------------------------
+# Blockcheck reports
+# -----------------------------
+TXT_BLOCKCHECK_CLEAN_DONE_TR="Temizlendi: %s test sonucu silindi."
+TXT_BLOCKCHECK_CLEAN_DONE_EN="Cleaned: %s test result(s) deleted."
+
+TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test sonucu bulunamadı."
+TXT_BLOCKCHECK_CLEAN_NONE_EN="No test results to clean."
+
 
 TXT_BACK_TR="Geri"
 TXT_BACK_EN="Back"
@@ -352,6 +381,16 @@ TXT_ROLLBACK_GH_LOADING_EN="Fetching GitHub release list..."
 TXT_ROLLBACK_LOCAL_MENU_TR="Yerel Depolama (Yedekler)"
 TXT_ROLLBACK_LOCAL_MENU_EN="Local Storage (Backups)"
 
+TXT_ROLLBACK_CLEAN_TR="Yedekleri Temizle"
+TXT_ROLLBACK_CLEAN_EN="Clean Backups"
+
+TXT_ROLLBACK_CLEAN_NONE_TR="Temizlenecek yedek yok."
+TXT_ROLLBACK_CLEAN_NONE_EN="No backups to clean."
+
+TXT_ROLLBACK_CLEAN_DONE_TR="Yedek dosyalari temizlendi."
+TXT_ROLLBACK_CLEAN_DONE_EN="Backup files cleaned."
+
+
 TXT_ROLLBACK_MAIN_PICK_TR="Secim: "
 TXT_ROLLBACK_MAIN_PICK_EN="Choice: "
 
@@ -373,14 +412,14 @@ TXT_ROLLBACK_GH_DONE_EN="Install completed. Please re-run the script."
 TXT_BACKUP_MENU_TITLE_TR="Zapret Yedekleme / Geri Yukleme"
 TXT_BACKUP_MENU_TITLE_EN="Zapret Backup / Restore"
 
-TXT_BACKUP_SUB_BACKUP_TR="1. Yedekle"
-TXT_BACKUP_SUB_BACKUP_EN="1. Backup"
+TXT_BACKUP_SUB_BACKUP_TR="1. IPSET Yedekle"
+TXT_BACKUP_SUB_BACKUP_EN="1. IPSET Backup"
 
-TXT_BACKUP_SUB_RESTORE_TR="2. Geri Yukle"
-TXT_BACKUP_SUB_RESTORE_EN="2. Restore"
+TXT_BACKUP_SUB_RESTORE_TR="2. IPSET Geri Yukle"
+TXT_BACKUP_SUB_RESTORE_EN="2. IPSET Restore"
 
-TXT_BACKUP_SUB_SHOW_TR="3. Yedekleri Goster"
-TXT_BACKUP_SUB_SHOW_EN="3. Show Backups"
+TXT_BACKUP_SUB_SHOW_TR="3. IPSET Yedekleri Goster"
+TXT_BACKUP_SUB_SHOW_EN="3. Show IPSET Backups"
 
 TXT_BACKUP_SUB_BACK_TR="0. Geri"
 TXT_BACKUP_SUB_BACK_EN="0. Back"
@@ -574,20 +613,59 @@ TXT_HL_WARN_EMPTY_STRICT_EN="WARNING: User hostlist is empty. In this case, zapr
 TXT_MENU_B_TR=" B. Blockcheck Test (Otomatik DPI)"
 TXT_MENU_B_EN=" B. Blockcheck Test (Auto DPI)"
 
-TXT_BLOCKCHECK_TEST_TITLE_TR="Blockcheck Test (Otomatik DPI)"
-TXT_BLOCKCHECK_TEST_TITLE_EN="Blockcheck Test (Auto DPI)"
+TXT_BLOCKCHECK_TEST_TITLE_TR="Blockcheck Test Menüsü"
+TXT_BLOCKCHECK_TEST_TITLE_EN="Blockcheck Test Menu"
 
 TXT_BLOCKCHECK_FULL_TR="Tam Test"
 TXT_BLOCKCHECK_FULL_EN="Full Test"
 
-TXT_BLOCKCHECK_SUMMARY_TR="Ozet (Sadece SUMMARY (Otomatik DPI Icin Kullanilir)"
-TXT_BLOCKCHECK_SUMMARY_EN="Summary (Save SUMMARY (Used for Auto DPI)"
+TXT_BLOCKCHECK_SUMMARY_TR="Özet (Sadece SUMMARY) (Otomatik DPI için kullanılır)"
+TXT_BLOCKCHECK_SUMMARY_EN="Summary (SUMMARY only) (Used for Auto DPI)"
+
+TXT_BLOCKCHECK_CLEAN_TR="Test Sonuçlarını Temizle"
+TXT_BLOCKCHECK_CLEAN_EN="Clean Test Results"
+TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test raporu yok."
+TXT_BLOCKCHECK_CLEAN_NONE_EN="No test reports to clean."
+TXT_BLOCKCHECK_CLEAN_DONE_TR="Test raporlari temizlendi."
+TXT_BLOCKCHECK_CLEAN_DONE_EN="Test reports cleaned."
+
 
 TXT_BLOCKCHECK_SUMMARY_SAVED_TR="Ozet rapor kaydedildi:"
 TXT_BLOCKCHECK_SUMMARY_SAVED_EN="Summary saved:"
 
 TXT_BLOCKCHECK_SUMMARY_NOT_FOUND_TR="UYARI: SUMMARY bolumu bulunamadi."
 TXT_BLOCKCHECK_SUMMARY_NOT_FOUND_EN="WARNING: SUMMARY section not found."
+
+# Blockcheck (Summary) - action screen (i18n)
+TXT_BLOCKCHECK_FOUND_TR="Blockcheck sonucu bulundu:"
+TXT_BLOCKCHECK_FOUND_EN="Blockcheck result found:"
+
+TXT_BLOCKCHECK_MOST_STABLE_TR="Bu ISS icin en stabil parametre:"
+TXT_BLOCKCHECK_MOST_STABLE_EN="Most stable parameter for this ISP:"
+
+TXT_BLOCKCHECK_SCORE_TR="DPI Saglik Skoru:"
+TXT_BLOCKCHECK_SCORE_EN="DPI Health Score:"
+
+TXT_BLOCKCHECK_SCORE_DNS_OK_TR="DNS tutarli"
+TXT_BLOCKCHECK_SCORE_DNS_OK_EN="DNS consistent"
+
+TXT_BLOCKCHECK_SCORE_TLS12_OK_TR="TLS12 OK"
+TXT_BLOCKCHECK_SCORE_TLS12_OK_EN="TLS12 OK"
+
+TXT_BLOCKCHECK_SCORE_UDP_WEAK_TR="UDP 443 zayif"
+TXT_BLOCKCHECK_SCORE_UDP_WEAK_EN="UDP 443 weak"
+
+TXT_BLOCKCHECK_ACTION_MENU_TR="[1] Uygula
+[2] Parametreyi incele
+[3] Sadece kaydet
+[0] Vazgec"
+TXT_BLOCKCHECK_ACTION_MENU_EN="[1] Apply
+[2] Inspect parameter
+[3] Save only
+[0] Cancel"
+
+TXT_BLOCKCHECK_ACTION_PROMPT_TR="Secim: "
+TXT_BLOCKCHECK_ACTION_PROMPT_EN="Choice: "
 
 TXT_PROMPT_SELECTION_TR=" Secim: "
 TXT_PROMPT_SELECTION_EN=" Selection: "
@@ -1032,10 +1110,11 @@ show_active_dpi_info() {
     fi
 
     # Bilgi (Auto): Blockcheck (Otomatik) aktifken listelenen 1-8 profilleri pasiftir
-    if [ "$origin" = "auto" ]; then
-        printf "%s
-" "$(T TXT_DPI_AUTO_NOTE)"
-    fi
+    # Bilgi (Auto): Blockcheck (Otomatik) aktifken listelenen 1-8 profilleri pasiftir
+if [ "$origin" = "auto" ]; then
+    printf "%b\n" "${CLR_YELLOW} Not: $(T TXT_DPI_AUTO_NOTE)${CLR_RESET}"
+fi
+
 }
 
 select_dpi_profile() {
@@ -1580,7 +1659,7 @@ if [ -f "$PAUSE" ]; then
     start|start-fw|restart|restart-fw)
       exit 0
     ;;
-  esac
+    esac
 fi
 
 exec "$REAL" "$@"
@@ -3349,61 +3428,85 @@ github_install_from_tag_prompt() {
 
 
 
+clean_backup_files() {
+    local dir="/opt/lib/opkg"
+    local pattern="keenetic_zapret_otomasyon_ipv6_ipset.sh.bak*"
+    local count
+    count="$(find "$dir" -maxdepth 1 -type f -name "$pattern" 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "${count:-0}" = "0" ]; then
+        echo "$(T TXT_ROLLBACK_CLEAN_NONE)"
+        return 0
+    fi
+    find "$dir" -maxdepth 1 -type f -name "$pattern" -delete 2>/dev/null
+    echo "$(T TXT_ROLLBACK_CLEAN_DONE) (${count})"
+}
+
+clean_blockcheck_reports() {
+    local dir="/opt/zapret"
+    local pattern="blockcheck_*.txt"
+    local count
+    count="$(find "$dir" -maxdepth 1 -type f -name "$pattern" 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "${count:-0}" = "0" ]; then
+        echo "$(T TXT_BLOCKCHECK_CLEAN_NONE)"
+        return 0
+    fi
+    find "$dir" -maxdepth 1 -type f -name "$pattern" -delete 2>/dev/null
+    echo "$(T TXT_BLOCKCHECK_CLEAN_DONE) (${count})"
+}
+
 rollback_local_storage_menu() {
-    local TARGET BACKUP_FILES sel i file found
-    TARGET="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
-    [ -f "$TARGET" ] || TARGET="$(readlink -f "$0" 2>/dev/null)"
+    local TARGET="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    local BACKUP_PATTERN="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*"
 
-    while :; do
+    while true; do
         clear
-        BACKUP_FILES="$(ls -1t /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_* 2>/dev/null | grep -E '\.sh$' )"
-
-        print_line "=" 
+        print_line
         echo "$(T TXT_ROLLBACK_LOCAL_MENU)"
-        print_line "=" 
+        print_line
+
+        BACKUP_FILES="$(ls -1t $BACKUP_PATTERN 2>/dev/null)"
 
         if [ -z "$BACKUP_FILES" ]; then
-            echo "$(T TXT_ROLLBACK_NO_BACKUP)"
-            echo " 0. $(T TXT_BACK)"
-            print_line "-"
-            printf "%s" "$(T TXT_ROLLBACK_MAIN_PICK)"
-            read sel
-echo "$(T TXT_ROLLBACK_CANCELLED)"
-            press_enter_to_continue
-            return 0
+            echo "$(T TXT_ROLLBACK_NO_LOCAL_BACKUP)"
+        else
+            local i=1
+            for file in $BACKUP_FILES; do
+                echo " $i. $(basename "$file")"
+                i=$((i+1))
+            done
         fi
 
-        i=1
-        for file in $BACKUP_FILES; do
-            echo " $i. $(basename "$file")"
-            i=$((i+1))
-        done
+        print_line
+        echo " c) $(T TXT_ROLLBACK_CLEAN)"
+        echo " 0) $(T TXT_BACK)"
+        print_line
 
-        echo " 0. $(T TXT_BACK)"
-        print_line "-"
-        printf "%s " "$(T TXT_ROLLBACK_SELECT)"
-        read sel
+        read -r -p "$(T TXT_ROLLBACK_MAIN_PICK) " sel
+        sel=$(echo "$sel" | tr -d '[:space:]')
 
         case "$sel" in
+            c|C)
+                clean_backup_files
+                press_enter_to_continue
+                continue
+            ;;
             0|"")
                 echo "$(T TXT_ROLLBACK_CANCELLED)"
                 press_enter_to_continue
-                return 0
-                ;;
+                return
+            ;;
         esac
 
-        case "$sel" in
-            *[!0-9]*)
-                echo "$(T TXT_INVALID_CHOICE)"
-                press_enter_to_continue
-                continue
-                ;;
-        esac
+        if [ -z "$BACKUP_FILES" ]; then
+            echo "$(T TXT_INVALID_CHOICE)"
+            press_enter_to_continue
+            continue
+        fi
 
-        found=0
-        i=1
+        local found=0
+        local idx=1
         for file in $BACKUP_FILES; do
-            if [ "$i" = "$sel" ]; then
+            if [ "$idx" = "$sel" ]; then
                 found=1
                 cp -f "$file" "$TARGET" 2>/dev/null && chmod +x "$TARGET" 2>/dev/null
                 if [ $? -eq 0 ]; then
@@ -3414,7 +3517,7 @@ echo "$(T TXT_ROLLBACK_CANCELLED)"
                 press_enter_to_continue
                 break
             fi
-            i=$((i+1))
+            idx=$((idx+1))
         done
 
         if [ "$found" -eq 0 ]; then
@@ -3882,25 +3985,94 @@ fi
         done
         params_filtered="$(echo "$params_filtered" | sed 's/^ *//; s/ *$//')"
 
-        if [ -z "$params_filtered" ]; then
-            echo "$(T TXT_BLOCKCHECK_NO_STRAT)"
-        else
-            read -r -p "$(T TXT_BLOCKCHECK_APPLY)" ans
-            [ -z "$ans" ] && ans="$(T yes_short 'e' 'y')"
-            case "$ans" in
-                e|E|y|Y)
-                    set_dpi_profile "blockcheck_auto"
-                    set_dpi_origin "auto"
-                    printf "%s
-" "$params_filtered" > "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null
-                    printf "%s
-" "$params_filtered" > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
-                    update_nfqws_parameters >/dev/null 2>&1
-                    restart_zapret >/dev/null 2>&1 || /opt/etc/init.d/S90-zapret start >/dev/null 2>&1
-                    echo "$(T TXT_BLOCKCHECK_APPLIED)"
-                ;;
-            esac
-        fi
+        
+if [ -z "$params_filtered" ]; then
+    echo "$(T TXT_BLOCKCHECK_NO_STRAT)"
+else
+    # Build quick stability stats from SUMMARY section (best-effort)
+    local _sum_start total_tests success_tests tls12_ok dns_ok udp_weak score
+    _sum_start="$(grep -n "^\* SUMMARY" "$REPORT" 2>/dev/null | head -n1 | cut -d: -f1)"
+    total_tests=0
+    success_tests=0
+    if [ -n "$_sum_start" ]; then
+        total_tests="$(sed -n "${_sum_start},\$p" "$REPORT" 2>/dev/null | awk '/^curl_test_/ {print $1}' | sort -u | wc -l 2>/dev/null)"
+        success_tests="$(sed -n "${_sum_start},\$p" "$REPORT" 2>/dev/null | awk -v p="$params_filtered" '$0 ~ /^curl_test_/ && index($0,p)>0 {print $1}' | sort -u | wc -l 2>/dev/null)"
+        tls12_ok=0
+        sed -n "${_sum_start},\$p" "$REPORT" 2>/dev/null | grep -q '^curl_test_https_tls12 ' && tls12_ok=1
+        udp_weak=1
+        sed -n "${_sum_start},\$p" "$REPORT" 2>/dev/null | grep -qi 'udp' && udp_weak=0
+    fi
+    [ -n "$total_tests" ] || total_tests=0
+    [ -n "$success_tests" ] || success_tests=0
+    [ "$total_tests" -gt 0 ] || total_tests=1
+
+    dns_ok=1
+    grep -qi "POSSIBLE DNS HIJACK" "$REPORT" 2>/dev/null && dns_ok=0
+
+    # Simple score (0-10) - informative only
+    score=10
+    [ "$dns_ok" = "0" ] && score=$((score-2))
+    [ "${tls12_ok:-0}" = "0" ] && score=$((score-1))
+    [ "$score" -lt 0 ] && score=0
+    [ "$score" -gt 10 ] && score=10
+
+    echo
+    echo "$(T TXT_BLOCKCHECK_FOUND)"
+    echo " $params_filtered"
+    echo
+    echo "$(T TXT_BLOCKCHECK_MOST_STABLE)"
+    echo " $params_filtered (${success_tests}/${total_tests})"
+    echo
+    echo "$(T TXT_BLOCKCHECK_SCORE) ${score} / 10"
+    # UI symbols: prefer Unicode on UTF-8 terminals, fallback to ASCII for PuTTY/non-UTF8
+    local _sym_ok="✔" _sym_warn="⚠"
+    case "${LC_ALL:-}${LANG:-}" in
+    *UTF-8*|*utf8*|*Utf8*) : ;;
+    *) _sym_ok="[OK]"; _sym_warn="[!]" ;;
+    esac
+    [ "$dns_ok" = "1" ] && printf "  %s %s\n" "$_sym_ok" "$(T TXT_BLOCKCHECK_SCORE_DNS_OK)" || printf "  %s DNS\n" "$_sym_warn"
+    [ "${tls12_ok:-0}" = "1" ] && printf "  %s %s\n" "$_sym_ok" "$(T TXT_BLOCKCHECK_SCORE_TLS12_OK)" || printf "  %s TLS12\n" "$_sym_warn"
+    [ "${udp_weak:-1}" = "1" ] && printf "  %s %s\n" "$_sym_warn" "$(T TXT_BLOCKCHECK_SCORE_UDP_WEAK)"
+    echo
+
+    while :; do
+        echo "$(T TXT_BLOCKCHECK_ACTION_MENU)"
+        read -r -p "$(T TXT_BLOCKCHECK_ACTION_PROMPT) " ans
+        ans="$(echo "$ans" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        case "$ans" in
+            1)
+                set_dpi_profile "blockcheck_auto"
+                set_dpi_origin "auto"
+                printf "%s\n" "$params_filtered" > "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null
+                printf "%s\n" "$params_filtered" > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
+                update_nfqws_parameters >/dev/null 2>&1
+                restart_zapret >/dev/null 2>&1 || /opt/etc/init.d/S90-zapret start >/dev/null 2>&1
+                echo "$(T TXT_BLOCKCHECK_APPLIED)"
+                break
+            ;;
+            2)
+                echo
+                echo "$params_filtered"
+                echo
+                press_enter
+            ;;
+            3)
+                # Save only (do not switch current profile / restart)
+                printf "%s\n" "$params_filtered" > "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null
+                printf "%s\n" "$params_filtered" > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
+                echo "$(T TXT_BLOCKCHECK_SUMMARY_SAVED) $SUMMARY_FILE"
+                break
+            ;;
+            0|"")
+                break
+            ;;
+            *)
+                :
+            ;;
+        esac
+    done
+fi
+
     fi
 
     # Summary mode: keep only the summary file (avoid creating an extra large report file) (avoid creating an extra large report file)
@@ -3913,22 +4085,25 @@ fi
 }
 
 blockcheck_test_menu() {
-    clear
-    print_line "="
-    echo "$(T TXT_BLOCKCHECK_TEST_TITLE)"
-    print_line "="
-    echo " 1. $(T TXT_BLOCKCHECK_FULL)"
-    echo " 2. $(T TXT_BLOCKCHECK_SUMMARY)"
-    echo " 0. $(T TXT_BACK)"
-    print_line "-"
-    printf "%s" "$(T TXT_PROMPT_SELECTION)"
-    read bc_sel
-    case "$bc_sel" in
-        1) run_blockcheck ;;
-        2) run_blockcheck_save_summary ;;
-        0) return ;;
-        *) echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')"; press_enter_to_continue ;;
-    esac
+    while true; do
+        clear
+        print_line
+        echo "$(T TXT_BLOCKCHECK_TEST_TITLE)"
+        print_line
+        echo " 1. $(T TXT_BLOCKCHECK_FULL)"
+        echo " 2. $(T TXT_BLOCKCHECK_SUMMARY)"
+        echo " 3. $(T TXT_BLOCKCHECK_CLEAN)"
+        echo " 0. $(T TXT_BACK)"
+        print_line
+        read -r -p "$(T TXT_CHOICE) " ch
+        case "$ch" in
+            1) run_blockcheck_full ;;
+            2) run_blockcheck_save_summary ;;
+            3) clean_blockcheck_reports; press_enter_to_continue ;;
+            0) return ;;
+            *) echo "$(T TXT_INVALID_CHOICE)"; press_enter_to_continue ;;
+        esac
+    done
 }
 
 
