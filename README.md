@@ -13,6 +13,7 @@ Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
 > Daha eski Keenetic OS sürümlerinde test edilmemiştir.  
 > Eski sürümlerde OPKG/Entware paketleri, iptables/ipset davranışı veya binary uyumluluğu farklı olabilir.
 
+### ⚠️ USB Olmadan Kurulum Hakkında Önemli Uyarı
 
 USB olmadan (cihazın dahili hafızasına / geçici ortama kurulum) yapılması durumunda aşağıdaki sorunlar kaçınılmazdır:
 - Otomatik güncelleme (GitHub) çalışmayabilir
@@ -20,26 +21,30 @@ USB olmadan (cihazın dahili hafızasına / geçici ortama kurulum) yapılması 
 - Hostlist / Autohostlist / IPSET listeleri kalıcı olmaz
 - keenetic / keenetic-zapret CLI kısayolları kaybolabilir
 - Yedekleme / geri yükleme güvenilir çalışmaz
-- “Çalışıyor gibi görünüp” DPI sitelerine erişim kesilebilir
+- "Çalışıyor gibi görünüp" DPI sitelerine erişim kesilebilir
 
-Bu bir betik hatası değildir.
-Sebep, USB olmadan /opt dizininin kalıcı olmamasıdır.
+**Bu bir betik hatası değildir.**  
+Sebep, USB olmadan `/opt` dizininin kalıcı olmamasıdır.
 
-✅ Önerilen Kurulum
-- Keenetic’e USB bellek takılı
-- Entware USB’ye kurulu
-- Betik ve Zapret /opt altında çalışıyor olmalı
+**✅ Önerilen Kurulum:**
+- Keenetic'e USB bellek takılı
+- Entware USB'ye kurulu
+- Betik ve Zapret `/opt` altında çalışıyor olmalı
 
-**Keenetic router/modem’ler için Zapret yönetim ve otomasyon betiği**
+---
 
-Bu proje, Zapret’in Keenetic cihazlarda **kolay kurulumu**, **DPI profili yönetimi**,  
+## 📖 Proje Hakkında
+
+**Keenetic router/modem'ler için Zapret yönetim ve otomasyon betiği**
+
+Bu proje, Zapret'in Keenetic cihazlarda **kolay kurulumu**, **DPI profili yönetimi**,  
 **IPSET ile istemci seçimi**, **menü tabanlı kullanım** ve  
 **GitHub üzerinden sürüm takibi** için hazırlanmıştır.
 
-## DNS Hakkında Önemli Not
+### DNS Hakkında Önemli Not
 
-Zapret, DPI (Deep Packet Inspection) tabanlı engellemeleri aşmak için tasarlanmıştır.
-DNS tabanlı engellemeleri veya ISS DNS manipülasyonunu çözmez.
+Zapret, DPI (Deep Packet Inspection) tabanlı engellemeleri aşmak için tasarlanmıştır.  
+**DNS tabanlı engellemeleri veya ISS DNS manipülasyonunu çözmez.**
 
 Bu nedenle, bazı ISS'lerde Zapret kullanılırken:
 - DoH (DNS over HTTPS),
@@ -48,7 +53,7 @@ Bu nedenle, bazı ISS'lerde Zapret kullanılırken:
 
 kullanılması **şiddetle tavsiye edilir**.
 
-ISS DNS sunucuları, engelli alan adları için hatalı IP döndürebilir.
+ISS DNS sunucuları, engelli alan adları için hatalı IP döndürebilir.  
 Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
 
 ---
@@ -70,11 +75,11 @@ Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
 
 ### IPSET Tabanlı Trafik Kontrolü
 - Tüm ağa Zapret uygulama (**Global mod**)
-- Sadece seçili IP’lere Zapret uygulama (**Smart mod**)
+- Sadece seçili IP'lere Zapret uygulama (**Smart mod**)
 - IPSET listesi ile istemci bazlı kontrol
 
 ### Hostlist / Autohostlist Sistemi
-- DPI algılanan domain’lerin otomatik öğrenilmesi (Autohostlist)
+- DPI algılanan domain'lerin otomatik öğrenilmesi (Autohostlist)
 - Manuel domain ekleme / çıkarma (User hostlist)
 - Hariç tutulan domain listesi (Exclude)
 
@@ -96,7 +101,7 @@ Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
 ### CLI Kısayollar
 - `keenetic`
 - `keenetic-zapret`
-- Script’i tam path yazmadan çalıştırabilme
+- Script'i tam path yazmadan çalıştırabilme
 
 ### Çok Dilli Arayüz
 - Türkçe / İngilizce (TR / EN) dil desteği
@@ -107,83 +112,79 @@ Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
 - Net durum göstergeleri
 - Hatalı yapılandırmalara karşı korumalar
 
+---
 
+## 🔍 Blockcheck → Otomatik DPI Akıllı Akışı
 
-
-🔍 Blockcheck → Otomatik DPI Akıllı Akışı
-
-Blockcheck Özet (SUMMARY) sonucundan en stabil DPI parametresi otomatik tespit ediliyor
+Blockcheck Özet (SUMMARY) sonucundan en stabil DPI parametresi otomatik tespit ediliyor.
 
 Kullanıcıya karar ekranı sunuluyor:
 
-[1] Uygula → Parametre DPI profili olarak aktif edilir
+- **[1] Uygula** → Parametre DPI profili olarak aktif edilir
+- **[2] Parametreyi İncele**
+- **[3] Sadece Kaydet**
+- **[0] Vazgeç**
 
-[2] Parametreyi İncele
-
-[3] Sadece Kaydet
-
-[0] Vazgeç
-
-Otomatik DPI yalnızca özet testten çalışır (tam test direkt uygulamaz)
+Otomatik DPI yalnızca özet testten çalışır (tam test direkt uygulamaz).
 
 Aktif DPI durumu menüde açıkça gösterilir:
+- Varsayılan / Manuel
+- Blockcheck (Otomatik)
 
-Varsayılan / Manuel
+Uygulanan parametreler ayrıca listelenir.
 
-Blockcheck (Otomatik)
+---
 
-Uygulanan parametreler ayrıca listelenir
+## 📊 DPI Sağlık Skoru
 
-📊 DPI Sağlık Skoru (Yeni)
-
-Blockcheck sonrası DPI Health Score hesaplanır (örn. 8.5 / 10)
+Blockcheck sonrası DPI Health Score hesaplanır (örn. 8.5 / 10).
 
 Alt kontroller kullanıcıya açık biçimde gösterilir:
 
-✔ DNS tutarlılığı
+- ✔ DNS tutarlılığı
+- ✔ TLS 1.2 durumu
+- ⚠ UDP 443 zayıf / riskli
 
-✔ TLS 1.2 durumu
+Semboller ve metinler terminal uyumlu, okunabilir biçimde düzenlendi.
 
-⚠ UDP 443 zayıf / riskli
+---
 
-Semboller ve metinler terminal uyumlu, okunabilir biçimde düzenlendi
+## 🧹 Test Sonuçlarını Temizleme
 
-🧹 Test Sonuçlarını Temizleme (Yeni)
+**Blockcheck Test** menüsüne yeni seçenek eklendi:
 
-B. Blockcheck Test menüsüne yeni seçenek eklendi:
-
-“Test Sonuçlarını Temizle”
+**"Test Sonuçlarını Temizle"**
 
 Aşağıdaki dosyalar güvenli şekilde silinir:
+- `blockcheck_*.txt`
+- `blockcheck_summary_*.txt`
 
-blockcheck_*.txt
+Uzun vadede `/opt/zapret` dizininin şişmesi engellenir.
 
-blockcheck_summary_*.txt
+---
 
-Uzun vadede /opt/zapret dizininin şişmesi engellenir
+## 💾 Script Yedekleri Yönetimi
 
-💾 Script Yedekleri Yönetimi (İyileştirme)
+Script güncelleme sırasında otomatik yedek alınır.
 
-Script güncelleme sırasında otomatik yedek alınır
+Yedekler artık `.sh` uzantılı ve geri yüklenebilir durumda:
 
-Yedekler artık .sh uzantılı ve geri yüklenebilir durumda:
-
+```
 keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_26.1.30_YYYYMMDD_HHMMSS.sh
+```
 
+**Yerel Depolama (Yedekler)** menüsüne yeni seçenek eklendi:
 
-Yerel Depolama (Yedekler) menüsüne yeni seçenek eklendi:
-
-“Yedekleri Temizle”
+**"Yedekleri Temizle"**
 
 Sadece bu betiğe ait yedekler temizlenir:
-
-keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*
+- `keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*`
 
 ---
 
 ## ⚠️ Ön Koşullar (ZORUNLU)
 
-### 1️⃣ Entware kurulmuş olmalı
+### 1️⃣ Entware Kurulmuş Olmalı
 
 Keenetic arayüzünden:
 
@@ -199,7 +200,7 @@ opkg --version
 
 ---
 
-### 2️⃣ Gerekli OPKG paketleri
+### 2️⃣ Gerekli OPKG Paketleri
 
 Betiğin kendisi eksik paketleri otomatik olarak kontrol eder ve kurar.  
 Manuel kurmak isterseniz:
@@ -213,7 +214,7 @@ opkg install curl wget ipset iptables
 
 ## 📦 Kurulum
 
-### 1️⃣ Betiği indirin
+### 1️⃣ Betiği İndirin
 
 GitHub repo veya **Releases** bölümünden aşağıdaki dosyayı indirin:
 
@@ -223,7 +224,7 @@ keenetic_zapret_otomasyon_ipv6_ipset.sh
 
 ---
 
-### 2️⃣ Betiği `/opt` altına kopyalayın
+### 2️⃣ Betiği `/opt` Altına Kopyalayın
 
 > ⚠️ Betik **mutlaka `/opt` altında** çalıştırılmalıdır.
 
@@ -234,7 +235,7 @@ root@192.168.1.1:/opt/lib/opkg/
 
 ---
 
-### 3️⃣ Çalıştırma izni verin
+### 3️⃣ Çalıştırma İzni Verin
 
 ```sh
 chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
@@ -242,7 +243,7 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 
 ---
 
-### 4️⃣ Betiği çalıştırın
+### 4️⃣ Betiği Çalıştırın
 
 ```sh
 /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
@@ -253,9 +254,9 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 ## 🧩 İlk Kurulumda Ne Olur?
 
 - OPKG paketleri kontrol edilir
-- Zapret indirilir ve Keenetic’e uyarlanır
+- Zapret indirilir ve Keenetic'e uyarlanır
 - Çıkış arayüzü sorulur (örnek: `ppp0`)
-- Varsayılan DPI profili uygulanır  
+- Varsayılan DPI profili uygulanır:  
   **Turk Telekom Fiber (TTL2 fake)**
 - Zapret otomatik olarak başlatılır
 
@@ -284,7 +285,7 @@ IPSET menüsünün üstünde aktif mod otomatik olarak gösterilir:
   → Tüm LAN istemcileri için Zapret aktif
 
 - 🟡 **Mod: Seçili IP**  
-  → Sadece girilen **statik IP’ler** için Zapret aktif
+  → Sadece girilen **statik IP'ler** için Zapret aktif
 
 Yerel ağlar (RFC1918, loopback, CGNAT vb.) teknik olarak her zaman bypass edilir (`nozapret`).
 
@@ -293,9 +294,9 @@ Yerel ağlar (RFC1918, loopback, CGNAT vb.) teknik olarak her zaman bypass edili
 ## 🔄 Sürüm Kontrolü
 
 - Zapret sürümü GitHub üzerinden sorgulanır
-- Manager (betik) sürümü GitHub Release tag’i ile karşılaştırılır
+- Manager (betik) sürümü GitHub Release tag'i ile karşılaştırılır
 
-### Sürüm formatı
+### Sürüm Formatı
 
 ```
 YY.AA.GG(.N)
@@ -334,7 +335,7 @@ Kullanım tamamen **kullanıcının sorumluluğundadır**.
 
 - Issue açabilirsiniz
 - Feature request gönderebilirsiniz
-- Pull Request’ler memnuniyetle karşılanır
+- Pull Request'ler memnuniyetle karşılanır
 
-📌 GitHub Repo:  
+📌 **GitHub Repo:**  
 https://github.com/RevolutionTR/keenetic-zapret-manager
