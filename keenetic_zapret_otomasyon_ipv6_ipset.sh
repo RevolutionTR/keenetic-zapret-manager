@@ -133,7 +133,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.1.31.2"
+SCRIPT_VERSION="v26.2.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -201,6 +201,17 @@ print_line() {
     printf "%*s\n" "$cols" "" | tr " " "$ch"
 }
 
+
+# Screen helper
+clear_screen() {
+    # Prefer 'clear' if available; otherwise reset the terminal
+    if command -v clear >/dev/null 2>&1; then
+        clear
+    else
+        printf '\033c'
+    fi
+}
+
 hc_word() {
     # PASS/WARN/FAIL kelimesini renklendirir (renk kapaliysa sade basar)
     case "$1" in
@@ -210,6 +221,15 @@ hc_word() {
         FAIL) printf '%b' "${CLR_RED}FAIL${CLR_RESET}" ;;
         *)    printf '%s' "$1" ;;
     esac
+}
+# print_status LEVEL MESSAGE
+# LEVEL: PASS/WARN/INFO/FAIL (colored via hc_word)
+print_status() {
+    local _lvl _msg
+    _lvl="$1"; shift
+    _msg="$*"
+    # If colors are disabled, hc_word will return plain text
+    printf "%s %s\n" "$(hc_word "$_lvl")" "$_msg"
 }
 
 
@@ -343,9 +363,9 @@ TXT_HEALTH_OVERALL_EN="Overall Status"
 
 TXT_HEALTH_DNS_LOCAL_TR="DNS (Yerel resolver 127.0.0.1)"
 TXT_HEALTH_DNS_LOCAL_EN="DNS (Local resolver 127.0.0.1)"
+
 TXT_HEALTH_SCRIPT_PATH_TR="Betik Konumu (Dogru yerde mi?)"
 TXT_HEALTH_SCRIPT_PATH_EN="Script location (Correct path?)"
-
 
 TXT_HEALTH_DNS_PUBLIC_TR="DNS (8.8.8.8)"
 TXT_HEALTH_DNS_PUBLIC_EN="DNS (8.8.8.8)"
@@ -382,11 +402,19 @@ TXT_HEALTH_LOAD_EN="System load (load avg)"
 
 TXT_ROLLBACK_TITLE_TR="Betik: Yedekten Geri Don (Rollback)"
 TXT_ROLLBACK_TITLE_EN="Script: Roll Back from Backup"
+
 # -----------------------------
 # Common UI
 # -----------------------------
 TXT_CHOICE_TR="Seçim:"
 TXT_CHOICE_EN="Choice:"
+
+TXT_INVALID_CHOICE_TR="Gecersiz secim!"
+TXT_INVALID_CHOICE_EN="Invalid choice!"
+
+TXT_TMPDIR_CREATE_FAIL_TR="Gecici dizin olusturulamadi!"
+TXT_TMPDIR_CREATE_FAIL_EN="Failed to create temporary directory!"
+
 
 # -----------------------------
 # Rollback / Local backups
@@ -411,7 +439,6 @@ TXT_BLOCKCHECK_CLEAN_DONE_EN="Cleaned: %s test result(s) deleted."
 
 TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test sonucu bulunamadı."
 TXT_BLOCKCHECK_CLEAN_NONE_EN="No test results to clean."
-
 
 TXT_BACK_TR="Geri"
 TXT_BACK_EN="Back"
@@ -449,7 +476,6 @@ TXT_ROLLBACK_CLEAN_NONE_EN="No backups to clean."
 TXT_ROLLBACK_CLEAN_DONE_TR="Yedek dosyalari temizlendi."
 TXT_ROLLBACK_CLEAN_DONE_EN="Backup files cleaned."
 
-
 TXT_ROLLBACK_MAIN_PICK_TR="Secim: "
 TXT_ROLLBACK_MAIN_PICK_EN="Choice: "
 
@@ -471,6 +497,49 @@ TXT_ROLLBACK_GH_DONE_EN="Install completed. Please re-run the script."
 TXT_BACKUP_MENU_TITLE_TR="Zapret Yedekleme / Geri Yukleme"
 TXT_BACKUP_MENU_TITLE_EN="Zapret Backup / Restore"
 
+TXT_BACKUP_BASE_PATH_TR="Yedek konumu:"
+TXT_BACKUP_BASE_PATH_EN="Backup location:"
+
+TXT_ZAPRET_SETTINGS_BACKUP_DIR_TR="Yedek konumu:"
+TXT_ZAPRET_SETTINGS_BACKUP_DIR_EN="Backup location:"
+
+TXT_YES_TR="Evet"
+TXT_YES_EN="Yes"
+
+TXT_NO_TR="Hayir"
+TXT_NO_EN="No"
+
+TXT_ZAPRET_SETTINGS_CLEAN_MENU_TR="Yedekleri Temizle"
+TXT_ZAPRET_SETTINGS_CLEAN_MENU_EN="Clean Backups"
+
+# --- Backup/Restore (Zapret Settings) ---
+TXT_ZAPRET_SETTINGS_RESTORE_TITLE_TR="Zapret Ayarlari Geri Yukleme"
+TXT_ZAPRET_SETTINGS_RESTORE_TITLE_EN="Restore Zapret Settings"
+
+TXT_SELECT_BACKUP_TO_RESTORE_TR="Geri yuklemek icin yedegi secin:"
+TXT_SELECT_BACKUP_TO_RESTORE_EN="Select a backup to restore:"
+
+TXT_ZAPRET_RESTORE_SUBMENU_TITLE_TR="Zapret Yedekleme / Geri Yukleme"
+TXT_ZAPRET_RESTORE_SUBMENU_TITLE_EN="Zapret Backup / Restore"
+
+TXT_RESTORE_SCOPE_FULL_TR="Tam Yedegi Geri Yukle (Hepsi)"
+TXT_RESTORE_SCOPE_FULL_EN="Restore Full Backup (All)"
+
+TXT_RESTORE_SCOPE_DPI_TR="Sadece DPI Profili / Ayarlari Geri Yukle"
+TXT_RESTORE_SCOPE_DPI_EN="Restore DPI Profile/Settings Only"
+
+TXT_RESTORE_SCOPE_HOSTLIST_TR="Sadece Hostlist / Autohostlist Dosyalarini Geri Yukle"
+TXT_RESTORE_SCOPE_HOSTLIST_EN="Restore Hostlist/Autohostlist Files Only"
+
+TXT_RESTORE_SCOPE_IPSET_TR="Sadece IPSET Listelerini Geri Yukle"
+TXT_RESTORE_SCOPE_IPSET_EN="Restore IPSET Sets Only"
+
+TXT_RESTORE_SCOPE_NFQWS_TR="Sadece Zapret Config (nfqws) Geri Yukle"
+TXT_RESTORE_SCOPE_NFQWS_EN="Restore Zapret Config (nfqws) Only"
+
+TXT_BACKUP_NO_BACKUPS_FOUND_TR="Yedek bulunamadi."
+TXT_BACKUP_NO_BACKUPS_FOUND_EN="No backups found."
+
 TXT_BACKUP_SUB_BACKUP_TR="1. IPSET Yedekle"
 TXT_BACKUP_SUB_BACKUP_EN="1. IPSET Backup"
 
@@ -479,6 +548,75 @@ TXT_BACKUP_SUB_RESTORE_EN="2. IPSET Restore"
 
 TXT_BACKUP_SUB_SHOW_TR="3. IPSET Yedekleri Goster"
 TXT_BACKUP_SUB_SHOW_EN="3. Show IPSET Backups"
+
+TXT_BACKUP_SUB_CFG_BACKUP_TR="4. Zapret Ayarlarini Yedekle"
+TXT_BACKUP_SUB_CFG_BACKUP_EN="4. Backup Zapret Settings"
+
+TXT_BACKUP_SUB_CFG_RESTORE_TR="5. Zapret Ayarlarini Geri Yukle"
+TXT_BACKUP_SUB_CFG_RESTORE_EN="5. Restore Zapret Settings"
+
+TXT_BACKUP_SUB_CFG_SHOW_TR="6. Zapret Ayar Yedeklerini Goster"
+TXT_BACKUP_SUB_CFG_SHOW_EN="6. Show Settings Backups"
+
+TXT_BACKUP_CFG_NO_FILES_TR="Yedeklenecek Zapret ayar dosyasi bulunamadi."
+TXT_BACKUP_CFG_NO_FILES_EN="No Zapret settings files found to backup."
+
+TXT_BACKUP_CFG_BACKED_UP_TR="Zapret ayarlari yedeklendi: %s"
+TXT_BACKUP_CFG_BACKED_UP_EN="Zapret settings backed up: %s"
+
+TXT_BACKUP_CFG_NO_BACKUPS_TR="Zapret ayar yedegi bulunamadi."
+TXT_BACKUP_CFG_NO_BACKUPS_EN="No Zapret settings backup found."
+
+TXT_BACKUP_CFG_RESTORED_TR="Zapret ayarlari geri yuklendi: %s"
+TXT_BACKUP_CFG_RESTORED_EN="Zapret settings restored: %s"
+
+TXT_BACKUP_RESTORE_SUBMENU_TITLE_TR="Zapret Ayarlarini Geri Yukle"
+TXT_BACKUP_RESTORE_SUBMENU_TITLE_EN="Restore Zapret Settings"
+
+TXT_BACKUP_RESTORE_FULL_TR="Tam Yedegi Geri Yukle (Hepsi)"
+TXT_BACKUP_RESTORE_FULL_EN="Restore Full Backup"
+
+TXT_BACKUP_RESTORE_DPI_TR="Sadece DPI Profili / Ayarlari Geri Yukle"
+TXT_BACKUP_RESTORE_DPI_EN="Restore DPI Settings Only"
+
+TXT_BACKUP_RESTORE_HOSTLIST_TR="Sadece Hostlist / Autohostlist Dosyalarini Geri Yukle"
+TXT_BACKUP_RESTORE_HOSTLIST_EN="Restore Hostlist / Autohostlist Only"
+
+TXT_BACKUP_RESTORE_IPSET_TR="Sadece IPSET Listelerini Geri Yukle"
+TXT_BACKUP_RESTORE_IPSET_EN="Restore IPSET Settings Only"
+
+TXT_BACKUP_RESTORE_NFQWS_TR="Sadece Zapret Config (nfqws) Geri Yukle"
+TXT_BACKUP_RESTORE_NFQWS_EN="Restore Zapret Config (nfqws) Only"
+
+TXT_BACKUP_RESTORE_EXTRACTING_TR="Yedek aciliyor..."
+TXT_BACKUP_RESTORE_EXTRACTING_EN="Extracting backup..."
+
+TXT_BACKUP_RESTORE_FAILED_TR="Geri yukleme basarisiz!"
+TXT_BACKUP_RESTORE_FAILED_EN="Restore failed!"
+
+TXT_BACKUP_RESTORE_DONE_TR="Geri yukleme tamamlandi."
+TXT_BACKUP_RESTORE_DONE_EN="Restore completed."
+
+TXT_BACKUP_RESTORE_NOTHING_TR="Geri yuklenecek dosya bulunamadi."
+TXT_BACKUP_RESTORE_NOTHING_EN="Nothing to restore."
+
+TXT_BACKUP_RESTORE_STATS_TR="Geri yuklenen: %s | Bulunamayan/Hata: %s"
+TXT_BACKUP_RESTORE_STATS_EN="Restored: %s | Missing/Error: %s"
+
+TXT_BACKUP_RESTORE_SCOPE_TR="Geri yukleme kapsamını secin:"
+TXT_BACKUP_RESTORE_SCOPE_EN="Select restore scope:"
+
+TXT_BACKUP_SCOPE_HOSTLISTS_TR="1. Sadece host listeleri (hostlist/autohostlist)"
+TXT_BACKUP_SCOPE_HOSTLISTS_EN="1. Host lists only (hostlist/autohostlist)"
+
+TXT_BACKUP_SCOPE_CONFIG_TR="2. Sadece ayarlar (config)"
+TXT_BACKUP_SCOPE_CONFIG_EN="2. Settings only (config)"
+
+TXT_BACKUP_SCOPE_FULL_TR="3. Tam geri yukleme (ayarlar + listeler)"
+TXT_BACKUP_SCOPE_FULL_EN="3. Full restore (settings + lists)"
+
+TXT_BACKUP_SCOPE_CANCEL_TR="0. Iptal"
+TXT_BACKUP_SCOPE_CANCEL_EN="0. Cancel"
 
 TXT_BACKUP_SUB_BACK_TR="0. Geri"
 TXT_BACKUP_SUB_BACK_EN="0. Back"
@@ -513,7 +651,39 @@ TXT_SELECT_FILE_EN="Select a file"
 TXT_SELECT_ACTION_TR="Seciminizi yapin"
 TXT_SELECT_ACTION_EN="Make your selection"
 
+# --- Menu strings (TR/EN) ---
+TXT_BLOCKCHECK_TEST_MENU_TR="Blockcheck Test Menüsü"
+TXT_BLOCKCHECK_TEST_MENU_EN="Blockcheck Test Menu"
 
+TXT_BACKUP_BASE_PATH_TR="Yedek konumu:"
+TXT_BACKUP_BASE_PATH_EN="Backup location:"
+
+TXT_ZAPRET_SETTINGS_BACKUP_DIR_TR="Yedek konumu:"
+TXT_ZAPRET_SETTINGS_BACKUP_DIR_EN="Backup location:"
+
+TXT_YES_TR="Evet"
+TXT_YES_EN="Yes"
+
+TXT_NO_TR="Hayir"
+TXT_NO_EN="No"
+
+TXT_ROLLBACK_NO_LOCAL_BACKUP_TR="Yerel yedek bulunamadi."
+TXT_ROLLBACK_NO_LOCAL_BACKUP_EN="No local backup found."
+
+TXT_ZAPRET_SETTINGS_CLEAN_MENU_TR="Yedekleri Temizle"
+TXT_ZAPRET_SETTINGS_CLEAN_MENU_EN="Clean Backups"
+
+TXT_ZAPRET_SETTINGS_CLEAN_CONFIRM_TR="Zapret ayar yedekleri silinsin mi? (tar.gz)"
+TXT_ZAPRET_SETTINGS_CLEAN_CONFIRM_EN="Delete zapret settings backups? (tar.gz)"
+
+TXT_ZAPRET_SETTINGS_CLEAN_NONE_TR="Silinecek zapret ayar yedegi bulunamadi."
+TXT_ZAPRET_SETTINGS_CLEAN_NONE_EN="No zapret settings backups found to delete."
+
+TXT_ZAPRET_SETTINGS_CLEAN_DONE_TR="Zapret ayar yedekleri temizlendi."
+TXT_ZAPRET_SETTINGS_CLEAN_DONE_EN="Zapret settings backups have been cleaned."
+
+TXT_ZAPRET_SETTINGS_CLEAN_FAIL_TR="Yedekler silinemedi!"
+TXT_ZAPRET_SETTINGS_CLEAN_FAIL_EN="Failed to delete backups!"
 
 # -------------------------------------------------------------------
 # Hostlist / Autohostlist (Menu 11) - i18n
@@ -596,7 +766,6 @@ TXT_HL_OPT_8_EN="Change Scope Mode (Global/Smart)"
 TXT_HL_OPT_0_TR="Geri"
 TXT_HL_OPT_0_EN="Back"
 
-
 # Hostlist / Autohostlist (MODE_FILTER) sub-menu
 TXT_HL_MODE_TITLE_TR="Hostlist / Autohostlist (MODE_FILTER)"
 TXT_HL_MODE_TITLE_EN="Hostlist / Autohostlist (MODE_FILTER)"
@@ -645,7 +814,6 @@ TXT_HL_DOMAIN_DEL_EN="Domain removed: "
 
 TXT_HL_CLEARED_TR="Auto list temizlendi."
 TXT_HL_CLEARED_EN="Auto list cleared."
-
 
 # Hostlist prompts & messages
 TXT_HL_ERR_NOT_INSTALLED_TR="HATA: Zapret yuklu degil."
@@ -780,7 +948,6 @@ TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-2): "
 TXT_PRESS_ENTER_TR="Devam etmek icin Enter'a basin..."
 TXT_PRESS_ENTER_EN="Press Enter to continue..."
 
-
 # --- Script path warning ---
 TXT_WARN_BAD_PATH_TR="UYARI: Betik beklenen dizinde degil!"
 TXT_WARN_BAD_PATH_EN="WARNING: Script is not in the expected directory!"
@@ -803,7 +970,6 @@ TXT_WARN_MOVE_FAIL_EN="ERROR: Failed to move the script."
 TXT_WARN_CHMOD_FAIL_TR="HATA: Calistirma izni verilemedi."
 TXT_WARN_CHMOD_FAIL_EN="ERROR: Could not set executable permission."
 
-
 TXT_SCRIPT_INSTALLED_TR="Kurulu Betik Surumu : "
 TXT_SCRIPT_INSTALLED_EN="Installed Script Ver : "
 
@@ -824,6 +990,9 @@ TXT_IPSET_MODE_LIST_EN="Mode: Selected IPs"
 
 TXT_IPSET_MODE_ALL_TR="Mod: Tum Ag"
 TXT_IPSET_MODE_ALL_EN="Mode: Whole Network"
+
+TXT_IPSET_ALL_NETWORK_TR="Zapret tum ag genelinde aktif. Secili IP listesi kullanilmiyor."
+TXT_IPSET_ALL_NETWORK_EN="Zapret is active network-wide. Selected IP list is not in use."
 
 TXT_IP_LIST_FILE_TR="IP Listesi (dosya): "
 TXT_IP_LIST_FILE_EN="IP List (file): "
@@ -848,7 +1017,6 @@ TXT_UPTODATE_EN="You are using the latest version."
 
 TXT_GITHUB_FAIL_TR="HATA: GitHub uzerinden surum bilgisi alinamadi."
 TXT_GITHUB_FAIL_EN="ERROR: Could not fetch version info from GitHub."
-
 
 TXT_ADD_IP_TR="Eklenecek IP (Enter=Vazgec): "
 TXT_ADD_IP_EN="IP to add (Enter=Cancel): "
@@ -2148,15 +2316,55 @@ show_ipset_client_status() {
     [ -z "$MODE" ] && MODE="all"
 
     if [ "$MODE" = "list" ]; then
-        echo "$(T ipset_mode_list "$TXT_IPSET_MODE_LIST_TR" "$TXT_IPSET_MODE_LIST_EN")"
-        if [ -f "$IPSET_CLIENT_FILE" ]; then
-            echo "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN")$(tr '\n' ' ' < "$IPSET_CLIENT_FILE" | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')"
+        print_line "="
+        printf '%b%s%b\n' "${CLR_CYAN}${CLR_BOLD}" "$(T ipset_mode_list "$TXT_IPSET_MODE_LIST_TR" "$TXT_IPSET_MODE_LIST_EN")" "${CLR_RESET}"
+        print_line "="
+        echo ""
+        
+        # IP Listesi Dosyası
+        printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN")" "${CLR_RESET}"
+        if [ -f "$IPSET_CLIENT_FILE" ] && [ -s "$IPSET_CLIENT_FILE" ]; then
+            local ip_count="$(wc -l < "$IPSET_CLIENT_FILE" 2>/dev/null | tr -d ' ')"
+            printf '%b%d IP%b\n' "${CLR_GREEN}" "$ip_count" "${CLR_RESET}"
+            echo ""
+            printf '%b%s%b\n' "${CLR_DIM}" "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN"):" "${CLR_RESET}"
+            # awk ile numaralandırma - daha güvenli
+            awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
+                NF > 0 {
+                    printf "  %s%2d.%s %s\n", cyan, NR, reset, $0
+                }' "$IPSET_CLIENT_FILE"
         else
-            echo "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN")$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")"
+            printf '%b%s%b\n' "${CLR_RED}" "$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")" "${CLR_RESET}"
         fi
-        echo "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN")$(ipset list "$IPSET_CLIENT_NAME" 2>/dev/null | sed -n '/^Members:/,$p' | tail -n +2 | tr '\n' ' ' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')"
+        
+        echo ""
+        print_line "-"
+        
+        # IPSET Üyeleri
+        printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN")" "${CLR_RESET}"
+        local ipset_members="$(ipset list "$IPSET_CLIENT_NAME" 2>/dev/null | sed -n '/^Members:/,$p' | tail -n +2)"
+        if [ -n "$ipset_members" ]; then
+            local member_count="$(echo "$ipset_members" | wc -l | tr -d ' ')"
+            printf '%b%d IP%b\n' "${CLR_GREEN}" "$member_count" "${CLR_RESET}"
+            echo ""
+            printf '%b%s%b\n' "${CLR_DIM}" "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN"):" "${CLR_RESET}"
+            # awk ile numaralandırma - subshell problemi yok
+            printf '%s\n' "$ipset_members" | awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
+                NF > 0 {
+                    printf "  %s%2d.%s %s\n", cyan, NR, reset, $0
+                }'
+        else
+            printf '%b%s%b\n' "${CLR_RED}" "$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")" "${CLR_RESET}"
+        fi
+        
+        print_line "="
     else
-        echo "$(T ipset_mode_all "$TXT_IPSET_MODE_ALL_TR" "$TXT_IPSET_MODE_ALL_EN")"
+        print_line "="
+        printf '%b%s%b\n' "${CLR_CYAN}${CLR_BOLD}" "$(T ipset_mode_all "$TXT_IPSET_MODE_ALL_TR" "$TXT_IPSET_MODE_ALL_EN")" "${CLR_RESET}"
+        print_line "="
+        echo ""
+        printf '%b%s%b\n' "${CLR_GREEN}" "$(T ipset_all_network "$TXT_IPSET_ALL_NETWORK_TR" "$TXT_IPSET_ALL_NETWORK_EN")" "${CLR_RESET}"
+        print_line "="
     fi
 }
 
@@ -4218,10 +4426,18 @@ backup_restore_menu() {
         clear
 print_line "="
         echo "$(T TXT_BACKUP_MENU_TITLE)"
+        print_line "-"
+        printf "%s %s
+" "$(T TXT_BACKUP_BASE_PATH)" "$BACKUP_BASE"
+        printf "%s %s
+" "$(T TXT_ZAPRET_SETTINGS_BACKUP_DIR)" "$BACKUP_BASE/zapret_settings"
 print_line "="
         echo "  $(T TXT_BACKUP_SUB_BACKUP)"
         echo "  $(T TXT_BACKUP_SUB_RESTORE)"
         echo "  $(T TXT_BACKUP_SUB_SHOW)"
+        echo "  $(T TXT_BACKUP_SUB_CFG_BACKUP)"
+        echo "  $(T TXT_BACKUP_SUB_CFG_RESTORE)"
+        echo "  $(T TXT_BACKUP_SUB_CFG_SHOW)"
         echo "  $(T TXT_BACKUP_SUB_BACK)"
         print_line "-"
         printf "%s: " "$(T TXT_SELECT_ACTION)"
@@ -4258,8 +4474,8 @@ print_line "="
                 clear
 print_line "="
                 echo "$(T TXT_BACKUP_MENU_TITLE)"
+        printf "%s %s\n" "$(T TXT_BACKUP_BASE_PATH)" "$BACKUP_BASE"
 print_line "="
-                echo "Backup base: $BACKUP_BASE"
                 echo
                 echo "[current]"
                 ls -la "$CUR_DIR" 2>/dev/null | sed -n '1,200p'
@@ -4268,6 +4484,13 @@ print_line "="
                 ls -1 "$HIST_DIR" 2>/dev/null | tail -n 5
                 print_line "-"
                 read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                ;;
+            4)
+                backup_zapret_settings "$BACKUP_BASE"
+                ;;
+            5) zapret_restore_menu "$BACKUP_BASE" ;;
+            6)
+                show_zapret_settings_backups "$BACKUP_BASE"
                 ;;
             0)
                 return 0
@@ -4341,6 +4564,344 @@ print_line "="
         done
     done
 }
+backup_zapret_settings() {
+    # Back up Zapret settings (config + key state files) into a tar.gz under BACKUP_BASE/zapret_settings
+    BACKUP_BASE="${1:-/opt/zapret_backups}"
+    DEST_DIR="$BACKUP_BASE/zapret_settings"
+    mkdir -p "$DEST_DIR" 2>/dev/null
+
+    TS="$(date +%Y%m%d_%H%M%S)"
+    ARCHIVE="$DEST_DIR/zapret_settings_${TS}.tar.gz"
+
+    # Build relative path list safely (only include existing files/dirs)
+    RELS=""
+    add_rel() {
+        _p="$1"
+        [ -e "$_p" ] || return 0
+        RELS="$RELS ${_p#/}"
+        return 0
+    }
+
+    add_rel "/opt/zapret/config"
+    add_rel "/opt/zapret/wan_if"
+    add_rel "/opt/zapret/lang"
+    add_rel "/opt/zapret/hostlist_mode"
+    add_rel "/opt/zapret/ipset_clients.txt"
+    add_rel "/opt/zapret/ipset_clients_mode"
+
+    # include host lists if present (user/auto)
+    for f in /opt/zapret/ipset/zapret-hosts-*.txt; do
+        [ -e "$f" ] || break
+        add_rel "$f"
+    done
+
+    # nothing to back up?
+    if [ -z "$(echo "$RELS" | tr -d ' ')" ]; then
+        print_status WARN "$(T TXT_BACKUP_CFG_NO_FILES)"
+        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        return 0
+    fi
+
+    # create archive (busybox tar is usually available)
+    tar -C / -czf "$ARCHIVE" $RELS 2>/dev/null
+    if [ $? -ne 0 ] || [ ! -s "$ARCHIVE" ]; then
+        rm -f "$ARCHIVE" 2>/dev/null
+        print_status FAIL "$(T backup_tar_fail 'Yedekleme basarisiz.' 'Backup failed.')"
+        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        return 1
+    fi
+
+    print_status PASS "$(printf "$(T TXT_BACKUP_CFG_BACKED_UP)" "$ARCHIVE")"
+    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    return 0
+}
+
+
+clean_zapret_settings_backups() {
+    BACKUP_BASE="${1:-$BACKUP_BASE}"
+
+    # Backward compatible:
+    # - Newer builds:   $BACKUP_BASE/zapret_settings/zapret_settings_*.tar.gz
+    # - Older builds:   $BACKUP_BASE/zapret_settings_*.tar.gz
+    local DIR_NEW="$BACKUP_BASE/zapret_settings"
+    local DIR_OLD="$BACKUP_BASE"
+
+    # Screen
+    command -v clear >/dev/null 2>&1 && clear || true
+    echo "==========================================================="
+    echo "$(T TXT_ZAPRET_SETTINGS_CLEAN_MENU)"
+    echo "==========================================================="
+    echo "$(T TXT_ZAPRET_SETTINGS_BACKUP_DIR) $BACKUP_BASE/zapret_settings"
+    echo "==========================================================="
+    echo "$(T TXT_ZAPRET_SETTINGS_CLEAN_CONFIRM)"
+    print_line
+
+    echo " 1) $(T TXT_YES)"
+    echo " 0) $(T TXT_NO)"
+    print_line
+    printf "%s " "$(T TXT_CHOICE)"
+
+    local ans
+    read -r ans
+
+    case "$ans" in
+        1|y|Y|e|E)
+            local removed=0
+
+            # Delete in both possible locations.
+            # shellcheck disable=SC2039
+            if [ -d "$DIR_NEW" ]; then
+                # If there are matches, delete them.
+                if ls "$DIR_NEW"/zapret_settings_*.tar.gz >/dev/null 2>&1; then
+                    rm -f "$DIR_NEW"/zapret_settings_*.tar.gz 2>/dev/null && removed=1
+                fi
+            fi
+
+            if ls "$DIR_OLD"/zapret_settings_*.tar.gz >/dev/null 2>&1; then
+                rm -f "$DIR_OLD"/zapret_settings_*.tar.gz 2>/dev/null && removed=1
+            fi
+
+            if [ "$removed" -eq 1 ]; then
+                print_status PASS "$(T TXT_ZAPRET_SETTINGS_CLEAN_DONE)"
+            else
+                print_status WARN "$(T TXT_ZAPRET_SETTINGS_CLEAN_NONE)"
+            fi
+            ;;
+        *)
+            print_status INFO "$(T TXT_CANCELLED)"
+            ;;
+    esac
+
+    pause
+}
+
+
+
+
+list_zapret_settings_backups() {
+    BACKUP_BASE="${1:-/opt/zapret_backups}"
+    DIR="$BACKUP_BASE/zapret_settings"
+    [ -d "$DIR" ] || return 1
+    ls -1 "$DIR"/zapret_settings_*.tar.gz 2>/dev/null | sort -r
+}
+
+show_zapret_settings_backups() {
+    BACKUP_BASE="${1:-/opt/zapret_backups}"
+    DIR="$BACKUP_BASE/zapret_settings"
+    if [ ! -d "$DIR" ] || ! ls "$DIR"/zapret_settings_*.tar.gz >/dev/null 2>&1; then
+        print_status WARN "$(T TXT_BACKUP_CFG_NO_BACKUPS)"
+        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        return 0
+    fi
+    clear
+print_line "="
+    echo "$(T TXT_BACKUP_MENU_TITLE)"
+print_line "="
+    echo
+    ls -la "$DIR" 2>/dev/null | sed -n '1,200p'
+    print_line "-"
+    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    return 0
+}
+
+restore_zapret_settings() {
+    # $1 = BACKUP_BASE (root folder that contains zapret_settings/)
+    local BACKUP_BASE="${1:-$(get_backup_base_path 2>/dev/null)}"
+    local SETTINGS_DIR="${BACKUP_BASE%/}/zapret_settings"
+
+    clear_screen
+    print_line "="
+    printf "%s\n" "$(T TXT_ZAPRET_SETTINGS_RESTORE_TITLE)"
+    print_line "="
+    printf "%s\n" "$(T TXT_BACKUP_BASE_PATH) ${BACKUP_BASE}"
+    print_line "-"
+    printf "\n"
+
+    if [ ! -d "$SETTINGS_DIR" ]; then
+        print_status WARN "$(T TXT_BACKUP_NO_BACKUPS_FOUND)"
+        pause_anykey
+        return 1
+    fi
+
+    # List backups (newest first). Expected: zapret_settings_YYYYmmdd_HHMMSS.tar.gz
+    local backups
+    backups="$(ls -1t "$SETTINGS_DIR"/zapret_settings_*.tar.gz 2>/dev/null)"
+    if [ -z "$backups" ]; then
+        print_status WARN "$(T TXT_BACKUP_NO_BACKUPS_FOUND)"
+        pause_anykey
+        return 1
+    fi
+
+    printf "%s\n" "$(T TXT_SELECT_BACKUP_TO_RESTORE)"
+    print_line "-"
+
+    local i=0 b
+    for b in $backups; do
+        i=$((i+1))
+        printf " %2d) %s\n" "$i" "$(basename "$b")"
+        [ "$i" -ge 15 ] && break
+    done
+    printf "  c) %s
+" "$(T TXT_ZAPRET_SETTINGS_CLEAN_MENU)"
+    printf "  0) %s
+" "$(T TXT_BACK)"
+    print_line "-"
+    printf "%s" "$(T TXT_CHOICE)"
+    read -r sel
+    [ -z "$sel" ] && return 0
+    if echo "$sel" | grep -Eq "^[cC]$"; then
+        clean_zapret_settings_backups
+        restore_zapret_settings
+        return 0
+    fi
+    if [ "$sel" = "0" ]; then
+        return 0
+    fi
+    if ! echo "$sel" | grep -Eq '^[0-9]+$'; then
+        print_status WARN "$(T TXT_INVALID_CHOICE)"
+        pause_anykey
+        return 1
+    fi
+
+    local chosen=""
+    i=0
+    for b in $backups; do
+        i=$((i+1))
+        if [ "$i" -eq "$sel" ]; then
+            chosen="$b"
+            break
+        fi
+        [ "$i" -ge 15 ] && break
+    done
+    if [ -z "$chosen" ] || [ ! -f "$chosen" ]; then
+        print_status WARN "$(T TXT_INVALID_CHOICE)"
+        pause_anykey
+        return 1
+    fi
+
+    clear_screen
+    printf "%s\n" "$(T TXT_ZAPRET_RESTORE_SUBMENU_TITLE)"
+    print_line "-"
+    printf " 1. %s\n" "$(T TXT_RESTORE_SCOPE_FULL)"
+    printf " 2. %s\n" "$(T TXT_RESTORE_SCOPE_DPI)"
+    printf " 3. %s\n" "$(T TXT_RESTORE_SCOPE_HOSTLIST)"
+    printf " 4. %s\n" "$(T TXT_RESTORE_SCOPE_IPSET)"
+    printf " 5. %s\n" "$(T TXT_RESTORE_SCOPE_NFQWS)"
+    print_line "-"
+    printf " 0. %s\n" "$(T TXT_BACK)"
+    print_line "-"
+    printf "%s" "$(T TXT_CHOICE)"
+    read -r scope
+    [ -z "$scope" ] && return 0
+    if [ "$scope" = "0" ]; then
+        return 0
+    fi
+
+    local tmp="/tmp/zapret_settings_restore.$$"
+    rm -rf "$tmp" 2>/dev/null
+    mkdir -p "$tmp" || { print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"; pause_anykey; return 1; }
+
+    # Extract to temp first (safer), then copy selected paths
+    if ! tar -xzf "$chosen" -C "$tmp" >/dev/null 2>&1; then
+        rm -rf "$tmp" 2>/dev/null
+        print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"
+        pause_anykey
+        return 1
+    fi
+
+    local src="$tmp"
+    # Some archives may include leading ./ or an extra top folder. Normalize:
+    if [ -d "$tmp/opt" ]; then
+        src="$tmp"
+    else
+        # pick first directory that contains opt/
+        local d
+        for d in "$tmp"/*; do
+            if [ -d "$d/opt" ]; then src="$d"; break; fi
+        done
+    fi
+
+    # Helper: copy a path if present (dir -> merge contents; file -> overwrite)
+    _copy_if_exists() {
+        local p="$1"
+        local src_path="$src/$p"
+        local dst_path="/$p"
+
+        if [ -d "$src_path" ]; then
+            mkdir -p "$dst_path" 2>/dev/null
+            # Copy directory contents to avoid nested dir like /opt/zapret/ipset/ipset
+            cp -a "$src_path/." "$dst_path/" 2>/dev/null || return 1
+            return 0
+        fi
+
+        if [ -e "$src_path" ]; then
+            mkdir -p "/$(dirname "$p")" 2>/dev/null
+            cp -a "$src_path" "$dst_path" 2>/dev/null || return 1
+            return 0
+        fi
+
+        return 1
+    }
+
+    # Varsayılan: işlem başarılı kabul edilir. Zorunlu parçalar yoksa/başarısızsa ok=1 yapılır.
+    local ok=0
+    case "$scope" in
+        1) # full restore
+            cp -a "$src/"* / 2>/dev/null || ok=1
+            ;;
+        2) # DPI settings
+            _copy_if_exists "opt/zapret/config" || ok=1
+            _copy_if_exists "opt/zapret/lang" || ok=1
+            _copy_if_exists "opt/zapret/wan_if" || ok=1
+            _copy_if_exists "opt/zapret/dpi_profile" || true
+            ;;
+        3) # hostlist / autohostlist
+            _copy_if_exists "opt/zapret/hostlist_mode" || ok=1
+            _copy_if_exists "opt/zapret/hostlist" || true
+            _copy_if_exists "opt/zapret/autohostlist" || true
+            _copy_if_exists "opt/zapret/hostlists" || true
+            ;;
+        4) # ipset settings
+            _copy_if_exists "opt/zapret/ipset_clients.txt" || true
+            _copy_if_exists "opt/zapret/ipset" || true
+            _copy_if_exists "opt/zapret/ipset_mode" || true
+            ;;
+        5) # nfqws config only
+            _copy_if_exists "opt/zapret/config" || ok=1
+            ;;
+        *)
+            rm -rf "$tmp" 2>/dev/null
+            print_status WARN "$(T TXT_INVALID_CHOICE)"
+            pause_anykey
+            return 1
+            ;;
+    esac
+
+    rm -rf "$tmp" 2>/dev/null
+
+    if [ "$ok" -eq 0 ]; then
+        print_status PASS "$(T TXT_BACKUP_RESTORE_DONE)"
+		# Restore sonrasi zapret'i yeniden baslat (kurallar tekrar uygulansin)
+		if is_zapret_installed; then
+			echo "$(T TXT_RESTORE_RESTARTING)"
+			if restart_zapret; then
+				print_status PASS "$(T TXT_RESTORE_RESTART_OK)"
+			else
+				print_status WARN "$(T TXT_RESTORE_RESTART_WARN)"
+			fi
+		fi
+    else
+        print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"
+    fi
+    pause_anykey
+}
+
+zapret_restore_menu() {
+    local BACKUP_BASE="$1"
+    restore_zapret_settings "$BACKUP_BASE"
+}
+
+
 
 check_script_location_once
 main_menu_loop() {
@@ -4351,6 +4912,11 @@ main_menu_loop() {
     clear  # clear_after_choice_main
         echo ""
         case "$choice" in
+        c|C)
+            clean_zapret_settings_backups
+            restore_zapret_settings
+            return 0
+            ;;
             1) install_zapret; press_enter_to_continue ;;
             2) uninstall_zapret ;;
             3) start_zapret; press_enter_to_continue ;;
