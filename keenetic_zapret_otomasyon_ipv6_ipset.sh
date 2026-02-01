@@ -22,8 +22,87 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
+# -------------------------------------------------------------------
 
-# BETIK BILGILENDIRME
+
+# -------------------------------------------------------------------
+# Script Kimligi (Repo/Surum)
+# -------------------------------------------------------------------
+SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
+# Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
+SCRIPT_VERSION="v26.2.1.2"
+SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
+SCRIPT_AUTHOR="RevolutionTR"
+# -------------------------------------------------------------------
+
+
+# -------------------------------------------------------------------
+# BEGIN_SESSION_GUARD_V3
+# Amaç:
+# - SSH / shellinabox oturumu kopunca (/dev/pts/* (deleted)) scriptin
+#   arkada asılı kalmasını engellemek
+# - Aynı anda birden fazla script instance'ını engellemek
+# -------------------------------------------------------------------
+ZKM_LOCKDIR="/tmp/keenetic_zapret_mgr.lock"
+ZKM_SELF_PID="$$"
+
+# Acquire lock (mkdir is atomic)
+if ! mkdir "$ZKM_LOCKDIR" 2>/dev/null; then
+		  
+    if [ -f "$ZKM_LOCKDIR/pid" ] && kill -0 "$(cat "$ZKM_LOCKDIR/pid" 2>/dev/null)" 2>/dev/null; then
+        echo "UYARI: Betik zaten calisiyor (PID: $(cat "$ZKM_LOCKDIR/pid" 2>/dev/null))."
+        echo "Lutfen mevcut oturumu kapatin veya once calisan betigi sonlandirin."
+        exit 0
+    fi
+    # Stale lock
+    rm -rf "$ZKM_LOCKDIR" 2>/dev/null
+    mkdir "$ZKM_LOCKDIR" 2>/dev/null || exit 1
+fi
+
+echo "$ZKM_SELF_PID" > "$ZKM_LOCKDIR/pid" 2>/dev/null
+
+# Detached watchdog (not tied to PTY/pipes)
+(
+    exec </dev/null >/dev/null 2>&1
+    while :; do
+        # If our controlling PTY is gone OR we got stopped (Ctrl-Z), kill the main PID.
+        _fd0="$(readlink "/proc/$ZKM_SELF_PID/fd/0" 2>/dev/null)"
+        _st="$(awk '{print $3}' "/proc/$ZKM_SELF_PID/stat" 2>/dev/null)"
+        case "$_fd0" in
+            *"(deleted)"*)
+                kill -9 "$ZKM_SELF_PID" 2>/dev/null
+                exit 0
+                ;;
+        esac
+        case "$_st" in
+            T|t)
+                kill -9 "$ZKM_SELF_PID" 2>/dev/null
+                exit 0
+                ;;
+        esac
+        sleep 2
+    done
+) &
+
+ZKM_WATCHDOG_PID="$!"
+
+zkm_cleanup() {
+    [ -n "$ZKM_WATCHDOG_PID" ] && kill -9 "$ZKM_WATCHDOG_PID" 2>/dev/null
+    rm -rf "$ZKM_LOCKDIR" 2>/dev/null
+}
+# Traps: ensure Ctrl-C (INT) and disconnect signals actually EXIT
+trap 'zkm_cleanup' EXIT
+trap 'zkm_cleanup; exit 130' INT
+trap 'zkm_cleanup; exit 143' TERM
+trap 'zkm_cleanup; exit 129' HUP
+trap 'zkm_cleanup; exit 148' TSTP
+trap 'zkm_cleanup; exit 150' TTIN
+trap 'zkm_cleanup; exit 151' TTOU
+
+# END_SESSION_GUARD_V3
+
+
+# BETIK BILGILENDIRME					 
 # Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
 
 # -------------------------------------------------------------------
@@ -127,15 +206,6 @@ ZAPRET_IPV6="n"
 # -------------------------------------------------------------------
 LANG_FILE="/opt/zapret/lang"
 LANG="tr"
-
-# -------------------------------------------------------------------
-# Script Kimligi (Repo/Surum)
-# -------------------------------------------------------------------
-SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
-# Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.1.1"
-SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
-SCRIPT_AUTHOR="RevolutionTR"
 
 # -------------------------------------------------------------------
 # Renkler (ANSI) - sadece terminal (TTY) ise etkin
