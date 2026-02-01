@@ -133,7 +133,7 @@ LANG="tr"
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.1"
+SCRIPT_VERSION="v26.2.1.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 
@@ -1057,8 +1057,9 @@ T() {
 
 # Enter'a basinca devam et (TR/EN)
 press_enter_to_continue() {
-    # Not: read -p ile prompt yazdiriyoruz, sonra ekrani temizleyip menuye donuyoruz.
-    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _
+    # Robust pause: always read from controlling TTY so it cannot be skipped by buffered stdin.
+    # We keep clear after the keypress because menus redraw anyway.
+    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _ </dev/tty
     clear
 }
 
@@ -3677,6 +3678,8 @@ github_install_from_releases_last10() {
                 press_enter_to_continue
                 return 0
             fi
+            echo "$(T TXT_ROLLBACK_GH_DONE)"
+            press_enter_to_continue
             return 0
         fi
         i=$((i+1))
@@ -3716,6 +3719,8 @@ github_install_from_tag_prompt() {
         press_enter_to_continue
         return 0
     fi
+    echo "$(T TXT_ROLLBACK_GH_DONE)"
+    press_enter_to_continue
     return 0
 }
 
@@ -3781,8 +3786,9 @@ rollback_local_storage_menu() {
             c|C)
                 clean_backup_files
                 press_enter_to_continue
-                continue
+                return
             ;;
+
             0|"")
                 echo "$(T TXT_ROLLBACK_CANCELLED)"
                 press_enter_to_continue
@@ -3808,7 +3814,7 @@ rollback_local_storage_menu() {
                     echo "$(T TXT_ERROR)"
                 fi
                 press_enter_to_continue
-                break
+                return
             fi
             idx=$((idx+1))
         done
