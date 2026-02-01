@@ -3,6 +3,16 @@
 📦 **Latest Release (recommended):**  
 https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
 
+<img src="docs/images/zapret_menu_main.png" width="600">
+
+<img src="docs/images/zapret_menu2.png" width="600">
+
+<img src="docs/images/zapret_menu4.png" width="600">
+
+<img src="docs/images/zapret_menu5.png" width="600">
+
+
+
 ## ✅ Test Edilen Keenetic OS Sürümleri
 
 Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
