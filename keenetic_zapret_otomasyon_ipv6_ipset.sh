@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.2"
+SCRIPT_VERSION="v26.2.2.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 # -------------------------------------------------------------------
@@ -38,10 +38,10 @@ SCRIPT_AUTHOR="RevolutionTR"
 
 # -------------------------------------------------------------------
 # BEGIN_SESSION_GUARD_V3
-# Amaç:
+# Amac:
 # - SSH / shellinabox oturumu kopunca (/dev/pts/* (deleted)) scriptin
-#   arkada asılı kalmasını engellemek
-# - Aynı anda birden fazla script instance'ını engellemek
+#   arkada asili kalmasini engellemek
+# - Ayni anda birden fazla script instance'ini engellemek
 # -------------------------------------------------------------------
 ZKM_LOCKDIR="/tmp/keenetic_zapret_mgr.lock"
 ZKM_SELF_PID="$$"
@@ -93,7 +93,7 @@ fi
 # Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
 
 # -------------------------------------------------------------------
-# Dogru Dizin Uyarısı (keenetic / keenetic-zapret)
+# Dogru Dizin Uyarisi (keenetic / keenetic-zapret)
 # -------------------------------------------------------------------
 check_script_location_once() {
     local EXPECTED="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
@@ -372,7 +372,7 @@ TXT_ACTIVE_DPI_DEFAULT_EN=" Default / Manual"
 TXT_ACTIVE_DPI_PARAMS_TR=" Parametreler"
 TXT_ACTIVE_DPI_PARAMS_EN=" Parameters"
 
-TXT_DPI_AUTO_NOTE_TR=" Not: Blockcheck (Otomatik) aktifken aşağıdaki 1–8 profilleri pasiftir."
+TXT_DPI_AUTO_NOTE_TR=" Not: Blockcheck (Otomatik) aktifken asagidaki 1–8 profilleri pasiftir."
 TXT_DPI_AUTO_NOTE_EN=" Note: While Blockcheck (Auto) is active, profiles 1–8 below are inactive."
 
 TXT_DPI_BASE_TR=" (Taban)"
@@ -624,7 +624,7 @@ TXT_ROLLBACK_TITLE_EN="Script: Roll Back from Backup"
 # -----------------------------
 # Common UI
 # -----------------------------
-TXT_CHOICE_TR="Seçim:"
+TXT_CHOICE_TR="Secim:"
 TXT_CHOICE_EN="Choice:"
 
 TXT_INVALID_CHOICE_TR="Gecersiz secim!"
@@ -646,7 +646,7 @@ TXT_TMPDIR_CREATE_FAIL_EN="Failed to create temporary directory!"
 # -----------------------------
 # Rollback / Local backups
 # -----------------------------
-TXT_ROLLBACK_NO_LOCAL_BACKUP_TR="Yerel yedek bulunamadı."
+TXT_ROLLBACK_NO_LOCAL_BACKUP_TR="Yerel yedek bulunamadi."
 TXT_ROLLBACK_NO_LOCAL_BACKUP_EN="No local backup found."
 
 TXT_ROLLBACK_CLEAN_LOCAL_BACKUPS_TR="Yedekleri Temizle"
@@ -655,7 +655,7 @@ TXT_ROLLBACK_CLEAN_LOCAL_BACKUPS_EN="Clean Backups"
 TXT_ROLLBACK_CLEAN_DONE_TR="Temizlendi: %s yedek silindi."
 TXT_ROLLBACK_CLEAN_DONE_EN="Cleaned: %s backup(s) deleted."
 
-TXT_ROLLBACK_CLEAN_NONE_TR="Temizlenecek yerel yedek bulunamadı."
+TXT_ROLLBACK_CLEAN_NONE_TR="Temizlenecek yerel yedek bulunamadi."
 TXT_ROLLBACK_CLEAN_NONE_EN="No local backups to clean."
 
 # -----------------------------
@@ -664,7 +664,7 @@ TXT_ROLLBACK_CLEAN_NONE_EN="No local backups to clean."
 TXT_BLOCKCHECK_CLEAN_DONE_TR="Temizlendi: %s test sonucu silindi."
 TXT_BLOCKCHECK_CLEAN_DONE_EN="Cleaned: %s test result(s) deleted."
 
-TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test sonucu bulunamadı."
+TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test sonucu bulunamadi."
 TXT_BLOCKCHECK_CLEAN_NONE_EN="No test results to clean."
 
 TXT_BACK_TR="Geri"
@@ -685,7 +685,7 @@ TXT_ROLLBACK_CANCELLED_EN="Cancelled."
 TXT_ROLLBACK_GH_LIST_TR="GitHub'dan surum sec (Son 10)"
 TXT_ROLLBACK_GH_LIST_EN="Pick version from GitHub (last 10)"
 
-TXT_ROLLBACK_GH_TAG_TR="Sürüm etiketi yaz (Orn: v26.1.24.3)"
+TXT_ROLLBACK_GH_TAG_TR="Surum etiketi yaz (Orn: v26.1.24.3)"
 TXT_ROLLBACK_GH_TAG_EN="Enter a release tag (e.g. v26.1.24.3)"
 
 TXT_ROLLBACK_GH_LOADING_TR="GitHub surum listesi aliniyor..."
@@ -830,7 +830,7 @@ TXT_BACKUP_RESTORE_NOTHING_EN="Nothing to restore."
 TXT_BACKUP_RESTORE_STATS_TR="Geri yuklenen: %s | Bulunamayan/Hata: %s"
 TXT_BACKUP_RESTORE_STATS_EN="Restored: %s | Missing/Error: %s"
 
-TXT_BACKUP_RESTORE_SCOPE_TR="Geri yukleme kapsamını secin:"
+TXT_BACKUP_RESTORE_SCOPE_TR="Geri yukleme kapsamini secin:"
 TXT_BACKUP_RESTORE_SCOPE_EN="Select restore scope:"
 
 TXT_BACKUP_SCOPE_HOSTLISTS_TR="1. Sadece host listeleri (hostlist/autohostlist)"
@@ -879,7 +879,7 @@ TXT_SELECT_ACTION_TR="Seciminizi yapin"
 TXT_SELECT_ACTION_EN="Make your selection"
 
 # --- Menu strings (TR/EN) ---
-TXT_BLOCKCHECK_TEST_MENU_TR="Blockcheck Test Menüsü"
+TXT_BLOCKCHECK_TEST_MENU_TR="Blockcheck Test Menusu"
 TXT_BLOCKCHECK_TEST_MENU_EN="Blockcheck Test Menu"
 
 TXT_BACKUP_BASE_PATH_TR="Yedek konumu:"
@@ -1067,16 +1067,16 @@ TXT_HL_WARN_EMPTY_STRICT_EN="WARNING: User hostlist is empty. In this case, zapr
 TXT_MENU_B_TR=" B. Blockcheck Test (Otomatik DPI)"
 TXT_MENU_B_EN=" B. Blockcheck Test (Auto DPI)"
 
-TXT_BLOCKCHECK_TEST_TITLE_TR="Blockcheck Test Menüsü"
+TXT_BLOCKCHECK_TEST_TITLE_TR="Blockcheck Test Menusu"
 TXT_BLOCKCHECK_TEST_TITLE_EN="Blockcheck Test Menu"
 
 TXT_BLOCKCHECK_FULL_TR="Tam Test"
 TXT_BLOCKCHECK_FULL_EN="Full Test"
 
-TXT_BLOCKCHECK_SUMMARY_TR="Özet (Sadece SUMMARY) (Otomatik DPI için kullanılır)"
+TXT_BLOCKCHECK_SUMMARY_TR="Ozet (Sadece SUMMARY) (Otomatik DPI icin kullanilir)"
 TXT_BLOCKCHECK_SUMMARY_EN="Summary (SUMMARY only) (Used for Auto DPI)"
 
-TXT_BLOCKCHECK_CLEAN_TR="Test Sonuçlarını Temizle"
+TXT_BLOCKCHECK_CLEAN_TR="Test Sonuclarini Temizle"
 TXT_BLOCKCHECK_CLEAN_EN="Clean Test Results"
 
 TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test raporu yok."
@@ -1251,15 +1251,15 @@ TXT_ADD_IP_EN="IP to add (Enter=Cancel): "
 TXT_DEL_IP_TR="Silinecek IP (Enter=Vazgec): "
 TXT_DEL_IP_EN="IP to remove (Enter=Cancel): "
 T() {
-    # Kullanım:
-    #   T KEY                 -> sözlükten KEY_TR / KEY_EN
-    #   T KEY "TR metin" "EN metin" -> verilen metinler (sözlüğe ihtiyaç yok)
+    # Kullanim:
+    #   T KEY                 -> sozlukten KEY_TR / KEY_EN
+    #   T KEY "TR metin" "EN metin" -> verilen metinler (sozluge ihtiyac yok)
     local k="$1"
     local tr="$2"
     local en="$3"
     [ -z "$k" ] && return 0
 
-    # Eğer TR/EN parametreleri verilmişse onları kullan
+    # Eger TR/EN parametreleri verilmisse onlari kullan
     if [ -n "$tr" ] || [ -n "$en" ]; then
         if [ "$LANG" = "en" ]; then
             [ -n "$en" ] && printf '%s' "$en" || printf '%s' "${tr:-$k}"
@@ -1269,7 +1269,7 @@ T() {
         return 0
     fi
 
-    # Sözlük değişkenlerinden oku
+    # Sozluk degiskenlerinden oku
     local v=""
     if [ "$LANG" = "en" ]; then
         eval "v="\${${k}_EN}""
@@ -1990,7 +1990,7 @@ ${L3} \\
 \""
     fi
 
-    # /opt/zapret/config icinde NFQWS_OPT bloğunu guvenli sekilde guncelle
+    # /opt/zapret/config icinde NFQWS_OPT blogunu guvenli sekilde guncelle
     ensure_zapret_config >/dev/null 2>&1
     if [ ! -f /opt/zapret/config ]; then
         echo "$(T nfqws_cfg_missing "UYARI: /opt/zapret/config bulunamadi." "WARNING: /opt/zapret/config not found.")"
@@ -2395,20 +2395,20 @@ echo "Zapret yapilandirma sihirbazi calistiriliyor (IPv6: $IPV6_ANSWER)..."
     # install_easy.sh interaktif bir sihirbazdir. Burada mevcut otomasyon akisini koruyup
     # sadece "enable ipv6 support" sorusunu secilebilir hale getiriyoruz.
     (
-        echo "y"    # Sistem uyumluluk uyarisi, dökümani okuyun uyarisi: (evet)
-        echo "1"    # Güvenlik duvari tipi seçimi: 1=iptables 2=nftables
+        echo "y"    # Sistem uyumluluk uyarisi, dokumani okuyun uyarisi: (evet)
+        echo "1"    # Guvenlik duvari tipi secimi: 1=iptables 2=nftables
         echo "$IPV6_ANSWER"    # IPv6 destegi (hayir)
-        echo "1"    # Filtreleme tipi seçimi: 1=none 2=ipset 3=hostlist 4=autohostlist
+        echo "1"    # Filtreleme tipi secimi: 1=none 2=ipset 3=hostlist 4=autohostlist
         echo "n"    # TPWS socks modu etkinlestirilsin mi? (hayir)
         echo "n"    # TPWS transparent etkinlestirilsin mi? (hayir)
         echo "y"    # NFQWS etkinlestirilsin mi? (evet)
-        echo "n"    # Yapilandirma düzenlensin mi? (hayir)
+        echo "n"    # Yapilandirma duzenlensin mi? (hayir)
         WAN_IFINDEX="$(get_ifindex_by_iface "$(get_wan_if)")"
         [ -z "$WAN_IFINDEX" ] && WAN_IFINDEX="1"
         printf "\033[1;32m[INFO] WAN IFINDEX selected: %s\033[0m\n" "$WAN_IFINDEX" >&2
         echo "WAN_IFINDEX: $WAN_IFINDEX" >&2
-        echo "1"    # LAN arayüzü seçimi (1 = none)
-        echo "${WAN_IFINDEX:-1}"    # WAN arayüzü seçimi (1 = none)
+        echo "1"    # LAN arayuzu secimi (1 = none)
+        echo "${WAN_IFINDEX:-1}"    # WAN arayuzu secimi (1 = none)
     ) | /opt/zapret/install_easy.sh &> /dev/null || {
         echo "HATA: Zapret yapilandirma betigi calistirilirken hata olustu."
         read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
@@ -2442,7 +2442,7 @@ echo "Zapret yapilandirma sihirbazi calistiriliyor (IPv6: $IPV6_ANSWER)..."
 }
 
 # --- ZAPRET ISTEMCI IPSET FILTRELEME (9. MADDE) ---
-# Amaç: Zapret'in (NFQUEUE) kuralini sadece belirli LAN istemcilerine uygulamak.
+# Amac: Zapret'in (NFQUEUE) kuralini sadece belirli LAN istemcilerine uygulamak.
 # - "Tum ag": filtre kapali, zapret herkes icin calisir.
 # - "Secili IP'ler": sadece girilen IPv4 istemci IP'leri zapret'ten gecer.
 IPSET_CLIENT_NAME="zapret_clients"
@@ -2469,7 +2469,7 @@ MODE="all"
 
 ipset_ensure_and_maybe_sync() {
     ipset list "$IPSET_NAME" >/dev/null 2>&1 || ipset create "$IPSET_NAME" hash:ip 2>/dev/null
-    # Eğer dosya varsa "kaynak gerçek" dosyadır -> set'i dosyaya göre senkronla.
+    # Eger dosya varsa "kaynak gercek" dosyadir -> set'i dosyaya gore senkronla.
     if [ -f "$IPSET_FILE" ]; then
         ipset flush "$IPSET_NAME" >/dev/null 2>&1
         tr ' \t,;\r\n' '\n' < "$IPSET_FILE" | awk 'NF{print $0}' | while read -r ip; do
@@ -2478,7 +2478,7 @@ ipset_ensure_and_maybe_sync() {
     fi
 }
 
-# Belirli chain'de NFQUEUE kural(lar)ını güvenli biçimde sil
+# Belirli chain'de NFQUEUE kural(lar)ini guvenli bicimde sil
 del_nfqueue_chain() {
     local table="$1" chain="$2" grep_pat="$3"
     if [ -n "$table" ]; then
@@ -2492,7 +2492,7 @@ del_nfqueue_chain() {
     fi
 }
 
-# İpSet'e bağlı NFQUEUE kurallarını ekle (üstten insert)
+# IpSet'e bagli NFQUEUE kurallarini ekle (ustten insert)
 add_ipset_rules() {
     # Keenetic'te bazen default route satiri "default dev ppp0 scope link" seklinde gelir.
     # Bu yuzden arayuzu, "dev" alanini bularak cekiyoruz.
@@ -2507,14 +2507,14 @@ add_ipset_rules() {
         -j NFQUEUE --queue-num "$QNUM" --queue-bypass >/dev/null 2>&1
 }
 
-# Genel NFQUEUE (qnum 200) kurallarını temizle
+# Genel NFQUEUE (qnum 200) kurallarini temizle
 del_general_nfqueue_qnum200() {
     del_nfqueue_chain mangle POSTROUTING "--queue-num $QNUM"
     del_nfqueue_chain "" INPUT "--queue-num $QNUM"
     del_nfqueue_chain "" FORWARD "--queue-num $QNUM"
 }
 
-# Sadece ipset'e bağlı kuralları temizle (match-set zapret_clients)
+# Sadece ipset'e bagli kurallari temizle (match-set zapret_clients)
 del_ipset_nfqueue_rules() {
     del_nfqueue_chain mangle POSTROUTING "match-set $IPSET_NAME"
     del_nfqueue_chain "" INPUT "match-set $IPSET_NAME"
@@ -2522,12 +2522,12 @@ del_ipset_nfqueue_rules() {
 }
 
 if [ "$MODE" = "list" ]; then
-    # LIST mod: tüm ağ etkilenmesin diye genel NFQUEUE'leri kaldır, sadece IPSET kurallarını bırak.
+    # LIST mod: tum ag etkilenmesin diye genel NFQUEUE'leri kaldir, sadece IPSET kurallarini birak.
     del_general_nfqueue_qnum200
     ipset_ensure_and_maybe_sync
     add_ipset_rules
 else
-    # ALL mod: IPSET'e bağlı özel kurallar varsa kaldır, genel kurallar kalsın.
+    # ALL mod: IPSET'e bagli ozel kurallar varsa kaldir, genel kurallar kalsin.
     del_ipset_nfqueue_rules
 fi
 
@@ -2549,14 +2549,14 @@ show_ipset_client_status() {
         print_line "="
         echo ""
         
-        # IP Listesi Dosyası
+        # IP Listesi Dosyasi
         printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN")" "${CLR_RESET}"
         if [ -f "$IPSET_CLIENT_FILE" ] && [ -s "$IPSET_CLIENT_FILE" ]; then
             local ip_count="$(wc -l < "$IPSET_CLIENT_FILE" 2>/dev/null | tr -d ' ')"
             printf '%b%d IP%b\n' "${CLR_GREEN}" "$ip_count" "${CLR_RESET}"
             echo ""
             printf '%b%s%b\n' "${CLR_DIM}" "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN"):" "${CLR_RESET}"
-            # awk ile numaralandırma - daha güvenli
+            # awk ile numaralandirma - daha guvenli
             awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
                 NF > 0 {
                     printf "  %s%2d.%s %s\n", cyan, NR, reset, $0
@@ -2568,7 +2568,7 @@ show_ipset_client_status() {
         echo ""
         print_line "-"
         
-        # IPSET Üyeleri
+        # IPSET Uyeleri
         printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN")" "${CLR_RESET}"
         local ipset_members="$(ipset list "$IPSET_CLIENT_NAME" 2>/dev/null | sed -n '/^Members:/,$p' | tail -n +2)"
         if [ -n "$ipset_members" ]; then
@@ -2576,7 +2576,7 @@ show_ipset_client_status() {
             printf '%b%d IP%b\n' "${CLR_GREEN}" "$member_count" "${CLR_RESET}"
             echo ""
             printf '%b%s%b\n' "${CLR_DIM}" "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN"):" "${CLR_RESET}"
-            # awk ile numaralandırma - subshell problemi yok
+            # awk ile numaralandirma - subshell problemi yok
             printf '%s\n' "$ipset_members" | awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
                 NF > 0 {
                     printf "  %s%2d.%s %s\n", cyan, NR, reset, $0
@@ -3005,20 +3005,20 @@ read -r ipv6_ans
     # WAN arayuzunu belirle (WireGuard sorunlarini azaltmak icin)
     select_wan_if
     (
-        echo "y"    # Sistem uyumluluk uyarisi, dökümani okuyun uyarisi: (evet)
-        echo "1"    # Güvenlik duvari tipi seçimi: 1=iptables 2=nftables
+        echo "y"    # Sistem uyumluluk uyarisi, dokumani okuyun uyarisi: (evet)
+        echo "1"    # Guvenlik duvari tipi secimi: 1=iptables 2=nftables
         echo "$IPV6_ANSWER"    # IPv6 destegi (hayir)
-        echo "1"    # Filtreleme tipi seçimi: 1=none 2=ipset 3=hostlist 4=autohostlist
+        echo "1"    # Filtreleme tipi secimi: 1=none 2=ipset 3=hostlist 4=autohostlist
         echo "n"    # TPWS socks modu etkinlestirilsin mi? (hayir)
         echo "n"    # TPWS transparent etkinlestirilsin mi? (hayir)
         echo "y"    # NFQWS etkinlestirilsin mi? (evet)
-        echo "n"    # Yapilandirma düzenlensin mi? (hayir)
+        echo "n"    # Yapilandirma duzenlensin mi? (hayir)
         WAN_IFINDEX="$(get_ifindex_by_iface "$(get_wan_if)")"
         [ -z "$WAN_IFINDEX" ] && WAN_IFINDEX="1"
         printf "\033[1;32m[INFO] WAN IFINDEX selected: %s\033[0m\n" "$WAN_IFINDEX" >&2
         echo "WAN_IFINDEX: $WAN_IFINDEX" >&2
-        echo "1"    # LAN arayüzü seçimi (1 = none)
-        echo "${WAN_IFINDEX:-1}"    # WAN arayüzü seçimi (1 = none)   
+        echo "1"    # LAN arayuzu secimi (1 = none)
+        echo "${WAN_IFINDEX:-1}"    # WAN arayuzu secimi (1 = none)   
     ) | /opt/zapret/install_easy.sh &> /dev/null || \
     { echo "HATA: Zapret yapilandirma betigi calistirilirken hata olustu."; return 1; }
     
@@ -3435,7 +3435,7 @@ apply_mode_filter() {
     [ -z "$mode" ] && return 0
     ensure_hostlist_files
 
-    # hostlist/autohostlist modunda, listeler BOS ise zapret "include yok" gibi davranabilir (exclude hariç herseyi isler).
+    # hostlist/autohostlist modunda, listeler BOS ise zapret "include yok" gibi davranabilir (exclude haric herseyi isler).
     # Bu sebeple kullaniciyi uyar.
     if [ "$mode" = "hostlist" ] || [ "$mode" = "autohostlist" ]; then
         ucnt="$(hostlist_stats "$HOSTLIST_USER")"
@@ -5078,7 +5078,7 @@ restore_zapret_settings() {
         return 1
     }
 
-    # Varsayılan: işlem başarılı kabul edilir. Zorunlu parçalar yoksa/başarısızsa ok=1 yapılır.
+    # Varsayilan: islem basarili kabul edilir. Zorunlu parcalar yoksa/basarisizsa ok=1 yapilir.
     local ok=0
     case "$scope" in
         1) # full restore
@@ -5897,7 +5897,7 @@ if [ "$1" = "--healthmon-daemon" ]; then
 fi
 
 # --- Betigin Baslangic Noktasi ---
-# Kullanım: ./script.sh cleanup  -> Zapret kurulu olmasa bile kalıntıları temizler
+# Kullanim: ./script.sh cleanup  -> Zapret kurulu olmasa bile kalintilari temizler
 if [ "$1" = "cleanup" ]; then
     cleanup_only_leftovers
     exit 0
