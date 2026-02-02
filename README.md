@@ -158,6 +158,11 @@ Alt kontroller kullanıcıya açık biçimde gösterilir:
 Semboller ve metinler terminal uyumlu, okunabilir biçimde düzenlendi.
 
 ---
+## 🤖 Telegram Bildirimleri
+Router’dan anlık bildirim almak için:
+➡️ [Telegram Kurulum Rehberi](docs/telegram.md)
+
+---
 
 ## 🧹 Test Sonuçlarını Temizleme
 
