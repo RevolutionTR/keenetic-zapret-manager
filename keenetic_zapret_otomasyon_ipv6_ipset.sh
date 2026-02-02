@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.1.2"
+SCRIPT_VERSION="v26.2.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 # -------------------------------------------------------------------
@@ -47,62 +47,49 @@ ZKM_LOCKDIR="/tmp/keenetic_zapret_mgr.lock"
 ZKM_SELF_PID="$$"
 
 # Acquire lock (mkdir is atomic)
-if ! mkdir "$ZKM_LOCKDIR" 2>/dev/null; then
-		  
-    if [ -f "$ZKM_LOCKDIR/pid" ] && kill -0 "$(cat "$ZKM_LOCKDIR/pid" 2>/dev/null)" 2>/dev/null; then
-        echo "UYARI: Betik zaten calisiyor (PID: $(cat "$ZKM_LOCKDIR/pid" 2>/dev/null))."
-        echo "Lutfen mevcut oturumu kapatin veya once calisan betigi sonlandirin."
-        exit 0
+# NOTE: Internal daemon modes must bypass the main session lock,
+# otherwise they cannot start while the UI script is open.
+ZKM_SKIP_LOCK="0"
+case "$1" in
+    --healthmon-daemon) ZKM_SKIP_LOCK="1" ;;
+esac
+
+if [ "$ZKM_SKIP_LOCK" != "1" ]; then
+    if ! mkdir "$ZKM_LOCKDIR" 2>/dev/null; then
+
+        if [ -f "$ZKM_LOCKDIR/pid" ] && kill -0 "$(cat "$ZKM_LOCKDIR/pid" 2>/dev/null)" 2>/dev/null; then
+            echo "UYARI: Betik zaten calisiyor (PID: $(cat "$ZKM_LOCKDIR/pid" 2>/dev/null))."
+            echo "Lutfen mevcut oturumu kapatin veya once calisan betigi sonlandirin."
+            exit 0
+        fi
+        # Stale lock
+        rm -rf "$ZKM_LOCKDIR" 2>/dev/null
+        mkdir "$ZKM_LOCKDIR" 2>/dev/null || exit 1
     fi
-    # Stale lock
-    rm -rf "$ZKM_LOCKDIR" 2>/dev/null
-    mkdir "$ZKM_LOCKDIR" 2>/dev/null || exit 1
+
+    echo "$ZKM_SELF_PID" > "$ZKM_LOCKDIR/pid"
+
+    # Session guard + cleanup only for the main interactive instance
+    zkm_cleanup() {
+        rm -rf "$ZKM_LOCKDIR" 2>/dev/null
+    }
+
+    # Always cleanup the lock
+    trap 'zkm_cleanup' EXIT
+
+    # Extra traps: ensure Ctrl-C (INT) and disconnect signals actually EXIT
+    trap 'zkm_cleanup; exit 130' INT
+    trap 'zkm_cleanup; exit 143' TERM
+    trap 'zkm_cleanup; exit 129' HUP
+    trap 'zkm_cleanup; exit 148' TSTP
+    trap 'zkm_cleanup; exit 150' TTIN
+    trap 'zkm_cleanup; exit 151' TTOU
+
+    # END_SESSION_GUARD_V3
 fi
 
-echo "$ZKM_SELF_PID" > "$ZKM_LOCKDIR/pid" 2>/dev/null
 
-# Detached watchdog (not tied to PTY/pipes)
-(
-    exec </dev/null >/dev/null 2>&1
-    while :; do
-        # If our controlling PTY is gone OR we got stopped (Ctrl-Z), kill the main PID.
-        _fd0="$(readlink "/proc/$ZKM_SELF_PID/fd/0" 2>/dev/null)"
-        _st="$(awk '{print $3}' "/proc/$ZKM_SELF_PID/stat" 2>/dev/null)"
-        case "$_fd0" in
-            *"(deleted)"*)
-                kill -9 "$ZKM_SELF_PID" 2>/dev/null
-                exit 0
-                ;;
-        esac
-        case "$_st" in
-            T|t)
-                kill -9 "$ZKM_SELF_PID" 2>/dev/null
-                exit 0
-                ;;
-        esac
-        sleep 2
-    done
-) &
-
-ZKM_WATCHDOG_PID="$!"
-
-zkm_cleanup() {
-    [ -n "$ZKM_WATCHDOG_PID" ] && kill -9 "$ZKM_WATCHDOG_PID" 2>/dev/null
-    rm -rf "$ZKM_LOCKDIR" 2>/dev/null
-}
-# Traps: ensure Ctrl-C (INT) and disconnect signals actually EXIT
-trap 'zkm_cleanup' EXIT
-trap 'zkm_cleanup; exit 130' INT
-trap 'zkm_cleanup; exit 143' TERM
-trap 'zkm_cleanup; exit 129' HUP
-trap 'zkm_cleanup; exit 148' TSTP
-trap 'zkm_cleanup; exit 150' TTIN
-trap 'zkm_cleanup; exit 151' TTOU
-
-# END_SESSION_GUARD_V3
-
-
-# BETIK BILGILENDIRME					 
+# BETIK BILGILENDIRME                                 
 # Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
 
 # -------------------------------------------------------------------
@@ -424,6 +411,167 @@ TXT_MENU_13_EN="13. Script: Roll Back from Backup"
 TXT_MENU_14_TR="14. Saglik Kontrolu (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
 TXT_MENU_14_EN="14. Health Check (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
 
+TXT_MENU_15_TR="15. Bildirimler (Telegram)"
+TXT_MENU_15_EN="15. Notifications (Telegram)"
+
+TXT_MENU_16_TR="16. Sistem Sagligi Monitoru (CPU/RAM/Disk/Load/Zapret)"
+TXT_MENU_16_EN="16. System Health Monitor (CPU/RAM/Disk/Load/Zapret)"
+
+# -------------------------------------------------------------------
+# Telegram notifications
+# -------------------------------------------------------------------
+TXT_TG_SETTINGS_TITLE_TR="Telegram Bildirim Ayarlari"
+TXT_TG_SETTINGS_TITLE_EN="Telegram Notification Settings"
+
+TXT_TG_STATUS_ACTIVE_TR="Durum: AKTIF"
+TXT_TG_STATUS_ACTIVE_EN="Status: ACTIVE"
+
+TXT_TG_STATUS_NOT_CONFIG_TR="Durum: AYARLANMAMIS"
+TXT_TG_STATUS_NOT_CONFIG_EN="Status: NOT CONFIGURED"
+
+TXT_TG_SAVE_UPDATE_TR="Token/ChatID Kaydet-Guncelle"
+TXT_TG_SAVE_UPDATE_EN="Save/Update Token & ChatID"
+
+TXT_TG_SEND_TEST_TR="Test Mesaji Gonder"
+TXT_TG_SEND_TEST_EN="Send Test Message"
+
+TXT_TG_DELETE_RESET_TR="Ayar Dosyasini Sil (Reset)"
+TXT_TG_DELETE_RESET_EN="Delete Config (Reset)"
+
+TXT_TG_ENTER_TOKEN_TR="Bot Token girin (yapistir):"
+TXT_TG_ENTER_TOKEN_EN="Enter Bot Token (paste):"
+
+TXT_TG_ENTER_CHATID_TR="Chat ID girin (or: -100...):"
+TXT_TG_ENTER_CHATID_EN="Enter Chat ID (or: -100...):"
+
+TXT_TG_SAVED_OK_TR="Ayarlar kaydedildi."
+TXT_TG_SAVED_OK_EN="Settings saved."
+
+TXT_TG_SAVE_FAIL_TR="Kaydetme basarisiz!"
+TXT_TG_SAVE_FAIL_EN="Save failed!"
+
+TXT_TG_TEST_SENT_TR="Test mesaji gonderildi."
+TXT_TG_TEST_SENT_EN="Test message sent."
+
+TXT_TG_NOT_CONFIGURED_TR="Telegram ayari yapilmamis."
+TXT_TG_NOT_CONFIGURED_EN="Telegram not configured."
+
+TXT_TG_RESET_OK_TR="Ayarlar sifirlandi."
+TXT_TG_RESET_OK_EN="Settings reset."
+
+TXT_TG_TEST_FAIL_CONFIG_FIRST_TR="Test gonderilemedi. Once Token/ChatID ayarlayin."
+TXT_TG_TEST_FAIL_CONFIG_FIRST_EN="Test failed. Configure token/chatid first."
+
+TXT_TG_CONFIG_DELETED_TR="Ayar dosyasi silindi."
+TXT_TG_CONFIG_DELETED_EN="Config deleted."
+
+TXT_TG_TEST_SAVED_MSG_TR="✅ Telegram test: ayarlar kaydedildi"
+TXT_TG_TEST_SAVED_MSG_EN="✅ Telegram test: settings saved"
+
+TXT_TG_TEST_OK_MSG_TR="✅ Telegram test: bildirim calisiyor"
+TXT_TG_TEST_OK_MSG_EN="✅ Telegram test: notifications working"
+
+
+# -------------------------------------------------------------------
+# Health Monitor (Mod B) notifications
+# -------------------------------------------------------------------
+TXT_HM_TITLE_TR="Sistem Sagligi Monitoru"
+TXT_HM_TITLE_EN="System Health Monitor"
+
+TXT_HM_STATUS_TR="Durum:"
+TXT_HM_STATUS_EN="Status:"
+
+TXT_HM_ENABLE_DISABLE_TR="Ac / Kapat"
+TXT_HM_ENABLE_DISABLE_EN="Enable / Disable"
+
+TXT_HM_SHOW_STATUS_TR="Durum Goster"
+TXT_HM_SHOW_STATUS_EN="Show Status"
+
+TXT_HM_SEND_TEST_TR="Test Bildirimi (Telegram)"
+TXT_HM_SEND_TEST_EN="Send Test Notification (Telegram)"
+
+TXT_HM_CONFIG_THRESHOLDS_TR="Esikleri Ayarla"
+TXT_HM_CONFIG_THRESHOLDS_EN="Configure Thresholds"
+
+TXT_HM_ENABLED_TR="Health Monitor acildi."
+TXT_HM_ENABLED_EN="Health Monitor enabled."
+
+TXT_HM_DISABLED_TR="Health Monitor kapatildi."
+TXT_HM_DISABLED_EN="Health Monitor disabled."
+
+TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Health Monitor test\nCPU: %CPU%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_TEST_MSG_EN="📌 HealthMon %TS%\n✅ Health Monitor test\nCPU: %CPU%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+
+TXT_HM_CPU_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ CPU UYARI: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_CPU_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ CPU WARN: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+
+TXT_HM_CPU_CRIT_MSG_TR="📌 HealthMon %TS%\n🚨 CPU KRITIK: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_CPU_CRIT_MSG_EN="📌 HealthMon %TS%\n🚨 CPU CRIT: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+
+TXT_HM_DISK_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ Disk dolu: /opt %DISK%%%\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB"
+TXT_HM_DISK_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Disk high: /opt %DISK%%%\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB"
+
+TXT_HM_RAM_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ RAM dusuk: %RAM% MB\nCPU: %CPU%%\nLoad: %LOAD%\nDisk(/opt): %DISK%%"
+TXT_HM_RAM_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Low RAM: %RAM% MB\nCPU: %CPU%%\nLoad: %LOAD%\nDisk(/opt): %DISK%%"
+
+TXT_HM_ZAPRET_DOWN_MSG_TR="📌 HealthMon %TS%\n🚨 Zapret durmus olabilir!\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_ZAPRET_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Zapret may be down!\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+
+TXT_HM_ZAPRET_UP_MSG_TR="📌 HealthMon %TS%\n✅ Zapret tekrar calisiyor.\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_ZAPRET_UP_MSG_EN="📌 HealthMon %TS%\n✅ Zapret is running again.\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+
+TXT_TG_ERR_TOKEN_FORMAT_TR="Token formati hatali (:) yok)."
+TXT_TG_ERR_TOKEN_FORMAT_EN="Invalid token format (missing :)."
+
+TXT_TG_ERR_CHATID_NUM_TR="ChatID sayi olmali."
+TXT_TG_ERR_CHATID_NUM_EN="ChatID must be numeric."
+
+TXT_TG_SAVED_AND_TEST_OK_TR="Kaydedildi ve test mesaji gonderildi."
+TXT_TG_SAVED_AND_TEST_OK_EN="Saved and test message sent."
+
+TXT_TG_SAVED_BUT_TEST_FAIL_TR="Kaydedildi ama test gonderilemedi. Token/ChatID veya interneti kontrol edin."
+TXT_TG_SAVED_BUT_TEST_FAIL_EN="Saved but test failed. Check token/chatid or internet."
+
+TXT_HM_TEST_SENT_TR="Test bildirimi gonderildi."
+TXT_HM_TEST_SENT_EN="Test notification sent."
+
+TXT_HM_NEED_TG_TR="Telegram ayarlanamamis olabilir. Once menu 15 ile ayarlayin."
+TXT_HM_NEED_TG_EN="Telegram may be unconfigured. Configure via menu 15."
+
+TXT_HM_PROMPT_CPU_WARN_TR="CPU WARN esigi (%) [or: 70]:"
+TXT_HM_PROMPT_CPU_WARN_EN="CPU WARN threshold (%) [e.g. 70]:"
+
+TXT_HM_PROMPT_CPU_WARN_DUR_TR="CPU WARN sure (sn) [or: 180]:"
+TXT_HM_PROMPT_CPU_WARN_DUR_EN="CPU WARN duration (sec) [e.g. 180]:"
+
+TXT_HM_PROMPT_CPU_CRIT_TR="CPU CRIT esigi (%) [or: 90]:"
+TXT_HM_PROMPT_CPU_CRIT_EN="CPU CRIT threshold (%) [e.g. 90]:"
+
+TXT_HM_PROMPT_CPU_CRIT_DUR_TR="CPU CRIT sure (sn) [or: 60]:"
+TXT_HM_PROMPT_CPU_CRIT_DUR_EN="CPU CRIT duration (sec) [e.g. 60]:"
+
+TXT_HM_PROMPT_DISK_WARN_TR="Disk esigi (/opt, %) [or: 90]:"
+TXT_HM_PROMPT_DISK_WARN_EN="Disk threshold (/opt, %) [e.g. 90]:"
+
+TXT_HM_PROMPT_RAM_WARN_TR="RAM esigi (MB) [or: 40]:"
+TXT_HM_PROMPT_RAM_WARN_EN="RAM threshold (MB) [e.g. 40]:"
+
+TXT_HM_PROMPT_ZAPRET_WD_TR="Zapret watchdog (1=acik,0=kapali) [or: 1]:"
+TXT_HM_PROMPT_ZAPRET_WD_EN="Zapret watchdog (1=on,0=off) [e.g. 1]:"
+
+TXT_HM_PROMPT_ZAPRET_COOLDOWN_TR="Zapret cooldown (sn) [or: 120]:"
+TXT_HM_PROMPT_ZAPRET_COOLDOWN_EN="Zapret cooldown (sec) [e.g. 120]:"
+
+TXT_HM_PROMPT_ZAPRET_AUTORESTART_TR="Zapret otomatik yeniden baslatma? (0/1) [or: 0]:"
+TXT_HM_PROMPT_ZAPRET_AUTORESTART_EN="Zapret auto-restart? (0/1) [e.g. 0]:"
+
+TXT_HM_PROMPT_INTERVAL_TR="Kontrol araligi (sn) [or: 30]:"
+TXT_HM_PROMPT_INTERVAL_EN="Check interval (sec) [e.g. 30]:"
+
+TXT_HM_PROMPT_COOLDOWN_TR="Bildirim soguma (sn) [or: 600]:"
+TXT_HM_PROMPT_COOLDOWN_EN="Notification cooldown (sec) [e.g. 600]:"
+
+
 # Health check menu
 TXT_HEALTH_TITLE_TR="Saglik Kontrolu"
 TXT_HEALTH_TITLE_EN="Health Check"
@@ -481,6 +629,15 @@ TXT_CHOICE_EN="Choice:"
 
 TXT_INVALID_CHOICE_TR="Gecersiz secim!"
 TXT_INVALID_CHOICE_EN="Invalid choice!"
+# --- Added common keys (TR/EN) ---
+TXT_CANCELLED_TR="Iptal edildi."
+TXT_CANCELLED_EN="Cancelled."
+
+TXT_ERROR_TR="Hata"
+TXT_ERROR_EN="Error"
+
+TXT_RESTORE_RESTART_WARN_TR="Uyari: Yeniden baslatma gerekebilir."
+TXT_RESTORE_RESTART_WARN_EN="Warning: A restart may be required."
 
 TXT_TMPDIR_CREATE_FAIL_TR="Gecici dizin olusturulamadi!"
 TXT_TMPDIR_CREATE_FAIL_EN="Failed to create temporary directory!"
@@ -979,8 +1136,8 @@ TXT_MENU_0_EN=" 0. Exit"
 TXT_MENU_FOOT_TR="--------------------------------------------------------------------------------------------"
 TXT_MENU_FOOT_EN="--------------------------------------------------------------------------------------------"
 
-TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-14, L veya B): "
-TXT_PROMPT_MAIN_EN=" Select an Option (0-14, L or B): "
+TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-16, L veya B): "
+TXT_PROMPT_MAIN_EN=" Select an Option (0-16, L or B): "
 
 TXT_LANG_NOW_TR="Dil: Turkce"
 TXT_LANG_NOW_EN="Language: English"
@@ -3432,7 +3589,7 @@ done
 
 if [ "$cancelled" -eq 1 ]; then
     # Cancel should return to menu immediately (no extra prompt)
-    sleep 0.2
+    sleep 1
     clear
     continue
 fi
@@ -3512,7 +3669,7 @@ done
 
 if [ "$cancelled" -eq 1 ]; then
     # Cancel should return to menu immediately (no extra prompt)
-    sleep 0.2
+    sleep 1
     clear
     continue
 fi
@@ -3969,6 +4126,8 @@ display_menu() {
     echo "$(T TXT_MENU_12)"
     echo "$(T TXT_MENU_13)"
     echo "$(T TXT_MENU_14)"
+    echo "$(T TXT_MENU_15)"
+    echo "$(T TXT_MENU_16)"
     echo "$(T TXT_MENU_B)"
     echo "$(T TXT_MENU_L)  ($(lang_label))"
     echo "$(T TXT_MENU_0)"
@@ -4979,6 +5138,708 @@ zapret_restore_menu() {
 
 
 
+
+# -------------------------------------------------------------------
+# TELEGRAM NOTIFICATIONS (CONFIG + TEST)
+# -------------------------------------------------------------------
+TG_CONF_FILE="/opt/etc/telegram.conf"
+
+telegram_load_config() {
+    TG_BOT_TOKEN=""
+    TG_CHAT_ID=""
+    [ -f "$TG_CONF_FILE" ] && . "$TG_CONF_FILE" 2>/dev/null
+    # validate minimal
+    [ -n "$TG_BOT_TOKEN" ] && [ -n "$TG_CHAT_ID" ] || return 1
+    return 0
+}
+
+telegram_mask_token() {
+    # prints masked token (first 6 ... last 4)
+    local t="$1"
+    [ -z "$t" ] && { echo "-"; return; }
+    local l="${#t}"
+    if [ "$l" -le 12 ]; then
+        echo "***"
+    else
+        echo "$(echo "$t" | cut -c1-6)....$(echo "$t" | rev | cut -c1-4 | rev)"
+    fi
+}
+
+telegram_send() {
+    # $1 message
+    local msg="$1"
+    telegram_load_config || return 1
+    # Use data-urlencode so newlines and special chars render correctly in Telegram.
+    msg="$(printf '%b' "$msg")"
+    curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+        --data-urlencode "chat_id=${TG_CHAT_ID}" \
+        --data-urlencode "text=${msg}" \
+        --data-urlencode "disable_web_page_preview=1" >/dev/null 2>&1
+}
+tpl_render() {
+    # Usage: tpl_render "template" KEY1 "val1" KEY2 "val2" ...
+    # Replaces %KEY% in template with the given values (busybox ash compatible)
+    local tpl="$1"
+    # Built-in timestamp placeholder
+    local ts="$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+    tpl="${tpl//%TS%/${ts}}"
+    shift
+    while [ $# -ge 2 ]; do
+        local k="$1"
+        local v="$2"
+        tpl="${tpl//%${k}%/${v}}"
+        shift 2
+    done
+    printf "%b" "$tpl"
+}
+
+telegram_write_config() {
+    # $1 token, $2 chatid
+    local token="$1"
+    local chatid="$2"
+
+    mkdir -p /opt/etc 2>/dev/null
+    umask 077
+    cat >"$TG_CONF_FILE" <<EOF
+TG_BOT_TOKEN="$token"
+TG_CHAT_ID="$chatid"
+EOF
+    chmod 600 "$TG_CONF_FILE" 2>/dev/null
+}
+
+telegram_notifications_menu() {
+    while true; do
+        clear
+        print_line "="
+        echo "$(T TXT_TG_SETTINGS_TITLE)"
+        print_line "="
+        echo
+        if telegram_load_config; then
+            print_line "-"
+            printf "%b\n" "${CLR_BOLD}${CLR_GREEN}$(T TXT_TG_STATUS_ACTIVE)${CLR_RESET}"
+            print_line "-"
+            echo "  Token : $(telegram_mask_token "$TG_BOT_TOKEN")"
+            echo "  ChatID: $TG_CHAT_ID"
+        else
+            print_line "-"
+            printf "%b\n" "${CLR_BOLD}${CLR_YELLOW}$(T TXT_TG_STATUS_NOT_CONFIG)${CLR_RESET}"
+            print_line "-"
+            echo "  $TG_CONF_FILE"
+        fi
+        echo
+        print_line "-"
+        echo " 1) $(T TXT_TG_SAVE_UPDATE)"
+        echo " 2) $(T TXT_TG_SEND_TEST)"
+        echo " 3) $(T TXT_TG_DELETE_RESET)"
+        echo " 0) $(T TXT_BACK)"
+        print_line "-"
+        printf "%s" "$(T TXT_CHOICE) "
+        read -r c
+        clear
+        case "$c" in
+            1)
+                echo "$(T TXT_TG_ENTER_TOKEN)"
+                read -r token
+                echo "$(T TXT_TG_ENTER_CHATID)"
+                read -r chatid
+
+                # simple validation
+                case "$token" in
+                    *:*) : ;;
+                    *) print_status FAIL "$(T TXT_TG_ERR_TOKEN_FORMAT)" ; press_enter_to_continue ; continue ;;
+                esac
+                case "$chatid" in
+                    -[0-9]*|[0-9]*) : ;;
+                    *) print_status FAIL "$(T TXT_TG_ERR_CHATID_NUM)" ; press_enter_to_continue ; continue ;;
+                esac
+
+                telegram_write_config "$token" "$chatid"
+                if telegram_send "$(T TXT_TG_TEST_SAVED_MSG)"; then
+                    print_status PASS "$(T TXT_TG_SAVED_AND_TEST_OK)"
+                else
+                    print_status WARN "$(T TXT_TG_SAVED_BUT_TEST_FAIL)"
+                fi
+                press_enter_to_continue
+                ;;
+            2)
+                if telegram_send "$(T TXT_TG_TEST_OK_MSG)"; then
+                    print_status PASS "$(T TXT_TG_TEST_SENT)"
+                else
+                    print_status FAIL "$(T TXT_TG_TEST_FAIL_CONFIG_FIRST)"
+                fi
+                press_enter_to_continue
+                ;;
+            3)
+                rm -f "$TG_CONF_FILE" 2>/dev/null
+                print_status PASS "$(T TXT_TG_CONFIG_DELETED)"
+                press_enter_to_continue
+                ;;
+            0) return 0 ;;
+            *) echo "$(T TXT_INVALID_CHOICE)" ; sleep 1 ;;
+        esac
+    done
+}
+
+# -------------------------------------------------------------------
+# SYSTEM HEALTH MONITOR (MOD B): CPU/RAM/DISK/LOAD + ZAPRET WATCHDOG
+# -------------------------------------------------------------------
+HM_CONF_FILE="/opt/etc/healthmon.conf"
+HM_PID_FILE="/tmp/healthmon.pid"
+HM_LOCKDIR="/tmp/healthmon.lock"
+HM_LOG_FILE="/tmp/healthmon.log"
+
+HM_AUTOSTART_FILE="/opt/etc/init.d/S99zkm_healthmon"
+# defaults (used if config missing)
+HM_ENABLE="0"
+HM_INTERVAL="30"
+HM_CPU_WARN="70"
+HM_CPU_WARN_DUR="180"
+HM_CPU_CRIT="90"
+HM_CPU_CRIT_DUR="60"
+HM_DISK_WARN="90"          # percent used on /opt
+HM_RAM_WARN_MB="40"        # free+buffers+cached approximation in MB
+HM_ZAPRET_WATCHDOG="1"
+HM_ZAPRET_COOLDOWN_SEC="120"
+HM_ZAPRET_AUTORESTART="0"
+HM_HEARTBEAT_SEC="300"
+HM_COOLDOWN_SEC="600"
+HM_ZAPRET_COOLDOWN_SEC="120"
+
+healthmon_load_config() {
+    HM_ENABLE="0"
+    HM_INTERVAL="30"
+    HM_CPU_WARN="70"
+    HM_CPU_WARN_DUR="180"
+    HM_CPU_CRIT="90"
+    HM_CPU_CRIT_DUR="60"
+    HM_DISK_WARN="90"
+    HM_RAM_WARN_MB="40"
+    HM_ZAPRET_WATCHDOG="1"
+    HM_COOLDOWN_SEC="600"
+    HM_ZAPRET_COOLDOWN_SEC="120"
+
+    [ -f "$HM_CONF_FILE" ] && . "$HM_CONF_FILE" 2>/dev/null
+}
+
+healthmon_write_config() {
+    mkdir -p /opt/etc 2>/dev/null
+    umask 077
+    cat >"$HM_CONF_FILE" <<EOF
+HM_ENABLE="$HM_ENABLE"
+HM_INTERVAL="$HM_INTERVAL"
+HM_CPU_WARN="$HM_CPU_WARN"
+HM_CPU_WARN_DUR="$HM_CPU_WARN_DUR"
+HM_CPU_CRIT="$HM_CPU_CRIT"
+HM_CPU_CRIT_DUR="$HM_CPU_CRIT_DUR"
+HM_DISK_WARN="$HM_DISK_WARN"
+HM_RAM_WARN_MB="$HM_RAM_WARN_MB"
+HM_ZAPRET_WATCHDOG="$HM_ZAPRET_WATCHDOG"
+HM_COOLDOWN_SEC="$HM_COOLDOWN_SEC"
+HM_ZAPRET_COOLDOWN_SEC="$HM_ZAPRET_COOLDOWN_SEC"
+HM_ZAPRET_AUTORESTART="$HM_ZAPRET_AUTORESTART"
+HM_HEARTBEAT_SEC="$HM_HEARTBEAT_SEC"
+EOF
+    chmod 600 "$HM_CONF_FILE" 2>/dev/null
+}
+
+healthmon_cpu_pct() {
+    # busybox-safe CPU usage from /proc/stat
+    # prints integer 0-100
+    local a b c idle rest
+    read cpu a b c idle rest < /proc/stat
+    local t1=$((a+b+c+idle))
+    local i1=$idle
+    sleep 1
+    read cpu a b c idle rest < /proc/stat
+    local t2=$((a+b+c+idle))
+    local i2=$idle
+    local dt=$((t2-t1))
+    local di=$((i2-i1))
+    [ "$dt" -le 0 ] && { echo 0; return; }
+    echo $(( (100*(dt-di))/dt ))
+}
+
+healthmon_loadavg() {
+    # returns "1m 5m 15m"
+    uptime 2>/dev/null | awk -F'load average: ' '{print $2}' | tr -d '\r'
+}
+
+healthmon_disk_used_pct() {
+    # $1 mountpoint
+    df -P "$1" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}'
+}
+
+healthmon_mem_free_mb() {
+    # approximated available = MemFree+Buffers+Cached (kB) -> MB
+    awk '
+        /^MemFree:/ {mf=$2}
+        /^Buffers:/ {b=$2}
+        /^Cached:/ {c=$2}
+        END { printf "%d\n", (mf+b+c)/1024 }
+    ' /proc/meminfo 2>/dev/null
+}
+
+healthmon_now() { date +%s; }
+
+
+healthmon_log() {
+    # $1 line
+    [ -n "$HM_LOG_FILE" ] || return 0
+    # best-effort append
+    echo "$1" >>"$HM_LOG_FILE" 2>/dev/null
+}
+healthmon_should_alert() {
+    # $1 key (file suffix), $2 cooldown
+    local key="$1"
+    local cooldown="$2"
+    local f="/tmp/healthmon_last_${key}.ts"
+    local now
+    now=$(healthmon_now)
+    local last=0
+    [ -f "$f" ] && last=$(cat "$f" 2>/dev/null)
+    [ -z "$last" ] && last=0
+    [ $((now-last)) -ge "$cooldown" ] || return 1
+    echo "$now" >"$f" 2>/dev/null
+    return 0
+}
+
+healthmon_loop() {
+    trap '' HUP 2>/dev/null
+    # single-instance guard
+    if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
+        # already running
+        exit 0
+    fi
+    echo "$$" >"$HM_PID_FILE" 2>/dev/null
+    : >"$HM_LOG_FILE" 2>/dev/null
+    echo "$(date +%s) | started" >>"$HM_LOG_FILE" 2>/dev/null
+
+    # state files for duration tracking
+    local cpu_warn_start="/tmp/healthmon_cpu_warn.start"
+    local cpu_crit_start="/tmp/healthmon_cpu_crit.start"
+    local disk_start="/tmp/healthmon_disk.start"
+    local ram_start="/tmp/healthmon_ram.start"
+    local zapret_start="/tmp/healthmon_zapret_down.start"
+    local zapret_flag="/tmp/healthmon_zapret_down.flag"
+    local zapret_restart_flag="/tmp/healthmon_zapret_restart.tried"
+    local hb_ts="/tmp/healthmon_heartbeat.ts"
+
+    while true; do
+        healthmon_load_config
+        [ "$HM_ENABLE" = "1" ] || break
+
+        local now cpu load disk ram
+        now=$(healthmon_now)
+        cpu=$(healthmon_cpu_pct)
+        load=$(healthmon_loadavg)
+        disk=$(healthmon_disk_used_pct /opt)
+        ram=$(healthmon_mem_free_mb)
+
+        # ---- CPU WARN ----
+        if [ "$cpu" -ge "$HM_CPU_WARN" ]; then
+            [ -f "$cpu_warn_start" ] || echo "$now" >"$cpu_warn_start"
+            local st=$(cat "$cpu_warn_start" 2>/dev/null)
+            local el=$((now-st))
+            if [ "$el" -ge "$HM_CPU_WARN_DUR" ]; then
+                if healthmon_should_alert "cpu_warn" "$HM_COOLDOWN_SEC"; then
+                    telegram_send "$(tpl_render "$(T TXT_HM_CPU_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                        healthmon_log "$now | cpu_warn | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                fi
+                rm -f "$cpu_warn_start" 2>/dev/null
+            fi
+        else
+            rm -f "$cpu_warn_start" 2>/dev/null
+        fi
+
+        # ---- CPU CRIT ----
+        if [ "$cpu" -ge "$HM_CPU_CRIT" ]; then
+            [ -f "$cpu_crit_start" ] || echo "$now" >"$cpu_crit_start"
+            local stc=$(cat "$cpu_crit_start" 2>/dev/null)
+            local elc=$((now-stc))
+            if [ "$elc" -ge "$HM_CPU_CRIT_DUR" ]; then
+                if healthmon_should_alert "cpu_crit" "$HM_COOLDOWN_SEC"; then
+                    telegram_send "$(tpl_render "$(T TXT_HM_CPU_CRIT_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                        healthmon_log "$now | cpu_crit | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                fi
+                rm -f "$cpu_crit_start" 2>/dev/null
+            fi
+        else
+            rm -f "$cpu_crit_start" 2>/dev/null
+        fi
+
+        # ---- DISK ----
+        if [ -n "$disk" ] && [ "$disk" -ge "$HM_DISK_WARN" ]; then
+            [ -f "$disk_start" ] || echo "$now" >"$disk_start"
+            local sd=$(cat "$disk_start" 2>/dev/null)
+            local eld=$((now-sd))
+            if [ "$eld" -ge 60 ]; then
+                if healthmon_should_alert "disk" "$HM_COOLDOWN_SEC"; then
+                    telegram_send "$(tpl_render "$(T TXT_HM_DISK_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                        healthmon_log "$now | disk_warn | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                fi
+                rm -f "$disk_start" 2>/dev/null
+            fi
+        else
+            rm -f "$disk_start" 2>/dev/null
+        fi
+
+        # ---- RAM ----
+        if [ -n "$ram" ] && [ "$ram" -le "$HM_RAM_WARN_MB" ]; then
+            [ -f "$ram_start" ] || echo "$now" >"$ram_start"
+            local sr=$(cat "$ram_start" 2>/dev/null)
+            local elr=$((now-sr))
+            if [ "$elr" -ge 60 ]; then
+                if healthmon_should_alert "ram" "$HM_COOLDOWN_SEC"; then
+                    telegram_send "$(tpl_render "$(T TXT_HM_RAM_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                        healthmon_log "$now | ram_warn | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                fi
+                rm -f "$ram_start" 2>/dev/null
+            fi
+        else
+            rm -f "$ram_start" 2>/dev/null
+        fi
+
+        # ---- Zapret watchdog ----
+        if [ "$HM_ZAPRET_WATCHDOG" = "1" ]; then
+            if is_zapret_installed && ! is_zapret_running; then
+                [ -f "$zapret_start" ] || echo "$now" >"$zapret_start"
+                local sz=$(cat "$zapret_start" 2>/dev/null)
+                local elz=$((now-sz))
+                if [ "$elz" -ge 30 ]; then
+                    # optional auto-restart: try once per down event, and only notify if restart fails
+                    local restart_ok="0"
+                    if [ "$HM_ZAPRET_AUTORESTART" = "1" ] && [ ! -f "$zapret_restart_flag" ]; then
+                        echo "1" >"$zapret_restart_flag" 2>/dev/null
+                        start_zapret >/dev/null 2>&1
+                        sleep 1
+                        if is_zapret_running; then
+                            restart_ok="1"
+                            # Notify "UP" immediately to reduce panic
+                            if healthmon_should_alert "zapret_up" "$HM_ZAPRET_COOLDOWN_SEC"; then
+                                telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                                healthmon_log "$now | zapret_autorestart_ok | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                            fi
+                            # clear state to allow future down events to re-attempt restart
+                            rm -f "$zapret_flag" 2>/dev/null
+                            rm -f "$zapret_restart_flag" 2>/dev/null
+                            rm -f "$zapret_start" 2>/dev/null
+                            continue
+                        fi
+                    fi
+
+                    # If still down here, notify only when cooldown allows
+                    if [ "$restart_ok" != "1" ]; then
+                        if healthmon_should_alert "zapret_down" "$HM_ZAPRET_COOLDOWN_SEC"; then
+                            telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                            healthmon_log "$now | zapret_down | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                            echo "1" >"$zapret_flag" 2>/dev/null
+                        fi
+                        rm -f "$zapret_start" 2>/dev/null
+                    fi
+                fi
+            else
+                # recovered
+                if [ -f "$zapret_flag" ] && is_zapret_installed && is_zapret_running; then
+                    if healthmon_should_alert "zapret_up" "$HM_ZAPRET_COOLDOWN_SEC"; then
+                        telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                        healthmon_log "$now | zapret_up | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                    fi
+                    rm -f "$zapret_flag" 2>/dev/null
+                    rm -f "$zapret_restart_flag" 2>/dev/null
+                fi
+                rm -f "$zapret_start" 2>/dev/null
+            fi
+        fi
+
+
+        # ---- Heartbeat log (no Telegram) ----
+        if [ -n "$HM_HEARTBEAT_SEC" ] && [ "$HM_HEARTBEAT_SEC" -gt 0 ] 2>/dev/null; then
+            local last_hb=$(cat "$hb_ts" 2>/dev/null)
+            [ -z "$last_hb" ] && last_hb=0
+            if [ $((now-last_hb)) -ge "$HM_HEARTBEAT_SEC" ]; then
+                local zst="n/a"
+                if is_zapret_installed; then
+                    is_zapret_running && zst="up" || zst="down"
+                else
+                    zst="not_installed"
+                fi
+                # Heartbeat: log at most once per HM_HEARTBEAT_SEC
+                if [ "${HM_HEARTBEAT_SEC:-0}" -gt 0 ]; then
+                    last_hb="$(cat "$hb_ts" 2>/dev/null)"
+                    case "$last_hb" in
+                        ''|*[!0-9]*) last_hb=0 ;;
+                    esac
+                    if [ $((now - last_hb)) -ge "$HM_HEARTBEAT_SEC" ]; then
+                        echo "$now" > "$hb_ts" 2>/dev/null
+                        chmod 600 "$hb_ts" 2>/dev/null
+                        healthmon_log "$now | heartbeat | cpu=$cpu load=$load ram=${ram}MB disk=${disk}% zapret=$zst"
+                    fi
+                fi
+                echo "$now" >"$hb_ts" 2>/dev/null
+            fi
+        fi
+
+        sleep "$HM_INTERVAL"
+    done
+
+    rm -f "$HM_PID_FILE" 2>/dev/null
+    rmdir "$HM_LOCKDIR" 2>/dev/null
+}
+
+healthmon_is_running() {
+  [ -f /tmp/healthmon.pid ] || return 1
+  PID="$(cat /tmp/healthmon.pid 2>/dev/null)"
+  [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null
+}
+
+
+healthmon_autostart_install() {
+    # Ensure HealthMon starts after reboot when enabled
+    mkdir -p /opt/etc/init.d 2>/dev/null
+    cat > "$HM_AUTOSTART_FILE" <<'EOF'
+#!/opt/bin/sh
+# Auto-start for ZKM Health Monitor (Entware init.d)
+SCRIPT="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+CONF="/opt/etc/healthmon.conf"
+PIDFILE="/tmp/healthmon.pid"
+LOCKDIR="/tmp/healthmon.lock"
+
+start() {
+  # Start only if enabled
+  if [ -f "$CONF" ] && grep -q '^HM_ENABLE="1"' "$CONF" 2>/dev/null; then
+    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then
+      return 0
+    fi
+    "$SCRIPT" --healthmon-daemon </dev/null >/tmp/healthmon.log 2>&1 &
+  fi
+}
+
+stop() {
+  if [ -f "$PIDFILE" ]; then
+    kill "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null
+    rm -f "$PIDFILE" 2>/dev/null
+  fi
+  rm -rf "$LOCKDIR" 2>/dev/null
+}
+
+case "$1" in
+  start) start ;;
+  stop) stop ;;
+  restart) stop; start ;;
+  *) start ;;
+esac
+exit 0
+EOF
+    chmod 755 "$HM_AUTOSTART_FILE" 2>/dev/null
+}
+
+healthmon_autostart_remove() {
+    rm -f "$HM_AUTOSTART_FILE" 2>/dev/null
+}
+
+healthmon_start() {
+    # already running? don't spawn a 2nd daemon
+    healthmon_is_running && return 0
+
+    healthmon_load_config
+    HM_ENABLE="1"
+    healthmon_write_config
+
+
+    healthmon_autostart_install
+    # If already running, do nothing
+    if healthmon_is_running; then
+        return 0
+    fi
+
+    # Clear stale state (safe)
+    rm -f "$HM_PID_FILE" /tmp/healthmon.log 2>/dev/null
+    rm -rf "$HM_LOCKDIR" 2>/dev/null
+
+    # Start as a detached daemon by re-invoking this script
+    if command -v nohup >/dev/null 2>&1; then
+        nohup "$0" --healthmon-daemon </dev/null >/tmp/healthmon.log 2>&1 &
+    else
+        "$0" --healthmon-daemon </dev/null >/tmp/healthmon.log 2>&1 &
+    fi
+
+    # Wait up to 5s for PID to appear and process to be alive (BusyBox-safe)
+    local i pid
+    for i in 1 2 3 4 5; do
+        pid="$(cat "$HM_PID_FILE" 2>/dev/null)"
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+        sleep 1
+    done
+
+    # Failed to start: cleanup any stale state
+    rm -f "$HM_PID_FILE" 2>/dev/null
+    rm -rf "$HM_LOCKDIR" 2>/dev/null
+    return 1
+}
+
+
+healthmon_stop() {
+    HM_ENABLE="0"
+    healthmon_write_config
+
+    healthmon_autostart_remove
+    if [ -f "$HM_PID_FILE" ]; then
+        kill "$(cat "$HM_PID_FILE" 2>/dev/null)" 2>/dev/null
+        rm -f "$HM_PID_FILE" 2>/dev/null
+    fi
+    rmdir "$HM_LOCKDIR" 2>/dev/null
+}
+
+healthmon_status() {
+    healthmon_load_config
+    local run="OFF"
+    healthmon_is_running && run="ON"
+    local cpu load disk ram
+    cpu=$(healthmon_cpu_pct)
+    load=$(healthmon_loadavg)
+    disk=$(healthmon_disk_used_pct /opt)
+    ram=$(healthmon_mem_free_mb)
+
+    local pid=""
+    [ -f "$HM_PID_FILE" ] && pid="$(cat "$HM_PID_FILE" 2>/dev/null)"
+    echo "$(T _ 'Calisiyor:' 'Running:') $run (enable=${HM_ENABLE}${pid:+, pid=$pid})"
+    echo "  Interval : ${HM_INTERVAL}s"
+    echo "  CPU WARN : %${HM_CPU_WARN} / ${HM_CPU_WARN_DUR}s"
+    echo "  CPU CRIT : %${HM_CPU_CRIT} / ${HM_CPU_CRIT_DUR}s"
+    echo "  Disk(/opt) WARN : ${HM_DISK_WARN}%"
+    echo "  RAM WARN : <= ${HM_RAM_WARN_MB} MB"
+    echo "  Zapret watchdog : ${HM_ZAPRET_WATCHDOG}"
+    echo "  Zapret cooldown : ${HM_ZAPRET_COOLDOWN_SEC}s"
+    echo "  Cooldown : ${HM_COOLDOWN_SEC}s"
+    echo
+    echo "  Now -> CPU: %${cpu} | Load: ${load} | RAM free: ${ram} MB | Disk(/opt): ${disk}%"
+}
+
+healthmon_test() {
+    local cpu load disk ram
+    cpu=$(healthmon_cpu_pct)
+    load=$(healthmon_loadavg)
+    disk=$(healthmon_disk_used_pct /opt)
+    ram=$(healthmon_mem_free_mb)
+    telegram_send "$(tpl_render "$(T TXT_HM_TEST_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+}
+
+health_monitor_menu() {
+    while true; do
+        clear
+        print_line "="
+        echo "$(T TXT_HM_TITLE)"
+        print_line "="
+        echo
+        healthmon_load_config
+        local run="OFF"
+        healthmon_is_running && run="ON"
+        print_line "-"
+        if [ "$run" = "ON" ]; then
+            printf "%b\n" "${CLR_BOLD}${CLR_GREEN}$(T TXT_HM_STATUS) ON (enable=${HM_ENABLE})${CLR_RESET}"
+        else
+            printf "%b\n" "${CLR_BOLD}${CLR_RED}$(T TXT_HM_STATUS) OFF (enable=${HM_ENABLE})${CLR_RESET}"
+        fi
+        print_line "-"
+        echo "CPU WARN %${HM_CPU_WARN}/${HM_CPU_WARN_DUR}s  |  CPU CRIT %${HM_CPU_CRIT}/${HM_CPU_CRIT_DUR}s"
+        echo "Disk(/opt) >= ${HM_DISK_WARN}%  |  RAM <= ${HM_RAM_WARN_MB} MB  |  Load via uptime"
+        echo "Zapret watchdog: ${HM_ZAPRET_WATCHDOG}  |  Interval: ${HM_INTERVAL}s"
+        echo
+        print_line "-"
+        echo " 1) $(T TXT_HM_ENABLE_DISABLE)"
+        echo " 2) $(T TXT_HM_SHOW_STATUS)"
+        echo " 3) $(T TXT_HM_SEND_TEST)"
+        echo " 4) $(T TXT_HM_CONFIG_THRESHOLDS)"
+        echo " 0) $(T TXT_BACK)"
+        print_line "-"
+        printf "%s" "$(T TXT_CHOICE) "
+        read -r c
+        clear
+        case "$c" in
+1)
+    # Toggle based on *actual* daemon state (not only HM_ENABLE flag)
+    # This prevents "OFF (enable=1)" showing, then option 1 trying to stop a non-running daemon.
+    if healthmon_is_running; then
+        healthmon_stop
+        print_status PASS "$(T TXT_HM_DISABLED)"
+    else
+        healthmon_start
+        print_status PASS "$(T TXT_HM_ENABLED)"
+    fi
+    press_enter_to_continue
+    ;;
+            2)
+                healthmon_status
+                press_enter_to_continue
+                ;;
+            3)
+                if healthmon_test; then
+                    print_status PASS "$(T TXT_HM_TEST_SENT)"
+                else
+                    print_status WARN "$(T TXT_HM_NEED_TG)"
+                fi
+                press_enter_to_continue
+                ;;
+            4)
+                healthmon_load_config
+                echo "$(T TXT_HM_PROMPT_CPU_WARN)"
+                read -r v; [ -n "$v" ] && HM_CPU_WARN="$v"
+                echo "$(T TXT_HM_PROMPT_CPU_WARN_DUR)"
+                read -r v; [ -n "$v" ] && HM_CPU_WARN_DUR="$v"
+
+                echo "$(T TXT_HM_PROMPT_CPU_CRIT)"
+                read -r v; [ -n "$v" ] && HM_CPU_CRIT="$v"
+                echo "$(T TXT_HM_PROMPT_CPU_CRIT_DUR)"
+                read -r v; [ -n "$v" ] && HM_CPU_CRIT_DUR="$v"
+
+                echo "$(T TXT_HM_PROMPT_DISK_WARN)"
+                read -r v; [ -n "$v" ] && HM_DISK_WARN="$v"
+
+                echo "$(T TXT_HM_PROMPT_RAM_WARN)"
+                read -r v; [ -n "$v" ] && HM_RAM_WARN_MB="$v"
+
+                echo "$(T TXT_HM_PROMPT_ZAPRET_WD)"
+                read -r v; [ -n "$v" ] && HM_ZAPRET_WATCHDOG="$v"
+
+                echo "$(T TXT_HM_PROMPT_ZAPRET_COOLDOWN)"
+                read -r v; [ -n "$v" ] && HM_ZAPRET_COOLDOWN_SEC="$v"
+
+                echo "$(T TXT_HM_PROMPT_ZAPRET_AUTORESTART)"
+                read -r v; [ -n "$v" ] && HM_ZAPRET_AUTORESTART="$v"
+
+                echo "$(T _ 'Interval (sn) [or: 30]:' 'Interval (sec) [e.g. 30]:' )"
+                read -r v; [ -n "$v" ] && HM_INTERVAL="$v"
+
+                echo "$(T _ 'Cooldown (sn) [or: 600]:' 'Cooldown (sec) [e.g. 600]:' )"
+                read -r v; [ -n "$v" ] && HM_COOLDOWN_SEC="$v"
+
+                # sanitize numeric (best-effort)
+                for k in HM_CPU_WARN HM_CPU_WARN_DUR HM_CPU_CRIT HM_CPU_CRIT_DUR HM_DISK_WARN HM_RAM_WARN_MB HM_INTERVAL HM_COOLDOWN_SEC HM_ZAPRET_WATCHDOG HM_ZAPRET_COOLDOWN_SEC HM_ZAPRET_AUTORESTART HM_HEARTBEAT_SEC; do
+                    eval val=\$$k
+                    case "$val" in
+                        ''|*[!0-9-]*) : ;; # keep as-is; user responsibility
+                    esac
+                done
+
+                healthmon_write_config
+
+                # restart loop if running
+                if healthmon_is_running; then
+                    healthmon_stop
+                    healthmon_start
+                fi
+
+                print_status PASS "$(T _ 'Ayarlar kaydedildi.' 'Settings saved.')"
+                press_enter_to_continue
+                ;;
+            0) return 0 ;;
+            *) echo "$(T TXT_INVALID_CHOICE)" ; sleep 1 ;;
+        esac
+    done
+}
+
 check_script_location_once
 main_menu_loop() {
     while true; do
@@ -5015,14 +5876,25 @@ main_menu_loop() {
             12) manage_ipset_clients ;;
         13) script_rollback_menu ;;
         14) run_health_check ;;
+        15) telegram_notifications_menu ;;
+        16) health_monitor_menu ;;
 B|b) blockcheck_test_menu ;;
 L|l) toggle_lang ;; 
             0) echo "Cikis yapiliyor..."; break ;;
-            *) echo "Gecersiz secim! Lutfen 0 ile 14 arasinda bir sayi girin." ;;
+            *) echo "Gecersiz secim! Lutfen 0 ile 16 arasinda bir sayi girin." ;;
         esac
         echo ""
     done
 }
+
+
+# Internal: run health monitor loop as a detached daemon
+if [ "$1" = "--healthmon-daemon" ]; then
+    # ignore hangup when parent shell exits
+    trap '' HUP 2>/dev/null
+    healthmon_loop
+    exit 0
+fi
 
 # --- Betigin Baslangic Noktasi ---
 # Kullanım: ./script.sh cleanup  -> Zapret kurulu olmasa bile kalıntıları temizler
