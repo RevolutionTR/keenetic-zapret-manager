@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.2.1"
+SCRIPT_VERSION="v26.2.3"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 # -------------------------------------------------------------------
@@ -52,7 +52,119 @@ ZKM_SELF_PID="$$"
 ZKM_SKIP_LOCK="0"
 case "$1" in
     --healthmon-daemon) ZKM_SKIP_LOCK="1" ;;
+    --self-test)        ZKM_SKIP_LOCK="1" ; ZKM_SELF_TEST="1" ;;
+    --dev|--developer)  ZKM_DEV_CHECK="1" ;;
 esac
+
+
+# Developer / Self-test flags
+ZKM_SELF_TEST="${ZKM_SELF_TEST:-0}"
+ZKM_DEV_CHECK="${ZKM_DEV_CHECK:-0}"
+
+zkm_self_test() {
+    local f="$0"
+    local fail=0 warn=0
+    _pass() { echo "PASS $*"; }
+    _warn() { echo "WARN $*"; warn=$((warn+1)); }
+    _fail() { echo "FAIL $*"; fail=$((fail+1)); }
+
+    echo "=== ZKM Self-Test ==="
+    echo "File: $f"
+
+    # 1) Syntax
+    if sh -n "$f" 2>/tmp/zkm_selftest_syntax.err; then
+        _pass "syntax: sh -n OK"
+    else
+        _fail "syntax: sh -n FAILED (see /tmp/zkm_selftest_syntax.err)"
+    fi
+
+    # 2) Turkish letters (byte-level)
+    local found_tr=0 pat
+    for pat in \
+      $'\xC5\x9E' $'\xC5\x9F' \
+      $'\xC4\x9E' $'\xC4\x9F' \
+      $'\xC4\xB0' $'\xC4\xB1' \
+      $'\xC3\x96' $'\xC3\xB6' \
+      $'\xC3\x87' $'\xC3\xA7' \
+      $'\xC3\x9C' $'\xC3\xBC'
+    do
+      if grep -oba "$pat" "$f" >/dev/null 2>&1; then
+        found_tr=1
+        break
+      fi
+    done
+    if [ "$found_tr" -eq 1 ]; then
+        _fail "TR letters detected - keep ASCII for menus"
+    else
+        _pass "TR letters: none (byte-verified)"
+    fi
+
+    # 3) Translation coverage: used TXT_* keys must have _TR and _EN
+    local miss="/tmp/zkm_selftest_missing.txt"
+    : > "$miss"
+    grep -oE '(^|[^A-Z0-9_])T[[:space:]]+TXT_[A-Z0-9_]+' "$f" 2>/dev/null \
+      | sed -E 's/^.*T[[:space:]]+(TXT_[A-Z0-9_]+).*$/\1/' \
+      | sort -u \
+      | while IFS= read -r k; do
+            grep -qE "^${k}_TR=" "$f" 2>/dev/null || echo "${k}_TR" >> "$miss"
+            grep -qE "^${k}_EN=" "$f" 2>/dev/null || echo "${k}_EN" >> "$miss"
+        done
+
+    if [ -s "$miss" ]; then
+        _fail "missing translations found (see $miss)"
+        head -n 30 "$miss" | sed 's/^/  - /'
+        local cnt
+        cnt="$(wc -l < "$miss" 2>/dev/null)"
+        [ -n "$cnt" ] && [ "$cnt" -gt 30 ] && echo "  ... (+$((cnt-30)) more)"
+    else
+        _pass "translations: all used TXT_* have TR+EN"
+        rm -f "$miss" 2>/dev/null
+    fi
+
+    # 4) Telegram config (optional)
+    if [ -f /opt/etc/telegram.conf ]; then
+        . /opt/etc/telegram.conf 2>/dev/null
+        if [ -n "$TG_BOT_TOKEN" ] && [ -n "$TG_CHAT_ID" ]; then
+            _pass "telegram: config present"
+        else
+            _warn "telegram: config exists but token/chat_id missing"
+        fi
+    else
+        _warn "telegram: /opt/etc/telegram.conf not found (optional)"
+    fi
+
+    # 5) HealthMon auto-start (optional)
+    if [ -f /opt/etc/healthmon.conf ]; then
+        . /opt/etc/healthmon.conf 2>/dev/null
+        if [ "${HM_ENABLE:-0}" = "1" ]; then
+            local pid
+            pid="$(cat /tmp/healthmon.pid 2>/dev/null)"
+            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+                _pass "healthmon: enabled and running (pid=$pid)"
+            else
+                _warn "healthmon: enabled but not running"
+            fi
+        else
+            _pass "healthmon: disabled"
+        fi
+    else
+        _warn "healthmon: /opt/etc/healthmon.conf not found (optional)"
+    fi
+
+    echo "=== Summary: FAIL=$fail WARN=$warn ==="
+    [ "$fail" -eq 0 ]
+}
+
+# Run self-test and exit
+if [ "$ZKM_SELF_TEST" = "1" ]; then
+    zkm_self_test
+    exit $?
+fi
+
+# Optional developer check (silent). No dependency for users.
+if [ "$ZKM_DEV_CHECK" = "1" ] && [ -x /opt/etc/zkm_guard.sh ]; then
+    /opt/bin/sh /opt/etc/zkm_guard.sh "$0" >/dev/null 2>&1
+fi
 
 if [ "$ZKM_SKIP_LOCK" != "1" ]; then
     if ! mkdir "$ZKM_LOCKDIR" 2>/dev/null; then
@@ -478,6 +590,105 @@ TXT_TG_TEST_OK_MSG_EN="✅ Telegram test: notifications working"
 TXT_HM_TITLE_TR="Sistem Sagligi Monitoru"
 TXT_HM_TITLE_EN="System Health Monitor"
 
+TXT_HM_MENU_LINE2_TR="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load (uptime)"
+TXT_HM_MENU_LINE2_EN="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load via uptime"
+
+TXT_HM_MENU_LINE3_TR="Zapret watchdog: %WD%  |  Aralik: %INT%s"
+TXT_HM_MENU_LINE3_EN="Zapret watchdog: %WD%  |  Interval: %INT%s"
+
+TXT_HM_CFG_TITLE_TR="Saglik Ayarlari"
+TXT_HM_CFG_TITLE_EN="Health Settings"
+
+TXT_HM_CFG_ITEM5_TR="Zapret (watchdog)"
+TXT_HM_CFG_ITEM5_EN="Zapret (watchdog)"
+
+TXT_HM_CFG_ITEM6_TR="Guncelleme kontrolu"
+TXT_HM_CFG_ITEM6_EN="Update check"
+
+TXT_HM_CFG_ITEM7_TR="Oto guncelleme modu"
+TXT_HM_CFG_ITEM7_EN="Auto update mode"
+
+TXT_HM_CFG_ITEM8_TR="Aralik (sn)"
+TXT_HM_CFG_ITEM8_EN="Interval (sec)"
+
+TXT_HM_CFG_ITEM9_TR="Cooldown (sn)"
+TXT_HM_CFG_ITEM9_EN="Cooldown (sec)"
+
+TXT_HM_CFG_ITEM10_TR="Heartbeat (sn)"
+TXT_HM_CFG_ITEM10_EN="Heartbeat (sec)"
+
+TXT_HM_STATUS_DISK_OPT_TR="Disk(/opt)"
+TXT_HM_STATUS_DISK_OPT_EN="Disk(/opt)"
+
+TXT_HM_STATUS_TITLE_TR="Sistem Sagligi Monitoru Durumu"
+TXT_HM_STATUS_TITLE_EN="System Health Monitor Status"
+
+TXT_HM_STATUS_SEC_SETTINGS_TR="[AYARLAR]"
+TXT_HM_STATUS_SEC_SETTINGS_EN="[SETTINGS]"
+
+TXT_HM_STATUS_SEC_THRESH_TR="[ESIKLER]"
+TXT_HM_STATUS_SEC_THRESH_EN="[THRESHOLDS]"
+
+TXT_HM_STATUS_SEC_ZAPRET_TR="[ZAPRET]"
+TXT_HM_STATUS_SEC_ZAPRET_EN="[ZAPRET]"
+
+TXT_HM_STATUS_SEC_NOW_TR="[SIMDI]"
+TXT_HM_STATUS_SEC_NOW_EN="[NOW]"
+
+TXT_HM_STATUS_ZAPRET_AR_TR="AutoRes"
+TXT_HM_STATUS_ZAPRET_AR_EN="AutoRes"
+
+TXT_HM_STATUS_CPU_TR="CPU"
+TXT_HM_STATUS_CPU_EN="CPU"
+
+TXT_HM_STATUS_ZAPRET_TR="Zapret"
+TXT_HM_STATUS_ZAPRET_EN="Zapret"
+
+TXT_HM_ZAPRET_UP_SHORT_TR="up"
+TXT_HM_ZAPRET_UP_SHORT_EN="up"
+
+TXT_HM_ZAPRET_DOWN_SHORT_TR="down"
+TXT_HM_ZAPRET_DOWN_SHORT_EN="down"
+
+TXT_HM_ZAPRET_NA_SHORT_TR="n/a"
+TXT_HM_ZAPRET_NA_SHORT_EN="n/a"
+
+TXT_HM_STATUS_SECTION_CFG_TR="Ayarlar"
+TXT_HM_STATUS_SECTION_CFG_EN="Settings"
+
+TXT_HM_STATUS_SECTION_NOW_TR="Anlik Durum"
+TXT_HM_STATUS_SECTION_NOW_EN="Live Status"
+
+TXT_HM_STATUS_UPDATECHECK_TR="Guncelleme kontrolu"
+TXT_HM_STATUS_UPDATECHECK_EN="Update check"
+
+TXT_HM_STATUS_AUTOUPDATE_TR="Oto guncelleme"
+TXT_HM_STATUS_AUTOUPDATE_EN="Auto update"
+
+TXT_HM_WORD_ON_TR="ACIK"
+TXT_HM_WORD_ON_EN="ON"
+
+TXT_HM_WORD_OFF_TR="KAPALI"
+TXT_HM_WORD_OFF_EN="OFF"
+
+TXT_HM_MODE0_TR="KAPALI"
+TXT_HM_MODE0_EN="OFF"
+
+TXT_HM_MODE1_TR="BILDIR"
+TXT_HM_MODE1_EN="Notify"
+
+TXT_HM_MODE2_TR="OTO KUR"
+TXT_HM_MODE2_EN="Auto install"
+
+TXT_HM_FLAG_EVERY_TR="her"
+TXT_HM_FLAG_EVERY_EN="every"
+
+TXT_HM_FLAG_MODE_TR="mod"
+TXT_HM_FLAG_MODE_EN="mode"
+
+TXT_HM_FLAG_ENABLED_TR="acik"
+TXT_HM_FLAG_ENABLED_EN="en"
+
 TXT_HM_STATUS_TR="Durum:"
 TXT_HM_STATUS_EN="Status:"
 
@@ -493,10 +704,10 @@ TXT_HM_SEND_TEST_EN="Send Test Notification (Telegram)"
 TXT_HM_CONFIG_THRESHOLDS_TR="Esikleri Ayarla"
 TXT_HM_CONFIG_THRESHOLDS_EN="Configure Thresholds"
 
-TXT_HM_ENABLED_TR="Health Monitor acildi."
+TXT_HM_ENABLED_TR="Sistem Sagligi Monitoru acildi."
 TXT_HM_ENABLED_EN="Health Monitor enabled."
 
-TXT_HM_DISABLED_TR="Health Monitor kapatildi."
+TXT_HM_DISABLED_TR="Sistem Sagligi Monitoru kapatildi."
 TXT_HM_DISABLED_EN="Health Monitor disabled."
 
 TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Health Monitor test\nCPU: %CPU%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
@@ -519,6 +730,52 @@ TXT_HM_ZAPRET_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Zapret may be down!\nCPU: %
 
 TXT_HM_ZAPRET_UP_MSG_TR="📌 HealthMon %TS%\n✅ Zapret tekrar calisiyor.\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
 TXT_HM_ZAPRET_UP_MSG_EN="📌 HealthMon %TS%\n✅ Zapret is running again.\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+
+TXT_HM_STATUS_RUNNING_TR="Calisiyor:"
+TXT_HM_STATUS_RUNNING_EN="Running:"
+
+TXT_HM_RUN_ON_TR="AKTIF"
+TXT_HM_RUN_ON_EN="ON"
+
+TXT_HM_RUN_OFF_TR="KAPALI"
+TXT_HM_RUN_OFF_EN="OFF"
+
+TXT_HM_ENABLE_LABEL_TR="etkin"
+TXT_HM_ENABLE_LABEL_EN="enable"
+
+TXT_HM_STATUS_INTERVAL_TR="Aralik"
+TXT_HM_STATUS_INTERVAL_EN="Interval"
+
+TXT_HM_STATUS_CPU_WARN_TR="CPU UYARI"
+TXT_HM_STATUS_CPU_WARN_EN="CPU WARN"
+
+TXT_HM_STATUS_CPU_CRIT_TR="CPU KRITIK"
+TXT_HM_STATUS_CPU_CRIT_EN="CPU CRIT"
+
+TXT_HM_STATUS_DISK_WARN_TR="Disk(/opt) UYARI"
+TXT_HM_STATUS_DISK_WARN_EN="Disk(/opt) WARN"
+
+TXT_HM_STATUS_RAM_WARN_TR="RAM UYARI"
+TXT_HM_STATUS_RAM_WARN_EN="RAM WARN"
+
+TXT_HM_STATUS_ZAPRET_WD_TR="Zapret izleme"
+TXT_HM_STATUS_ZAPRET_WD_EN="Zapret watchdog"
+
+TXT_HM_STATUS_ZAPRET_CD_TR="Zapret bekleme"
+TXT_HM_STATUS_ZAPRET_CD_EN="Zapret cooldown"
+
+TXT_HM_STATUS_COOLDOWN_TR="Bekleme"
+TXT_HM_STATUS_COOLDOWN_EN="Cooldown"
+
+TXT_HM_STATUS_NOW_TR="Simdi ->"
+TXT_HM_STATUS_NOW_EN="Now ->"
+
+TXT_HM_STATUS_LOAD_TR="Yuk"
+TXT_HM_STATUS_LOAD_EN="Load"
+
+TXT_HM_STATUS_RAM_FREE_TR="RAM bos"
+TXT_HM_STATUS_RAM_FREE_EN="RAM free"
+
 
 TXT_TG_ERR_TOKEN_FORMAT_TR="Token formati hatali (:) yok)."
 TXT_TG_ERR_TOKEN_FORMAT_EN="Invalid token format (missing :)."
@@ -567,6 +824,63 @@ TXT_HM_PROMPT_ZAPRET_AUTORESTART_EN="Zapret auto-restart? (0/1) [e.g. 0]:"
 
 TXT_HM_PROMPT_INTERVAL_TR="Kontrol araligi (sn) [or: 30]:"
 TXT_HM_PROMPT_INTERVAL_EN="Check interval (sec) [e.g. 30]:"
+
+TXT_HM_PROMPT_UPDATECHECK_ENABLE_TR="Guncelleme kontrolu (1=acik,0=kapali) [or: 1]:"
+TXT_HM_PROMPT_UPDATECHECK_ENABLE_EN="Update check (1=on,0=off) [e.g. 1]:"
+
+TXT_HM_PROMPT_UPDATECHECK_SEC_TR="Update check araligi (sn) [or: 21600]:"
+TXT_HM_PROMPT_UPDATECHECK_SEC_EN="Update check interval (sec) [e.g. 21600]:"
+
+TXT_UPD_ZKM_NEW_TR="[Update]
+Paket   : ZKM
+Mevcut  : %CUR%
+Yeni    : %NEW%
+Link    : %URL%
+
+Install now? (menu 10)"
+TXT_UPD_ZKM_NEW_EN="[Update]
+Package : ZKM
+Current : %CUR%
+Latest  : %NEW%
+Link    : %URL%
+
+Install now? (menu 10)"
+TXT_UPD_ZAPRET_NEW_TR="[Update]
+Paket   : zapret
+Kurulu  : %CUR%
+Yeni    : %NEW%
+Link    : %URL%"
+TXT_UPD_ZAPRET_NEW_EN="[Update]
+Package : zapret
+Installed: %CUR%
+Latest   : %NEW%
+Link     : %URL%"
+TXT_UPD_ZKM_AUTO_OK_TR="[AutoUpdate]\nZKM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nZKM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+
+TXT_UPD_ZKM_AUTO_FAIL_TR="[AutoUpdate]\nZKM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\nZKM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+
+TXT_HM_PROMPT_AUTOUPDATE_MODE_TR="Otomatik guncelleme modu (0=KAPALI,1=BILDIR,2=OTO KUR) [or: 2]:"
+TXT_HM_PROMPT_AUTOUPDATE_MODE_EN="Auto update mode (0=OFF,1=Notify,2=Auto install) [e.g. 2]:"
+
+TXT_HM_AUTOUPDATE_MODE_HINT_TR="0=KAPALI,1=BILDIR,2=OTO KUR"
+TXT_HM_AUTOUPDATE_MODE_HINT_EN="0=OFF,1=Notify,2=Auto install"
+
+TXT_HM_AUTOUPDATE_WARN_TITLE_TR="UYARI:"
+TXT_HM_AUTOUPDATE_WARN_TITLE_EN="WARNING:"
+
+TXT_HM_AUTOUPDATE_WARN_L1_TR="Auto install modu betigi otomatik gunceller."
+TXT_HM_AUTOUPDATE_WARN_L1_EN="Auto install will update the script automatically."
+
+TXT_HM_AUTOUPDATE_WARN_L2_TR="Ileri seviye kullanicilar icin onerilir."
+TXT_HM_AUTOUPDATE_WARN_L2_EN="Recommended for advanced users."
+
+TXT_HM_AUTOUPDATE_WARN_L3_TR="Devam? (e/h): "
+TXT_HM_AUTOUPDATE_WARN_L3_EN="Continue? (y/n): "
+
+TXT_HM_AUTOUPDATE_SET_MSG_TR="Auto update modu ayarlandi: %MODE%"
+TXT_HM_AUTOUPDATE_SET_MSG_EN="Auto update mode set: %MODE%"
 
 TXT_HM_PROMPT_COOLDOWN_TR="Bildirim soguma (sn) [or: 600]:"
 TXT_HM_PROMPT_COOLDOWN_EN="Notification cooldown (sec) [e.g. 600]:"
@@ -629,6 +943,7 @@ TXT_CHOICE_EN="Choice:"
 
 TXT_INVALID_CHOICE_TR="Gecersiz secim!"
 TXT_INVALID_CHOICE_EN="Invalid choice!"
+
 # --- Added common keys (TR/EN) ---
 TXT_CANCELLED_TR="Iptal edildi."
 TXT_CANCELLED_EN="Cancelled."
@@ -5302,8 +5617,24 @@ HM_ZAPRET_WATCHDOG="1"
 HM_ZAPRET_COOLDOWN_SEC="120"
 HM_ZAPRET_AUTORESTART="0"
 HM_HEARTBEAT_SEC="300"
+HM_UPDATECHECK_ENABLE="1"
+HM_UPDATECHECK_SEC="21600"
+HM_UPDATECHECK_REPO_ZKM="RevolutionTR/keenetic-zapret-manager"
+HM_UPDATECHECK_REPO_ZAPRET="bol-van/zapret"
 HM_COOLDOWN_SEC="600"
 HM_ZAPRET_COOLDOWN_SEC="120"
+
+
+healthmon_print_autoupdate_warning() {
+    # Show a single WARN header, then plain indented lines (less noisy)
+    print_status WARN "$(T TXT_HM_AUTOUPDATE_WARN_TITLE)"
+    printf "  %s
+" "$(T TXT_HM_AUTOUPDATE_WARN_L1)"
+    printf "  %s
+" "$(T TXT_HM_AUTOUPDATE_WARN_L2)"
+}
+
+
 
 healthmon_load_config() {
     HM_ENABLE="0"
@@ -5317,6 +5648,11 @@ healthmon_load_config() {
     HM_ZAPRET_WATCHDOG="1"
     HM_COOLDOWN_SEC="600"
     HM_ZAPRET_COOLDOWN_SEC="120"
+    HM_UPDATECHECK_ENABLE="1"
+    HM_UPDATECHECK_SEC="21600"
+    HM_UPDATECHECK_REPO_ZKM="RevolutionTR/keenetic-zapret-manager"
+    HM_UPDATECHECK_REPO_ZAPRET="bol-van/zapret"
+    HM_AUTOUPDATE_MODE="2"
 
     [ -f "$HM_CONF_FILE" ] && . "$HM_CONF_FILE" 2>/dev/null
 }
@@ -5338,6 +5674,11 @@ HM_COOLDOWN_SEC="$HM_COOLDOWN_SEC"
 HM_ZAPRET_COOLDOWN_SEC="$HM_ZAPRET_COOLDOWN_SEC"
 HM_ZAPRET_AUTORESTART="$HM_ZAPRET_AUTORESTART"
 HM_HEARTBEAT_SEC="$HM_HEARTBEAT_SEC"
+HM_UPDATECHECK_ENABLE="$HM_UPDATECHECK_ENABLE"
+HM_UPDATECHECK_SEC="$HM_UPDATECHECK_SEC"
+HM_UPDATECHECK_REPO_ZKM="$HM_UPDATECHECK_REPO_ZKM"
+HM_UPDATECHECK_REPO_ZAPRET="$HM_UPDATECHECK_REPO_ZAPRET"
+HM_AUTOUPDATE_MODE="$HM_AUTOUPDATE_MODE"
 EOF
     chmod 600 "$HM_CONF_FILE" 2>/dev/null
 }
@@ -5400,6 +5741,122 @@ healthmon_should_alert() {
     [ -z "$last" ] && last=0
     [ $((now-last)) -ge "$cooldown" ] || return 1
     echo "$now" >"$f" 2>/dev/null
+    return 0
+}
+
+healthmon_update_state_load() {
+    # state to avoid repeated notifications
+    HM_UPD_STATE_FILE="/opt/etc/healthmon_update.state"
+    ZKM_LAST_NOTIFIED=""
+    ZAPRET_LAST_NOTIFIED=""
+    ZKM_LAST_AUTO_ATTEMPTED=""
+    [ -f "$HM_UPD_STATE_FILE" ] && . "$HM_UPD_STATE_FILE" 2>/dev/null
+}
+
+healthmon_update_state_save() {
+    mkdir -p /opt/etc 2>/dev/null
+    umask 077
+    cat >"$HM_UPD_STATE_FILE" <<EOF
+ZKM_LAST_NOTIFIED="$ZKM_LAST_NOTIFIED"
+ZAPRET_LAST_NOTIFIED="$ZAPRET_LAST_NOTIFIED"
+ZKM_LAST_AUTO_ATTEMPTED="$ZKM_LAST_AUTO_ATTEMPTED"
+EOF
+    chmod 600 "$HM_UPD_STATE_FILE" 2>/dev/null
+}
+
+github_latest_release_tag() {
+    # $1 = owner/repo
+    local repo="$1"
+    local api="https://api.github.com/repos/${repo}/releases/latest"
+    local tag
+    tag="$(curl -fsS "$api" 2>/dev/null | grep -m1 '"tag_name"' | cut -d '"' -f4)"
+    if [ -n "$tag" ]; then
+        echo "$tag"
+        return 0
+    fi
+    # fallback: tags list
+    api="https://api.github.com/repos/${repo}/tags?per_page=1"
+    tag="$(curl -fsS "$api" 2>/dev/null | grep -m1 '"name"' | cut -d '"' -f4)"
+    [ -n "$tag" ] && { echo "$tag"; return 0; }
+    return 1
+}
+
+healthmon_updatecheck_do() {
+    [ "${HM_UPDATECHECK_ENABLE:-0}" = "1" ] || return 0
+
+    # Auto update mode:
+    # 0 = OFF (no checks)
+    # 1 = Notify only
+    # 2 = Auto install (ZKM only)
+    local upd_mode="${HM_AUTOUPDATE_MODE:-1}"
+    case "$upd_mode" in
+        0) return 0 ;;
+        1|2) : ;;
+        *) upd_mode="1" ;;
+    esac
+
+    local now last_ts f
+    f="/tmp/healthmon_updatecheck.ts"
+    now="$(healthmon_now)"
+    last_ts="$(cat "$f" 2>/dev/null)"
+    case "$last_ts" in
+        ''|*[!0-9]*) last_ts=0 ;;
+    esac
+    [ "${HM_UPDATECHECK_SEC:-0}" -gt 0 ] || return 0
+    [ $((now - last_ts)) -ge "$HM_UPDATECHECK_SEC" ] || return 0
+    echo "$now" >"$f" 2>/dev/null
+    chmod 600 "$f" 2>/dev/null
+
+    # Need Telegram configured; if not, just skip silently
+    [ -f "$TG_CONF_FILE" ] || return 0
+
+    healthmon_update_state_load
+
+    # ZKM update (this script)
+    local latest cur msg url
+    cur="${SCRIPT_VERSION:-unknown}"
+    url="https://github.com/${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}/releases/latest"
+    latest="$(github_latest_release_tag "${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}")"
+
+    if [ -n "$latest" ] && [ "$latest" != "$cur" ]; then
+        if [ "$upd_mode" = "2" ]; then
+            # Auto install only once per version (no retry loop)
+            if [ "$latest" != "$ZKM_LAST_AUTO_ATTEMPTED" ]; then
+                if update_manager_script >/dev/null 2>&1; then
+                    msg="$(tpl_render "$(T TXT_UPD_ZKM_AUTO_OK)" NEW "$latest" CUR "$cur" URL "$url")"
+                else
+                    msg="$(tpl_render "$(T TXT_UPD_ZKM_AUTO_FAIL)" NEW "$latest" CUR "$cur" URL "$url")"
+                fi
+                telegram_send "$msg" >/dev/null 2>&1
+                ZKM_LAST_AUTO_ATTEMPTED="$latest"
+                ZKM_LAST_NOTIFIED="$latest"
+                healthmon_update_state_save
+            fi
+        else
+            # Notify only (also avoid repeats)
+            if [ "$latest" != "$ZKM_LAST_NOTIFIED" ]; then
+                msg="$(tpl_render "$(T TXT_UPD_ZKM_NEW)" NEW "$latest" CUR "$cur" URL "$url")"
+                telegram_send "$msg" >/dev/null 2>&1
+                ZKM_LAST_NOTIFIED="$latest"
+                healthmon_update_state_save
+            fi
+        fi
+    fi
+
+    # Zapret upstream update
+    if [ -f /opt/zapret/version ]; then
+        cur="$(cat /opt/zapret/version 2>/dev/null)"
+    else
+        cur="not_installed"
+    fi
+    latest="$(github_latest_release_tag "${HM_UPDATECHECK_REPO_ZAPRET:-bol-van/zapret}")"
+    if [ -n "$latest" ] && [ "$latest" != "$cur" ] && [ "$latest" != "$ZAPRET_LAST_NOTIFIED" ]; then
+        msg="$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" NEW "$latest" CUR "$cur" URL "https://github.com/${HM_UPDATECHECK_REPO_ZAPRET:-bol-van/zapret}/releases/latest")"
+        telegram_send "$msg" >/dev/null 2>&1
+        ZAPRET_LAST_NOTIFIED="$latest"
+        healthmon_update_state_save
+    fi
+
     return 0
 }
 
@@ -5575,10 +6032,11 @@ healthmon_loop() {
                         healthmon_log "$now | heartbeat | cpu=$cpu load=$load ram=${ram}MB disk=${disk}% zapret=$zst"
                     fi
                 fi
-                echo "$now" >"$hb_ts" 2>/dev/null
             fi
         fi
 
+        # periodic update check (GitHub)
+        healthmon_updatecheck_do
         sleep "$HM_INTERVAL"
     done
 
@@ -5694,8 +6152,19 @@ healthmon_stop() {
 
 healthmon_status() {
     healthmon_load_config
-    local run="OFF"
-    healthmon_is_running && run="ON"
+
+    local isrun=0
+    healthmon_is_running && isrun=1
+
+    local run_txt
+    if [ "$isrun" -eq 1 ]; then
+        run_txt="$(T TXT_HM_RUN_ON)"
+        run_txt="${CLR_GREEN}${run_txt}${CLR_RESET}"
+    else
+        run_txt="$(T TXT_HM_RUN_OFF)"
+        run_txt="${CLR_RED}${run_txt}${CLR_RESET}"
+    fi
+
     local cpu load disk ram
     cpu=$(healthmon_cpu_pct)
     load=$(healthmon_loadavg)
@@ -5704,18 +6173,94 @@ healthmon_status() {
 
     local pid=""
     [ -f "$HM_PID_FILE" ] && pid="$(cat "$HM_PID_FILE" 2>/dev/null)"
-    echo "$(T _ 'Calisiyor:' 'Running:') $run (enable=${HM_ENABLE}${pid:+, pid=$pid})"
-    echo "  Interval : ${HM_INTERVAL}s"
-    echo "  CPU WARN : %${HM_CPU_WARN} / ${HM_CPU_WARN_DUR}s"
-    echo "  CPU CRIT : %${HM_CPU_CRIT} / ${HM_CPU_CRIT_DUR}s"
-    echo "  Disk(/opt) WARN : ${HM_DISK_WARN}%"
-    echo "  RAM WARN : <= ${HM_RAM_WARN_MB} MB"
-    echo "  Zapret watchdog : ${HM_ZAPRET_WATCHDOG}"
-    echo "  Zapret cooldown : ${HM_ZAPRET_COOLDOWN_SEC}s"
-    echo "  Cooldown : ${HM_COOLDOWN_SEC}s"
+
+    # zapret state
+    local zst="n/a"
+    if is_zapret_installed; then
+        is_zapret_running && zst="$(T TXT_HM_ZAPRET_UP_SHORT)" || zst="$(T TXT_HM_ZAPRET_DOWN_SHORT)"
+    else
+        zst="$(T TXT_HM_ZAPRET_NA_SHORT)"
+    fi
+
+    # translate auto-update mode
+    local mode_txt
+    case "${HM_AUTOUPDATE_MODE:-0}" in
+        2) mode_txt="$(T TXT_HM_MODE2)" ;;
+        1) mode_txt="$(T TXT_HM_MODE1)" ;;
+        *) mode_txt="$(T TXT_HM_MODE0)" ;;
+    esac
+
+    local upd_word
+    if [ "${HM_UPDATECHECK_ENABLE:-0}" = "1" ]; then
+        upd_word="$(T TXT_HM_WORD_ON)"
+    else
+        upd_word="$(T TXT_HM_WORD_OFF)"
+    fi
+
+    local _w=18
+    local _lbl
+
+    hm_kv() {
+        # $1=label, $2=value
+        _lbl="$1"
+        _lbl="${_lbl%:}"
+        printf "  %-*s : %s\n" "$_w" "$_lbl" "$2"
+    }
+
+    clear_screen
+    print_line "="
+    echo "$(T TXT_HM_STATUS_TITLE)"
+    print_line "="
     echo
-    echo "  Now -> CPU: %${cpu} | Load: ${load} | RAM free: ${ram} MB | Disk(/opt): ${disk}%"
+
+    # Status line
+    _lbl="$(T TXT_HM_STATUS_RUNNING)"; _lbl="${_lbl%:}"
+    printf "%-*s : %s (%s=%s%s)\n" "$_w" "$_lbl" "$run_txt" "$(T TXT_HM_ENABLE_LABEL)" "$HM_ENABLE" "${pid:+, pid=$pid}"
+
+    echo
+    printf "%s\n" "$(T TXT_HM_STATUS_SEC_SETTINGS)"
+    print_line "-"
+
+    hm_kv "$(T TXT_HM_STATUS_INTERVAL)" "${HM_INTERVAL}s"
+    hm_kv "$(T TXT_HM_CFG_ITEM10)" "${HM_HEARTBEAT_SEC}s"
+    hm_kv "$(T TXT_HM_CFG_ITEM9)" "${HM_COOLDOWN_SEC}s"
+    hm_kv "$(T TXT_HM_STATUS_UPDATECHECK)" "${upd_word}=${HM_UPDATECHECK_ENABLE}, $(T TXT_HM_FLAG_EVERY)=${HM_UPDATECHECK_SEC}s"
+    hm_kv "$(T TXT_HM_STATUS_AUTOUPDATE)" "${mode_txt} ($(T TXT_HM_FLAG_MODE)=${HM_AUTOUPDATE_MODE:-0})"
+
+    echo
+    printf "%s\n" "$(T TXT_HM_STATUS_SEC_THRESH)"
+    print_line "-"
+
+    hm_kv "$(T TXT_HM_STATUS_CPU_WARN)" "${HM_CPU_WARN}% / ${HM_CPU_WARN_DUR}s"
+    hm_kv "$(T TXT_HM_STATUS_CPU_CRIT)" "${HM_CPU_CRIT}% / ${HM_CPU_CRIT_DUR}s"
+    hm_kv "$(T TXT_HM_STATUS_DISK_WARN)" "${HM_DISK_WARN}%"
+    hm_kv "$(T TXT_HM_STATUS_RAM_WARN)" "<= ${HM_RAM_WARN_MB} MB"
+
+    echo
+    printf "%s\n" "$(T TXT_HM_STATUS_SEC_ZAPRET)"
+    print_line "-"
+
+    hm_kv "$(T TXT_HM_STATUS_ZAPRET_WD)" "$HM_ZAPRET_WATCHDOG"
+    hm_kv "$(T TXT_HM_STATUS_ZAPRET_CD)" "${HM_ZAPRET_COOLDOWN_SEC}s"
+    hm_kv "$(T TXT_HM_STATUS_ZAPRET_AR)" "$HM_ZAPRET_AUTORESTART"
+
+    echo
+    printf "%s\n" "$(T TXT_HM_STATUS_SEC_NOW)"
+    print_line "-"
+
+    printf "  %s %s%% | %s %s
+" \
+        "$(T TXT_HM_STATUS_CPU)" "$cpu" \
+        "$(T TXT_HM_STATUS_LOAD)" "$load"
+    printf "  %s %s MB | %s %s%% | %s %s
+" \
+        "$(T TXT_HM_STATUS_RAM_FREE)" "$ram" \
+        "$(T TXT_HM_STATUS_DISK_OPT)" "$disk" \
+        "$(T TXT_HM_STATUS_ZAPRET)" "$zst"
+
+    echo
 }
+
 
 healthmon_test() {
     local cpu load disk ram
@@ -5726,6 +6271,150 @@ healthmon_test() {
     telegram_send "$(tpl_render "$(T TXT_HM_TEST_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
 }
 
+
+healthmon_config_menu() {
+    healthmon_load_config
+
+    # helper: ask number with current value, empty keeps current
+    hm_ask_num() {
+        local _label="$1" _var="$2" _cur _v
+        eval _cur="\${$_var}"
+        printf "%s [%s]: " "$_label" "${_cur:-}"
+        read -r _v
+        if [ -n "$_v" ]; then
+            case "$_v" in
+                *[!0-9]*)
+                    print_status WARN "$(T _ 'Gecersiz sayi, atlandi.' 'Invalid number, skipped.')"
+                    ;;
+                *)
+                    eval "$_var=\"$_v\""
+                    ;;
+            esac
+        fi
+    }
+
+    hm_ask_01() {
+        local _label="$1" _var="$2" _cur _v
+        eval _cur="\${$_var}"
+        printf "%s (0/1) [%s]: " "$_label" "${_cur:-}"
+        read -r _v
+        if [ -n "$_v" ]; then
+            case "$_v" in
+                0|1) eval "$_var=\"$_v\"" ;;
+                *) print_status WARN "$(T _ 'Gecersiz secim, atlandi.' 'Invalid choice, skipped.')" ;;
+            esac
+        fi
+    }
+
+    while true; do
+        clear
+        print_line "="
+        echo "$(T TXT_HM_CFG_TITLE)"
+        print_line "="
+        echo
+                local _w=24
+        printf " %2s) %-*s : %s\n" "1" "$_w" "CPU WARN % / sure"  "$HM_CPU_WARN / $HM_CPU_WARN_DUR"
+        printf " %2s) %-*s : %s\n" "2" "$_w" "CPU CRIT % / sure"  "$HM_CPU_CRIT / $HM_CPU_CRIT_DUR"
+        printf " %2s) %-*s : %s\n" "3" "$_w" "Disk(/opt) esigi %" "$HM_DISK_WARN"
+        printf " %2s) %-*s : %s\n" "4" "$_w" "RAM esigi (MB)"     "$HM_RAM_WARN_MB"
+        printf " %2s) %-*s : %s\n" "5" "$_w" "$(T TXT_HM_CFG_ITEM5)" "wd=$HM_ZAPRET_WATCHDOG cd=$HM_ZAPRET_COOLDOWN_SEC ar=$HM_ZAPRET_AUTORESTART"
+        local _en_lbl _ev_lbl
+        _en_lbl="$(T TXT_HM_FLAG_ENABLED)"
+        _ev_lbl="$(T TXT_HM_FLAG_EVERY)"
+        printf " %2s) %-*s : %s\n" "6" "$_w" "$(T TXT_HM_CFG_ITEM6)" "${_en_lbl}=${HM_UPDATECHECK_ENABLE} ${_ev_lbl}=${HM_UPDATECHECK_SEC}s"
+        printf " %2s) %-*s : %s\n" "7" "$_w" "$(T TXT_HM_CFG_ITEM7)" "$HM_AUTOUPDATE_MODE ($(T TXT_HM_AUTOUPDATE_MODE_HINT))"
+        printf " %2s) %-*s : %s\n" "8" "$_w" "$(T TXT_HM_CFG_ITEM8)" "$HM_INTERVAL"
+        printf " %2s) %-*s : %s\n" "9" "$_w" "$(T TXT_HM_CFG_ITEM9)" "$HM_COOLDOWN_SEC"
+        printf " %2s) %-*s : %s\n" "10" "$_w" "$(T TXT_HM_CFG_ITEM10)" "$HM_HEARTBEAT_SEC"
+echo
+        printf " %2s) %s\n" "0" "$(T _ 'Kaydet ve geri' 'Save & back')"
+        echo
+        read -r -p "$(T _ 'Secim: ' 'Choice: ')" _c
+
+        case "$_c" in
+            1)
+                hm_ask_num "$(T TXT_HM_PROMPT_CPU_WARN)" HM_CPU_WARN
+                hm_ask_num "$(T TXT_HM_PROMPT_CPU_WARN_DUR)" HM_CPU_WARN_DUR
+                ;;
+            2)
+                hm_ask_num "$(T TXT_HM_PROMPT_CPU_CRIT)" HM_CPU_CRIT
+                hm_ask_num "$(T TXT_HM_PROMPT_CPU_CRIT_DUR)" HM_CPU_CRIT_DUR
+                ;;
+            3)
+                hm_ask_num "$(T TXT_HM_PROMPT_DISK_WARN)" HM_DISK_WARN
+                ;;
+            4)
+                hm_ask_num "$(T TXT_HM_PROMPT_RAM_WARN)" HM_RAM_WARN_MB
+                ;;
+            5)
+                hm_ask_01 "$(T TXT_HM_PROMPT_ZAPRET_WD)" HM_ZAPRET_WATCHDOG
+                hm_ask_num "$(T TXT_HM_PROMPT_ZAPRET_COOLDOWN)" HM_ZAPRET_COOLDOWN_SEC
+                hm_ask_01 "$(T TXT_HM_PROMPT_ZAPRET_AUTORESTART)" HM_ZAPRET_AUTORESTART
+                ;;
+            6)
+                hm_ask_01 "$(T TXT_HM_PROMPT_UPDATECHECK_ENABLE)" HM_UPDATECHECK_ENABLE
+                hm_ask_num "$(T TXT_HM_PROMPT_UPDATECHECK_SEC)" HM_UPDATECHECK_SEC
+                ;;
+            7)
+                printf "%s [%s]: " "$(T TXT_HM_PROMPT_AUTOUPDATE_MODE)" "${HM_AUTOUPDATE_MODE:-}"
+                read -r _v
+                if [ -n "$_v" ]; then
+                    case "$_v" in
+                        0|1) HM_AUTOUPDATE_MODE="$_v" ;;
+                        2)healthmon_print_autoupdate_warning
+read -r -p "$(T TXT_HM_AUTOUPDATE_WARN_L3)" _w
+                            case "$_w" in
+    y|Y|e|E)
+        HM_AUTOUPDATE_MODE="2"
+        _msg="$(T TXT_HM_AUTOUPDATE_SET_MSG)"
+        _msg="$(tpl_render "$_msg" MODE "2")"
+        print_status PASS "$_msg"
+        ;;
+    n|N|h|H|"")
+        HM_AUTOUPDATE_MODE="1"
+        _msg="$(T TXT_HM_AUTOUPDATE_SET_MSG)"
+        _msg="$(tpl_render "$_msg" MODE "1")"
+        print_status INFO "$_msg"
+        ;;
+    *)
+        HM_AUTOUPDATE_MODE="1"
+        print_status WARN "$(T TXT_INVALID_CHOICE)"
+        _msg="$(T TXT_HM_AUTOUPDATE_SET_MSG)"
+        _msg="$(tpl_render "$_msg" MODE "1")"
+        print_status INFO "$_msg"
+        ;;
+esac
+                            ;;
+                        *) print_status WARN "$(T TXT_INVALID_CHOICE)" ;;
+                    esac
+                fi
+                ;;
+            8)
+                hm_ask_num "$(T _ 'Interval (sec)' 'Interval (sec)')" HM_INTERVAL
+                ;;
+            9)
+                hm_ask_num "$(T _ 'Cooldown (sec)' 'Cooldown (sec)')" HM_COOLDOWN_SEC
+                ;;
+            10)
+                hm_ask_num "$(T _ 'Heartbeat (sec)' 'Heartbeat (sec)')" HM_HEARTBEAT_SEC
+                ;;
+            0)
+                healthmon_write_config
+                if healthmon_is_running; then
+                    healthmon_stop
+                    healthmon_start
+                fi
+                print_status PASS "$(T _ 'Ayarlar kaydedildi.' 'Settings saved.')"
+                return 0
+                ;;
+            *)
+                print_status WARN "$(T TXT_INVALID_CHOICE)"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
 health_monitor_menu() {
     while true; do
         clear
@@ -5734,18 +6423,22 @@ health_monitor_menu() {
         print_line "="
         echo
         healthmon_load_config
-        local run="OFF"
-        healthmon_is_running && run="ON"
+        local run_state="0"
+        healthmon_is_running && run_state="1"
+        local run_label
+        [ "$run_state" = "1" ] && run_label="$(T TXT_HM_RUN_ON)" || run_label="$(T TXT_HM_RUN_OFF)"
         print_line "-"
-        if [ "$run" = "ON" ]; then
-            printf "%b\n" "${CLR_BOLD}${CLR_GREEN}$(T TXT_HM_STATUS) ON (enable=${HM_ENABLE})${CLR_RESET}"
+        if [ "$run_state" = "1" ]; then
+            printf "%b
+" "${CLR_BOLD}${CLR_GREEN}$(T TXT_HM_STATUS) ${run_label} ($(T TXT_HM_ENABLE_LABEL)=${HM_ENABLE})${CLR_RESET}"
         else
-            printf "%b\n" "${CLR_BOLD}${CLR_RED}$(T TXT_HM_STATUS) OFF (enable=${HM_ENABLE})${CLR_RESET}"
+            printf "%b
+" "${CLR_BOLD}${CLR_RED}$(T TXT_HM_STATUS) ${run_label} ($(T TXT_HM_ENABLE_LABEL)=${HM_ENABLE})${CLR_RESET}"
         fi
         print_line "-"
         echo "CPU WARN %${HM_CPU_WARN}/${HM_CPU_WARN_DUR}s  |  CPU CRIT %${HM_CPU_CRIT}/${HM_CPU_CRIT_DUR}s"
-        echo "Disk(/opt) >= ${HM_DISK_WARN}%  |  RAM <= ${HM_RAM_WARN_MB} MB  |  Load via uptime"
-        echo "Zapret watchdog: ${HM_ZAPRET_WATCHDOG}  |  Interval: ${HM_INTERVAL}s"
+        echo "$(tpl_render "$(T TXT_HM_MENU_LINE2)" DISK "$HM_DISK_WARN" RAM "$HM_RAM_WARN_MB")"
+        echo "$(tpl_render "$(T TXT_HM_MENU_LINE3)" WD "$HM_ZAPRET_WATCHDOG" INT "$HM_INTERVAL")"
         echo
         print_line "-"
         echo " 1) $(T TXT_HM_ENABLE_DISABLE)"
@@ -5760,7 +6453,7 @@ health_monitor_menu() {
         case "$c" in
 1)
     # Toggle based on *actual* daemon state (not only HM_ENABLE flag)
-    # This prevents "OFF (enable=1)" showing, then option 1 trying to stop a non-running daemon.
+    # This prevents "OFF ($(T TXT_HM_ENABLE_LABEL)=1)" showing, then option 1 trying to stop a non-running daemon.
     if healthmon_is_running; then
         healthmon_stop
         print_status PASS "$(T TXT_HM_DISABLED)"
@@ -5782,58 +6475,12 @@ health_monitor_menu() {
                 fi
                 press_enter_to_continue
                 ;;
-            4)
-                healthmon_load_config
-                echo "$(T TXT_HM_PROMPT_CPU_WARN)"
-                read -r v; [ -n "$v" ] && HM_CPU_WARN="$v"
-                echo "$(T TXT_HM_PROMPT_CPU_WARN_DUR)"
-                read -r v; [ -n "$v" ] && HM_CPU_WARN_DUR="$v"
 
-                echo "$(T TXT_HM_PROMPT_CPU_CRIT)"
-                read -r v; [ -n "$v" ] && HM_CPU_CRIT="$v"
-                echo "$(T TXT_HM_PROMPT_CPU_CRIT_DUR)"
-                read -r v; [ -n "$v" ] && HM_CPU_CRIT_DUR="$v"
+4)
+    healthmon_config_menu
+    press_enter_to_continue
+    ;;
 
-                echo "$(T TXT_HM_PROMPT_DISK_WARN)"
-                read -r v; [ -n "$v" ] && HM_DISK_WARN="$v"
-
-                echo "$(T TXT_HM_PROMPT_RAM_WARN)"
-                read -r v; [ -n "$v" ] && HM_RAM_WARN_MB="$v"
-
-                echo "$(T TXT_HM_PROMPT_ZAPRET_WD)"
-                read -r v; [ -n "$v" ] && HM_ZAPRET_WATCHDOG="$v"
-
-                echo "$(T TXT_HM_PROMPT_ZAPRET_COOLDOWN)"
-                read -r v; [ -n "$v" ] && HM_ZAPRET_COOLDOWN_SEC="$v"
-
-                echo "$(T TXT_HM_PROMPT_ZAPRET_AUTORESTART)"
-                read -r v; [ -n "$v" ] && HM_ZAPRET_AUTORESTART="$v"
-
-                echo "$(T _ 'Interval (sn) [or: 30]:' 'Interval (sec) [e.g. 30]:' )"
-                read -r v; [ -n "$v" ] && HM_INTERVAL="$v"
-
-                echo "$(T _ 'Cooldown (sn) [or: 600]:' 'Cooldown (sec) [e.g. 600]:' )"
-                read -r v; [ -n "$v" ] && HM_COOLDOWN_SEC="$v"
-
-                # sanitize numeric (best-effort)
-                for k in HM_CPU_WARN HM_CPU_WARN_DUR HM_CPU_CRIT HM_CPU_CRIT_DUR HM_DISK_WARN HM_RAM_WARN_MB HM_INTERVAL HM_COOLDOWN_SEC HM_ZAPRET_WATCHDOG HM_ZAPRET_COOLDOWN_SEC HM_ZAPRET_AUTORESTART HM_HEARTBEAT_SEC; do
-                    eval val=\$$k
-                    case "$val" in
-                        ''|*[!0-9-]*) : ;; # keep as-is; user responsibility
-                    esac
-                done
-
-                healthmon_write_config
-
-                # restart loop if running
-                if healthmon_is_running; then
-                    healthmon_stop
-                    healthmon_start
-                fi
-
-                print_status PASS "$(T _ 'Ayarlar kaydedildi.' 'Settings saved.')"
-                press_enter_to_continue
-                ;;
             0) return 0 ;;
             *) echo "$(T TXT_INVALID_CHOICE)" ; sleep 1 ;;
         esac
