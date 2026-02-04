@@ -43,10 +43,12 @@ Telegram üzerinden otomatik olarak şu bildirimleri alırsınız:
 
    https://api.telegram.org/bot<BOT_TOKEN>/getUpdates
 
+Not: BOT_TOKEN yazarken <> işaretlerini kaldırarak bot12345:KEKDK..../ gibi yazın !
+
 Bu sayı sizin Chat ID’nizdir
 
 3. Çıktıda aşağıdaki alanı bulun:
-4. 
+
 "chat": {"id": 123456789
 Bu sayı sizin Chat ID’nizdir
 
