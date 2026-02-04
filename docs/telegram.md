@@ -27,6 +27,7 @@ Telegram üzerinden otomatik olarak şu bildirimleri alırsınız:
 2. Sırasıyla şu komutları yazın:
 
 /start
+
 /newbot
 
 3. BotFather size bir **BOT TOKEN** verecek  
