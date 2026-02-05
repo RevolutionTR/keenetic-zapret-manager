@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.3"
+SCRIPT_VERSION="v26.2.5"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 SCRIPT_AUTHOR="RevolutionTR"
 # -------------------------------------------------------------------
@@ -535,6 +535,24 @@ TXT_MENU_16_EN="16. System Health Monitor (CPU/RAM/Disk/Load/Zapret)"
 TXT_TG_SETTINGS_TITLE_TR="Telegram Bildirim Ayarlari"
 TXT_TG_SETTINGS_TITLE_EN="Telegram Notification Settings"
 
+TXT_TG_TIME_LABEL_TR="Zaman"
+TXT_TG_TIME_LABEL_EN="Time"
+
+TXT_TG_MODEL_LABEL_TR="Model"
+TXT_TG_MODEL_LABEL_EN="Model"
+
+TXT_TG_WAN_LABEL_TR="WAN IP"
+TXT_TG_WAN_LABEL_EN="WAN IP"
+
+TXT_TG_LAN_LABEL_TR="LAN IP"
+TXT_TG_LAN_LABEL_EN="LAN IP"
+
+TXT_TG_DEVICE_LABEL_TR="Router"
+TXT_TG_DEVICE_LABEL_EN="Router"
+
+TXT_TG_EVENT_LABEL_TR="Olay"
+TXT_TG_EVENT_LABEL_EN="Event"
+
 TXT_TG_STATUS_ACTIVE_TR="Durum: AKTIF"
 TXT_TG_STATUS_ACTIVE_EN="Status: ACTIVE"
 
@@ -616,6 +634,31 @@ TXT_HM_CFG_ITEM9_EN="Cooldown (sec)"
 
 TXT_HM_CFG_ITEM10_TR="Heartbeat (sn)"
 TXT_HM_CFG_ITEM10_EN="Heartbeat (sec)"
+
+
+TXT_HM_CFG_ITEM11_TR="WAN izleme"
+TXT_HM_CFG_ITEM11_EN="WAN monitor"
+
+TXT_HM_PROMPT_WANMON_ENABLE_TR="WAN izleme aktif mi?"
+TXT_HM_PROMPT_WANMON_ENABLE_EN="Enable WAN monitoring?"
+TXT_HM_PROMPT_WANMON_FAIL_TH_TR="DOWN algilama esigi (adet)"
+TXT_HM_PROMPT_WANMON_FAIL_TH_EN="DOWN detect threshold (count)"
+TXT_HM_PROMPT_WANMON_OK_TH_TR="UP dogrulama esigi (adet)"
+TXT_HM_PROMPT_WANMON_OK_TH_EN="UP confirm threshold (count)"
+
+TXT_HM_WAN_DOWN_MSG_TR="🚫 WAN DOWN (%IF%)"
+TXT_HM_WAN_DOWN_MSG_EN="🚫 WAN DOWN (%IF%)"
+TXT_HM_WAN_UP_MSG_TR="✅ WAN UP (%IF%)\nKesinti: %DUR%"
+TXT_HM_WAN_UP_MSG_EN="✅ WAN UP (%IF%)\nOutage: %DUR%"
+# WAN monitor - rich UP notification (Down/Up/Duration labels)
+TXT_HM_WAN_UP_TITLE_TR="✅ WAN UP (%IF%)"
+TXT_HM_WAN_UP_TITLE_EN="✅ WAN UP (%IF%)"
+TXT_HM_WAN_DOWN_TIME_LABEL_TR="Down"
+TXT_HM_WAN_DOWN_TIME_LABEL_EN="Down"
+TXT_HM_WAN_UP_TIME_LABEL_TR="Up"
+TXT_HM_WAN_UP_TIME_LABEL_EN="Up"
+TXT_HM_WAN_DUR_LABEL_TR="Sure"
+TXT_HM_WAN_DUR_LABEL_EN="Duration"
 
 TXT_HM_STATUS_DISK_OPT_TR="Disk(/opt)"
 TXT_HM_STATUS_DISK_OPT_EN="Disk(/opt)"
@@ -5480,16 +5523,154 @@ telegram_mask_token() {
     fi
 }
 
+# -------------------------------------------------------------------
+# Telegram: Device identity header (hostname / IP / model)
+# Purpose: When multiple routers use the same bot, make it obvious which
+# device generated the alert.
+# -------------------------------------------------------------------
+TG_INCLUDE_DEVICE_HEADER="${TG_INCLUDE_DEVICE_HEADER:-1}"
+TG_DEVICE_NAME=""
+TG_DEVICE_LAN_IP=""
+TG_DEVICE_WAN_IP=""
+TG_DEVICE_MODEL=""
+
+telegram_device_info_init() {
+    # Cache device identity once per run
+    [ -n "$TG_DEVICE_NAME" ] && [ -n "$TG_DEVICE_LAN_IP" ] && [ -n "$TG_DEVICE_WAN_IP" ] && [ -n "$TG_DEVICE_MODEL" ] && return 0
+
+    # Hostname (Keenetic "System Name")
+    TG_DEVICE_NAME="$(hostname 2>/dev/null)"
+    [ -z "$TG_DEVICE_NAME" ] && TG_DEVICE_NAME="$(cat /proc/sys/kernel/hostname 2>/dev/null)"
+    [ -z "$TG_DEVICE_NAME" ] && TG_DEVICE_NAME="keenetic"
+
+    # -------------------------
+    # LAN IP (prefer bridge/br0)
+    # -------------------------
+    TG_DEVICE_LAN_IP=""
+    for _if in br0 bridge0 home0; do
+        _ip="$(ip -4 addr show "$_if" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+        [ -n "$_ip" ] && TG_DEVICE_LAN_IP="$_ip" && break
+    done
+    # Fallback: first RFC1918 address on any interface
+    if [ -z "$TG_DEVICE_LAN_IP" ]; then
+        TG_DEVICE_LAN_IP="$(ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | \
+            awk '/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/ {print; exit}')"
+    fi
+    [ -z "$TG_DEVICE_LAN_IP" ] && TG_DEVICE_LAN_IP="unknown"
+
+    # -------------------------
+    # WAN IP (best-effort)
+    # - PPPoE users: ppp0 is the most reliable
+    # - Otherwise: default-route interface IPv4
+    # -------------------------
+    TG_DEVICE_WAN_IP=""
+    _wan_if=""
+    # Prefer ppp0 if present
+    _wan_if="$(ip -4 addr show ppp0 2>/dev/null | awk '/inet /{print "ppp0"; exit}')"
+    if [ -z "$_wan_if" ]; then
+        # Parse default route line: "default via X dev IF ..." or "default dev IF ..."
+        _wan_if="$(ip -4 route show default 2>/dev/null | awk '{
+            for(i=1;i<=NF;i++){
+                if($i=="dev"){print $(i+1); exit}
+            }
+        }')"
+    fi
+    if [ -n "$_wan_if" ]; then
+        TG_DEVICE_WAN_IP="$(ip -4 addr show "$_wan_if" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+    fi
+    [ -z "$TG_DEVICE_WAN_IP" ] && TG_DEVICE_WAN_IP="unknown"
+
+    # -------------------------
+    # Model (Keenetic / ndmc varies by firmware)
+    # Try several sources in order.
+    # -------------------------
+    TG_DEVICE_MODEL=""
+
+    _ver="$(ndmc -c show version 2>/dev/null)"
+    if [ -n "$_ver" ]; then
+        # 1) Key:value lines
+        TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | awk -F'[:=]' '
+            BEGIN{IGNORECASE=1}
+            $1 ~ /(model|product|device|hardware|board)/ {
+                v=$2;
+                gsub(/^[ \t]+|[ \t]+$/, "", v);
+                if (v != "") { print v; exit }
+            }')"
+        # 2) KN-xxxx token anywhere
+        [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | grep -Eo 'KN-[0-9]{3,5}' | head -n 1)"
+        # 3) "Keenetic XXX" line (fallback human name)
+        if [ -z "$TG_DEVICE_MODEL" ]; then
+            TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | awk '
+                BEGIN{IGNORECASE=1}
+                /keenetic/ {print; exit}
+            ' | sed 's/^[ \t]*//;s/[ \t]*$//')"
+        fi
+    fi
+
+    # 4) ndmc show system (some firmwares keep product name there)
+    if [ -z "$TG_DEVICE_MODEL" ]; then
+        _sys="$(ndmc -c show system 2>/dev/null)"
+        TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | awk -F'[:=]' '
+            BEGIN{IGNORECASE=1}
+            $1 ~ /(model|product|device|hardware|board)/ {
+                v=$2; gsub(/^[ \t]+|[ \t]+$/, "", v);
+                if (v != "") { print v; exit }
+            }')"
+        [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | grep -Eo 'KN-[0-9]{3,5}' | head -n 1)"
+    fi
+
+    # 5) Device-tree model (varies by platform)
+    if [ -z "$TG_DEVICE_MODEL" ]; then
+        for _f in /proc/device-tree/model /sys/firmware/devicetree/base/model; do
+            if [ -r "$_f" ]; then
+                TG_DEVICE_MODEL="$(cat "$_f" 2>/dev/null | tr -d '\000' | sed 's/^[ \t]*//;s/[ \t]*$//')"
+                [ -n "$TG_DEVICE_MODEL" ] && break
+            fi
+        done
+    fi
+
+    [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="keenetic"
+    return 0
+}
+
+
+telegram_build_msg() {
+    # Wrap plain messages into a consistent, multi-router friendly format.
+    # $1: event text (may contain newlines)
+    local event="$1"
+    telegram_device_info_init
+
+    # If it's a single line, prefix with a neutral label for backward compat.
+    if [ "$(printf '%s' "$event" | wc -l 2>/dev/null)" -le 1 ]; then
+        event="📣 $(T TXT_TG_EVENT_LABEL) : $event"
+    fi
+
+    cat <<EOF
+📡 $(T TXT_TG_DEVICE_LABEL) : $TG_DEVICE_NAME
+🏠 $(T TXT_TG_LAN_LABEL) : $TG_DEVICE_LAN_IP
+🌍 $(T TXT_TG_WAN_LABEL) : $TG_DEVICE_WAN_IP
+⚙️ $(T TXT_TG_MODEL_LABEL) : $TG_DEVICE_MODEL
+$event
+🕒 $(T TXT_TG_TIME_LABEL)   : $(date '+%Y-%m-%d %H:%M:%S')
+EOF
+}
+
 telegram_send() {
     # $1 message
     local msg="$1"
     telegram_load_config || return 1
+
+    # Optional device header for multi-router setups
+    if [ "${TG_INCLUDE_DEVICE_HEADER:-1}" = "1" ]; then
+        case "$msg" in
+            *"━━━━━━━━"* ) : ;;  # already formatted
+            * ) msg="$(telegram_build_msg "$msg")" ;;
+        esac
+    fi
+
     # Use data-urlencode so newlines and special chars render correctly in Telegram.
     msg="$(printf '%b' "$msg")"
-    curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
-        --data-urlencode "chat_id=${TG_CHAT_ID}" \
-        --data-urlencode "text=${msg}" \
-        --data-urlencode "disable_web_page_preview=1" >/dev/null 2>&1
+    curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage"         --data-urlencode "chat_id=${TG_CHAT_ID}"         --data-urlencode "text=${msg}"         --data-urlencode "disable_web_page_preview=1" >/dev/null 2>&1
 }
 tpl_render() {
     # Usage: tpl_render "template" KEY1 "val1" KEY2 "val2" ...
@@ -5654,6 +5835,12 @@ healthmon_load_config() {
     HM_UPDATECHECK_REPO_ZAPRET="bol-van/zapret"
     HM_AUTOUPDATE_MODE="2"
 
+HM_WANMON_ENABLE="0"
+HM_WANMON_FAIL_TH="3"
+HM_WANMON_OK_TH="2"
+HM_WANMON_IFACE=""
+
+
     [ -f "$HM_CONF_FILE" ] && . "$HM_CONF_FILE" 2>/dev/null
 }
 
@@ -5679,6 +5866,10 @@ HM_UPDATECHECK_SEC="$HM_UPDATECHECK_SEC"
 HM_UPDATECHECK_REPO_ZKM="$HM_UPDATECHECK_REPO_ZKM"
 HM_UPDATECHECK_REPO_ZAPRET="$HM_UPDATECHECK_REPO_ZAPRET"
 HM_AUTOUPDATE_MODE="$HM_AUTOUPDATE_MODE"
+HM_WANMON_ENABLE="$HM_WANMON_ENABLE"
+HM_WANMON_FAIL_TH="$HM_WANMON_FAIL_TH"
+HM_WANMON_OK_TH="$HM_WANMON_OK_TH"
+HM_WANMON_IFACE="$HM_WANMON_IFACE"
 EOF
     chmod 600 "$HM_CONF_FILE" 2>/dev/null
 }
@@ -5722,12 +5913,191 @@ healthmon_mem_free_mb() {
 
 healthmon_now() { date +%s; }
 
+# -------------------------------
+# WAN Monitor (NDM/ndmc based, no ping)
+# Uses: HM_WANMON_ENABLE, HM_WANMON_IFACE, HM_WANMON_FAIL_TH, HM_WANMON_OK_TH
+# Requires ndmc but isolates Entware LD_LIBRARY_PATH conflicts.
+# -------------------------------
+hm_ndmc_cmd() { LD_LIBRARY_PATH= ndmc -c "$1" 2>/dev/null; }
+
+hm_wanmon_get_iface() {
+    # Priority:
+    # 1) cached runtime iface
+    # 2) HM_WANMON_IFACE (user override)
+    # 3) auto: first PPPoE iface in NDM (common case)
+    local cache="/tmp/wanmon.ndm_iface"
+    local ifc=""
+    if [ -f "$cache" ]; then
+        ifc="$(cat "$cache" 2>/dev/null)"
+    fi
+    [ -z "$ifc" ] && ifc="$HM_WANMON_IFACE"
+
+    if [ -z "$ifc" ]; then
+        # Auto-detect PPPoE interface name from NDM (e.g. PPPoE0)
+        ifc="$(hm_ndmc_cmd "show interface" | awk '
+            BEGIN{RS="Interface, name = "; FS="\n"}
+            NR>1{
+                name=$1; gsub(/".*/,"",name); gsub(/^[ \t"]+|[ \t"]+$/,"",name)
+                is_pppoe=0
+                for(i=1;i<=NF;i++){
+                    if($i ~ /^[ \t]*type:[ \t]*PPPoE[ \t]*$/){ is_pppoe=1; break }
+                }
+                if(is_pppoe){ print name; exit }
+            }
+        ')"
+    fi
+
+    [ -n "$ifc" ] && echo "$ifc" >"$cache" 2>/dev/null
+    echo "$ifc"
+}
+
+hm_wanmon_is_up() {
+    # UP = link: up AND connected: yes
+    local ifc="$1"
+    [ -z "$ifc" ] && return 1
+    hm_ndmc_cmd "show interface $ifc" | awk '
+        $1=="link:"      && l=="" {l=$2}
+        $1=="connected:" && c=="" {c=$2}
+        END { exit ! (l=="up" && c=="yes") }
+    '
+}
+
+hm_wanmon_iface_exists() {
+    # Valid if NDM knows this interface (prevents false DOWN on wrong name)
+    local ifc="$1"
+    [ -z "$ifc" ] && return 1
+    hm_ndmc_cmd "show interface $ifc" | grep -qE '^[[:space:]]*id:[[:space:]]*'
+}
+
+hm_fmt_hms() {
+    # $1 seconds -> HH:MM:SS
+    local s="$1"
+    [ -z "$s" ] && s=0
+    local hh=$((s/3600))
+    local mm=$(((s%3600)/60))
+    local ss=$((s%60))
+    printf "%02d:%02d:%02d" "$hh" "$mm" "$ss"
+}
+
+hm_wanmon_tick() {
+    [ "$HM_WANMON_ENABLE" = "1" ] || return 0
+
+    local state_f="/tmp/wanmon.state"
+    local down_ts_f="/tmp/wanmon.down_ts"
+    local down_hms_f="/tmp/wanmon.down_hms"
+    local fails_f="/tmp/wanmon.fails"
+    local oks_f="/tmp/wanmon.oks"
+    local ifc
+    ifc="$(hm_wanmon_get_iface)"
+
+    # Safety guards:
+    # - If iface is empty, do not run WAN monitor (prevents false alarms)
+    # - If iface does not exist in NDM, skip and clear cached iface
+    if [ -z "$ifc" ]; then
+        if [ ! -f /tmp/wanmon.iface_warned ]; then
+            healthmon_log "$(healthmon_now) | wanmon | iface not set, skipping"
+            echo 1 >/tmp/wanmon.iface_warned 2>/dev/null
+        fi
+        return 0
+    fi
+
+    if ! hm_wanmon_iface_exists "$ifc"; then
+        rm -f /tmp/wanmon.ndm_iface 2>/dev/null
+        if [ ! -f /tmp/wanmon.iface_bad_warned ]; then
+            healthmon_log "$(healthmon_now) | wanmon | iface invalid ($ifc), skipping"
+            echo 1 >/tmp/wanmon.iface_bad_warned 2>/dev/null
+        fi
+        return 0
+    fi
+
+    # iface is set and valid; clear one-shot guard warning flags
+    rm -f /tmp/wanmon.iface_warned /tmp/wanmon.iface_bad_warned 2>/dev/null
+
+    # First run init: set state to current link status WITHOUT sending any notification
+    if [ ! -f "$state_f" ]; then
+        if hm_wanmon_is_up "$ifc"; then
+            echo "UP" >"$state_f" 2>/dev/null
+        else
+            echo "DOWN" >"$state_f" 2>/dev/null
+            echo "$(healthmon_now)" >"$down_ts_f" 2>/dev/null
+            date '+%H:%M:%S' >"$down_hms_f" 2>/dev/null
+        fi
+        echo 0 >"$fails_f" 2>/dev/null
+        echo 0 >"$oks_f" 2>/dev/null
+        return 0
+    fi
+
+    [ -f "$fails_f" ] || echo 0 >"$fails_f"
+    [ -f "$oks_f" ] || echo 0 >"$oks_f"
+
+    local state fails oks
+    state="$(cat "$state_f" 2>/dev/null)"
+    fails="$(cat "$fails_f" 2>/dev/null)"; [ -z "$fails" ] && fails=0
+    oks="$(cat "$oks_f" 2>/dev/null)"; [ -z "$oks" ] && oks=0
+
+    if hm_wanmon_is_up "$ifc"; then
+        fails=0
+        oks=$((oks+1))
+        echo "$fails" >"$fails_f" 2>/dev/null
+        echo "$oks" >"$oks_f" 2>/dev/null
+
+        if [ "$state" = "DOWN" ] && [ "$oks" -ge "${HM_WANMON_OK_TH:-2}" ]; then
+            local now down_ts down_hms up_hms dur
+            now="$(healthmon_now)"
+            down_ts="$(cat "$down_ts_f" 2>/dev/null)"
+            down_hms="$(cat "$down_hms_f" 2>/dev/null)"
+            [ -n "$down_ts" ] || down_ts="$now"
+            [ -n "$down_hms" ] || down_hms="unknown"
+            up_hms="$(date '+%H:%M:%S')"
+            dur=$((now-down_ts))
+
+            local title lbl_down lbl_up lbl_dur msg
+            title="$(T TXT_HM_WAN_UP_TITLE)"
+            title="${title//%IF%/$ifc}"
+            lbl_down="$(T TXT_HM_WAN_DOWN_TIME_LABEL)"
+            lbl_up="$(T TXT_HM_WAN_UP_TIME_LABEL)"
+            lbl_dur="$(T TXT_HM_WAN_DUR_LABEL)"
+
+            msg="${title}
+📉 ${lbl_down} ${down_hms}
+📈 ${lbl_up} ${up_hms}
+⏱️ ${lbl_dur} $(hm_fmt_hms "$dur")"
+            telegram_send "$msg"
+
+            echo "UP" >"$state_f" 2>/dev/null
+            echo 0 >"$oks_f" 2>/dev/null
+            echo 0 >"$fails_f" 2>/dev/null
+            rm -f "$down_ts_f" "$down_hms_f" 2>/dev/null
+        fi
+    else
+        oks=0
+        fails=$((fails+1))
+        echo "$oks" >"$oks_f" 2>/dev/null
+        echo "$fails" >"$fails_f" 2>/dev/null
+
+        if [ "$state" = "UP" ] && [ "$fails" -ge "${HM_WANMON_FAIL_TH:-3}" ]; then
+            echo "$(healthmon_now)" >"$down_ts_f" 2>/dev/null
+            date '+%H:%M:%S' >"$down_hms_f" 2>/dev/null
+            echo "DOWN" >"$state_f" 2>/dev/null
+            echo 0 >"$fails_f" 2>/dev/null
+            echo 0 >"$oks_f" 2>/dev/null
+        fi
+    fi
+}
+
+
 
 healthmon_log() {
     # $1 line
-    [ -n "$HM_LOG_FILE" ] || return 0
-    # best-effort append
-    echo "$1" >>"$HM_LOG_FILE" 2>/dev/null
+    # In daemon mode, stdout is redirected by init.d to /tmp/healthmon.log,
+    # so printing to stdout is the most reliable way to make logs visible immediately.
+    if [ -t 1 ]; then
+        # Interactive: append to log file (best-effort)
+        [ -n "$HM_LOG_FILE" ] && echo "$1" >>"$HM_LOG_FILE" 2>/dev/null
+    else
+        # Daemon: write to stdout (captured by init.d redirection)
+        echo "$1"
+    fi
 }
 healthmon_should_alert() {
     # $1 key (file suffix), $2 cooldown
@@ -5780,6 +6150,38 @@ github_latest_release_tag() {
     [ -n "$tag" ] && { echo "$tag"; return 0; }
     return 1
 }
+# Compare versions like v26.2.4 vs v26.2.3 (supports 3-4 numeric parts).
+# Returns: 1 if A>B, -1 if A<B, 0 if equal.
+zkm_ver_cmp() {
+    local A="${1#v}"; A="${A#V}"
+    local B="${2#v}"; B="${B#V}"
+    # If current version is empty/unknown, treat latest as newer
+    case "$B" in ''|unknown|UNKNOWN) echo 1; return 0 ;; esac
+    awk -v A="$A" -v B="$B" '
+        function norm(x){ gsub(/[^0-9.]/,"",x); return x }
+        function splitv(s, arr,   n,i){
+            s=norm(s)
+            n=split(s,arr,".")
+            for(i=1;i<=n;i++){
+                gsub(/[^0-9]/,"",arr[i])
+                if(arr[i]=="") arr[i]=0
+            }
+            return n
+        }
+        BEGIN{
+            na=splitv(A,a); nb=splitv(B,b)
+            n=(na>nb?na:nb)
+            for(i=1;i<=n;i++){
+                av=(i in a?a[i]:0)+0
+                bv=(i in b?b[i]:0)+0
+                if(av>bv){print 1; exit}
+                if(av<bv){print -1; exit}
+            }
+            print 0
+        }'
+}
+zkm_ver_gt() { [ "$(zkm_ver_cmp "$1" "$2")" = "1" ]; }
+
 
 healthmon_updatecheck_do() {
     [ "${HM_UPDATECHECK_ENABLE:-0}" = "1" ] || return 0
@@ -5818,7 +6220,7 @@ healthmon_updatecheck_do() {
     url="https://github.com/${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}/releases/latest"
     latest="$(github_latest_release_tag "${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}")"
 
-    if [ -n "$latest" ] && [ "$latest" != "$cur" ]; then
+    if [ -n "$latest" ] && zkm_ver_gt "$latest" "$cur"; then
         if [ "$upd_mode" = "2" ]; then
             # Auto install only once per version (no retry loop)
             if [ "$latest" != "$ZKM_LAST_AUTO_ATTEMPTED" ]; then
@@ -5860,6 +6262,111 @@ healthmon_updatecheck_do() {
     return 0
 }
 
+
+ndmc_cmd() {
+    # Important: prevent Entware /opt libs from breaking ndmc
+    LD_LIBRARY_PATH= ndmc -c "$1" 2>/dev/null
+}
+
+healthmon_detect_wan_iface_ndm() {
+    # Prefer explicit user config if set
+    if [ -n "${HM_WANMON_IFACE:-}" ]; then
+        echo "$HM_WANMON_IFACE"
+        return 0
+    fi
+
+    # Prefer zapret-selected WAN info (single source of truth)
+    local zif
+    zif="$(cat /opt/zapret/wan_if 2>/dev/null)"
+
+    # If PPP-based WAN is used (ppp0/ppp1), map to first PPPoE interface known by NDM (e.g., PPPoE0)
+    if echo "$zif" | grep -Eq '^ppp[0-9]*$'; then
+        ndmc_cmd "show interface" | awk '
+            BEGIN{RS="Interface, name = "; FS="\n"}
+            NR>1{
+                name=$1
+                gsub(/".*/,"",name); gsub(/^[ \t"]+|[ \t"]+$/,"",name)
+                type=""
+                for(i=1;i<=NF;i++){
+                    if($i ~ /(^|[ \t])type:[ \t]/){sub(/.*type:[ \t]*/,"",$i); type=$i}
+                }
+                if(type=="PPPoE"){print name; exit}
+            }'
+        return 0
+    fi
+
+    # Generic fallback: pick first interface marked public=yes or having "Internet" trait
+    ndmc_cmd "show interface" | awk '
+        BEGIN{RS="Interface, name = "; FS="\n"}
+        NR>1{
+            name=$1
+            gsub(/".*/,"",name); gsub(/^[ \t"]+|[ \t"]+$/,"",name)
+            if(name ~ /GigabitEthernet0(\/|$)/) next
+            if(name ~ /^[0-9]+$/) next
+            pub="no"; inet="no"
+            for(i=1;i<=NF;i++){
+                if($i ~ /(^|[ \t])public:[ \t]yes/){pub="yes"}
+                if($i ~ /(^|[ \t])traits:[ \t].*Internet/){inet="yes"}
+            }
+            if(pub=="yes" || inet=="yes"){print name; exit}
+        }'
+}
+
+healthmon_wan_is_up() {
+    local ifc="$1"
+    [ -n "$ifc" ] || return 1
+    ndmc_cmd "show interface $ifc" | awk '
+        $1=="link:"      {l=$2}
+        $1=="connected:" {c=$2}
+        END { exit ! (l=="up" && c=="yes") }
+    '
+}
+
+healthmon_wan_tick() {
+    [ "${HM_WANMON_ENABLE:-0}" = "1" ] || return 0
+
+    local ifc state_file down_file fails_file oks_file
+    ifc="$(healthmon_detect_wan_iface_ndm)"
+    [ -n "$ifc" ] || return 0
+
+    state_file="/tmp/healthmon_wan.state"
+    down_file="/tmp/healthmon_wan.down_ts"
+    fails_file="/tmp/healthmon_wan.fails"
+    oks_file="/tmp/healthmon_wan.oks"
+
+    [ -f "$state_file" ] || echo "UP" >"$state_file"
+    [ -f "$fails_file" ] || echo 0 >"$fails_file"
+    [ -f "$oks_file" ] || echo 0 >"$oks_file"
+
+    if healthmon_wan_is_up "$ifc"; then
+        echo 0 >"$fails_file"
+        local oks
+        oks=$(cat "$oks_file" 2>/dev/null); oks=$((oks+1)); echo "$oks" >"$oks_file"
+        if [ "$(cat "$state_file" 2>/dev/null)" = "DOWN" ] && [ "$oks" -ge "${HM_WANMON_OK_TH:-2}" ]; then
+            local now down dur hh mm ss
+            now=$(date +%s)
+            down=$(cat "$down_file" 2>/dev/null); [ -n "$down" ] || down="$now"
+            dur=$((now-down))
+            hh=$((dur/3600)); mm=$(((dur%3600)/60)); ss=$((dur%60))
+            telegram_send "$(tpl_render "$(T TXT_HM_WAN_UP_MSG)" IF "$ifc" DUR "$(printf '%02d:%02d:%02d' $hh $mm $ss)")"
+            echo "UP" >"$state_file"
+            echo 0 >"$oks_file"
+        fi
+    else
+        echo 0 >"$oks_file"
+        local fails
+        fails=$(cat "$fails_file" 2>/dev/null); fails=$((fails+1)); echo "$fails" >"$fails_file"
+        if [ "$(cat "$state_file" 2>/dev/null)" = "UP" ] && [ "$fails" -ge "${HM_WANMON_FAIL_TH:-3}" ]; then
+            date +%s >"$down_file"
+            telegram_send "$(tpl_render "$(T TXT_HM_WAN_DOWN_MSG)" IF "$ifc")"
+            echo "DOWN" >"$state_file"
+            echo 0 >"$fails_file"
+        fi
+    fi
+
+    return 0
+}
+
 healthmon_loop() {
     trap '' HUP 2>/dev/null
     # single-instance guard
@@ -5870,6 +6377,12 @@ healthmon_loop() {
     echo "$$" >"$HM_PID_FILE" 2>/dev/null
     : >"$HM_LOG_FILE" 2>/dev/null
     echo "$(date +%s) | started" >>"$HM_LOG_FILE" 2>/dev/null
+
+    # Run one immediate WANMON tick on startup so guards/logs are visible without waiting HM_INTERVAL
+    healthmon_load_config
+    if [ "$HM_ENABLE" = "1" ] && [ "${HM_WANMON_ENABLE:-0}" = "1" ]; then
+        hm_wanmon_tick
+    fi
 
     # state files for duration tracking
     local cpu_warn_start="/tmp/healthmon_cpu_warn.start"
@@ -6035,8 +6548,14 @@ healthmon_loop() {
             fi
         fi
 
-        # periodic update check (GitHub)
+                # WAN monitor (NDM-based, no ping)
+        healthmon_wan_tick
+
+# periodic update check (GitHub)
         healthmon_updatecheck_do
+        # ---- WAN MONITOR ----
+        hm_wanmon_tick
+
         sleep "$HM_INTERVAL"
     done
 
@@ -6326,6 +6845,7 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "8" "$_w" "$(T TXT_HM_CFG_ITEM8)" "$HM_INTERVAL"
         printf " %2s) %-*s : %s\n" "9" "$_w" "$(T TXT_HM_CFG_ITEM9)" "$HM_COOLDOWN_SEC"
         printf " %2s) %-*s : %s\n" "10" "$_w" "$(T TXT_HM_CFG_ITEM10)" "$HM_HEARTBEAT_SEC"
+        printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (conf=${HM_WANMON_IFACE:-auto} ndm=$(healthmon_detect_wan_iface_ndm))"
 echo
         printf " %2s) %s\n" "0" "$(T _ 'Kaydet ve geri' 'Save & back')"
         echo
@@ -6397,6 +6917,12 @@ esac
                 ;;
             10)
                 hm_ask_num "$(T _ 'Heartbeat (sec)' 'Heartbeat (sec)')" HM_HEARTBEAT_SEC
+                ;;
+            11)
+                hm_ask_01 "$(T TXT_HM_PROMPT_WANMON_ENABLE)" HM_WANMON_ENABLE
+                hm_ask_num "$(T TXT_HM_PROMPT_WANMON_FAIL_TH)" HM_WANMON_FAIL_TH
+                hm_ask_num "$(T TXT_HM_PROMPT_WANMON_OK_TH)" HM_WANMON_OK_TH
+                print_status INFO "$(T _ \'NDM WAN: \' \'NDM WAN: \')$(healthmon_detect_wan_iface_ndm)"
                 ;;
             0)
                 healthmon_write_config
@@ -6551,3 +7077,9 @@ if [ "$1" = "cleanup" ]; then
 fi
 
 main_menu_loop
+
+# WAN IP detection (best-effort)
+WAN_IP="$(ip -4 addr show ppp0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)"
+[ -z "$WAN_IP" ] && WAN_IP="$(ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)"
+[ -z "$WAN_IP" ] && WAN_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -n1)"
+[ -z "$WAN_IP" ] && WAN_IP="unknown"
