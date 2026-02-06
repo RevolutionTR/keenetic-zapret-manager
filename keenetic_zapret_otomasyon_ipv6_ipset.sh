@@ -30,8 +30,9 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.5"
+SCRIPT_VERSION="v26.2.6"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
+ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
 # -------------------------------------------------------------------
 
@@ -391,6 +392,42 @@ hc_word() {
         *)    printf '%s' "$1" ;;
     esac
 }
+
+# --- Health helpers (used by Health Score layout) ---
+check_dns_local() {
+    nslookup github.com 127.0.0.1 >/dev/null 2>&1
+}
+
+check_dns_external() {
+    nslookup github.com 8.8.8.8 >/dev/null 2>&1
+}
+
+check_dns_consistency() {
+    local dns_local_ip dns_pub_ip
+    dns_local_ip="$(nslookup github.com 127.0.0.1 2>/dev/null | awk '/^Address [0-9]+:/{print $3; exit}')"
+    dns_pub_ip="$(nslookup github.com 8.8.8.8 2>/dev/null | awk '/^Address [0-9]+:/{print $3; exit}')"
+    [ -n "$dns_local_ip" ] && [ -n "$dns_pub_ip" ] && [ "$dns_local_ip" = "$dns_pub_ip" ]
+}
+
+check_ntp() {
+    local now_epoch
+    now_epoch="$(date +%s 2>/dev/null)"
+    [ -n "$now_epoch" ] && [ "$now_epoch" -gt 1609459200 ] 2>/dev/null
+}
+
+check_github() {
+    local code
+    code="$(curl -I -m 8 -s -o /dev/null -w '%{http_code}' https://api.github.com/ 2>/dev/null)"
+    case "$code" in
+        2*|3*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+check_opkg() {
+    command -v opkg >/dev/null 2>&1 && opkg --version >/dev/null 2>&1
+}
+
 # print_status LEVEL MESSAGE
 # LEVEL: PASS/WARN/INFO/FAIL (colored via hc_word)
 print_status() {
@@ -935,6 +972,58 @@ TXT_HEALTH_TITLE_EN="Health Check"
 
 TXT_HEALTH_OVERALL_TR="Genel Durum"
 TXT_HEALTH_OVERALL_EN="Overall Status"
+TXT_HEALTH_SCORE_TR="Saglik Skoru (Health Score)"
+TXT_HEALTH_SCORE_EN="Health Score"
+
+TXT_HEALTH_RATING_EXCELLENT_TR="Mukemmel"
+TXT_HEALTH_RATING_EXCELLENT_EN="Excellent"
+TXT_HEALTH_RATING_GREAT_TR="Cok iyi"
+TXT_HEALTH_RATING_GREAT_EN="Great"
+TXT_HEALTH_RATING_GOOD_TR="Iyi"
+TXT_HEALTH_RATING_GOOD_EN="Good"
+TXT_HEALTH_RATING_OK_TR="Orta"
+TXT_HEALTH_RATING_OK_EN="OK"
+TXT_HEALTH_RATING_BAD_TR="Zayif"
+TXT_HEALTH_RATING_BAD_EN="Poor"
+
+TXT_HEALTH_SECTION_SUMMARY_TR="Durum Ozeti"
+TXT_HEALTH_SECTION_SUMMARY_EN="Status Summary"
+TXT_HEALTH_SECTION_NETDNS_TR="Ag & DNS"
+TXT_HEALTH_SECTION_NETDNS_EN="Network & DNS"
+TXT_HEALTH_SECTION_SYSTEM_TR="Sistem"
+TXT_HEALTH_SECTION_SYSTEM_EN="System"
+TXT_HEALTH_SECTION_SERVICES_TR="Servisler"
+TXT_HEALTH_SECTION_SERVICES_EN="Services"
+
+TXT_HEALTH_WAN_STATUS_TR="WAN durumu"
+TXT_HEALTH_WAN_STATUS_EN="WAN status"
+TXT_HEALTH_DNS_MODE_TR="DNS Modu"
+TXT_HEALTH_DNS_MODE_EN="DNS Mode"
+TXT_HEALTH_DNS_SEC_TR="DNS Guvenlik Seviyesi"
+TXT_HEALTH_DNS_SEC_EN="DNS Security Level"
+TXT_HEALTH_DNS_PROVIDERS_TR="DNS Saglayicilar"
+TXT_HEALTH_DNS_PROVIDERS_EN="DNS Providers"
+
+TXT_DNS_MODE_DOH_TR="DoH"
+TXT_DNS_MODE_DOH_EN="DoH"
+TXT_DNS_MODE_DOT_TR="DoT"
+TXT_DNS_MODE_DOT_EN="DoT"
+TXT_DNS_MODE_PLAIN_TR="Plain"
+TXT_DNS_MODE_PLAIN_EN="Plain"
+TXT_DNS_MODE_MIXED_TR="DoH+DoT"
+TXT_DNS_MODE_MIXED_EN="DoH+DoT"
+
+TXT_DNS_SEC_HIGH_TR="HIGH"
+TXT_DNS_SEC_HIGH_EN="HIGH"
+TXT_DNS_SEC_LOW_TR="LOW"
+TXT_DNS_SEC_LOW_EN="LOW"
+
+TXT_TG_DOWN_LABEL_TR="Down"
+TXT_TG_DOWN_LABEL_EN="Down"
+TXT_TG_UP_LABEL_TR="Up"
+TXT_TG_UP_LABEL_EN="Up"
+TXT_TG_DURATION_LABEL_TR="Sure"
+TXT_TG_DURATION_LABEL_EN="Duration"
 
 TXT_HEALTH_DNS_LOCAL_TR="DNS (Yerel resolver 127.0.0.1)"
 TXT_HEALTH_DNS_LOCAL_EN="DNS (Local resolver 127.0.0.1)"
@@ -944,7 +1033,6 @@ TXT_HEALTH_SCRIPT_PATH_EN="Script location (Correct path?)"
 
 TXT_HEALTH_DNS_PUBLIC_TR="DNS (8.8.8.8)"
 TXT_HEALTH_DNS_PUBLIC_EN="DNS (8.8.8.8)"
-
 TXT_HEALTH_TIME_TR="Saat / NTP"
 TXT_HEALTH_TIME_EN="Time / NTP"
 
@@ -962,6 +1050,10 @@ TXT_HEALTH_ZAPRET_EN="Zapret service status"
 
 TXT_HEALTH_DNS_MATCH_TR="DNS tutarliligi"
 TXT_HEALTH_DNS_MATCH_EN="DNS consistency"
+
+TXT_HEALTH_DNS_MATCH_NOTE_TR="Farkli IP'ler normal olabilir"
+TXT_HEALTH_DNS_MATCH_NOTE_EN="Different IPs can be normal"
+
 
 TXT_HEALTH_ROUTE_TR="Varsayilan rota (default gateway)"
 TXT_HEALTH_ROUTE_EN="Default route (gateway)"
@@ -2913,7 +3005,6 @@ show_ipset_client_status() {
             local ip_count="$(wc -l < "$IPSET_CLIENT_FILE" 2>/dev/null | tr -d ' ')"
             printf '%b%d IP%b\n' "${CLR_GREEN}" "$ip_count" "${CLR_RESET}"
             echo ""
-            printf '%b%s%b\n' "${CLR_DIM}" "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN"):" "${CLR_RESET}"
             # awk ile numaralandirma - daha guvenli
             awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
                 NF > 0 {
@@ -2933,7 +3024,6 @@ show_ipset_client_status() {
             local member_count="$(echo "$ipset_members" | wc -l | tr -d ' ')"
             printf '%b%d IP%b\n' "${CLR_GREEN}" "$member_count" "${CLR_RESET}"
             echo ""
-            printf '%b%s%b\n' "${CLR_DIM}" "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN"):" "${CLR_RESET}"
             # awk ile numaralandirma - subshell problemi yok
             printf '%s\n' "$ipset_members" | awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
                 NF > 0 {
@@ -3451,8 +3541,18 @@ download_file() {
     return 1
 }
 
+
+# Read current installed script version from disk (daemon-safe; handles manual edits)
+zkm_get_installed_script_version() {
+    local v=""
+    v="$(grep -m1 '^SCRIPT_VERSION=' "$ZKM_SCRIPT_PATH" 2>/dev/null | cut -d'"' -f2)"
+    [ -z "$v" ] && v="$SCRIPT_VERSION"
+    echo "$v"
+}
+
+
 update_manager_script() {
-    TARGET_SCRIPT="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    TARGET_SCRIPT="$ZKM_SCRIPT_PATH"
     DL_URL="https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest/download/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     TMP_FILE="/tmp/keenetic_zapret_manager_update.$$"
     BACKUP_FILE="${TARGET_SCRIPT}.bak_${SCRIPT_VERSION#v}_$(date +%Y%m%d_%H%M%S 2>/dev/null).sh"
@@ -3479,6 +3579,22 @@ update_manager_script() {
         rm -f "$TMP_FILE" 2>/dev/null
         return 1
     fi
+
+
+# Version guard: never auto-downgrade.
+REMOTE_FILE_VER="$(grep -m1 '^SCRIPT_VERSION=' "$TMP_FILE" 2>/dev/null | cut -d'"' -f2)"
+if [ -z "$REMOTE_FILE_VER" ]; then
+    echo "$(T mgr_update_bad 'Indirilen dosyada surum bilgisi okunamadi, iptal edildi.' 'Unable to read version from downloaded file, aborting.')"
+    rm -f "$TMP_FILE" 2>/dev/null
+    return 1
+fi
+
+# Allow only if remote is newer than local.
+if ! ver_is_newer "$REMOTE_FILE_VER" "$SCRIPT_VERSION"; then
+    echo "$(T mgr_update_skip 'Guncelleme atlandi (downgrade engellendi).' 'Update skipped (downgrade blocked).') $(T _ 'Kurulu:' 'Local:') $SCRIPT_VERSION, $(T _ 'GitHub:' 'Remote:') $REMOTE_FILE_VER"
+    rm -f "$TMP_FILE" 2>/dev/null
+    return 0
+fi
 
     # Backup current script if present
     if [ -f "$TARGET_SCRIPT" ]; then
@@ -4498,217 +4614,263 @@ display_menu() {
 
 # --- SAGLIK KONTROLU (HEALTH CHECK) ---
 run_health_check() {
-    pass_n=0
-    info_n=0
-    warn_n=0
-    fail_n=0
-    total_n=0
+    clear
+    printf "\n%s\n" "$(T TXT_HEALTH_TITLE)"
+    print_line "="
 
-    HC_TMP="/tmp/healthcheck.$$"
-    : >"$HC_TMP" 2>/dev/null || {
-        HC_TMP="/opt/tmp/healthcheck.$$"
-        mkdir -p /opt/tmp 2>/dev/null
-        : >"$HC_TMP" 2>/dev/null || HC_TMP=""
-    }
+    local HC_NET="/tmp/healthcheck_net.$$"
+    local HC_SYS="/tmp/healthcheck_sys.$$"
+    local HC_SVC="/tmp/healthcheck_svc.$$"
+    : > "$HC_NET"; : > "$HC_SYS"; : > "$HC_SVC"
+
+    local total_n=0 pass_n=0 warn_n=0 fail_n=0 info_n=0
 
     add_line() {
-        # $1=label, $2=msg (already colored), $3=status PASS|WARN|FAIL
-        label="$1"
-        msg="$2"
-        st="$3"
+        local file="$1" label="$2" value="$3" status="$4"
+        printf "%-35s : %s%s\n" "$label" "$(hc_word "$status")" "$value" >> "$file"
         total_n=$((total_n+1))
-        case "$st" in
+        case "$status" in
             PASS) pass_n=$((pass_n+1)) ;;
-            INFO) info_n=$((info_n+1)) ;;
             WARN) warn_n=$((warn_n+1)) ;;
             FAIL) fail_n=$((fail_n+1)) ;;
+            INFO) info_n=$((info_n+1)) ;;
         esac
-        if [ -n "$HC_TMP" ]; then
-            printf "%-35s : %b\n" "$label" "$msg" >>"$HC_TMP"
-        else
-            # Fallback: print directly (no summary at top in this rare case)
-            printf "%-35s : %b\n" "$label" "$msg"
-        fi
     }
 
-    # ---- Checks (append to temp) ----
+    # ----------------------------
+    # WAN STATUS (counts as a check)
+    # ----------------------------
+    local WAN_IF=""
+    WAN_IF="$(get_wan_if 2>/dev/null)"
+    [ -z "$WAN_IF" ] && WAN_IF="$(healthmon_detect_wan_iface_ndm 2>/dev/null)"
+    [ -z "$WAN_IF" ] && WAN_IF="PPPoE0"
 
-    # DNS (local resolver)
-    if nslookup github.com 127.0.0.1 >/dev/null 2>&1; then
-        add_line "$(T TXT_HEALTH_DNS_LOCAL)" "$(hc_word PASS)" "PASS"
-    else
-        add_line "$(T TXT_HEALTH_DNS_LOCAL)" "$(hc_word FAIL)" "FAIL"
-    fi
+    local wan_link="" wan_conn="" wan_state=""
+    wan_link="$(hm_ndmc_cmd "show interface $WAN_IF" 2>/dev/null | awk '/^[ \t]*link:/ {print $2; exit}')"
+    wan_conn="$(hm_ndmc_cmd "show interface $WAN_IF" 2>/dev/null | awk '/^[ \t]*connected:/ {print $2; exit}')"
 
-    # DNS (public)
-    if nslookup github.com 8.8.8.8 >/dev/null 2>&1; then
-        add_line "$(T TXT_HEALTH_DNS_PUBLIC)" "$(hc_word PASS)" "PASS"
-    else
-        add_line "$(T TXT_HEALTH_DNS_PUBLIC)" "$(hc_word FAIL)" "FAIL"
-    fi
-
-    # DNS consistency (compare first A/Address line for github.com between local and 8.8.8.8)
-    dns_local_ip="$(nslookup github.com 127.0.0.1 2>/dev/null | awk '/^Address [0-9]+:/{print $3; exit}')"
-    dns_pub_ip="$(nslookup github.com 8.8.8.8 2>/dev/null | awk '/^Address [0-9]+:/{print $3; exit}')"
-    if [ -n "$dns_local_ip" ] && [ -n "$dns_pub_ip" ]; then
-        if [ "$dns_local_ip" = "$dns_pub_ip" ]; then
-            add_line "$(T TXT_HEALTH_DNS_MATCH)" "$(hc_word PASS)  (${dns_local_ip})" "PASS"
+    if [ -z "$wan_link" ] && [ -z "$wan_conn" ]; then
+        # fallback (best-effort)
+        if ip link show "$WAN_IF" >/dev/null 2>&1; then
+            wan_link="up"
+            wan_conn="yes"
         else
-            add_line "$(T TXT_HEALTH_DNS_MATCH)" "$(hc_word INFO)  (ISS farkli IP donduruyor olabilir)" "INFO"
-        fi
-    else
-        add_line "$(T TXT_HEALTH_DNS_MATCH)" "$(hc_word INFO)  (ISS farkli IP donduruyor olabilir)" "INFO"
-    fi
-
-    # Default route
-    if ip route 2>/dev/null | grep -q '^default '; then
-        add_line "$(T TXT_HEALTH_ROUTE)" "$(hc_word PASS)" "PASS"
-
-    # Betik konumu kontrolu (dogru dizinden mi calisiyor?)
-    expected_script="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
-    actual_script="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
-    if [ "$actual_script" = "$expected_script" ]; then
-        add_line "$(T TXT_HEALTH_SCRIPT_PATH)" "$(hc_word PASS)  ($actual_script)" "PASS"
-    else
-        add_line "$(T TXT_HEALTH_SCRIPT_PATH)" "$(hc_word WARN)  (Beklenen: $expected_script | Su an: $actual_script)" "WARN"
-    fi
-    else
-        # Some systems lack 'ip'; try route
-        if route -n 2>/dev/null | awk '$1=="0.0.0.0"{found=1} END{exit !found}'; then
-            add_line "$(T TXT_HEALTH_ROUTE)" "$(hc_word PASS)" "PASS"
-        else
-            add_line "$(T TXT_HEALTH_ROUTE)" "$(hc_word WARN)" "WARN"
+            wan_link="down"
+            wan_conn="no"
         fi
     fi
 
-    # Internet ping
-    if ping -c 1 -W 2 1.1.1.1 >/dev/null 2>&1; then
-        add_line "$(T TXT_HEALTH_PING)" "$(hc_word PASS)" "PASS"
+    if [ "$wan_link" = "up" ] && [ "$wan_conn" = "yes" ]; then
+        wan_state="PASS"
     else
-        add_line "$(T TXT_HEALTH_PING)" "$(hc_word WARN)" "WARN"
+        wan_state="FAIL"
     fi
+    add_line "$HC_NET" "$(T TXT_HEALTH_WAN_STATUS)" " ($WAN_IF)" "$wan_state"
 
-    # RAM (MemAvailable)
-    mem_av_kb="$(awk '/MemAvailable:/{print $2; exit}' /proc/meminfo 2>/dev/null)"
-    if [ -n "$mem_av_kb" ]; then
-        mem_av_mb="$(awk -v k="$mem_av_kb" 'BEGIN{printf "%d", (k/1024)}' 2>/dev/null)"
-        [ -z "$mem_av_mb" ] && mem_av_mb="N/A"
-        add_line "$(T TXT_HEALTH_RAM)" "$(hc_word PASS)  (~${mem_av_mb}MB)" "PASS"
+    # ----------------------------
+    # DNS MODE / SECURITY / PROVIDERS (meta lines, NOT counted)
+    # ----------------------------
+    local doh_list dot_on dns_mode dns_sec dns_providers
+    doh_list="$(ps w 2>/dev/null | awk '
+        /https_dns_proxy/ && !/awk/{
+          r=""
+          for(i=1;i<=NF;i++) if($i=="-r") r=$(i+1)
+          if(r!=""){
+            gsub(/^https:\/\//,"",r); gsub(/\/.*$/,"",r)
+            print r
+          }
+        }' | sort -u 2>/dev/null | tr "\n" "," | sed 's/,$//')"
+
+    if netstat -lntp 2>/dev/null | grep -qE ':[[:space:]]*853[[:space:]]'; then
+        dot_on="1"
     else
-        add_line "$(T TXT_HEALTH_RAM)" "$(hc_word WARN)  (N/A)" "WARN"
+        dot_on="0"
     fi
 
-    # Load avg
-    load_avg="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
-    [ -z "$load_avg" ] && load_avg="N/A"
-    add_line "$(T TXT_HEALTH_LOAD)" "$(hc_word PASS)  (${load_avg})" "PASS"
-
-    # Time / NTP (human-readable)
-    now_epoch="$(date +%s 2>/dev/null)"
-    now_human="$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
-    if [ -n "$now_epoch" ] && [ "$now_epoch" -gt 1609459200 ] 2>/dev/null; then
-        add_line "$(T TXT_HEALTH_TIME)" "$(hc_word PASS)  (${now_human})" "PASS"
+    if [ -n "$doh_list" ] && [ "$dot_on" = "1" ]; then
+        dns_mode="$(T TXT_DNS_MODE_MIXED)"
+    elif [ -n "$doh_list" ]; then
+        dns_mode="$(T TXT_DNS_MODE_DOH)"
+    elif [ "$dot_on" = "1" ]; then
+        dns_mode="$(T TXT_DNS_MODE_DOT)"
     else
-        add_line "$(T TXT_HEALTH_TIME)" "$(hc_word WARN)  (${now_human})" "WARN"
+        dns_mode="$(T TXT_DNS_MODE_PLAIN)"
     fi
 
-    # GitHub access
-    code="$(curl -I -m 8 -s -o /dev/null -w "%{http_code}" https://api.github.com/ 2>/dev/null)"
-    case "$code" in
-        2*|3*) add_line "$(T TXT_HEALTH_GITHUB)" "$(hc_word PASS)  (HTTP ${code})" "PASS" ;;
-        403|429) add_line "$(T TXT_HEALTH_GITHUB)" "$(hc_word WARN)  (HTTP ${code})" "WARN" ;;
-        *) [ -z "$code" ] && code="N/A"
-           add_line "$(T TXT_HEALTH_GITHUB)" "$(hc_word FAIL)  (HTTP ${code})" "FAIL" ;;
-    esac
-
-    # opkg status
-    if command -v opkg >/dev/null 2>&1; then
-        if opkg --version >/dev/null 2>&1; then
-            add_line "$(T TXT_HEALTH_OPKG)" "$(hc_word PASS)" "PASS"
-        else
-            add_line "$(T TXT_HEALTH_OPKG)" "$(hc_word WARN)  (opkg)" "WARN"
-        fi
+    if [ -n "$doh_list" ] || [ "$dot_on" = "1" ]; then
+        dns_sec="$(T TXT_DNS_SEC_HIGH)"
     else
-        add_line "$(T TXT_HEALTH_OPKG)" "$(hc_word FAIL)  (opkg yok)" "FAIL"
+        dns_sec="$(T TXT_DNS_SEC_LOW)"
     fi
 
-    # Disk usage (/opt)
-    df_line="$(df -P /opt 2>/dev/null | awk 'NR==2{print $2" "$3" "$4}')"
-    if [ -n "$df_line" ]; then
-        size_k="$(printf "%s" "$df_line" | awk '{print $1}')"
-        used_k="$(printf "%s" "$df_line" | awk '{print $2}')"
-        avail_k="$(printf "%s" "$df_line" | awk '{print $3}')"
-        avail_mb="$(printf "%s" "$avail_k" | awk '{printf "%d", ($1/1024)}' 2>/dev/null)"
-        [ -z "$avail_mb" ] && avail_mb="N/A"
-        pct_dec="$(awk -v u="$used_k" -v s="$size_k" 'BEGIN{ if (s>0) printf "%.2f", (u/s)*100; }' 2>/dev/null)"
-        if [ -n "$pct_dec" ]; then
-            # PASS <90, WARN 90-95, FAIL >=95
-            if awk -v p="$pct_dec" 'BEGIN{exit !(p<90)}'; then
-                add_line "$(T TXT_HEALTH_DISK)" "$(hc_word PASS)  (${pct_dec}%, free ~${avail_mb}MB)" "PASS"
-            elif awk -v p="$pct_dec" 'BEGIN{exit !((p>=90)&&(p<95))}'; then
-                add_line "$(T TXT_HEALTH_DISK)" "$(hc_word WARN)  (${pct_dec}%, free ~${avail_mb}MB)" "WARN"
-            else
-                add_line "$(T TXT_HEALTH_DISK)" "$(hc_word FAIL)  (${pct_dec}%, free ~${avail_mb}MB)" "FAIL"
-            fi
-        else
-            add_line "$(T TXT_HEALTH_DISK)" "$(hc_word WARN)  (N/A)" "WARN"
-        fi
+    dns_providers="${doh_list:-unknown}"
+    if [ -n "$doh_list" ]; then
+        dns_providers="$(echo "$doh_list" | tr ',' '\n' | sed '/^$/d' | head -n 6 | tr '\n' ',' | sed 's/,$//')"
+    fi
+
+    # DNS checks (existing behavior)
+    local dns_local_ok="PASS"
+    if check_dns_local; then
+        dns_local_ok="PASS"
     else
-        add_line "$(T TXT_HEALTH_DISK)" "$(hc_word WARN)  (df N/A)" "WARN"
+        dns_local_ok="FAIL"
     fi
 
-    # Zapret service status
-    if is_zapret_installed; then
-        if is_zapret_running; then
-            add_line "$(T TXT_HEALTH_ZAPRET)" "$(hc_word PASS)" "PASS"
-        else
-            add_line "$(T TXT_HEALTH_ZAPRET)" "$(hc_word WARN)  (kurulu ama calismiyor)" "WARN"
-        fi
+    local dns_8888_ok="PASS"
+    if check_dns_external; then
+        dns_8888_ok="PASS"
     else
-        add_line "$(T TXT_HEALTH_ZAPRET)" "$(hc_word FAIL)  (kurulu degil)" "FAIL"
+        dns_8888_ok="FAIL"
     fi
 
-    # ---- Print (summary at top) ----
-    if [ "$fail_n" -gt 0 ] 2>/dev/null; then
-        overall_st="FAIL"
-    elif [ "$warn_n" -gt 0 ] 2>/dev/null; then
-        overall_st="WARN"
+    local dns_cons_ok="INFO"
+    local dns_cons_msg="($(T TXT_HEALTH_DNS_MATCH_NOTE))"
+    if check_dns_consistency; then
+        dns_cons_ok="PASS"
+        dns_cons_msg=""
+    fi
+
+    local route_ok="PASS"
+    local route_msg="($(ip route | awk '/default/ {print $3; exit}'))"
+    if [ -z "$route_msg" ] || [ "$route_msg" = "()" ]; then
+        route_ok="FAIL"
+        route_msg="(yok)"
+    fi
+
+    local script_ok="PASS"
+    local SCRIPT_PATH_EXPECTED="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    local SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+    local script_msg="(${SCRIPT_PATH})"
+    if [ "$SCRIPT_PATH" != "$SCRIPT_PATH_EXPECTED" ]; then
+        script_ok="WARN"
+        script_msg="(Beklenen: ${SCRIPT_PATH_EXPECTED} | Su an: ${SCRIPT_PATH})"
+    fi
+
+    local ping_ok="PASS"
+    local ping_msg=""
+    if ping -c 1 -W 1 1.1.1.1 >/dev/null 2>&1; then
+        ping_ok="PASS"
     else
-        overall_st="PASS"
+        ping_ok="FAIL"
+        ping_msg="(ping 1.1.1.1)"
     fi
 
-    ok_n=$((pass_n+info_n))
-
-    overall_msg="$(hc_word "$overall_st")  (${ok_n}/${total_n} OK"
-    if [ "$warn_n" -gt 0 ] 2>/dev/null; then
-        overall_msg="${overall_msg}, ${warn_n} WARN"
+    local ram_ok="PASS"
+    local ram_avail_kb="$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    local ram_avail_mb="$((ram_avail_kb/1024))"
+    local ram_msg="(~${ram_avail_mb}MB)"
+    if [ "$ram_avail_mb" -lt 100 ]; then
+        ram_ok="WARN"
     fi
-    if [ "$fail_n" -gt 0 ] 2>/dev/null; then
-        overall_msg="${overall_msg}, ${fail_n} FAIL"
-    fi
-    overall_msg="${overall_msg})"
 
-    clear
-    print_line "=" 
-    echo "$(T TXT_HEALTH_TITLE)"
-    print_line "=" 
-    printf "%-35s : %b\n" "$(T TXT_HEALTH_OVERALL)" "$overall_msg"
+    local load_ok="PASS"
+    local load_val="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
+    local load_msg="($load_val)"
+    if awk -v l="$load_val" 'BEGIN{exit (l>2.0)?0:1}'; then
+        load_ok="WARN"
+    fi
+
+    local ntp_ok="PASS"
+    local ntp_msg="($(date '+%Y-%m-%d %H:%M:%S'))"
+    if ! check_ntp; then
+        ntp_ok="WARN"
+    fi
+
+    local gh_ok="PASS"
+    local gh_msg="(HTTP 200)"
+    if ! check_github; then
+        gh_ok="WARN"
+        gh_msg="(fail)"
+    fi
+
+    local opkg_ok="PASS"
+    if ! check_opkg; then opkg_ok="WARN"; fi
+
+    local disk_ok="PASS"
+    local disk_pct="$(df /opt 2>/dev/null | awk 'NR==2 {gsub("%","",$5); print $5}')"
+    local disk_free="$(df -k /opt 2>/dev/null | awk 'NR==2 {print $4}')"
+    local disk_free_mb="$((disk_free/1024))"
+    local disk_msg="(${disk_pct}%, free ~${disk_free_mb}MB)"
+    if [ -n "$disk_pct" ] && [ "$disk_pct" -gt 90 ]; then
+        disk_ok="WARN"
+    fi
+
+    local zap_ok="PASS"
+    if ! is_zapret_running; then zap_ok="FAIL"; fi
+
+    # ----------------------------
+    # SECTION: Network & DNS
+    # ----------------------------
+    # meta lines first (not counted)
+    printf "%-35s : %s\n" "$(T TXT_HEALTH_DNS_MODE)" "$dns_mode" >> "$HC_NET"
+    printf "%-35s : %s\n" "$(T TXT_HEALTH_DNS_SEC)" "$dns_sec" >> "$HC_NET"
+    printf "%-35s : %s\n" "$(T TXT_HEALTH_DNS_PROVIDERS)" "$dns_providers" >> "$HC_NET"
+
+    add_line "$HC_NET" "$(T TXT_HEALTH_DNS_LOCAL)" "" "$dns_local_ok"
+    add_line "$HC_NET" "$(T TXT_HEALTH_DNS_PUBLIC)" "" "$dns_8888_ok"
+    add_line "$HC_NET" "$(T TXT_HEALTH_DNS_MATCH)" " $dns_cons_msg" "$dns_cons_ok"
+    add_line "$HC_NET" "$(T TXT_HEALTH_ROUTE)" " $route_msg" "$route_ok"
+
+    # ----------------------------
+    # SECTION: System
+    # ----------------------------
+    add_line "$HC_SYS" "$(T TXT_HEALTH_SCRIPT_PATH)" " $script_msg" "$script_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_PING)" " $ping_msg" "$ping_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_RAM)" " $ram_msg" "$ram_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_LOAD)" " $load_msg" "$load_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_DISK)" " $disk_msg" "$disk_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_TIME)" " $ntp_msg" "$ntp_ok"
+
+    # ----------------------------
+    # SECTION: Services
+    # ----------------------------
+    add_line "$HC_SVC" "$(T TXT_HEALTH_GITHUB)" " $gh_msg" "$gh_ok"
+    add_line "$HC_SVC" "$(T TXT_HEALTH_OPKG)" "" "$opkg_ok"
+    add_line "$HC_SVC" "$(T TXT_HEALTH_ZAPRET)" "" "$zap_ok"
+
+    # ----------------------------
+    # SCORE + SUMMARY
+    # ----------------------------
+    local ok_n=$((pass_n+info_n))
+    local score rating_key rating_txt
+    score="$(awk -v ok="$ok_n" -v total="$total_n" 'BEGIN{ if(total<=0){printf "0.0"} else {printf "%.1f", (ok/total)*10} }')"
+
+    rating_key="TXT_HEALTH_RATING_OK"
+    if awk -v s="$score" 'BEGIN{exit (s>=9.5)?0:1}'; then
+        rating_key="TXT_HEALTH_RATING_EXCELLENT"
+    elif awk -v s="$score" 'BEGIN{exit (s>=8.5)?0:1}'; then
+        rating_key="TXT_HEALTH_RATING_GREAT"
+    elif awk -v s="$score" 'BEGIN{exit (s>=7.0)?0:1}'; then
+        rating_key="TXT_HEALTH_RATING_GOOD"
+    elif awk -v s="$score" 'BEGIN{exit (s>=5.0)?0:1}'; then
+        rating_key="TXT_HEALTH_RATING_OK"
+    else
+        rating_key="TXT_HEALTH_RATING_BAD"
+    fi
+    rating_txt="$(T "$rating_key")"
+
+    printf "\n%-35s : %s / 10   ✅ %s   (%d/%d OK)\n" "$(T TXT_HEALTH_SCORE)" "$score" "$rating_txt" "$ok_n" "$total_n"
     print_line "-"
-    if [ -n "$HC_TMP" ] && [ -f "$HC_TMP" ]; then
-        cat "$HC_TMP"
-        rm -f "$HC_TMP" 2>/dev/null
-    fi
+    printf "%s\n" "$(T TXT_HEALTH_SECTION_NETDNS)"
     print_line "-"
+    cat "$HC_NET"
 
-    if type press_enter_to_continue >/dev/null 2>&1; then
-        press_enter_to_continue
-    else
-        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
-    fi
+    print_line "-"
+    printf "%s\n" "$(T TXT_HEALTH_SECTION_SYSTEM)"
+    print_line "-"
+    cat "$HC_SYS"
+
+    print_line "-"
+    printf "%s\n" "$(T TXT_HEALTH_SECTION_SERVICES)"
+    print_line "-"
+    cat "$HC_SVC"
+
+    print_line "-"
+    press_enter_to_continue
+
+    rm -f "$HC_NET" "$HC_SYS" "$HC_SVC" 2>/dev/null
     clear
 }
-
-
 
 
 # --- BLOCKCHECK (DPI TEST) ---
@@ -5672,6 +5834,9 @@ telegram_send() {
     msg="$(printf '%b' "$msg")"
     curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage"         --data-urlencode "chat_id=${TG_CHAT_ID}"         --data-urlencode "text=${msg}"         --data-urlencode "disable_web_page_preview=1" >/dev/null 2>&1
 }
+
+# Compatibility: old code may call tg_send
+tg_send() { telegram_send "$@"; }
 tpl_render() {
     # Usage: tpl_render "template" KEY1 "val1" KEY2 "val2" ...
     # Replaces %KEY% in template with the given values (busybox ash compatible)
@@ -6155,6 +6320,11 @@ github_latest_release_tag() {
 zkm_ver_cmp() {
     local A="${1#v}"; A="${A#V}"
     local B="${2#v}"; B="${B#V}"
+    # trim whitespace/CRLF just in case
+    A="$(printf %s "$A" | tr -d ' 	
+')"
+    B="$(printf %s "$B" | tr -d ' 	
+')"
     # If current version is empty/unknown, treat latest as newer
     case "$B" in ''|unknown|UNKNOWN) echo 1; return 0 ;; esac
     awk -v A="$A" -v B="$B" '
@@ -6184,6 +6354,7 @@ zkm_ver_gt() { [ "$(zkm_ver_cmp "$1" "$2")" = "1" ]; }
 
 
 healthmon_updatecheck_do() {
+    # Update check master switch
     [ "${HM_UPDATECHECK_ENABLE:-0}" = "1" ] || return 0
 
     # Auto update mode:
@@ -6197,68 +6368,70 @@ healthmon_updatecheck_do() {
         *) upd_mode="1" ;;
     esac
 
-    local now last_ts f
+    local now last_ts f sec
     f="/tmp/healthmon_updatecheck.ts"
     now="$(healthmon_now)"
+    sec="${HM_UPDATECHECK_SEC:-21600}"   # default 6h
+
+    # Throttle: only run the GitHub API check every HM_UPDATECHECK_SEC seconds.
     last_ts="$(cat "$f" 2>/dev/null)"
-    case "$last_ts" in
-        ''|*[!0-9]*) last_ts=0 ;;
-    esac
-    [ "${HM_UPDATECHECK_SEC:-0}" -gt 0 ] || return 0
-    [ $((now - last_ts)) -ge "$HM_UPDATECHECK_SEC" ] || return 0
-    echo "$now" >"$f" 2>/dev/null
-    chmod 600 "$f" 2>/dev/null
+    if [ -n "$last_ts" ] && [ $((now - last_ts)) -lt "$sec" ] 2>/dev/null; then
+        # keep a small "defer" marker so users can see it is intentionally throttled
+        : > /tmp/healthmon_updatecheck.defer 2>/dev/null
+        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | deferred next_in=$((sec - (now - last_ts)))s cur=$SCRIPT_VERSION" >> /tmp/healthmon.log 2>/dev/null
+        return 0
+    fi
 
-    # Need Telegram configured; if not, just skip silently
-    [ -f "$TG_CONF_FILE" ] || return 0
+    # clear defer marker and stamp last check time early to avoid tight loops on failures
+    rm -f /tmp/healthmon_updatecheck.defer 2>/dev/null
+    echo "$now" > "$f" 2>/dev/null
 
-    healthmon_update_state_load
+    local repo api latest cur
+    repo="${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}"
+    api="https://api.github.com/repos/${repo}/releases/latest"
 
-    # ZKM update (this script)
-    local latest cur msg url
-    cur="${SCRIPT_VERSION:-unknown}"
-    url="https://github.com/${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}/releases/latest"
-    latest="$(github_latest_release_tag "${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}")"
+    cur="$SCRIPT_VERSION"
+    latest="$(curl -fsS "$api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
 
-    if [ -n "$latest" ] && zkm_ver_gt "$latest" "$cur"; then
-        if [ "$upd_mode" = "2" ]; then
-            # Auto install only once per version (no retry loop)
-            if [ "$latest" != "$ZKM_LAST_AUTO_ATTEMPTED" ]; then
-                if update_manager_script >/dev/null 2>&1; then
-                    msg="$(tpl_render "$(T TXT_UPD_ZKM_AUTO_OK)" NEW "$latest" CUR "$cur" URL "$url")"
-                else
-                    msg="$(tpl_render "$(T TXT_UPD_ZKM_AUTO_FAIL)" NEW "$latest" CUR "$cur" URL "$url")"
-                fi
-                telegram_send "$msg" >/dev/null 2>&1
-                ZKM_LAST_AUTO_ATTEMPTED="$latest"
-                ZKM_LAST_NOTIFIED="$latest"
-                healthmon_update_state_save
-            fi
+    # Always log what we saw, so "ran but did nothing" is visible.
+    echo "$(date +%s 2>/dev/null) | updatecheck | zkm | cur=$cur latest=${latest:-N/A} mode=$upd_mode" >> /tmp/healthmon.log 2>/dev/null
+
+    if [ -z "$latest" ]; then
+        # Only notify if update checks are enabled and mode is not OFF.
+        if [ "$upd_mode" != "0" ]; then
+            telegram_send "$(T TXT_UPD_ZKM_AUTO_FAIL 'Guncelleme kontrolu basarisiz (GitHub bilgisi alinamadi).' 'Update check failed (unable to fetch GitHub version info).')"
+        fi
+        return 0
+    fi
+
+    # Never downgrade: skip if remote is not newer than local (dev builds like v26.2.5.1 must not be replaced by v26.2.5).
+    if ! ver_is_newer "$latest" "$cur"; then
+        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | skip=local_newer_or_equal cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+        return 0
+    fi
+
+    # New version exists
+    local url msg
+    url="https://github.com/${repo}/releases/latest"
+
+    if [ "$upd_mode" = "1" ]; then
+        msg="$(tpl_render "$(T TXT_UPD_ZKM_NEW)" NEW "$latest" CUR "$cur" URL "$url")"
+        telegram_send "$msg"
+        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | notified cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+        return 0
+    fi
+
+    # upd_mode=2 -> auto install
+    if [ "$upd_mode" = "2" ]; then
+        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_start cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+        if update_manager_script >/tmp/zkm_autoupdate.log 2>&1; then
+            telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_OK)" NEW "$latest" CUR "$cur" URL "$url")"
+            echo "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_ok cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
         else
-            # Notify only (also avoid repeats)
-            if [ "$latest" != "$ZKM_LAST_NOTIFIED" ]; then
-                msg="$(tpl_render "$(T TXT_UPD_ZKM_NEW)" NEW "$latest" CUR "$cur" URL "$url")"
-                telegram_send "$msg" >/dev/null 2>&1
-                ZKM_LAST_NOTIFIED="$latest"
-                healthmon_update_state_save
-            fi
+            telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_FAIL)" CUR "$cur" NEW "$latest" URL "$url")"
+            echo "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_fail cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
         fi
     fi
-
-    # Zapret upstream update
-    if [ -f /opt/zapret/version ]; then
-        cur="$(cat /opt/zapret/version 2>/dev/null)"
-    else
-        cur="not_installed"
-    fi
-    latest="$(github_latest_release_tag "${HM_UPDATECHECK_REPO_ZAPRET:-bol-van/zapret}")"
-    if [ -n "$latest" ] && [ "$latest" != "$cur" ] && [ "$latest" != "$ZAPRET_LAST_NOTIFIED" ]; then
-        msg="$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" NEW "$latest" CUR "$cur" URL "https://github.com/${HM_UPDATECHECK_REPO_ZAPRET:-bol-van/zapret}/releases/latest")"
-        telegram_send "$msg" >/dev/null 2>&1
-        ZAPRET_LAST_NOTIFIED="$latest"
-        healthmon_update_state_save
-    fi
-
     return 0
 }
 
@@ -6380,6 +6553,17 @@ healthmon_loop() {
 
     # Run one immediate WANMON tick on startup so guards/logs are visible without waiting HM_INTERVAL
     healthmon_load_config
+    # If script version changed since last run, force an early update check.
+    # Avoids stale timestamp blocking after manual version edits.
+    if [ -n "$SCRIPT_VERSION" ]; then
+        _curv="$SCRIPT_VERSION"
+        _lastv="$(cat /tmp/healthmon.last_script_ver 2>/dev/null)"
+        if [ "$_curv" != "$_lastv" ]; then
+            echo "$_curv" > /tmp/healthmon.last_script_ver 2>/dev/null
+            rm -f /tmp/healthmon_updatecheck.ts /tmp/healthmon_updatecheck.defer 2>/dev/null
+        fi
+    fi
+
     if [ "$HM_ENABLE" = "1" ] && [ "${HM_WANMON_ENABLE:-0}" = "1" ]; then
         hm_wanmon_tick
     fi
