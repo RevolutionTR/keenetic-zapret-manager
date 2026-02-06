@@ -5,7 +5,7 @@
 # Author: RevolutionTR
 # GitHub: https://github.com/RevolutionTR
 #
-# Copyright (C) 2026 RevolutionTR
+# Copyright (C) 2027 RevolutionTR
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.6"
+SCRIPT_VERSION="v26.2.7"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -208,6 +208,124 @@ fi
 # -------------------------------------------------------------------
 # Dogru Dizin Uyarisi (keenetic / keenetic-zapret)
 # -------------------------------------------------------------------
+
+#------ Komple Kaldırma ---------------------------------------------------------------
+# ZKM + Zapret tam temiz kaldırma (UNSAFE / irreversible)
+# Not: "Zapret’i Kaldir" (mevcut) rutini aynen calisir, sonra ZKM kalintilari temizlenir.
+# TR/EN Dictionary (Komple Kaldirma)
+TXT_ZKM_FULL_UNINSTALL_TITLE_TR="ZKM + Zapret Kaldirma (Tam Temiz)"
+TXT_ZKM_FULL_UNINSTALL_TITLE_EN="ZKM + Zapret Uninstall (Full Clean)"
+
+TXT_ZKM_FULL_UNINSTALL_WARN1_TR="Bu islem Zapret'i kaldirir ve ZKM'nin HealthMon/Telegram ayarlarini, init dosyalarini ve log/state dosyalarini temizler."
+TXT_ZKM_FULL_UNINSTALL_WARN1_EN="This will uninstall Zapret and clean ZKM HealthMon/Telegram configs, init files, and log/state files."
+
+TXT_ZKM_FULL_UNINSTALL_WARN2_TR="Islem geri alinamaz. Devam etmeden once yedek aldiginizdan emin olun."
+TXT_ZKM_FULL_UNINSTALL_WARN2_EN="This action is irreversible. Make sure you have a backup before continuing."
+
+TXT_ZKM_FULL_UNINSTALL_PROMPT1_TR="Devam etmek icin BUYUK HARFLE 'EVET' yazin (iptal icin Enter): "
+TXT_ZKM_FULL_UNINSTALL_PROMPT1_EN="Type 'YES' (uppercase) to continue (press Enter to cancel): "
+
+TXT_ZKM_FULL_UNINSTALL_PROMPT2_TR="Son onay: BUYUK HARFLE 'KALDIR' yazin (iptal icin Enter): "
+TXT_ZKM_FULL_UNINSTALL_PROMPT2_EN="Final confirm: type 'REMOVE' (uppercase) (press Enter to cancel): "
+
+TXT_ZKM_FULL_UNINSTALL_CANCEL_TR="Iptal edildi."
+TXT_ZKM_FULL_UNINSTALL_CANCEL_EN="Cancelled."
+
+TXT_ZKM_FULL_UNINSTALL_HINT_TR="Iptal icin ENTER'a basin."
+TXT_ZKM_FULL_UNINSTALL_HINT_EN="Press ENTER to cancel."
+
+TXT_ZKM_FULL_UNINSTALL_PHASE1_TR="1/2: Zapret kaldiriliyor..."
+TXT_ZKM_FULL_UNINSTALL_PHASE1_EN="1/2: Uninstalling Zapret..."
+
+TXT_ZKM_FULL_UNINSTALL_PHASE2_TR="2/2: ZKM kalintilari temizleniyor..."
+TXT_ZKM_FULL_UNINSTALL_PHASE2_EN="2/2: Cleaning ZKM leftovers..."
+
+TXT_ZKM_FULL_UNINSTALL_STEP1_TR="1/2: Zapret kaldiriliyor (mevcut kaldirma rutini)..."
+TXT_ZKM_FULL_UNINSTALL_STEP1_EN="1/2: Removing Zapret (existing uninstall routine)..."
+
+TXT_ZKM_FULL_UNINSTALL_STEP2_TR="2/2: ZKM kalintilari temizleniyor..."
+TXT_ZKM_FULL_UNINSTALL_STEP2_EN="2/2: Cleaning ZKM leftovers..."
+
+TXT_ZKM_FULL_UNINSTALL_DONE_TR="Tam temiz kaldirma tamamlandi."
+TXT_ZKM_FULL_UNINSTALL_DONE_EN="Full clean uninstall completed."
+
+TXT_ZKM_FULL_UNINSTALL_NOTE_TR="Not: Bu islemin ardindan betik artik calismayacaktir."
+TXT_ZKM_FULL_UNINSTALL_NOTE_EN="Note: After this, the script will no longer be available."
+
+
+
+TXT_ZKM_FULL_UNINSTALL_SCRIPT_NOTE_TR="Betik dosyasi guvenlik nedeniyle silinmedi. Isterseniz manuel olarak silebilirsiniz."
+TXT_ZKM_FULL_UNINSTALL_SCRIPT_NOTE_EN="Script file was not removed for safety. You may delete it manually if desired."
+zkm_full_uninstall() {
+	    clear
+	    print_line "=" 120
+	    echo "$(T TXT_ZKM_FULL_UNINSTALL_TITLE)"
+	    print_line "=" 120
+	    echo ""
+    print_status WARN "$(T TXT_ZKM_FULL_UNINSTALL_WARN1)"
+    print_status WARN "$(T TXT_ZKM_FULL_UNINSTALL_WARN2)"
+    echo ""
+    print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_HINT)"
+    echo ""
+
+	    printf "%s" "$(T TXT_ZKM_FULL_UNINSTALL_PROMPT1)"
+	    read -r _ans1
+	    if [ -z "$_ans1" ] || ( [ "$_ans1" != "EVET" ] && [ "$_ans1" != "YES" ] ); then
+        print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_CANCEL)"
+        press_enter_to_continue
+        return 0
+    fi
+
+	    printf "%s" "$(T TXT_ZKM_FULL_UNINSTALL_PROMPT2)"
+	    read -r _ans2
+	    if [ -z "$_ans2" ] || ( [ "$_ans2" != "KALDIR" ] && [ "$_ans2" != "REMOVE" ] ); then
+        print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_CANCEL)"
+        press_enter_to_continue
+        return 0
+    fi
+
+    echo ""
+    print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_STEP1)"
+    uninstall_zapret
+
+    echo ""
+    print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_STEP2)"
+
+    # Stop HealthMon daemon if running
+    if [ -f /tmp/healthmon.pid ]; then
+        _pid="$(cat /tmp/healthmon.pid 2>/dev/null)"
+        [ -n "$_pid" ] && kill "$_pid" 2>/dev/null
+        rm -f /tmp/healthmon.pid 2>/dev/null
+    fi
+    rm -rf /tmp/healthmon.lock 2>/dev/null
+
+    # Remove HealthMon / Telegram configs (ZKM-owned)
+    rm -f /opt/etc/healthmon.conf /opt/etc/healthmon.conf.bak 2>/dev/null
+    rm -f /opt/etc/telegram.conf 2>/dev/null
+
+    # Remove init autostart (if created by ZKM)
+    rm -f /opt/etc/init.d/S99zkm_healthmon 2>/dev/null
+
+    # Remove state/log files (ZKM/HealthMon/WANMon)
+    rm -f /opt/etc/healthmon_update.state 2>/dev/null
+    rm -f /tmp/zkm_autoupdate.log 2>/dev/null
+    rm -f /tmp/healthmon.log 2>/dev/null
+    rm -f /tmp/healthmon_* /tmp/wanmon.* 2>/dev/null
+
+    # Remove helper/wrapper commands created by this script
+    rm -f /opt/bin/keenetic /opt/bin/keenetic-zapret 2>/dev/null
+
+    # Remove ZKM backup files (script backups)
+    rm -f /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_* 2>/dev/null
+    # Script file is NOT removed (safety)
+
+    echo ""
+    print_status OK "$(T TXT_ZKM_FULL_UNINSTALL_DONE)"
+    print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_SCRIPT_NOTE)"
+    press_enter_to_continue
+    exit 0
+}
+
 check_script_location_once() {
     local EXPECTED="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     local CURRENT="$(readlink -f "$0" 2>/dev/null)"
@@ -452,8 +570,8 @@ color_mode_name() {
 
 
 # Sozluk: TXT_*_TR / TXT_*_EN
-TXT_MAIN_TITLE_TR=" [36mKeenetic icin Zapret Yonetim Scripti[0m"
-TXT_MAIN_TITLE_EN=" [36mZapret Management Script for Keenetic[0m"
+TXT_MAIN_TITLE_TR=" [36mKeenetic icin Zapret Yonetim Scripti (ZKM)[0m"
+TXT_MAIN_TITLE_EN=" [36mZapret Management Script for Keenetic (ZKM)[0m"
 
 TXT_OPTIMIZED_TR=" Varsayilan ayarlar Turk Telekom uzerinde test edilerek optimize edilmistir"
 TXT_OPTIMIZED_EN=" Default settings are optimized based on testing on Turk Telekom"
@@ -687,6 +805,7 @@ TXT_HM_WAN_DOWN_MSG_TR="🚫 WAN DOWN (%IF%)"
 TXT_HM_WAN_DOWN_MSG_EN="🚫 WAN DOWN (%IF%)"
 TXT_HM_WAN_UP_MSG_TR="✅ WAN UP (%IF%)\nKesinti: %DUR%"
 TXT_HM_WAN_UP_MSG_EN="✅ WAN UP (%IF%)\nOutage: %DUR%"
+
 # WAN monitor - rich UP notification (Down/Up/Duration labels)
 TXT_HM_WAN_UP_TITLE_TR="✅ WAN UP (%IF%)"
 TXT_HM_WAN_UP_TITLE_EN="✅ WAN UP (%IF%)"
@@ -1579,6 +1698,10 @@ TXT_PROMPT_SELECTION_EN=" Selection: "
 
 TXT_MENU_L_TR=" L. Dil Degistir (TR/EN)"
 TXT_MENU_L_EN=" L. Switch Language (TR/EN)"
+
+TXT_MENU_U_TR=" U. ZKM + Zapret Kaldir (Tam Temiz)"
+TXT_MENU_U_EN=" U. ZKM + Zapret Uninstall (Full Clean)"
+
 
 TXT_MENU_0_TR=" 0. Cikis"
 TXT_MENU_0_EN=" 0. Exit"
@@ -3555,7 +3678,9 @@ update_manager_script() {
     TARGET_SCRIPT="$ZKM_SCRIPT_PATH"
     DL_URL="https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest/download/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     TMP_FILE="/tmp/keenetic_zapret_manager_update.$$"
-    BACKUP_FILE="${TARGET_SCRIPT}.bak_${SCRIPT_VERSION#v}_$(date +%Y%m%d_%H%M%S 2>/dev/null).sh"
+    LOCAL_VER="$(zkm_get_installed_script_version)"
+    [ -z "$LOCAL_VER" ] && LOCAL_VER="$SCRIPT_VERSION"
+    BACKUP_FILE="${TARGET_SCRIPT}.bak_${LOCAL_VER#v}_$(date +%Y%m%d_%H%M%S 2>/dev/null).sh"
 
     echo "$(T mgr_update_start 'Betik indiriliyor (GitHub)...' 'Downloading script (GitHub)...')"
     if ! download_file "$DL_URL" "$TMP_FILE"; then
@@ -3590,8 +3715,8 @@ if [ -z "$REMOTE_FILE_VER" ]; then
 fi
 
 # Allow only if remote is newer than local.
-if ! ver_is_newer "$REMOTE_FILE_VER" "$SCRIPT_VERSION"; then
-    echo "$(T mgr_update_skip 'Guncelleme atlandi (downgrade engellendi).' 'Update skipped (downgrade blocked).') $(T _ 'Kurulu:' 'Local:') $SCRIPT_VERSION, $(T _ 'GitHub:' 'Remote:') $REMOTE_FILE_VER"
+if ! ver_is_newer "$REMOTE_FILE_VER" "$LOCAL_VER"; then
+    echo "$(T mgr_update_skip 'Guncelleme atlandi (downgrade engellendi).' 'Update skipped (downgrade blocked).') $(T _ 'Kurulu:' 'Local:') $LOCAL_VER, $(T _ 'GitHub:' 'Remote:') $REMOTE_FILE_VER"
     rm -f "$TMP_FILE" 2>/dev/null
     return 0
 fi
@@ -4604,6 +4729,7 @@ display_menu() {
     echo "$(T TXT_MENU_16)"
     echo "$(T TXT_MENU_B)"
     echo "$(T TXT_MENU_L)  ($(lang_label))"
+    echo "$(T TXT_MENU_U)"
     echo "$(T TXT_MENU_0)"
     print_line "-"
     echo
@@ -6378,7 +6504,7 @@ healthmon_updatecheck_do() {
     if [ -n "$last_ts" ] && [ $((now - last_ts)) -lt "$sec" ] 2>/dev/null; then
         # keep a small "defer" marker so users can see it is intentionally throttled
         : > /tmp/healthmon_updatecheck.defer 2>/dev/null
-        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | deferred next_in=$((sec - (now - last_ts)))s cur=$SCRIPT_VERSION" >> /tmp/healthmon.log 2>/dev/null
+        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | deferred next_in=$((sec - (now - last_ts)))s cur=$cur" >> /tmp/healthmon.log 2>/dev/null
         return 0
     fi
 
@@ -6390,7 +6516,7 @@ healthmon_updatecheck_do() {
     repo="${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}"
     api="https://api.github.com/repos/${repo}/releases/latest"
 
-    cur="$SCRIPT_VERSION"
+    cur="$(zkm_get_installed_script_version)"; [ -z "$cur" ] && cur="$SCRIPT_VERSION"
     latest="$(curl -fsS "$api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
 
     # Always log what we saw, so "ran but did nothing" is visible.
@@ -7237,6 +7363,7 @@ main_menu_loop() {
         16) health_monitor_menu ;;
 B|b) blockcheck_test_menu ;;
 L|l) toggle_lang ;; 
+        U|u) zkm_full_uninstall ;;
             0) echo "Cikis yapiliyor..."; break ;;
             *) echo "Gecersiz secim! Lutfen 0 ile 16 arasinda bir sayi girin." ;;
         esac
