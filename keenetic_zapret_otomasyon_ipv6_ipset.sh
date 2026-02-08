@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.7"
+SCRIPT_VERSION="v26.2.8"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -6242,6 +6242,13 @@ hm_wanmon_get_iface() {
     echo "$ifc"
 }
 
+
+hm_wanmon_is_linux_iface() {
+    local ifc="$1"
+    [ -z "$ifc" ] && return 1
+    ip link show "$ifc" >/dev/null 2>&1
+}
+
 hm_wanmon_is_up() {
     # UP = link: up AND connected: yes
     local ifc="$1"
@@ -6254,10 +6261,10 @@ hm_wanmon_is_up() {
 }
 
 hm_wanmon_iface_exists() {
-    # Valid if NDM knows this interface (prevents false DOWN on wrong name)
+    # Validate that the NDM interface exists (ndmc can query it)
     local ifc="$1"
     [ -z "$ifc" ] && return 1
-    hm_ndmc_cmd "show interface $ifc" | grep -qE '^[[:space:]]*id:[[:space:]]*'
+    hm_ndmc_cmd "show interface $ifc" 2>/dev/null | grep -qE '^[[:space:]]*link:' 
 }
 
 hm_fmt_hms() {
@@ -6271,108 +6278,113 @@ hm_fmt_hms() {
 }
 
 hm_wanmon_tick() {
-    [ "$HM_WANMON_ENABLE" = "1" ] || return 0
+    [ "${HM_WANMON_ENABLE:-0}" = "1" ] || return 0
 
     local state_f="/tmp/wanmon.state"
     local down_ts_f="/tmp/wanmon.down_ts"
     local down_hms_f="/tmp/wanmon.down_hms"
     local fails_f="/tmp/wanmon.fails"
     local oks_f="/tmp/wanmon.oks"
-    local ifc
-    ifc="$(hm_wanmon_get_iface)"
 
-    # Safety guards:
-    # - If iface is empty, do not run WAN monitor (prevents false alarms)
-    # - If iface does not exist in NDM, skip and clear cached iface
+    local ifc conf_disp
+    ifc="$(hm_wanmon_get_iface)"
+    conf_disp="${HM_WANMON_IFACE:-auto}"
+
+    # one-time init log
+    if [ ! -f /tmp/wanmon.inited ]; then
+        healthmon_log "$(healthmon_now) | wanmon | init iface=${ifc:-N/A} conf=${conf_disp}"
+        echo 1 >/tmp/wanmon.inited 2>/dev/null
+        chmod 600 /tmp/wanmon.inited 2>/dev/null
+    fi
+
     if [ -z "$ifc" ]; then
         if [ ! -f /tmp/wanmon.iface_warned ]; then
             healthmon_log "$(healthmon_now) | wanmon | iface not set, skipping"
             echo 1 >/tmp/wanmon.iface_warned 2>/dev/null
+            chmod 600 /tmp/wanmon.iface_warned 2>/dev/null
         fi
         return 0
     fi
 
     if ! hm_wanmon_iface_exists "$ifc"; then
-        rm -f /tmp/wanmon.ndm_iface 2>/dev/null
         if [ ! -f /tmp/wanmon.iface_bad_warned ]; then
             healthmon_log "$(healthmon_now) | wanmon | iface invalid ($ifc), skipping"
             echo 1 >/tmp/wanmon.iface_bad_warned 2>/dev/null
+            chmod 600 /tmp/wanmon.iface_bad_warned 2>/dev/null
         fi
         return 0
     fi
 
-    # iface is set and valid; clear one-shot guard warning flags
     rm -f /tmp/wanmon.iface_warned /tmp/wanmon.iface_bad_warned 2>/dev/null
 
-    # First run init: set state to current link status WITHOUT sending any notification
-    if [ ! -f "$state_f" ]; then
-        if hm_wanmon_is_up "$ifc"; then
-            echo "UP" >"$state_f" 2>/dev/null
-        else
-            echo "DOWN" >"$state_f" 2>/dev/null
-            echo "$(healthmon_now)" >"$down_ts_f" 2>/dev/null
-            date '+%H:%M:%S' >"$down_hms_f" 2>/dev/null
-        fi
-        echo 0 >"$fails_f" 2>/dev/null
-        echo 0 >"$oks_f" 2>/dev/null
-        return 0
-    fi
-
+    # defaults
     [ -f "$fails_f" ] || echo 0 >"$fails_f"
     [ -f "$oks_f" ] || echo 0 >"$oks_f"
+    chmod 600 "$fails_f" "$oks_f" 2>/dev/null
 
-    local state fails oks
+    local state now fails oks
     state="$(cat "$state_f" 2>/dev/null)"
-    fails="$(cat "$fails_f" 2>/dev/null)"; [ -z "$fails" ] && fails=0
-    oks="$(cat "$oks_f" 2>/dev/null)"; [ -z "$oks" ] && oks=0
+    [ -z "$state" ] && state="UP"
+
+    fails="$(cat "$fails_f" 2>/dev/null)"; case "$fails" in ''|*[!0-9]*) fails=0;; esac
+    oks="$(cat "$oks_f" 2>/dev/null)"; case "$oks" in ''|*[!0-9]*) oks=0;; esac
+
+    now="$(healthmon_now)"
 
     if hm_wanmon_is_up "$ifc"; then
+        # observed UP
         fails=0
         oks=$((oks+1))
         echo "$fails" >"$fails_f" 2>/dev/null
         echo "$oks" >"$oks_f" 2>/dev/null
 
         if [ "$state" = "DOWN" ] && [ "$oks" -ge "${HM_WANMON_OK_TH:-2}" ]; then
-            local now down_ts down_hms up_hms dur
-            now="$(healthmon_now)"
-            down_ts="$(cat "$down_ts_f" 2>/dev/null)"
+            # transition DOWN -> UP, send single rich UP message with duration
+            local down_ts down_hms up_hms dur wan_disp
+            down_ts="$(cat "$down_ts_f" 2>/dev/null)"; case "$down_ts" in ''|*[!0-9]*) down_ts="$now";; esac
             down_hms="$(cat "$down_hms_f" 2>/dev/null)"
-            [ -n "$down_ts" ] || down_ts="$now"
-            [ -n "$down_hms" ] || down_hms="unknown"
-            up_hms="$(date '+%H:%M:%S')"
-            dur=$((now-down_ts))
+            [ -z "$down_hms" ] && down_hms="$(date '+%H:%M:%S' 2>/dev/null)"
 
-            local title lbl_down lbl_up lbl_dur msg
-            title="$(T TXT_HM_WAN_UP_TITLE)"
-            title="${title//%IF%/$ifc}"
-            lbl_down="$(T TXT_HM_WAN_DOWN_TIME_LABEL)"
-            lbl_up="$(T TXT_HM_WAN_UP_TIME_LABEL)"
-            lbl_dur="$(T TXT_HM_WAN_DUR_LABEL)"
+            up_hms="$(date '+%H:%M:%S' 2>/dev/null)"
+            dur="$(hm_fmt_hms $((now - down_ts)))"
 
-            msg="${title}
-📉 ${lbl_down} ${down_hms}
-📈 ${lbl_up} ${up_hms}
-⏱️ ${lbl_dur} $(hm_fmt_hms "$dur")"
-            telegram_send "$msg"
+            wan_disp="$conf_disp"
+            if [ -z "$wan_disp" ] || [ "$wan_disp" = "auto" ]; then
+                wan_disp="$ifc"
+            fi
 
             echo "UP" >"$state_f" 2>/dev/null
-            echo 0 >"$oks_f" 2>/dev/null
-            echo 0 >"$fails_f" 2>/dev/null
+            chmod 600 "$state_f" 2>/dev/null
             rm -f "$down_ts_f" "$down_hms_f" 2>/dev/null
-        fi
-    else
-        oks=0
-        fails=$((fails+1))
-        echo "$oks" >"$oks_f" 2>/dev/null
-        echo "$fails" >"$fails_f" 2>/dev/null
 
-        if [ "$state" = "UP" ] && [ "$fails" -ge "${HM_WANMON_FAIL_TH:-3}" ]; then
-            echo "$(healthmon_now)" >"$down_ts_f" 2>/dev/null
-            date '+%H:%M:%S' >"$down_hms_f" 2>/dev/null
-            echo "DOWN" >"$state_f" 2>/dev/null
-            echo 0 >"$fails_f" 2>/dev/null
-            echo 0 >"$oks_f" 2>/dev/null
+            telegram_send "$(printf '%s
+%s %s
+%s %s
+%s %s' \
+                "✅ WAN UP (${wan_disp})" \
+                "📉 Down" "$down_hms" \
+                "📈 Up" "$up_hms" \
+                "⏱️ Sure" "$dur")"
+            healthmon_log "$now | wanmon | up iface=$ifc dur=$dur"
         fi
+        return 0
+    fi
+
+    # observed DOWN
+    oks=0
+    fails=$((fails+1))
+    echo "$fails" >"$fails_f" 2>/dev/null
+    echo "$oks" >"$oks_f" 2>/dev/null
+
+    if [ "$state" = "UP" ] && [ "$fails" -ge "${HM_WANMON_FAIL_TH:-3}" ]; then
+        echo "DOWN" >"$state_f" 2>/dev/null
+        chmod 600 "$state_f" 2>/dev/null
+        echo "$now" >"$down_ts_f" 2>/dev/null
+        chmod 600 "$down_ts_f" 2>/dev/null
+        echo "$(date '+%H:%M:%S' 2>/dev/null)" >"$down_hms_f" 2>/dev/null
+        chmod 600 "$down_hms_f" 2>/dev/null
+        healthmon_log "$now | wanmon | down iface=$ifc"
+        # NOTE: No Telegram on DOWN. We notify only when it comes back UP (with duration).
     fi
 }
 
@@ -6621,49 +6633,9 @@ healthmon_wan_is_up() {
     '
 }
 
+
 healthmon_wan_tick() {
-    [ "${HM_WANMON_ENABLE:-0}" = "1" ] || return 0
-
-    local ifc state_file down_file fails_file oks_file
-    ifc="$(healthmon_detect_wan_iface_ndm)"
-    [ -n "$ifc" ] || return 0
-
-    state_file="/tmp/healthmon_wan.state"
-    down_file="/tmp/healthmon_wan.down_ts"
-    fails_file="/tmp/healthmon_wan.fails"
-    oks_file="/tmp/healthmon_wan.oks"
-
-    [ -f "$state_file" ] || echo "UP" >"$state_file"
-    [ -f "$fails_file" ] || echo 0 >"$fails_file"
-    [ -f "$oks_file" ] || echo 0 >"$oks_file"
-
-    if healthmon_wan_is_up "$ifc"; then
-        echo 0 >"$fails_file"
-        local oks
-        oks=$(cat "$oks_file" 2>/dev/null); oks=$((oks+1)); echo "$oks" >"$oks_file"
-        if [ "$(cat "$state_file" 2>/dev/null)" = "DOWN" ] && [ "$oks" -ge "${HM_WANMON_OK_TH:-2}" ]; then
-            local now down dur hh mm ss
-            now=$(date +%s)
-            down=$(cat "$down_file" 2>/dev/null); [ -n "$down" ] || down="$now"
-            dur=$((now-down))
-            hh=$((dur/3600)); mm=$(((dur%3600)/60)); ss=$((dur%60))
-            telegram_send "$(tpl_render "$(T TXT_HM_WAN_UP_MSG)" IF "$ifc" DUR "$(printf '%02d:%02d:%02d' $hh $mm $ss)")"
-            echo "UP" >"$state_file"
-            echo 0 >"$oks_file"
-        fi
-    else
-        echo 0 >"$oks_file"
-        local fails
-        fails=$(cat "$fails_file" 2>/dev/null); fails=$((fails+1)); echo "$fails" >"$fails_file"
-        if [ "$(cat "$state_file" 2>/dev/null)" = "UP" ] && [ "$fails" -ge "${HM_WANMON_FAIL_TH:-3}" ]; then
-            date +%s >"$down_file"
-            telegram_send "$(tpl_render "$(T TXT_HM_WAN_DOWN_MSG)" IF "$ifc")"
-            echo "DOWN" >"$state_file"
-            echo 0 >"$fails_file"
-        fi
-    fi
-
-    return 0
+    hm_wanmon_tick
 }
 
 healthmon_loop() {
@@ -6859,7 +6831,6 @@ healthmon_loop() {
         fi
 
                 # WAN monitor (NDM-based, no ping)
-        healthmon_wan_tick
 
 # periodic update check (GitHub)
         healthmon_updatecheck_do
