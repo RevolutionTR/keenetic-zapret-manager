@@ -3,6 +3,10 @@
 📦 **Latest Release (recommended):**  
 https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
 
+## 🔍 Hızlı Kurulum ve Menü Kılavuzu
+https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/kullanim_kilavuzu.md
+
+
 <img src="docs/images/zapret_menu_main.png" width="600">
 
 <img src="docs/images/zapret_menu2.png" width="600">
