@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.8"
+SCRIPT_VERSION="v26.2.9"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -570,32 +570,36 @@ color_mode_name() {
 
 
 # Sozluk: TXT_*_TR / TXT_*_EN
-TXT_MAIN_TITLE_TR=" [36mKeenetic icin Zapret Yonetim Scripti (ZKM)[0m"
-TXT_MAIN_TITLE_EN=" [36mZapret Management Script for Keenetic (ZKM)[0m"
+TXT_MAIN_TITLE_TR=" ZAPRET YONETIM ARACI (ZKM) — KEENETIC"
+TXT_MAIN_TITLE_EN=" ZAPRET MANAGEMENT TOOL (ZKM) — KEENETIC"
 
-TXT_OPTIMIZED_TR=" Varsayilan ayarlar Turk Telekom uzerinde test edilerek optimize edilmistir"
-TXT_OPTIMIZED_EN=" Default settings are optimized based on testing on Turk Telekom"
+TXT_OPTIMIZED_TR=" Varsayilan ayarlar Turk Telekom altyapisinda test edilerek optimize edilmistir."
+TXT_OPTIMIZED_EN=" Default settings are tested and optimized for Turk Telekom infrastructure."
 
-TXT_DPI_WARNING_TR=" Not: DPI profillerinin basarimi ISS, hat tipi ve bolgeye gore degisebilir"
-TXT_DPI_WARNING_EN=" Note: DPI profile effectiveness may vary by ISP, line type, and region"
+TXT_DPI_WARNING_TR=" DPI profil basarimi; ISS, hat tipi ve bolgeye gore degiskenlik gosterebilir."
+TXT_DPI_WARNING_EN=" DPI profile effectiveness may vary by ISP, line type, and region."
 
 TXT_DEVELOPER_TR=" Gelistirici : RevolutionTR"
 TXT_DEVELOPER_EN=" Developer  : RevolutionTR"
 
-TXT_EDITOR_TR=" Duzenleyen  : RevolutionTR"
-TXT_EDITOR_EN=" Maintainer : RevolutionTR"
+TXT_GITHUB_TR=" GitHub      : github.com/RevolutionTR/keenetic-zapret-manager"
+TXT_GITHUB_EN=" GitHub     : github.com/RevolutionTR/keenetic-zapret-manager"
+
+
+# TXT_EDITOR_TR=" Duzenleyen  : RevolutionTR"
+# TXT_EDITOR_EN=" Maintainer : RevolutionTR"
 
 TXT_VERSION_TR=" Surum       : ${SCRIPT_VERSION}"
 TXT_VERSION_EN=" Version    : ${SCRIPT_VERSION}"
 
-TXT_DESC1_TR="Bu betik, Keenetic cihazlari uzerinde Zapret"
-TXT_DESC1_EN="This script helps you install and manage Zapret"
+TXT_DESC1_TR="Bu arac, Keenetic cihazlarinda Zapret kurulumunu,"
+TXT_DESC1_EN="This tool unifies Zapret installation,"
 
-TXT_DESC2_TR="modulunu kolayca kurmak ve yonetmek amaciyla"
-TXT_DESC2_EN="on Keenetic devices more easily."
+TXT_DESC2_TR="yonetimini ve sistem izlemeyi tek noktada toplayan"
+TXT_DESC2_EN="management, and system monitoring"
 
-TXT_DESC3_TR="gelistirilmistir."
-TXT_DESC3_EN=""
+TXT_DESC3_TR="gelismis bir yonetim cozumudur."
+TXT_DESC3_EN="into a centralized solution for Keenetic devices."
 
 TXT_MENU_HEADER_TR="------------------- ANA MENU --------------------------------------------------------------"
 TXT_MENU_HEADER_EN="-------------------- MAIN MENU ------------------------------------------------------------"
@@ -675,14 +679,14 @@ TXT_MENU_12_EN="12. IPSET (Works with static IP devices – DHCP is not supporte
 TXT_MENU_13_TR="13. Betik: Yedekten Geri Don (Rollback)"
 TXT_MENU_13_EN="13. Script: Roll Back from Backup"
 
-TXT_MENU_14_TR="14. Saglik Kontrolu (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
-TXT_MENU_14_EN="14. Health Check (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
+TXT_MENU_14_TR="14. Ag Tanilama ve Sistem Kontrolu (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
+TXT_MENU_14_EN="14. Network Diagnostics & System Check (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
 
 TXT_MENU_15_TR="15. Bildirimler (Telegram)"
 TXT_MENU_15_EN="15. Notifications (Telegram)"
 
-TXT_MENU_16_TR="16. Sistem Sagligi Monitoru (CPU/RAM/Disk/Load/Zapret)"
-TXT_MENU_16_EN="16. System Health Monitor (CPU/RAM/Disk/Load/Zapret)"
+TXT_MENU_16_TR="16. Sistem Izleme (CPU/RAM/Disk/Load/Zapret)"
+TXT_MENU_16_EN="16. System Monitoring (CPU/RAM/Disk/Load/Zapret)"
 
 # -------------------------------------------------------------------
 # Telegram notifications
@@ -974,7 +978,6 @@ TXT_HM_STATUS_LOAD_EN="Load"
 
 TXT_HM_STATUS_RAM_FREE_TR="RAM bos"
 TXT_HM_STATUS_RAM_FREE_EN="RAM free"
-
 
 TXT_TG_ERR_TOKEN_FORMAT_TR="Token formati hatali (:) yok)."
 TXT_TG_ERR_TOKEN_FORMAT_EN="Invalid token format (missing :)."
@@ -1653,7 +1656,6 @@ TXT_BLOCKCHECK_CLEAN_NONE_EN="No test reports to clean."
 
 TXT_BLOCKCHECK_CLEAN_DONE_TR="Test raporlari temizlendi."
 TXT_BLOCKCHECK_CLEAN_DONE_EN="Test reports cleaned."
-
 
 TXT_BLOCKCHECK_SUMMARY_SAVED_TR="Ozet rapor kaydedildi:"
 TXT_BLOCKCHECK_SUMMARY_SAVED_EN="Summary saved:"
@@ -4696,19 +4698,26 @@ script_rollback_menu() {
 
 
 display_menu() {
+    echo
+    echo
     print_line "=" 
-    echo "$(T TXT_MAIN_TITLE)"
-    echo "$(T TXT_OPTIMIZED)"
-    _dpi_warn="$(T dpi_warn "$TXT_DPI_WARNING_TR" "$TXT_DPI_WARNING_EN")"
-    echo "$_dpi_warn"
+    echo "${CLR_BOLD}${CLR_CYAN}$(T TXT_MAIN_TITLE)${CLR_RESET}"
+    print_line "="
+    echo
     printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_DEVELOPER)${CLR_RESET}"
-    printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_EDITOR)${CLR_RESET}"
+    printf '%b\n' "${CLR_DIM}$(T TXT_GITHUB)${CLR_RESET}"
+#   printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_EDITOR)${CLR_RESET}"
     printf '%b\n' "${CLR_YELLOW}$(T TXT_VERSION)${CLR_RESET}"
+    echo
     print_line "=" 
-	echo
+    echo
     echo " $(T TXT_DESC1)"
     echo " $(T TXT_DESC2)"
     echo " $(T TXT_DESC3)"
+    echo
+    echo "$(T TXT_OPTIMIZED)"
+    _dpi_warn="$(T dpi_warn "$TXT_DPI_WARNING_TR" "$TXT_DPI_WARNING_EN")"
+    echo "$_dpi_warn"
     echo
     print_line "-"
     echo "$(T TXT_MENU_1)"
@@ -6648,6 +6657,9 @@ healthmon_loop() {
     echo "$$" >"$HM_PID_FILE" 2>/dev/null
     : >"$HM_LOG_FILE" 2>/dev/null
     echo "$(date +%s) | started" >>"$HM_LOG_FILE" 2>/dev/null
+
+# Stale-state cleanup on daemon start (prevents old DOWN/FAIL counters after reboot/manual restart)
+rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
 
     # Run one immediate WANMON tick on startup so guards/logs are visible without waiting HM_INTERVAL
     healthmon_load_config
