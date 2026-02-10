@@ -4,7 +4,7 @@
 https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
 
 ## 🔍 Hızlı Kurulum ve Menü Kılavuzu
-https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/kullanim_klavuzu.md/docs/kullanim_kilavuzu.md
+[https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/kullanim_klavuzu.md/docs/kullanim_kilavuzu.md](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/f96a3f6fcfa1c4e7c9652a85beace30548a7d968/docs/kullanim_klavuzu.md)
 
 
 <img src="docs/images/zapret_menu_main.png" width="600">
