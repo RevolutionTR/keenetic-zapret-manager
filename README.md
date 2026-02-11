@@ -1,19 +1,22 @@
-# keenetic-zapret-manager
+# Keenetic Zapret Manager (KZM)
 
-📦 **Latest Release (recommended):**  
-https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest
+## 📦 Kurulum ve İndirme
 
-## 🔍 Hızlı Kurulum ve Menü Kılavuzu
-[https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/kullanim_klavuzu.md/docs/kullanim_kilavuzu.md](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/f96a3f6fcfa1c4e7c9652a85beace30548a7d968/docs/kullanim_klavuzu.md)
+[![GitHub release](https://img.shields.io/github/v/release/RevolutionTR/keenetic-zapret-manager?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest)
+
+[![Hızlı Kurulum](https://img.shields.io/badge/Dokümantasyon-Hızlı_Kurulum-blue?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/kullanim_klavuzu.md)
+
+[![Sıfırdan Kurulum](https://img.shields.io/badge/Kurulum-Sıfırdan_Anlatım-success?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/sifirdan_kurulum_anlatimi.md)
 
 
-<img src="docs/images/zapret_menu_main.png" width="600">
 
-<img src="docs/images/zapret_menu2.png" width="600">
+<img src="docs/images/KZM8.png" width="800">
 
-<img src="docs/images/zapret_menu4.png" width="600">
+<img src="docs/images/zapret_menu2.png" width="800">
 
-<img src="docs/images/zapret_menu5.png" width="600">
+<img src="docs/images/zapret_menu4.png" width="800">
+
+<img src="docs/images/zapret_menu5.png" width="800">
 
 
 
@@ -205,71 +208,10 @@ Sadece bu betiğe ait yedekler temizlenir:
 
 ### 1️⃣ Entware Kurulmuş Olmalı
 
-Keenetic arayüzünden:
 
-```
-Uygulamalar → Entware
-```
-
-Kurulumdan sonra SSH ile doğrulayın:
-
-```sh
-opkg --version
-```
+### 2️⃣ OPKG Kurulmu Olmalı
 
 ---
-
-### 2️⃣ Gerekli OPKG Paketleri
-
-Betiğin kendisi eksik paketleri otomatik olarak kontrol eder ve kurar.  
-Manuel kurmak isterseniz:
-
-```sh
-opkg update
-opkg install curl wget ipset iptables
-```
-
----
-
-## 📦 Kurulum
-
-### 1️⃣ Betiği İndirin
-
-GitHub repo veya **Releases** bölümünden aşağıdaki dosyayı indirin:
-
-```
-keenetic_zapret_otomasyon_ipv6_ipset.sh
-```
-
----
-
-### 2️⃣ Betiği `/opt` Altına Kopyalayın
-
-> ⚠️ Betik **mutlaka `/opt` altında** çalıştırılmalıdır.
-
-```sh
-scp keenetic_zapret_otomasyon_ipv6_ipset.sh \
-root@192.168.1.1:/opt/lib/opkg/
-```
-
----
-
-### 3️⃣ Çalıştırma İzni Verin
-
-```sh
-chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
-```
-
----
-
-### 4️⃣ Betiği Çalıştırın
-
-```sh
-/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
-```
-
----
-
 ## 🧩 İlk Kurulumda Ne Olur?
 
 - OPKG paketleri kontrol edilir
