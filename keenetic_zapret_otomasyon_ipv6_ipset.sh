@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.9"
+SCRIPT_VERSION="v26.2.11"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -210,14 +210,14 @@ fi
 # -------------------------------------------------------------------
 
 #------ Komple Kaldırma ---------------------------------------------------------------
-# ZKM + Zapret tam temiz kaldırma (UNSAFE / irreversible)
-# Not: "Zapret’i Kaldir" (mevcut) rutini aynen calisir, sonra ZKM kalintilari temizlenir.
+# KZM + Zapret tam temiz kaldırma (UNSAFE / irreversible)
+# Not: "Zapret’i Kaldir" (mevcut) rutini aynen calisir, sonra KZM kalintilari temizlenir.
 # TR/EN Dictionary (Komple Kaldirma)
-TXT_ZKM_FULL_UNINSTALL_TITLE_TR="ZKM + Zapret Kaldirma (Tam Temiz)"
-TXT_ZKM_FULL_UNINSTALL_TITLE_EN="ZKM + Zapret Uninstall (Full Clean)"
+TXT_ZKM_FULL_UNINSTALL_TITLE_TR="KZM + Zapret Kaldirma (Tam Temiz)"
+TXT_ZKM_FULL_UNINSTALL_TITLE_EN="KZM + Zapret Uninstall (Full Clean)"
 
-TXT_ZKM_FULL_UNINSTALL_WARN1_TR="Bu islem Zapret'i kaldirir ve ZKM'nin HealthMon/Telegram ayarlarini, init dosyalarini ve log/state dosyalarini temizler."
-TXT_ZKM_FULL_UNINSTALL_WARN1_EN="This will uninstall Zapret and clean ZKM HealthMon/Telegram configs, init files, and log/state files."
+TXT_ZKM_FULL_UNINSTALL_WARN1_TR="Bu islem Zapret'i kaldirir ve KZM'nin HealthMon/Telegram ayarlarini, init dosyalarini ve log/state dosyalarini temizler."
+TXT_ZKM_FULL_UNINSTALL_WARN1_EN="This will uninstall Zapret and clean KZM HealthMon/Telegram configs, init files, and log/state files."
 
 TXT_ZKM_FULL_UNINSTALL_WARN2_TR="Islem geri alinamaz. Devam etmeden once yedek aldiginizdan emin olun."
 TXT_ZKM_FULL_UNINSTALL_WARN2_EN="This action is irreversible. Make sure you have a backup before continuing."
@@ -237,22 +237,20 @@ TXT_ZKM_FULL_UNINSTALL_HINT_EN="Press ENTER to cancel."
 TXT_ZKM_FULL_UNINSTALL_PHASE1_TR="1/2: Zapret kaldiriliyor..."
 TXT_ZKM_FULL_UNINSTALL_PHASE1_EN="1/2: Uninstalling Zapret..."
 
-TXT_ZKM_FULL_UNINSTALL_PHASE2_TR="2/2: ZKM kalintilari temizleniyor..."
-TXT_ZKM_FULL_UNINSTALL_PHASE2_EN="2/2: Cleaning ZKM leftovers..."
+TXT_ZKM_FULL_UNINSTALL_PHASE2_TR="2/2: KZM kalintilari temizleniyor..."
+TXT_ZKM_FULL_UNINSTALL_PHASE2_EN="2/2: Cleaning KZM leftovers..."
 
 TXT_ZKM_FULL_UNINSTALL_STEP1_TR="1/2: Zapret kaldiriliyor (mevcut kaldirma rutini)..."
 TXT_ZKM_FULL_UNINSTALL_STEP1_EN="1/2: Removing Zapret (existing uninstall routine)..."
 
-TXT_ZKM_FULL_UNINSTALL_STEP2_TR="2/2: ZKM kalintilari temizleniyor..."
-TXT_ZKM_FULL_UNINSTALL_STEP2_EN="2/2: Cleaning ZKM leftovers..."
+TXT_ZKM_FULL_UNINSTALL_STEP2_TR="2/2: KZM kalintilari temizleniyor..."
+TXT_ZKM_FULL_UNINSTALL_STEP2_EN="2/2: Cleaning KZM leftovers..."
 
 TXT_ZKM_FULL_UNINSTALL_DONE_TR="Tam temiz kaldirma tamamlandi."
 TXT_ZKM_FULL_UNINSTALL_DONE_EN="Full clean uninstall completed."
 
 TXT_ZKM_FULL_UNINSTALL_NOTE_TR="Not: Bu islemin ardindan betik artik calismayacaktir."
 TXT_ZKM_FULL_UNINSTALL_NOTE_EN="Note: After this, the script will no longer be available."
-
-
 
 TXT_ZKM_FULL_UNINSTALL_SCRIPT_NOTE_TR="Betik dosyasi guvenlik nedeniyle silinmedi. Isterseniz manuel olarak silebilirsiniz."
 TXT_ZKM_FULL_UNINSTALL_SCRIPT_NOTE_EN="Script file was not removed for safety. You may delete it manually if desired."
@@ -299,14 +297,14 @@ zkm_full_uninstall() {
     fi
     rm -rf /tmp/healthmon.lock 2>/dev/null
 
-    # Remove HealthMon / Telegram configs (ZKM-owned)
+    # Remove HealthMon / Telegram configs (KZM-owned)
     rm -f /opt/etc/healthmon.conf /opt/etc/healthmon.conf.bak 2>/dev/null
     rm -f /opt/etc/telegram.conf 2>/dev/null
 
-    # Remove init autostart (if created by ZKM)
+    # Remove init autostart (if created by KZM)
     rm -f /opt/etc/init.d/S99zkm_healthmon 2>/dev/null
 
-    # Remove state/log files (ZKM/HealthMon/WANMon)
+    # Remove state/log files (KZM/HealthMon/WANMon)
     rm -f /opt/etc/healthmon_update.state 2>/dev/null
     rm -f /tmp/zkm_autoupdate.log 2>/dev/null
     rm -f /tmp/healthmon.log 2>/dev/null
@@ -315,7 +313,7 @@ zkm_full_uninstall() {
     # Remove helper/wrapper commands created by this script
     rm -f /opt/bin/keenetic /opt/bin/keenetic-zapret 2>/dev/null
 
-    # Remove ZKM backup files (script backups)
+    # Remove KZM backup files (script backups)
     rm -f /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_* 2>/dev/null
     # Script file is NOT removed (safety)
 
@@ -567,17 +565,110 @@ color_mode_name() {
     esac
 }
 
+# Zapret installed version (from file). Safe if not installed.
+ZAPRET_VERSION_FILE="/opt/zapret/version"
+
+zkm_get_zapret_version() {
+    local v
+    # Default fallback comes from TR/EN dictionary variables (no hardcoded literals here)
+    v="$(T TXT_UNKNOWN "$TXT_UNKNOWN_TR" "$TXT_UNKNOWN_EN")"
+    if [ -r "$ZAPRET_VERSION_FILE" ]; then
+        v="$(head -n 1 "$ZAPRET_VERSION_FILE" 2>/dev/null | tr -d '
+')"
+        [ -n "$v" ] || v="$(T TXT_UNKNOWN "$TXT_UNKNOWN_TR" "$TXT_UNKNOWN_EN")"
+    fi
+    printf "%s" "$v"
+}
+
+# ---- Main banner live status helpers (safe, minimal) ----
+zkm_banner_ndmc_ok() {
+    command -v ndmc >/dev/null 2>&1 || return 1
+    ndmc -c 'show version' >/dev/null 2>&1
+}
+
+zkm_banner_get_ndmc_field() {
+    # $1: field name (e.g., "model:")
+    [ -n "$1" ] || return 1
+    ndmc -c 'show version' 2>/dev/null | tr -d '\r' | awk -v f="$1" '$1==f{ $1=""; sub(/^[ \t]+/,""); print; exit }'
+}
+
+zkm_banner_get_system() {
+    local m=""
+    if zkm_banner_ndmc_ok; then
+        m="$(zkm_banner_get_ndmc_field model:)"
+        [ -n "$m" ] && { echo "Keenetic $m"; return 0; }
+    fi
+    if [ -r /proc/device-tree/model ]; then
+        m="$(tr -d '\000' </proc/device-tree/model 2>/dev/null)"
+        [ -n "$m" ] && { echo "$m"; return 0; }
+    fi
+    echo "Keenetic"
+}
+
+zkm_banner_get_wan_dev() {
+    local dev=""
+
+    # Prefer existing WAN detection helpers (used elsewhere in the script)
+    dev="$(get_wan_if 2>/dev/null)"
+    [ -z "$dev" ] && dev="$(healthmon_detect_wan_iface_ndm 2>/dev/null)"
+
+    # Fallback: parse default route robustly (avoid returning 'link')
+    if [ -z "$dev" ]; then
+        dev="$(ip route 2>/dev/null | awk '$1=="default"{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+    fi
+
+    printf "%s" "$dev"
+}
+
+zkm_banner_get_wan_state() {
+    local dev="$1"
+    local up
+
+    [ -n "$dev" ] || { echo "DOWN"; return 0; }
+
+    up="$(ip link show "$dev" 2>/dev/null | head -n 1)"
+    echo "$up" | grep -q 'LOWER_UP' && { echo "UP"; return 0; }
+    echo "$up" | grep -q '<.*UP' && { echo "UP"; return 0; }
+
+    echo "DOWN"
+}
+
+zkm_banner_get_zapret_state() {
+    if is_zapret_running; then
+        echo "RUNNING"
+    else
+        echo "STOPPED"
+    fi
+}
+
+zkm_banner_fmt_wan_state() {
+    # $1: UP|DOWN
+    case "$1" in
+        UP)   printf '%b' "${CLR_GREEN}$(T TXT_MAIN_UP)${CLR_RESET}" ;;
+        *)    printf '%b' "${CLR_RED}$(T TXT_MAIN_DOWN)${CLR_RESET}" ;;
+    esac
+}
+
+zkm_banner_fmt_zapret_state() {
+    # $1: RUNNING|STOPPED
+    case "$1" in
+        RUNNING) printf '%b' "${CLR_GREEN}$(T TXT_MAIN_RUNNING)${CLR_RESET}" ;;
+        *)       printf '%b' "${CLR_RED}$(T TXT_MAIN_STOPPED)${CLR_RESET}" ;;
+    esac
+}
+
+
 
 
 # Sozluk: TXT_*_TR / TXT_*_EN
-TXT_MAIN_TITLE_TR=" ZAPRET YONETIM ARACI (ZKM) — KEENETIC"
-TXT_MAIN_TITLE_EN=" ZAPRET MANAGEMENT TOOL (ZKM) — KEENETIC"
+TXT_MAIN_TITLE_TR=" KEENETIC ZAPRET YONETIM ARACI (KZM)"
+TXT_MAIN_TITLE_EN=" KEENETIC ZAPRET MANAGEMENT TOOL (KZM)"
 
-TXT_OPTIMIZED_TR=" Varsayilan ayarlar Turk Telekom altyapisinda test edilerek optimize edilmistir."
-TXT_OPTIMIZED_EN=" Default settings are tested and optimized for Turk Telekom infrastructure."
+TXT_OPTIMIZED_TR=" Varsayilan ayarlar TT altyapisinda test edilerek optimize edilmistir."
+TXT_OPTIMIZED_EN=" Default settings are tested and optimized for TT infrastructure."
 
-TXT_DPI_WARNING_TR=" DPI profil basarimi; ISS, hat tipi ve bolgeye gore degiskenlik gosterebilir."
-TXT_DPI_WARNING_EN=" DPI profile effectiveness may vary by ISP, line type, and region."
+TXT_DPI_WARNING_TR=" DPI profil basarimi; ISS, hat tipine gore degiskenlik gosterebilir."
+TXT_DPI_WARNING_EN=" DPI profile effectiveness may vary by ISP, line type."
 
 TXT_DEVELOPER_TR=" Gelistirici : RevolutionTR"
 TXT_DEVELOPER_EN=" Developer  : RevolutionTR"
@@ -585,12 +676,38 @@ TXT_DEVELOPER_EN=" Developer  : RevolutionTR"
 TXT_GITHUB_TR=" GitHub      : github.com/RevolutionTR/keenetic-zapret-manager"
 TXT_GITHUB_EN=" GitHub     : github.com/RevolutionTR/keenetic-zapret-manager"
 
-
 # TXT_EDITOR_TR=" Duzenleyen  : RevolutionTR"
 # TXT_EDITOR_EN=" Maintainer : RevolutionTR"
 
-TXT_VERSION_TR=" Surum       : ${SCRIPT_VERSION}"
-TXT_VERSION_EN=" Version    : ${SCRIPT_VERSION}"
+TXT_VERSION_TR=" KZM Surum   : ${SCRIPT_VERSION}"
+TXT_VERSION_EN=" KZM Version: ${SCRIPT_VERSION}"
+
+TXT_ZAPRET_VERSION_PREFIX_TR=" Zapret Surum: "
+TXT_ZAPRET_VERSION_PREFIX_EN=" Zapret Ver : "
+
+TXT_UNKNOWN_TR="Kurulu Degil"
+TXT_UNKNOWN_EN="Not Installed"
+
+TXT_MAIN_SYS_LABEL_TR="Sistem"
+TXT_MAIN_SYS_LABEL_EN="System"
+
+TXT_MAIN_WAN_LABEL_TR="WAN"
+TXT_MAIN_WAN_LABEL_EN="WAN"
+
+TXT_MAIN_ZAPRET_LABEL_TR="Zapret"
+TXT_MAIN_ZAPRET_LABEL_EN="Zapret"
+
+TXT_MAIN_UP_TR="UP"
+TXT_MAIN_UP_EN="UP"
+
+TXT_MAIN_DOWN_TR="DOWN"
+TXT_MAIN_DOWN_EN="DOWN"
+
+TXT_MAIN_RUNNING_TR="CALISIYOR"
+TXT_MAIN_RUNNING_EN="RUNNING"
+
+TXT_MAIN_STOPPED_TR="DURDU"
+TXT_MAIN_STOPPED_EN="STOPPED"
 
 TXT_DESC1_TR="Bu arac, Keenetic cihazlarinda Zapret kurulumunu,"
 TXT_DESC1_EN="This tool unifies Zapret installation,"
@@ -1057,11 +1174,11 @@ Package : zapret
 Installed: %CUR%
 Latest   : %NEW%
 Link     : %URL%"
-TXT_UPD_ZKM_AUTO_OK_TR="[AutoUpdate]\nZKM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
-TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nZKM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_OK_TR="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 
-TXT_UPD_ZKM_AUTO_FAIL_TR="[AutoUpdate]\nZKM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
-TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\nZKM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_FAIL_TR="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 
 TXT_HM_PROMPT_AUTOUPDATE_MODE_TR="Otomatik guncelleme modu (0=KAPALI,1=BILDIR,2=OTO KUR) [or: 2]:"
 TXT_HM_PROMPT_AUTOUPDATE_MODE_EN="Auto update mode (0=OFF,1=Notify,2=Auto install) [e.g. 2]:"
@@ -1701,8 +1818,8 @@ TXT_PROMPT_SELECTION_EN=" Selection: "
 TXT_MENU_L_TR=" L. Dil Degistir (TR/EN)"
 TXT_MENU_L_EN=" L. Switch Language (TR/EN)"
 
-TXT_MENU_U_TR=" U. ZKM + Zapret Kaldir (Tam Temiz)"
-TXT_MENU_U_EN=" U. ZKM + Zapret Uninstall (Full Clean)"
+TXT_MENU_U_TR=" U. KZM + Zapret Kaldir (Tam Temiz)"
+TXT_MENU_U_EN=" U. KZM + Zapret Uninstall (Full Clean)"
 
 
 TXT_MENU_0_TR=" 0. Cikis"
@@ -4708,6 +4825,34 @@ display_menu() {
     printf '%b\n' "${CLR_DIM}$(T TXT_GITHUB)${CLR_RESET}"
 #   printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_EDITOR)${CLR_RESET}"
     printf '%b\n' "${CLR_YELLOW}$(T TXT_VERSION)${CLR_RESET}"
+    printf '%b\n' "${CLR_YELLOW}$(T TXT_ZAPRET_VERSION_PREFIX)$(zkm_get_zapret_version)${CLR_RESET}"
+echo
+
+    # ---- Live status (System/WAN/Zapret) ----
+    local _sys _wan_dev _wan_state _zap_state
+    _sys="$(zkm_banner_get_system)"
+    _wan_dev="$(zkm_banner_get_wan_dev)"
+    [ -z "$_wan_dev" ] && _wan_dev="-"
+    _wan_state="$(zkm_banner_get_wan_state "$_wan_dev")"
+    _zap_state="$(zkm_banner_get_zapret_state)"
+
+    local _lblw=10
+
+
+    [ "$LANG" != "en" ] && _lblw=11
+
+
+    printf " %-*s : %s
+" "$_lblw" "$(T TXT_MAIN_SYS_LABEL)" "$_sys"
+
+
+    printf " %-*s : %s | %b
+" "$_lblw" "$(T TXT_MAIN_WAN_LABEL)" "$_wan_dev" "$(zkm_banner_fmt_wan_state "$_wan_state")"
+
+
+    printf " %-*s : %b
+" "$_lblw" "$(T TXT_MAIN_ZAPRET_LABEL)" "$(zkm_banner_fmt_zapret_state "$_zap_state")"
+
     echo
     print_line "=" 
     echo
@@ -5952,23 +6097,85 @@ $event
 EOF
 }
 
-telegram_send() {
-    # $1 message
-    local msg="$1"
+telegram_ready() {
+    # Ensure Telegram is configured (token + chat id). Best-effort device header init.
     telegram_load_config || return 1
+    telegram_device_info_init >/dev/null 2>&1
+    return 0
+}
 
-    # Optional device header for multi-router setups
+
+telegram_send() {
+    # $1 message (UTF-8)
+    [ -n "$1" ] || return 1
+
+    # Telegram basic pre-req
+    telegram_ready || return 1
+
+    # Optional: include device header + timestamp (same format as other TG alerts)
+    local _tg_msg="$1"
     if [ "${TG_INCLUDE_DEVICE_HEADER:-1}" = "1" ]; then
-        case "$msg" in
-            *"━━━━━━━━"* ) : ;;  # already formatted
-            * ) msg="$(telegram_build_msg "$msg")" ;;
-        esac
+        # Always attempt to wrap with device header; avoid brittle shell builtins checks.
+        _tg_msg="$(telegram_build_msg "$_tg_msg" 2>/dev/null)"
+        [ -n "$_tg_msg" ] || _tg_msg="$1"
     fi
 
-    # Use data-urlencode so newlines and special chars render correctly in Telegram.
-    msg="$(printf '%b' "$msg")"
-    curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage"         --data-urlencode "chat_id=${TG_CHAT_ID}"         --data-urlencode "text=${msg}"         --data-urlencode "disable_web_page_preview=1" >/dev/null 2>&1
+    # Find curl in daemon PATH too
+    local CURL_BIN=""
+    CURL_BIN="$(command -v curl 2>/dev/null)"
+    [ -z "$CURL_BIN" ] && [ -x /opt/bin/curl ] && CURL_BIN="/opt/bin/curl"
+    [ -z "$CURL_BIN" ] && [ -x /usr/bin/curl ] && CURL_BIN="/usr/bin/curl"
+    [ -z "$CURL_BIN" ] && [ -x /bin/curl ] && CURL_BIN="/bin/curl"
+    if [ -z "$CURL_BIN" ]; then
+        healthmon_log "$(healthmon_now) | telegram | curl not found"
+        return 127
+    fi
+
+    # After WAN flaps, DNS may not be ready immediately (curl rc=6).
+    # We wait a bit and retry with exponential backoff.
+    local try=1 max_try=6 rc=0
+    local backoff=1
+    local host_ok=0
+    while [ "$try" -le "$max_try" ]; do
+        # Optional DNS readiness check (best-effort)
+        host_ok=0
+        if command -v nslookup >/dev/null 2>&1; then
+            nslookup api.telegram.org >/dev/null 2>&1 && host_ok=1
+        elif command -v getent >/dev/null 2>&1; then
+            getent hosts api.telegram.org >/dev/null 2>&1 && host_ok=1
+        else
+            host_ok=1  # no resolver tool; skip precheck
+        fi
+
+        if [ "$host_ok" -ne 1 ]; then
+            healthmon_log "$(healthmon_now) | telegram | dns not ready try=$try"
+            sleep "$backoff" 2>/dev/null
+            backoff=$((backoff*2)); [ "$backoff" -gt 8 ] && backoff=8
+            try=$((try+1))
+            continue
+        fi
+
+        "$CURL_BIN" -sS \
+            --connect-timeout 5 --max-time 15 \
+            --retry 3 --retry-delay 1 --retry-all-errors \
+            -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT_ID}" \
+            --data-urlencode "text=$_tg_msg" \
+            -d "disable_web_page_preview=true" \
+            >/dev/null 2>&1
+        rc=$?
+
+        [ "$rc" -eq 0 ] && return 0
+
+        healthmon_log "$(healthmon_now) | telegram | send failed rc=$rc try=$try"
+        sleep "$backoff" 2>/dev/null
+        backoff=$((backoff*2)); [ "$backoff" -gt 8 ] && backoff=8
+        try=$((try+1))
+    done
+
+    return "$rc"
 }
+
 
 # Compatibility: old code may call tg_send
 tg_send() { telegram_send "$@"; }
@@ -6222,32 +6429,60 @@ hm_ndmc_cmd() { LD_LIBRARY_PATH= ndmc -c "$1" 2>/dev/null; }
 
 hm_wanmon_get_iface() {
     # Priority:
-    # 1) cached runtime iface
+    # 1) cached runtime iface (linux netdev)
     # 2) HM_WANMON_IFACE (user override)
-    # 3) auto: first PPPoE iface in NDM (common case)
+    # 3) auto: use existing WAN helpers / default route (linux netdev)
+    # 4) last resort: NDM PPPoE name -> map to ppp0 if present
     local cache="/tmp/wanmon.ndm_iface"
     local ifc=""
+
     if [ -f "$cache" ]; then
         ifc="$(cat "$cache" 2>/dev/null)"
     fi
+
     [ -z "$ifc" ] && ifc="$HM_WANMON_IFACE"
 
     if [ -z "$ifc" ]; then
-        # Auto-detect PPPoE interface name from NDM (e.g. PPPoE0)
-        ifc="$(hm_ndmc_cmd "show interface" | awk '
-            BEGIN{RS="Interface, name = "; FS="\n"}
+        # Prefer existing helpers used elsewhere (Menu 14 / Health)
+        ifc="$(get_wan_if 2>/dev/null)"
+        [ -z "$ifc" ] && ifc="$(healthmon_detect_wan_iface_ndm 2>/dev/null)"
+
+        # Fallback: parse default route robustly (avoid returning 'link')
+        if [ -z "$ifc" ]; then
+            ifc="$(ip route 2>/dev/null | awk '$1=="default"{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+        fi
+    fi
+
+    # If we still don't have a linux iface, try NDM PPPoE name and map to ppp0 if possible
+    if [ -n "$ifc" ] && ! ip link show "$ifc" >/dev/null 2>&1; then
+        local ndm_if=""
+        ndm_if="$(hm_ndmc_cmd "show interface" | awk '
+            BEGIN{RS="Interface, name = "; FS="
+"}
             NR>1{
-                name=$1; gsub(/".*/,"",name); gsub(/^[ \t"]+|[ \t"]+$/,"",name)
+                name=$1; gsub(/".*/,"",name); gsub(/^[ 	"]+|[ 	"]+$/,"",name)
                 is_pppoe=0
                 for(i=1;i<=NF;i++){
-                    if($i ~ /^[ \t]*type:[ \t]*PPPoE[ \t]*$/){ is_pppoe=1; break }
+                    if($i ~ /^[ 	]*type:[ 	]*PPPoE[ 	]*$/){ is_pppoe=1; break }
                 }
                 if(is_pppoe){ print name; exit }
             }
         ')"
+        # Common mapping: PPPoE0 -> ppp0 (linux netdev)
+        if ip link show ppp0 >/dev/null 2>&1; then
+            ifc="ppp0"
+        else
+            # Keep empty if invalid
+            ifc=""
+        fi
     fi
 
-    [ -n "$ifc" ] && echo "$ifc" >"$cache" 2>/dev/null
+    # Cache only valid linux netdev
+    if [ -n "$ifc" ] && ip link show "$ifc" >/dev/null 2>&1; then
+        echo "$ifc" >"$cache" 2>/dev/null
+        chmod 600 "$cache" 2>/dev/null
+    fi
+
     echo "$ifc"
 }
 
@@ -6259,23 +6494,46 @@ hm_wanmon_is_linux_iface() {
 }
 
 hm_wanmon_is_up() {
-    # UP = link: up AND connected: yes
     local ifc="$1"
     [ -z "$ifc" ] && return 1
+
+    # Linux netdev ise:
+    # - PPP/IPOe gibi sanal WAN arayuzlerinde LOWER_UP tek basina yeterli degil (WAN kapali iken de UP kalabilir).
+    #   Bu nedenle IPv4 adresi + default route varligini kontrol ediyoruz.
+    # - Diger arayuzlerde (ethX, wlanX vb.) LOWER_UP yeterlidir.
+    if ip link show "$ifc" >/dev/null 2>&1; then
+        case "$ifc" in
+            ppp*|ipoe*|pppoe*)
+                ip -4 addr show dev "$ifc" 2>/dev/null | awk '/inet[[:space:]]/{found=1; exit} END{exit !found}' || return 1
+                ip -4 route show default dev "$ifc" 2>/dev/null | grep -q '^default' || return 1
+                return 0
+                ;;
+            *)
+                ip link show "$ifc" 2>/dev/null | head -n 1 | grep -q LOWER_UP
+                return
+                ;;
+        esac
+    fi
+
+    # ndmc fallback
     hm_ndmc_cmd "show interface $ifc" | awk '
         $1=="link:"      && l=="" {l=$2}
         $1=="connected:" && c=="" {c=$2}
         END { exit ! (l=="up" && c=="yes") }
     '
 }
-
 hm_wanmon_iface_exists() {
-    # Validate that the NDM interface exists (ndmc can query it)
-    local ifc="$1"
-    [ -z "$ifc" ] && return 1
-    hm_ndmc_cmd "show interface $ifc" 2>/dev/null | grep -qE '^[[:space:]]*link:' 
-}
+local ifc="$1"
+[ -z "$ifc" ] && return 1
 
+# Linux netdev ise direkt gecerlidir (ppp0, ipoe0, ethX, vb.)
+if ip link show "$ifc" >/dev/null 2>&1; then
+    return 0
+fi
+
+# ndmc fallback (varsa)
+hm_ndmc_cmd "show interface $ifc" 2>/dev/null | grep -qE '^[[:space:]]*link:'
+}
 hm_fmt_hms() {
     # $1 seconds -> HH:MM:SS
     local s="$1"
@@ -6507,7 +6765,7 @@ healthmon_updatecheck_do() {
     # Auto update mode:
     # 0 = OFF (no checks)
     # 1 = Notify only
-    # 2 = Auto install (ZKM only)
+    # 2 = Auto install (KZM only)
     local upd_mode="${HM_AUTOUPDATE_MODE:-1}"
     case "$upd_mode" in
         0) return 0 ;;
@@ -6649,17 +6907,29 @@ healthmon_wan_tick() {
 
 healthmon_loop() {
     trap '' HUP 2>/dev/null
-    # single-instance guard
+    # Stale-state cleanup on daemon start (keep PID/log intact)
+    rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
+    rm -f /tmp/healthmon_cpu_* /tmp/healthmon_disk* /tmp/healthmon_ram* /tmp/healthmon_zapret_* /tmp/healthmon_updatecheck.* /tmp/healthmon_last_* 2>/dev/null
+    # single-instance guard (robust against stale PID/lock after power loss)
     if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
-        # already running
-        exit 0
+        # If a healthy daemon exists, do nothing.
+        if [ -f "$HM_PID_FILE" ]; then
+            local _p
+            _p="$(cat "$HM_PID_FILE" 2>/dev/null)"
+            if [ -n "$_p" ] && kill -0 "$_p" 2>/dev/null; then
+                exit 0
+            fi
+        fi
+        # Stale lock (directory) - clear and retry once
+        rm -rf "$HM_LOCKDIR" 2>/dev/null
+        if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
+            exit 0
+        fi
     fi
     echo "$$" >"$HM_PID_FILE" 2>/dev/null
     : >"$HM_LOG_FILE" 2>/dev/null
     echo "$(date +%s) | started" >>"$HM_LOG_FILE" 2>/dev/null
 
-# Stale-state cleanup on daemon start (prevents old DOWN/FAIL counters after reboot/manual restart)
-rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
 
     # Run one immediate WANMON tick on startup so guards/logs are visible without waiting HM_INTERVAL
     healthmon_load_config
@@ -6857,10 +7127,25 @@ rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
 }
 
 healthmon_is_running() {
-  [ -f /tmp/healthmon.pid ] || return 1
-  PID="$(cat /tmp/healthmon.pid 2>/dev/null)"
-  [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null
+  # 1) PID file check
+  if [ -f "$HM_PID_FILE" ]; then
+    PID="$(cat "$HM_PID_FILE" 2>/dev/null)"
+    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+      return 0
+    fi
+  fi
+
+  # 2) Fallback: detect an existing daemon even if PID file was lost (/tmp wiped, manual edits, etc.)
+  PID="$(ps 2>/dev/null | awk -v n="$SCRIPT_NAME" 'index($0,"--healthmon-daemon")>0 && index($0,n)>0 {print $1; exit}')"
+  if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+    # re-seed pid file for future checks (best-effort)
+    echo "$PID" >"$HM_PID_FILE" 2>/dev/null
+    return 0
+  fi
+
+  return 1
 }
+
 
 
 healthmon_autostart_install() {
@@ -6868,7 +7153,7 @@ healthmon_autostart_install() {
     mkdir -p /opt/etc/init.d 2>/dev/null
     cat > "$HM_AUTOSTART_FILE" <<'EOF'
 #!/opt/bin/sh
-# Auto-start for ZKM Health Monitor (Entware init.d)
+# Auto-start for KZM Health Monitor (Entware init.d)
 SCRIPT="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 CONF="/opt/etc/healthmon.conf"
 PIDFILE="/tmp/healthmon.pid"
@@ -6955,12 +7240,23 @@ healthmon_stop() {
     healthmon_write_config
 
     healthmon_autostart_remove
+
+    # Stop daemon by PID file if present
     if [ -f "$HM_PID_FILE" ]; then
         kill "$(cat "$HM_PID_FILE" 2>/dev/null)" 2>/dev/null
         rm -f "$HM_PID_FILE" 2>/dev/null
     fi
-    rmdir "$HM_LOCKDIR" 2>/dev/null
+
+    # Fallback: stop any stray daemon instances (e.g., PID file missing)
+    ps 2>/dev/null | awk -v n="$SCRIPT_NAME" 'index($0,"--healthmon-daemon")>0 && index($0,n)>0 {print $1}' | while read -r p; do
+        [ -n "$p" ] && kill "$p" 2>/dev/null
+    done
+
+    # Clear volatile state to avoid stale counters after reboot/power loss
+    rm -f /tmp/wanmon.* /tmp/healthmon.* /tmp/healthmon_wan.* 2>/dev/null
+    rm -rf "$HM_LOCKDIR" 2>/dev/null
 }
+
 
 healthmon_status() {
     healthmon_load_config
