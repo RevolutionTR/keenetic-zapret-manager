@@ -160,8 +160,10 @@ Keenetic Zapret Manager’ın Tam Kullanım Kılavuzu için geliştiricinin gith
 
 Okuduğunuz için teşekkürler; umarım faydalı bir kaynak olmuştur.
 
-Hazırlayan ve derleyen @tayaydin (https://forum.donanimhaber.com/profil/173164)
-  
+Hazırlayan ve derleyen
+- **[@tayaydin](https://forum.donanimhaber.com/profil/173164)**
+
+
 ## Yazının hazırlanmasında istifade edilen kaynaklar:
 - **[Keenetic Destek](https://destek.keenetic.com.tr/?lang=tr)**  
 - **[Keenetic Zapret Manager github sayfası](https://github.com/RevolutionTR/keenetic-zapret-manager)**  
