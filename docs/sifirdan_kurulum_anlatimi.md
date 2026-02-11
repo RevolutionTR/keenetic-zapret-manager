@@ -74,7 +74,7 @@ Bu aşamada dikkat etmeniz gereken nokta kurulum yapılacak cihazın işlemci mi
 
 Ayrıca arayıp bulamayan, nerde bu diyenler SSH bağlı iken 'show version' yazarlarsa cihazın mimarisi en üstteki satırlarda yazar
 
-<img src="/docs/images/KZM7.png" width="600">
+<img src="/docs/images/KZM7.jpeg" width="600">
   
 OPKG ile ilgili daha detaylı bilgi almak için online kullanım kılavuzlarınızda, altta yolu tarif edilmiş yazıyı okuyabilirsiniz.  
 Kullanım Kılavuzu / Yönetim / OPKG / OPKG bileşen açıklaması  
@@ -134,7 +134,7 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
   
 İşlem tamamlandıktan sonra kurulu betiği komut satırına "keenetic" veya "keenetic-zapret" yazıp onaylayarak kullanmaya başlayabilirsiniz.
 
-<img src="/docs/images/KZM6.jpeg" width="600">
+<img src="/docs/images/KZM8.png" width="600">
   
 Yöntem 2 (klasik):  
 DH'den @Revolution_TR 'nin geliştirdiği Keenetic router’lar için özelleştirilmiş Zapret betiğini githup linkinden indirin:
