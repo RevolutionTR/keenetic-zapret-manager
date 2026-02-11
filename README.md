@@ -4,13 +4,12 @@
 
 [![Stars](https://img.shields.io/github/stars/RevolutionTR/keenetic-zapret-manager?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/stargazers)
 [![Latest Release](https://img.shields.io/github/v/release/RevolutionTR/keenetic-zapret-manager?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest)
-[![Sıfırdan Tam Kurulum](https://img.shields.io/badge/Kurulum-Sıfırdan_Tam-success?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/sifirdan_kurulum_anlatimi.md)
+[![Sıfırdan Tam Kurulum](https://img.shields.io/badge/Sıfırdan%20Tam%20Kurulum-Anlatım-success?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/sifirdan_kurulum_anlatimi.md)
 [![User Guide](https://img.shields.io/badge/Kullanim-Menu_Kilavuzu-blue?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/kullanim_klavuzu.md)
 [![Telegram](https://img.shields.io/badge/Telegram-Kurulum-2CA5E0?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/telegram.md)
-![Platform](https://img.shields.io/badge/Platform-Keenetic-1f6feb?style=for-the-badge)
+[![Platform](https://img.shields.io/badge/Platform-Keenetic-1f6feb?style=for-the-badge)](https://keenetic.com.tr)
 ![Languages](https://img.shields.io/badge/Languages-TR%20%7C%20EN-orange?style=for-the-badge)
-![Open Source](https://img.shields.io/badge/Open%20Source-Yes-brightgreen?style=for-the-badge)
-
+[![Open Source](https://img.shields.io/badge/Open%20Source-Yes-brightgreen?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager)
 
 
 <img src="docs/images/KZM8.png" width="800">
