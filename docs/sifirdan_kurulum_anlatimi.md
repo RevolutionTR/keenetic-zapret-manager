@@ -27,7 +27,7 @@ Bir USB portu ve/veya dahili depolaması olan, OPKG paket yöneticisi kurulabile
 Router’ınızın web arayüzüne, YÖNETİM / Sistem Ayarları / Bileşen seçenekleri’ne giderek IPv6, DoT (DNS-over-TLS), DoH (DNS-over-HTTPS) ve OPKG bileşenlerini işaretleyip KeeneticOS’yi güncelleyin. Cihaz yeniden başlatılacaktır (OS güncel versiyonda değilseniz DİKKAT! Bileşen ayarlarını değiştirmek KeeneticOS 'u en güncel versiyona yükseltecektir).
 
 
-<img src="/docs/images/KZM1.png" width="600">
+<img src="/docs/images/KZM1.png" width="800">
 
 
 
@@ -35,7 +35,7 @@ Router’ınızın web arayüzüne, YÖNETİM / Sistem Ayarları / Bileşen seç
 
 Router’ınızın web arayüzüne, AĞ KURALLARI / İnternet Güvenliği / DNS Yapılandırması’na gidin. “+ Sunucu Ekle” butonunu kullanarak DoT ve DoH DNS sunucuları ekleyin. DoH için önerilen DNS sunucuları: Google, CloudFlare, Adguard, Quad9’dur. Sonraki adım olan İSP'den gelen DNS’leri yoksay’madan önce mutlaka DoT, DoH, ISP'nin DNS’i, girili olmalıdır.
 
-<img src="/docs/images/KZM2.png" width="600">
+<img src="/docs/images/KZM2.png" width="800">
 
 DNS kontrollerinizi aşağıdaki adreslerden yapabilirsiniz:  
 DNS leak test , Browser leaks
@@ -44,7 +44,7 @@ DNS leak test , Browser leaks
 Router’ınızın web arayüzünde, internet hizmeti aldığınız bağlantıya göre İNTERNET / Ethernet Kablosu (veya DSL) girin. İSS Kimlik Doğrulama (PPPoE / PPTP / L2TP) / Gelişmiş PPPoE ayarlarını göster’de  
 İSP'den gelen DNSv4 yoksay’ı, IPv6 kullanıyorsanız aynı şekilde DNSv6 yoksay’ı işaretleyip kaydedin.
 
-<img src="/docs/images/KZM3.png" width="600">
+<img src="/docs/images/KZM3.png" width="800">
 
 (Mevcut kurulu düzeninizde OPKG paketlerini yükleyebilecek şekilde router’ınızı hazırlamış hatta OPKG paketleri kuruyor/kurmuşsanız bundan sonra anlatılan ön hazırlık faslını atlayabilirsiniz)
   
@@ -74,7 +74,7 @@ Bu aşamada dikkat etmeniz gereken nokta kurulum yapılacak cihazın işlemci mi
 
 Ayrıca arayıp bulamayan, nerde bu diyenler SSH bağlı iken 'show version' yazarlarsa cihazın mimarisi en üstteki satırlarda yazar
 
-<img src="/docs/images/KZM7.jpeg" width="600">
+<img src="/docs/images/KZM7.jpeg" width="800">
   
 OPKG ile ilgili daha detaylı bilgi almak için online kullanım kılavuzlarınızda, altta yolu tarif edilmiş yazıyı okuyabilirsiniz.  
 Kullanım Kılavuzu / Yönetim / OPKG / OPKG bileşen açıklaması  
@@ -95,7 +95,7 @@ iOS için
   
 Uygulamada ilgili alana router’ınızın web arayüzüne ulaşmak için kullandığınız IP adresini girin; genelde 192.168.1.1’dir. Port olarak duruma göre 22 veya 222 girin. (PuTTY / Termius'un router bağlantısı için; Keenetic'deki "Bileşen Seçenekleri" nde “SSH Sunucu”sunu daha önce kurmadıysanız OPKG için varsayılan portunuz 22 olacaktır. Ancak daha önce SSH bileşenini kurduysanız OPKG için varsayılan portunuz 222 olacaktır.)
 
-<img src="/docs/images/KZM4.png" width="600">
+<img src="/docs/images/KZM4.png" width="800">
 
 Open dedikten sonra gelen ekrana default olarak:
   
@@ -104,7 +104,7 @@ root@192.168.1.1’s password: keenetic
   
 (Uyarı: Password yazılırken yazı gözükmez, ekran tepkisizdir. Siz yazmaya devam edip onaylayın.) İşlem sonunda komut girme ekranı gelecektir.
   
-<img src="/docs/images/KZM5.png" width="600">
+<img src="/docs/images/KZM5.png" width="800">
 
 - Varsayılan keenetic parolasını değiştirmek için aşağıdaki komutu girin:
   
@@ -134,7 +134,7 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
   
 İşlem tamamlandıktan sonra kurulu betiği komut satırına "keenetic" veya "keenetic-zapret" yazıp onaylayarak kullanmaya başlayabilirsiniz.
 
-<img src="/docs/images/KZM8.png" width="600">
+<img src="/docs/images/KZM8.png" width="800">
   
 Yöntem 2 (klasik):  
 DH'den @Revolution_TR 'nin geliştirdiği Keenetic router’lar için özelleştirilmiş Zapret betiğini githup linkinden indirin:
