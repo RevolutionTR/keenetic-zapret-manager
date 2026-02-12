@@ -30,7 +30,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.11"
+SCRIPT_VERSION="v26.2.12"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1176,6 +1176,15 @@ Latest   : %NEW%
 Link     : %URL%"
 TXT_UPD_ZKM_AUTO_OK_TR="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+
+TXT_UPD_ZKM_UP_TO_DATE_TR="[Guncelleme]
+Paket   : ZKM
+Durum   : Guncel ✅
+Surum   : %CUR%"
+TXT_UPD_ZKM_UP_TO_DATE_EN="[Update]
+Package : ZKM
+Status  : Up to date ✅
+Version : %CUR%"
 
 TXT_UPD_ZKM_AUTO_FAIL_TR="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
@@ -6591,7 +6600,14 @@ hm_wanmon_tick() {
 
     local state now fails oks
     state="$(cat "$state_f" 2>/dev/null)"
-    [ -z "$state" ] && state="UP"
+    # CRITICAL FIX: Default to DOWN on first boot/startup so we can detect UP transition
+    # If state file doesn't exist, assume DOWN (boot scenario)
+    if [ -z "$state" ]; then
+        state="DOWN"
+        # Also save it so we know this is first run
+        echo "DOWN" >"$state_f" 2>/dev/null
+        chmod 600 "$state_f" 2>/dev/null
+    fi
 
     fails="$(cat "$fails_f" 2>/dev/null)"; case "$fails" in ''|*[!0-9]*) fails=0;; esac
     oks="$(cat "$oks_f" 2>/dev/null)"; case "$oks" in ''|*[!0-9]*) oks=0;; esac
@@ -6802,16 +6818,17 @@ healthmon_updatecheck_do() {
     echo "$(date +%s 2>/dev/null) | updatecheck | zkm | cur=$cur latest=${latest:-N/A} mode=$upd_mode" >> /tmp/healthmon.log 2>/dev/null
 
     if [ -z "$latest" ]; then
-        # Only notify if update checks are enabled and mode is not OFF.
-        if [ "$upd_mode" != "0" ]; then
-            telegram_send "$(T TXT_UPD_ZKM_AUTO_FAIL 'Guncelleme kontrolu basarisiz (GitHub bilgisi alinamadi).' 'Update check failed (unable to fetch GitHub version info).')"
-        fi
+        # GitHub unreachable: only log, do NOT send Telegram (network may be temporarily unavailable)
+        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | github_unreachable cur=$cur" >> /tmp/healthmon.log 2>/dev/null
+        # Reset timestamp so it retries next cycle instead of waiting full HM_UPDATECHECK_SEC
+        rm -f "$f" 2>/dev/null
         return 0
     fi
 
     # Never downgrade: skip if remote is not newer than local (dev builds like v26.2.5.1 must not be replaced by v26.2.5).
     if ! ver_is_newer "$latest" "$cur"; then
-        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | skip=local_newer_or_equal cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | up_to_date cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+        telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_UP_TO_DATE)" CUR "$cur")"
         return 0
     fi
 
@@ -6909,7 +6926,7 @@ healthmon_loop() {
     trap '' HUP 2>/dev/null
     # Stale-state cleanup on daemon start (keep PID/log intact)
     rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
-    rm -f /tmp/healthmon_cpu_* /tmp/healthmon_disk* /tmp/healthmon_ram* /tmp/healthmon_zapret_* /tmp/healthmon_updatecheck.* /tmp/healthmon_last_* 2>/dev/null
+    rm -f /tmp/healthmon_cpu_* /tmp/healthmon_disk* /tmp/healthmon_ram* /tmp/healthmon_zapret_* /tmp/healthmon_last_* 2>/dev/null
     # single-instance guard (robust against stale PID/lock after power loss)
     if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
         # If a healthy daemon exists, do nothing.
@@ -6930,11 +6947,36 @@ healthmon_loop() {
     : >"$HM_LOG_FILE" 2>/dev/null
     echo "$(date +%s) | started" >>"$HM_LOG_FILE" 2>/dev/null
 
-
-    # Run one immediate WANMON tick on startup so guards/logs are visible without waiting HM_INTERVAL
+    # Load config early
     healthmon_load_config
+
+    # CRITICAL FIX: Wait for network on startup (especially after power loss/reboot)
+    # This must happen BEFORE any WAN monitoring or GitHub checks
+    local net_wait=0
+    local net_max=120
+    healthmon_log "$(date +%s) | startup | waiting for network (max ${net_max}s)"
+    while [ $net_wait -lt $net_max ]; do
+        if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+            healthmon_log "$(date +%s) | startup | network ready after ${net_wait}s (ping OK)"
+            break
+        fi
+        if command -v nslookup >/dev/null 2>&1 && nslookup google.com >/dev/null 2>&1; then
+            healthmon_log "$(date +%s) | startup | network ready after ${net_wait}s (DNS OK)"
+            break
+        fi
+        if ip route get 1.1.1.1 >/dev/null 2>&1; then
+            healthmon_log "$(date +%s) | startup | network ready after ${net_wait}s (route OK)"
+            break
+        fi
+        sleep 5
+        net_wait=$((net_wait + 5))
+    done
+    if [ $net_wait -ge $net_max ]; then
+        healthmon_log "$(date +%s) | startup | WARNING: network not ready after ${net_max}s, continuing anyway"
+    fi
+
     # If script version changed since last run, force an early update check.
-    # Avoids stale timestamp blocking after manual version edits.
+    # NOTE: This runs AFTER network wait so the forced check can actually reach GitHub.
     if [ -n "$SCRIPT_VERSION" ]; then
         _curv="$SCRIPT_VERSION"
         _lastv="$(cat /tmp/healthmon.last_script_ver 2>/dev/null)"
@@ -6944,7 +6986,10 @@ healthmon_loop() {
         fi
     fi
 
+    # NOW that network is ready, run initial WAN monitoring tick
+    # This will detect WAN UP state and send notification if needed
     if [ "$HM_ENABLE" = "1" ] && [ "${HM_WANMON_ENABLE:-0}" = "1" ]; then
+        healthmon_log "$(date +%s) | startup | running initial WAN check"
         hm_wanmon_tick
     fi
 
@@ -7154,33 +7199,128 @@ healthmon_autostart_install() {
     cat > "$HM_AUTOSTART_FILE" <<'EOF'
 #!/opt/bin/sh
 # Auto-start for KZM Health Monitor (Entware init.d)
+# FIXED: Added network wait for post-reboot reliability
 SCRIPT="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 CONF="/opt/etc/healthmon.conf"
 PIDFILE="/tmp/healthmon.pid"
 LOCKDIR="/tmp/healthmon.lock"
+INITLOG="/tmp/healthmon_init.log"
 
-start() {
-  # Start only if enabled
-  if [ -f "$CONF" ] && grep -q '^HM_ENABLE="1"' "$CONF" 2>/dev/null; then
-    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then
+log_init() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$INITLOG"
+}
+
+wait_for_network() {
+  local max_wait=120
+  local waited=0
+  local interval=5
+  
+  log_init "Waiting for network..."
+  
+  while [ $waited -lt $max_wait ]; do
+    if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+      log_init "Network ready (waited ${waited}s)"
       return 0
     fi
-    "$SCRIPT" --healthmon-daemon </dev/null >/tmp/healthmon.log 2>&1 &
+    
+    if ip route get 1.1.1.1 >/dev/null 2>&1; then
+      log_init "Network ready via routing (waited ${waited}s)"
+      return 0
+    fi
+    
+    sleep $interval
+    waited=$((waited + interval))
+  done
+  
+  log_init "WARNING: Network timeout after ${max_wait}s, starting anyway"
+  return 1
+}
+
+cleanup_stale() {
+  if [ -f "$PIDFILE" ]; then
+    local old_pid=$(cat "$PIDFILE" 2>/dev/null)
+    if [ -n "$old_pid" ] && ! kill -0 "$old_pid" 2>/dev/null; then
+      log_init "Removing stale PID: $old_pid"
+      rm -f "$PIDFILE" 2>/dev/null
+    fi
+  fi
+  
+  if [ -d "$LOCKDIR" ]; then
+    if [ -f "$LOCKDIR/pid" ]; then
+      local lock_pid=$(cat "$LOCKDIR/pid" 2>/dev/null)
+      if [ -n "$lock_pid" ] && ! kill -0 "$lock_pid" 2>/dev/null; then
+        log_init "Removing stale lock: $lock_pid"
+        rm -rf "$LOCKDIR" 2>/dev/null
+      fi
+    else
+      log_init "Removing orphaned lock directory"
+      rm -rf "$LOCKDIR" 2>/dev/null
+    fi
+  fi
+}
+
+start() {
+  log_init "=== Init start ==="
+  
+  if [ ! -f "$CONF" ] || ! grep -q '^HM_ENABLE="1"' "$CONF" 2>/dev/null; then
+    log_init "HealthMon disabled in config"
+    return 0
+  fi
+  
+  cleanup_stale
+  
+  if [ -f "$PIDFILE" ]; then
+    local pid=$(cat "$PIDFILE" 2>/dev/null)
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      log_init "Already running (PID: $pid)"
+      return 0
+    fi
+  fi
+  
+  wait_for_network
+  
+  log_init "Starting daemon..."
+  "$SCRIPT" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
+  
+  sleep 2
+  if [ -f "$PIDFILE" ]; then
+    local new_pid=$(cat "$PIDFILE" 2>/dev/null)
+    if [ -n "$new_pid" ] && kill -0 "$new_pid" 2>/dev/null; then
+      log_init "Started successfully (PID: $new_pid)"
+      return 0
+    else
+      log_init "ERROR: Startup failed (PID file exists but process dead)"
+      return 1
+    fi
+  else
+    log_init "ERROR: Startup failed (no PID file)"
+    return 1
   fi
 }
 
 stop() {
+  log_init "=== Init stop ==="
   if [ -f "$PIDFILE" ]; then
-    kill "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null
+    local pid=$(cat "$PIDFILE" 2>/dev/null)
+    if [ -n "$pid" ]; then
+      log_init "Stopping PID: $pid"
+      kill "$pid" 2>/dev/null
+      sleep 1
+      if kill -0 "$pid" 2>/dev/null; then
+        log_init "Force killing PID: $pid"
+        kill -9 "$pid" 2>/dev/null
+      fi
+    fi
     rm -f "$PIDFILE" 2>/dev/null
   fi
   rm -rf "$LOCKDIR" 2>/dev/null
+  log_init "Stopped"
 }
 
 case "$1" in
   start) start ;;
   stop) stop ;;
-  restart) stop; start ;;
+  restart) stop; sleep 1; start ;;
   *) start ;;
 esac
 exit 0
