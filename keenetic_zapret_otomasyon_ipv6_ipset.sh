@@ -24,13 +24,15 @@
 #
 # -------------------------------------------------------------------
 
+# BETIK BILGILENDIRME                                 
+# Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
 
 # -------------------------------------------------------------------
 # Script Kimligi (Repo/Surum)
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.12"
+SCRIPT_VERSION="v26.2.14"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -201,10 +203,6 @@ if [ "$ZKM_SKIP_LOCK" != "1" ]; then
     # END_SESSION_GUARD_V3
 fi
 
-
-# BETIK BILGILENDIRME                                 
-# Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
-
 # -------------------------------------------------------------------
 # Dogru Dizin Uyarisi (keenetic / keenetic-zapret)
 # -------------------------------------------------------------------
@@ -324,6 +322,9 @@ zkm_full_uninstall() {
     exit 0
 }
 
+# -------------------------------------------------------------------
+# Dogru Dizin Uyarisi (keenetic / keenetic-zapret)
+# -------------------------------------------------------------------
 check_script_location_once() {
     local EXPECTED="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     local CURRENT="$(readlink -f "$0" 2>/dev/null)"
@@ -432,6 +433,7 @@ if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && [ "${NO_COLOR:-0}" != "1" ]; the
     CLR_YELLOW="$(printf '\033[33m')"
     CLR_GREEN="$(printf '\033[32m')"
     CLR_RED="$(printf '\033[31m')"
+    CLR_ORANGE="$(printf '\033[38;5;214m')"
     CLR_BOLD="$(printf '\033[1m')"
     CLR_DIM="$(printf '\033[2m')"
     CLR_RESET="$(printf '\033[0m')"
@@ -440,6 +442,7 @@ else
     CLR_YELLOW=""
     CLR_GREEN=""
     CLR_RED=""
+    CLR_ORANGE=""
     CLR_BOLD=""
     CLR_DIM=""
     CLR_RESET=""
@@ -592,18 +595,146 @@ zkm_banner_get_ndmc_field() {
     ndmc -c 'show version' 2>/dev/null | tr -d '\r' | awk -v f="$1" '$1==f{ $1=""; sub(/^[ \t]+/,""); print; exit }'
 }
 
+# KN numarasından cihaz adı döndürür
+_zkm_kn_to_name() {
+    case "$1" in
+        KN-1010) echo "Keenetic Giga (KN-1010)"           ;;
+        KN-1011) echo "Keenetic Giga (KN-1011)"           ;;
+        KN-1012) echo "Keenetic Giga (KN-1012)"           ;;
+        KN-1110) echo "Keenetic Start (KN-1110)"          ;;
+        KN-1111) echo "Keenetic Start (KN-1111)"          ;;
+        KN-1112) echo "Keenetic Start (KN-1112)"          ;;
+        KN-1121) echo "Keenetic Starter (KN-1121)"        ;;
+        KN-1210) echo "Keenetic 4G (KN-1210)"             ;;
+        KN-1211) echo "Keenetic 4G (KN-1211)"             ;;
+        KN-1212) echo "Keenetic 4G (KN-1212)"             ;;
+        KN-1213) echo "Keenetic 4G (KN-1213)"             ;;
+        KN-1221) echo "Keenetic Launcher (KN-1221)"       ;;
+        KN-1310) echo "Keenetic Lite (KN-1310)"           ;;
+        KN-1311) echo "Keenetic Lite (KN-1311)"           ;;
+        KN-1410) echo "Keenetic Omni (KN-1410)"           ;;
+        KN-1510) echo "Keenetic City (KN-1510)"           ;;
+        KN-1511) echo "Keenetic City (KN-1511)"           ;;
+        KN-1610) echo "Keenetic Air (KN-1610)"            ;;
+        KN-1611) echo "Keenetic Air (KN-1611)"            ;;
+        KN-1613) echo "Keenetic Air (KN-1613)"            ;;
+        KN-1621) echo "Keenetic Explorer (KN-1621)"       ;;
+        KN-1710) echo "Keenetic Extra (KN-1710)"          ;;
+        KN-1711) echo "Keenetic Extra (KN-1711)"          ;;
+        KN-1713) echo "Keenetic Extra (KN-1713)"          ;;
+        KN-1714) echo "Keenetic Extra (KN-1714)"          ;;
+        KN-1721) echo "Keenetic Carrier (KN-1721)"        ;;
+        KN-1810) echo "Keenetic Ultra (KN-1810)"          ;;
+        KN-1811) echo "Keenetic Ultra (KN-1811)"          ;;
+        KN-1812) echo "Keenetic Titan (KN-1812)"          ;;
+        KN-1910) echo "Keenetic Viva (KN-1910)"           ;;
+        KN-1912) echo "Keenetic Viva (KN-1912)"           ;;
+        KN-1913) echo "Keenetic Viva (KN-1913)"           ;;
+        KN-2010) echo "Keenetic DSL (KN-2010)"            ;;
+        KN-2012) echo "Keenetic Launcher DSL (KN-2012)"   ;;
+        KN-2110) echo "Keenetic Duo (KN-2110)"            ;;
+        KN-2112) echo "Keenetic Skipper DSL (KN-2112)"    ;;
+        KN-2113) echo "Keenetic Speedster DSL (KN-2113)"  ;;
+        KN-2210) echo "Keenetic Runner 4G (KN-2210)"      ;;
+        KN-2211) echo "Keenetic Runner 4G (KN-2211)"      ;;
+        KN-2212) echo "Keenetic Runner 4G (KN-2212)"      ;;
+        KN-2310) echo "Keenetic Hero 4G (KN-2310)"        ;;
+        KN-2311) echo "Keenetic Hero 4G+ (KN-2311)"       ;;
+        KN-2312) echo "Keenetic Hopper 4G+ (KN-2312)"     ;;
+        KN-2410) echo "Keenetic Giga SE (KN-2410)"        ;;
+        KN-2510) echo "Keenetic Ultra SE (KN-2510)"       ;;
+        KN-2610) echo "Keenetic Giant (KN-2610)"          ;;
+        KN-2710) echo "Keenetic Peak (KN-2710)"           ;;
+        KN-2810) echo "Keenetic Orbiter Pro (KN-2810)"    ;;
+        KN-2910) echo "Keenetic Skipper 4G (KN-2910)"     ;;
+        KN-2911) echo "Keenetic Speedster 4G+ (KN-2911)"  ;;
+        KN-3010) echo "Keenetic Speedster (KN-3010)"      ;;
+        KN-3012) echo "Keenetic Speedster (KN-3012)"      ;;
+        KN-3013) echo "Keenetic Speedster (KN-3013)"      ;;
+        KN-3210) echo "Keenetic Buddy 4 (KN-3210)"        ;;
+        KN-3211) echo "Keenetic Buddy 4 (KN-3211)"        ;;
+        KN-3310) echo "Keenetic Buddy 5 (KN-3310)"        ;;
+        KN-3311) echo "Keenetic Buddy 5 (KN-3311)"        ;;
+        KN-3410) echo "Keenetic Buddy 5S (KN-3410)"       ;;
+        KN-3411) echo "Keenetic Buddy 6 (KN-3411)"        ;;
+        KN-3510) echo "Keenetic Voyager Pro (KN-3510)"    ;;
+        KN-3610) echo "Keenetic Hopper DSL (KN-3610)"     ;;
+        KN-3611) echo "Keenetic Hopper DSL (KN-3611)"     ;;
+        KN-3710) echo "Keenetic Sprinter (KN-3710)"       ;;
+        KN-3711) echo "Keenetic Sprinter (KN-3711)"       ;;
+        KN-3712) echo "Keenetic Sprinter SE (KN-3712)"    ;;
+        KN-3810) echo "Keenetic Hopper (KN-3810)"         ;;
+        KN-3811) echo "Keenetic Hopper (KN-3811)"         ;;
+        KN-3812) echo "Keenetic Hopper SE (KN-3812)"      ;;
+        KN-3910) echo "Keenetic Challenger (KN-3910)"     ;;
+        KN-3911) echo "Keenetic Challenger SE (KN-3911)"  ;;
+        KN-4010) echo "Keenetic Racer (KN-4010)"          ;;
+        KN-4110) echo "Keenetic Hero 5G (KN-4110)"        ;;
+        KN-4210) echo "Keenetic Titan SE (KN-4210)"       ;;
+        KN-4310) echo "Keenetic Atlas SE (KN-4310)"       ;;
+        KN-4410) echo "Keenetic Buddy 6 SE (KN-4410)"     ;;
+        KN-4910) echo "Keenetic Explorer 4G (KN-4910)"    ;;
+        *)        echo "Keenetic $1"                       ;;
+    esac
+}
+
 zkm_banner_get_system() {
-    local m=""
-    if zkm_banner_ndmc_ok; then
-        m="$(zkm_banner_get_ndmc_field model:)"
-        [ -n "$m" ] && { echo "Keenetic $m"; return 0; }
-    fi
-    if [ -r /proc/device-tree/model ]; then
-        m="$(tr -d '\000' </proc/device-tree/model 2>/dev/null)"
+    local m="" _ver="" _sys="" _kn=""
+
+    # 1) ndmc show version
+    _ver="$(ndmc -c show version 2>/dev/null | tr -d '\r')"
+    if [ -n "$_ver" ]; then
+        m="$(printf '%s\n' "$_ver" | awk -F'[: ]' '
+            /description:|model:|product:|device:|hardware:|board:/ {
+                for(i=2;i<=NF;i++) if($i!="") { v=$i; for(j=i+1;j<=NF;j++) v=v" "$j; gsub(/^[ \t]+|[ \t]+$/,"",v); if(v!="") {print v; exit} }
+            }')"
         [ -n "$m" ] && { echo "$m"; return 0; }
+        _kn="$(printf '%s\n' "$_ver" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
+        [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
     fi
+
+    # 2) ndmc show system
+    _sys="$(ndmc -c show system 2>/dev/null | tr -d '\r')"
+    if [ -n "$_sys" ]; then
+        m="$(printf '%s\n' "$_sys" | awk -F'[: ]' '
+            /description:|model:|product:|device:|hardware:|board:/ {
+                for(i=2;i<=NF;i++) if($i!="") { v=$i; for(j=i+1;j<=NF;j++) v=v" "$j; gsub(/^[ \t]+|[ \t]+$/,"",v); if(v!="") {print v; exit} }
+            }')"
+        [ -n "$m" ] && { echo "$m"; return 0; }
+        _kn="$(printf '%s\n' "$_sys" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
+        [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
+    fi
+
+    # 3) /proc/device-tree/model veya /sys/firmware/devicetree/base/model
+    for _f in /proc/device-tree/model /sys/firmware/devicetree/base/model; do
+        [ -r "$_f" ] || continue
+        m="$(tr -d '\000' <"$_f" 2>/dev/null)"
+        [ -z "$m" ] && continue
+        _kn="$(echo "$m" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
+        [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
+        echo "$m"; return 0
+    done
+
+    # 4) /etc/components.xml — model="KN-XXXX"
+    if [ -r /etc/components.xml ]; then
+        _kn="$(grep -o 'model="KN-[0-9]*"' /etc/components.xml 2>/dev/null | head -1 | grep -o 'KN-[0-9]*')"
+        [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
+    fi
+
+    # 5) MTD U-Config partition — ndmhwid=KN-XXXX
+    # /proc/mtd'den "U-Config" adlı bölümü bul, sadece ilk 64KB oku
+    if [ -r /proc/mtd ]; then
+        local _mtddev
+        _mtddev="$(awk -F'[: "]+' '/U-Config/{print "/dev/"$1"ro"; exit}' /proc/mtd 2>/dev/null)"
+        if [ -n "$_mtddev" ] && [ -r "$_mtddev" ]; then
+            _kn="$(dd if="$_mtddev" bs=1024 count=64 2>/dev/null | strings | grep -o 'KN-[0-9]*' | head -1)"
+            [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
+        fi
+    fi
+
     echo "Keenetic"
 }
+
 
 zkm_banner_get_wan_dev() {
     local dev=""
@@ -661,8 +792,8 @@ zkm_banner_fmt_zapret_state() {
 
 
 # Sozluk: TXT_*_TR / TXT_*_EN
-TXT_MAIN_TITLE_TR=" KEENETIC ZAPRET YONETIM ARACI (KZM)"
-TXT_MAIN_TITLE_EN=" KEENETIC ZAPRET MANAGEMENT TOOL (KZM)"
+TXT_MAIN_TITLE_TR="KEENETIC ZAPRET YONETIM ARACI (KZM)"
+TXT_MAIN_TITLE_EN="KEENETIC ZAPRET MANAGEMENT TOOL (KZM)"
 
 TXT_OPTIMIZED_TR=" Varsayilan ayarlar TT altyapisinda test edilerek optimize edilmistir."
 TXT_OPTIMIZED_EN=" Default settings are tested and optimized for TT infrastructure."
@@ -784,8 +915,8 @@ TXT_BLOCKCHECK_NO_STRAT_EN=" WARNING: No applicable nfqws strategy found."
 TXT_BLOCKCHECK_TPWS_WARN_TR=" UYARI: Bulunan strateji tpws. Guvenli oldugu icin otomatik uygulanmayacak. (Simdilik sadece nfqws destekleniyor.)"
 TXT_BLOCKCHECK_TPWS_WARN_EN=" WARNING: Found strategy is tpws. It will NOT be applied automatically for safety. (For now only nfqws is supported.)"
 
-TXT_MENU_10_TR="10. Betik Guncelleme Kontrolu (GitHub)"
-TXT_MENU_10_EN="10. Script update check (GitHub)"
+TXT_MENU_10_TR="10. Betik Guncelleme Kontrolu (Guncel/Kurulu - GitHub)"
+TXT_MENU_10_EN="10. Script update check (Latest/Installed - GitHub)"
 
 TXT_MENU_11_TR="11. Hostlist / Autohostlist (Filtreleme)"
 TXT_MENU_11_EN="11. Hostlist / Autohostlist (Filtering)"
@@ -866,16 +997,16 @@ TXT_TG_RESET_OK_TR="Ayarlar sifirlandi."
 TXT_TG_RESET_OK_EN="Settings reset."
 
 TXT_TG_TEST_FAIL_CONFIG_FIRST_TR="Test gonderilemedi. Once Token/ChatID ayarlayin."
-TXT_TG_TEST_FAIL_CONFIG_FIRST_EN="Test failed. Configure token/chatid first."
+TXT_TG_TEST_FAIL_CONFIG_FIRST_EN="Test failed. Configure Token/ChatID first."
 
 TXT_TG_CONFIG_DELETED_TR="Ayar dosyasi silindi."
 TXT_TG_CONFIG_DELETED_EN="Config deleted."
 
-TXT_TG_TEST_SAVED_MSG_TR="✅ Telegram test: ayarlar kaydedildi"
-TXT_TG_TEST_SAVED_MSG_EN="✅ Telegram test: settings saved"
+TXT_TG_TEST_SAVED_MSG_TR="✅ Telegram Test: Ayarlar kaydedildi"
+TXT_TG_TEST_SAVED_MSG_EN="✅ Telegram Test: Settings saved"
 
-TXT_TG_TEST_OK_MSG_TR="✅ Telegram test: bildirim calisiyor"
-TXT_TG_TEST_OK_MSG_EN="✅ Telegram test: notifications working"
+TXT_TG_TEST_OK_MSG_TR="✅ Telegram Test: Bildirim calisiyor"
+TXT_TG_TEST_OK_MSG_EN="✅ Telegram Test: Notifications working"
 
 
 # -------------------------------------------------------------------
@@ -1327,7 +1458,6 @@ TXT_CHOICE_EN="Choice:"
 TXT_INVALID_CHOICE_TR="Gecersiz secim!"
 TXT_INVALID_CHOICE_EN="Invalid choice!"
 
-# --- Added common keys (TR/EN) ---
 TXT_CANCELLED_TR="Iptal edildi."
 TXT_CANCELLED_EN="Cancelled."
 
@@ -1837,8 +1967,8 @@ TXT_MENU_0_EN=" 0. Exit"
 TXT_MENU_FOOT_TR="--------------------------------------------------------------------------------------------"
 TXT_MENU_FOOT_EN="--------------------------------------------------------------------------------------------"
 
-TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-16, L veya B): "
-TXT_PROMPT_MAIN_EN=" Select an Option (0-16, L or B): "
+TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-16, B, L, U): "
+TXT_PROMPT_MAIN_EN=" Select an Option (0-16, B, L, U): "
 
 TXT_LANG_NOW_TR="Dil: Turkce"
 TXT_LANG_NOW_EN="Language: English"
@@ -4826,18 +4956,12 @@ script_rollback_menu() {
 display_menu() {
     echo
     echo
-    print_line "=" 
-    echo "${CLR_BOLD}${CLR_CYAN}$(T TXT_MAIN_TITLE)${CLR_RESET}"
-    print_line "="
-    echo
-    printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_DEVELOPER)${CLR_RESET}"
-    printf '%b\n' "${CLR_DIM}$(T TXT_GITHUB)${CLR_RESET}"
-#   printf '%b\n' "${CLR_BOLD}${CLR_CYAN}$(T TXT_EDITOR)${CLR_RESET}"
-    printf '%b\n' "${CLR_YELLOW}$(T TXT_VERSION)${CLR_RESET}"
-    printf '%b\n' "${CLR_YELLOW}$(T TXT_ZAPRET_VERSION_PREFIX)$(zkm_get_zapret_version)${CLR_RESET}"
-echo
 
-    # ---- Live status (System/WAN/Zapret) ----
+    # ---- Baslik (versiyon YOK - altta zaten var) ----
+    printf "  %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_MAIN_TITLE)" "${CLR_RESET}"
+    print_line "-"
+
+    # ---- Bilgi satırlari ----
     local _sys _wan_dev _wan_state _zap_state
     _sys="$(zkm_banner_get_system)"
     _wan_dev="$(zkm_banner_get_wan_dev)"
@@ -4845,59 +4969,95 @@ echo
     _wan_state="$(zkm_banner_get_wan_state "$_wan_dev")"
     _zap_state="$(zkm_banner_get_zapret_state)"
 
-    local _lblw=10
+    # Etiket genisligi: EN'de 'Zapret Version' = 14 karakter
+    local _lw=14
 
+    printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_SYS_LABEL)"                        "${CLR_RESET}" "${CLR_ORANGE}" "$_sys"                                           "${CLR_RESET}"
+    printf "  %b%-*s%b : %b%s | %b\n"   "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_WAN_LABEL)"                        "${CLR_RESET}" "${CLR_RESET}"  "$_wan_dev" "$(zkm_banner_fmt_wan_state "$_wan_state")"
+    printf "  %b%-*s%b : %b%b\n"        "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_ZAPRET_LABEL)"                     "${CLR_RESET}" "${CLR_RESET}"  "$(zkm_banner_fmt_zapret_state "$_zap_state")"
+    printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_YELLOW}" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
+    printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'Zapret Surum' 'Zapret Version'  )"       "${CLR_RESET}" "${CLR_YELLOW}" "$(zkm_get_zapret_version)"                       "${CLR_RESET}"
+    printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'GitHub'       'GitHub'          )"       "${CLR_RESET}" "${CLR_DIM}"   "github.com/RevolutionTR/keenetic-zapret-manager"  "${CLR_RESET}"
 
-    [ "$LANG" != "en" ] && _lblw=11
+    print_line "="
 
-
-    printf " %-*s : %s
-" "$_lblw" "$(T TXT_MAIN_SYS_LABEL)" "$_sys"
-
-
-    printf " %-*s : %s | %b
-" "$_lblw" "$(T TXT_MAIN_WAN_LABEL)" "$_wan_dev" "$(zkm_banner_fmt_wan_state "$_wan_state")"
-
-
-    printf " %-*s : %b
-" "$_lblw" "$(T TXT_MAIN_ZAPRET_LABEL)" "$(zkm_banner_fmt_zapret_state "$_zap_state")"
-
-    echo
-    print_line "=" 
-    echo
-    echo " $(T TXT_DESC1)"
-    echo " $(T TXT_DESC2)"
-    echo " $(T TXT_DESC3)"
-    echo
-    echo "$(T TXT_OPTIMIZED)"
-    _dpi_warn="$(T dpi_warn "$TXT_DPI_WARNING_TR" "$TXT_DPI_WARNING_EN")"
-    echo "$_dpi_warn"
-    echo
+    # Aciklama satirlari — her biri ayri satirda, kisa
+    printf "  %b%s%b\n" "${CLR_DIM}" "$(T TXT_DESC1)" "${CLR_RESET}"
+    printf "  %b%s%b\n" "${CLR_DIM}" "$(T TXT_DESC2)" "${CLR_RESET}"
+    printf "  %b%s%b\n" "${CLR_DIM}" "$(T TXT_DESC3)" "${CLR_RESET}"
+    # TXT_OPTIMIZED ve TXT_DPI_WARNING " " ile basliyor — " %b%s" ile toplam 2 bosluk olur
+    printf " %b%s%b\n" "${CLR_DIM}" "$(T TXT_OPTIMIZED)" "${CLR_RESET}"
+    printf " %b%s%b\n" "${CLR_DIM}" "$(T dpi_warn "$TXT_DPI_WARNING_TR" "$TXT_DPI_WARNING_EN")" "${CLR_RESET}"
     print_line "-"
-    echo "$(T TXT_MENU_1)"
-    echo "$(T TXT_MENU_2)"
-    echo "$(T TXT_MENU_3)"
-    echo "$(T TXT_MENU_4)"
-    echo "$(T TXT_MENU_5)"
-    echo "$(T TXT_MENU_6)"
-    echo "$(T TXT_MENU_7)"
-    echo "$(T TXT_MENU_8)"
-    echo "$(T TXT_MENU_9)"
-    echo "$(T TXT_MENU_10)"
-    echo "$(T TXT_MENU_11)"
-    echo "$(T TXT_MENU_12)"
-    echo "$(T TXT_MENU_13)"
-    echo "$(T TXT_MENU_14)"
-    echo "$(T TXT_MENU_15)"
-    echo "$(T TXT_MENU_16)"
-    echo "$(T TXT_MENU_B)"
-    echo "$(T TXT_MENU_L)  ($(lang_label))"
-    echo "$(T TXT_MENU_U)"
-    echo "$(T TXT_MENU_0)"
+
+    # _mi: menü item — numara TURUNCU, metin dim
+    _mi() {
+        local _raw="$1"
+        local _num _txt _main _note
+        _num="${_raw%%.*}."
+        _txt="${_raw#*.}"
+        # Parantez varsa: ana metin bold, parantez içi dim
+        case "$_txt" in
+            *" ("*")"*)
+                _main="${_txt% (*}"
+                _note=" (${_txt##* (}"
+                printf "  %b%s%b%b%s%b%b%s%b\n" \
+                    "${CLR_ORANGE}" "$_num"  "${CLR_RESET}" \
+                    "${CLR_BOLD}"   "$_main" "${CLR_RESET}" \
+                    "${CLR_DIM}"    "$_note" "${CLR_RESET}"
+                ;;
+            *)
+                printf "  %b%s%b%b%s%b\n" \
+                    "${CLR_ORANGE}" "$_num" "${CLR_RESET}" \
+                    "${CLR_BOLD}"   "$_txt" "${CLR_RESET}"
+                ;;
+        esac
+    }
+
+    # Cizgi: terminal genisligine gore dinamik "- - - - ..." 
+    local _cols _sep
+    _cols="$(get_term_cols 2>/dev/null)"
+    [ -z "$_cols" ] && _cols=80
+    [ "$_cols" -lt 50 ] 2>/dev/null && _cols=50
+    _sep="$(printf '%*s' "$_cols" '' | tr ' ' '-' | sed 's/--/- /g;s/ $//')"
+
+    # ---- ZAPRET YONETIMI (1-8) ----
+    printf "  %b%s%b\n" "${CLR_CYAN}" "$(T _ 'ZAPRET YONETIMI' 'ZAPRET MANAGEMENT')" "${CLR_RESET}"
+    printf "%b%s%b\n"   "${CLR_DIM}"  "$_sep" "${CLR_RESET}"
+    _mi "$(T TXT_MENU_1)"
+    _mi "$(T TXT_MENU_2)"
+    _mi "$(T TXT_MENU_3)"
+    _mi "$(T TXT_MENU_4)"
+    _mi "$(T TXT_MENU_5)"
+    _mi "$(T TXT_MENU_6)"
+    _mi "$(T TXT_MENU_7)"
+    _mi "$(T TXT_MENU_8)"
+    echo
+
+    # ---- SISTEM & ARACLAR (9-16) ----
+    printf "  %b%s%b\n" "${CLR_CYAN}" "$(T _ 'SISTEM & ARACLAR' 'SYSTEM & TOOLS')" "${CLR_RESET}"
+    printf "%b%s%b\n"   "${CLR_DIM}"  "$_sep" "${CLR_RESET}"
+    _mi "$(T TXT_MENU_9)"
+    _mi "$(T TXT_MENU_10)"
+    _mi "$(T TXT_MENU_11)"
+    _mi "$(T TXT_MENU_12)"
+    _mi "$(T TXT_MENU_13)"
+    _mi "$(T TXT_MENU_14)"
+    _mi "$(T TXT_MENU_15)"
+    _mi "$(T TXT_MENU_16)"
+    echo
+
+    # ---- DIGER ----
+    printf "  %b%s%b\n" "${CLR_CYAN}" "$(T _ 'DIGER' 'OTHER')" "${CLR_RESET}"
+    printf "%b%s%b\n"   "${CLR_DIM}"  "$_sep" "${CLR_RESET}"
+    _mi "$(T TXT_MENU_B)"
+    _mi "$(T TXT_MENU_L)  ($(lang_label))"
+    _mi "$(T TXT_MENU_U)"
+    _mi "$(T TXT_MENU_0)"
+
     print_line "-"
     echo
     printf "$(T TXT_PROMPT_MAIN)"
-
 }
 
 
