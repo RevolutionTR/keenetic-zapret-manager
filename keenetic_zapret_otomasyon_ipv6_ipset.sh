@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.14"
+SCRIPT_VERSION="v26.2.14.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -736,6 +736,38 @@ zkm_banner_get_system() {
 }
 
 
+
+zkm_banner_get_firmware() {
+    # /etc/components.xml'den firmware versiyonu ve kanal bilgisini okur
+    # Çıktı: "5.0.6 (Önizleme)" gibi
+    local _xml _version _sandbox _channel_tr
+
+    [ -r /etc/components.xml ] || return 1
+    _xml="$(cat /etc/components.xml 2>/dev/null)" || return 1
+
+    # Kısa versiyon: <title>5.0.6</title>
+    _version="$(printf '%s' "$_xml" | grep -o '<title>[^<]*</title>' | head -1 | sed 's/<title>//;s/<\/title>//')"
+    [ -z "$_version" ] && _version="$(printf '%s' "$_xml" | grep -o 'version="[^"]*"' | head -1 | sed 's/version="//;s/"//')"
+    [ -z "$_version" ] && return 1
+
+    # Kanal: sandbox="stable|preview|alpha"
+    _sandbox="$(printf '%s' "$_xml" | grep -o 'sandbox="[^"]*"' | head -1 | sed 's/sandbox="//;s/"//')"
+
+    # Kanal adını yerelleştir
+    case "$_sandbox" in
+        stable)  _channel_tr="$(T _ 'Kararlı'     'Stable')"     ;;
+        preview) _channel_tr="$(T _ 'Önizleme'    'Preview')"    ;;
+        alpha)   _channel_tr="$(T _ 'Geliştirici' 'Developer')"  ;;
+        *)       _channel_tr="$_sandbox"                          ;;
+    esac
+
+    if [ -n "$_channel_tr" ]; then
+        printf '%s (%s)' "$_version" "$_channel_tr"
+    else
+        printf '%s' "$_version"
+    fi
+}
+
 zkm_banner_get_wan_dev() {
     local dev=""
 
@@ -942,11 +974,11 @@ TXT_MENU_16_EN="16. System Monitoring (CPU/RAM/Disk/Load/Zapret)"
 TXT_TG_SETTINGS_TITLE_TR="Telegram Bildirim Ayarlari"
 TXT_TG_SETTINGS_TITLE_EN="Telegram Notification Settings"
 
-TXT_TG_TIME_LABEL_TR="Zaman"
-TXT_TG_TIME_LABEL_EN="Time"
+TXT_TG_TIME_LABEL_TR="Zaman "
+TXT_TG_TIME_LABEL_EN="Time  "
 
-TXT_TG_MODEL_LABEL_TR="Model"
-TXT_TG_MODEL_LABEL_EN="Model"
+TXT_TG_MODEL_LABEL_TR="Model "
+TXT_TG_MODEL_LABEL_EN="Model "
 
 TXT_TG_WAN_LABEL_TR="WAN IP"
 TXT_TG_WAN_LABEL_EN="WAN IP"
@@ -1014,6 +1046,8 @@ TXT_TG_TEST_OK_MSG_EN="✅ Telegram Test: Notifications working"
 # -------------------------------------------------------------------
 TXT_HM_TITLE_TR="Sistem Sagligi Monitoru"
 TXT_HM_TITLE_EN="System Health Monitor"
+TXT_HM_BANNER_LABEL_TR="Saglik Mon."
+TXT_HM_BANNER_LABEL_EN="Health Mon."
 
 TXT_HM_MENU_LINE2_TR="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load (uptime)"
 TXT_HM_MENU_LINE2_EN="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load via uptime"
@@ -1281,41 +1315,47 @@ TXT_HM_PROMPT_UPDATECHECK_ENABLE_EN="Update check (1=on,0=off) [e.g. 1]:"
 TXT_HM_PROMPT_UPDATECHECK_SEC_TR="Update check araligi (sn) [or: 21600]:"
 TXT_HM_PROMPT_UPDATECHECK_SEC_EN="Update check interval (sec) [e.g. 21600]:"
 
-TXT_UPD_ZKM_NEW_TR="[Update]
-Paket   : ZKM
-Mevcut  : %CUR%
-Yeni    : %NEW%
-Link    : %URL%
+TXT_UPD_ZKM_NEW_TR="
+[Guncelleme]
+📦 Paket  : ZKM
+🔖 Mevcut : %CUR%
+🆕 Yeni   : %NEW%
+🔗 Link   : %URL%
 
 Install now? (menu 10)"
-TXT_UPD_ZKM_NEW_EN="[Update]
-Package : ZKM
-Current : %CUR%
-Latest  : %NEW%
-Link    : %URL%
+TXT_UPD_ZKM_NEW_EN="
+[Update]
+📦 Package : ZKM
+🔖 Current : %CUR%
+🆕 Latest  : %NEW%
+🔗 Link    : %URL%
 
 Install now? (menu 10)"
-TXT_UPD_ZAPRET_NEW_TR="[Update]
-Paket   : zapret
-Kurulu  : %CUR%
-Yeni    : %NEW%
-Link    : %URL%"
-TXT_UPD_ZAPRET_NEW_EN="[Update]
-Package : zapret
-Installed: %CUR%
-Latest   : %NEW%
-Link     : %URL%"
+TXT_UPD_ZAPRET_NEW_TR="
+[Guncelleme]
+📦 Paket  : zapret
+🔖 Kurulu : %CUR%
+🆕 Yeni   : %NEW%
+🔗 Link   : %URL%"
+TXT_UPD_ZAPRET_NEW_EN="
+[Update]
+📦 Package  : zapret
+🔖 Installed: %CUR%
+🆕 Latest   : %NEW%
+🔗 Link     : %URL%"
 TXT_UPD_ZKM_AUTO_OK_TR="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 
-TXT_UPD_ZKM_UP_TO_DATE_TR="[Guncelleme]
-Paket   : ZKM
-Durum   : Guncel ✅
-Surum   : %CUR%"
-TXT_UPD_ZKM_UP_TO_DATE_EN="[Update]
-Package : ZKM
-Status  : Up to date ✅
-Version : %CUR%"
+TXT_UPD_ZKM_UP_TO_DATE_TR="
+[Guncelleme]
+📦 Paket : ZKM
+🔄 Durum : Guncel ✅
+🔖 Surum : %CUR%"
+TXT_UPD_ZKM_UP_TO_DATE_EN="
+[Update]
+📦 Package : ZKM
+🔄 Status  : Up to date ✅
+🔖 Version : %CUR%"
 
 TXT_UPD_ZKM_AUTO_FAIL_TR="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
@@ -4973,10 +5013,20 @@ display_menu() {
     local _lw=14
 
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_SYS_LABEL)"                        "${CLR_RESET}" "${CLR_ORANGE}" "$_sys"                                           "${CLR_RESET}"
+    _fw="$(zkm_banner_get_firmware 2>/dev/null)"
+    [ -n "$_fw" ] && printf "  %b%-*s%b : %b%b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'Firmware' 'Firmware')" "${CLR_RESET}" "${CLR_BOLD}" "${CLR_CYAN}" "$_fw" "${CLR_RESET}"
     printf "  %b%-*s%b : %b%s | %b\n"   "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_WAN_LABEL)"                        "${CLR_RESET}" "${CLR_RESET}"  "$_wan_dev" "$(zkm_banner_fmt_wan_state "$_wan_state")"
     printf "  %b%-*s%b : %b%b\n"        "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_ZAPRET_LABEL)"                     "${CLR_RESET}" "${CLR_RESET}"  "$(zkm_banner_fmt_zapret_state "$_zap_state")"
-    printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_YELLOW}" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
-    printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'Zapret Surum' 'Zapret Version'  )"       "${CLR_RESET}" "${CLR_YELLOW}" "$(zkm_get_zapret_version)"                       "${CLR_RESET}"
+    healthmon_load_config 2>/dev/null
+    if healthmon_is_running 2>/dev/null; then
+        printf "  %b%-*s%b : %b%s%b\n"  "${CLR_BOLD}" "$_lw" "$(T TXT_HM_BANNER_LABEL)" \
+            "${CLR_RESET}" "${CLR_GREEN}"  "$(T TXT_HM_RUN_ON)"  "${CLR_RESET}"
+    else
+        printf "  %b%-*s%b : %b%s%b\n"  "${CLR_BOLD}" "$_lw" "$(T TXT_HM_BANNER_LABEL)" \
+            "${CLR_RESET}" "${CLR_RED}"    "$(T TXT_HM_RUN_OFF)" "${CLR_RESET}"
+    fi
+    printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_BOLD}" "${CLR_ORANGE}" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
+    printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'Zapret Surum' 'Zapret Version'  )"       "${CLR_RESET}" "${CLR_BOLD}" "${CLR_ORANGE}" "$(zkm_get_zapret_version)"                       "${CLR_RESET}"
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'GitHub'       'GitHub'          )"       "${CLR_RESET}" "${CLR_DIM}"   "github.com/RevolutionTR/keenetic-zapret-manager"  "${CLR_RESET}"
 
     print_line "="
@@ -6241,6 +6291,13 @@ telegram_device_info_init() {
     fi
 
     [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="keenetic"
+
+    # KN-xxxx kodunu tam ada çevir (hem "KN-1812" hem "Keenetic KN-1812" gibi değerleri yakala)
+    _kn_code="$(printf '%s' "$TG_DEVICE_MODEL" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
+    if [ -n "$_kn_code" ]; then
+        _full="$(_zkm_kn_to_name "$_kn_code" 2>/dev/null)"
+        [ -n "$_full" ] && TG_DEVICE_MODEL="$_full"
+    fi
     return 0
 }
 
@@ -6260,9 +6317,9 @@ telegram_build_msg() {
 📡 $(T TXT_TG_DEVICE_LABEL) : $TG_DEVICE_NAME
 🏠 $(T TXT_TG_LAN_LABEL) : $TG_DEVICE_LAN_IP
 🌍 $(T TXT_TG_WAN_LABEL) : $TG_DEVICE_WAN_IP
-⚙️ $(T TXT_TG_MODEL_LABEL) : $TG_DEVICE_MODEL
+🔧 $(T TXT_TG_MODEL_LABEL) : $TG_DEVICE_MODEL
 $event
-🕒 $(T TXT_TG_TIME_LABEL)   : $(date '+%Y-%m-%d %H:%M:%S')
+🕒 $(T TXT_TG_TIME_LABEL) : $(date '+%Y-%m-%d %H:%M:%S')
 EOF
 }
 
@@ -6801,13 +6858,13 @@ hm_wanmon_tick() {
             rm -f "$down_ts_f" "$down_hms_f" 2>/dev/null
 
             telegram_send "$(printf '%s
-%s %s
-%s %s
-%s %s' \
+%s : %s
+%s : %s
+%s : %s' \
                 "✅ WAN UP (${wan_disp})" \
                 "📉 Down" "$down_hms" \
-                "📈 Up" "$up_hms" \
-                "⏱️ Sure" "$dur")"
+                "📈 Up  " "$up_hms" \
+                "🕐 Sure" "$dur")"
             healthmon_log "$now | wanmon | up iface=$ifc dur=$dur"
         fi
         return 0
