@@ -32,10 +32,14 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.14.1"
+SCRIPT_VERSION="v26.2.15"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
+
+# Daemon için +x gerekli; "sh script.sh" ile çalışınca izin olmasa da menü açılır
+# ama healthmon başlatılamaz. Script her çalıştığında otomatik düzelt.
+[ -x "$ZKM_SCRIPT_PATH" ] || chmod +x "$ZKM_SCRIPT_PATH" 2>/dev/null
 # -------------------------------------------------------------------
 
 
@@ -633,7 +637,7 @@ _zkm_kn_to_name() {
         KN-2010) echo "Keenetic DSL (KN-2010)"            ;;
         KN-2012) echo "Keenetic Launcher DSL (KN-2012)"   ;;
         KN-2110) echo "Keenetic Duo (KN-2110)"            ;;
-        KN-2112) echo "Keenetic Skipper DSL (KN-2112)"    ;;
+        KN-2112) echo "Keenetic Extra DSL / Skipper DSL (KN-2112)" ;;
         KN-2113) echo "Keenetic Speedster DSL (KN-2113)"  ;;
         KN-2210) echo "Keenetic Runner 4G (KN-2210)"      ;;
         KN-2211) echo "Keenetic Runner 4G (KN-2211)"      ;;
@@ -684,11 +688,18 @@ zkm_banner_get_system() {
     # 1) ndmc show version
     _ver="$(ndmc -c show version 2>/dev/null | tr -d '\r')"
     if [ -n "$_ver" ]; then
-        m="$(printf '%s\n' "$_ver" | awk -F'[: ]' '
-            /description:|model:|product:|device:|hardware:|board:/ {
-                for(i=2;i<=NF;i++) if($i!="") { v=$i; for(j=i+1;j<=NF;j++) v=v" "$j; gsub(/^[ \t]+|[ \t]+$/,"",v); if(v!="") {print v; exit} }
+        m="$(printf '%s\n' "$_ver" | awk -F': ' '
+            /model:|description:|product:|device:|hardware:|board:/ {
+                gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                if ($2 != "") { print $2; exit }
             }')"
-        [ -n "$m" ] && { echo "$m"; return 0; }
+        if [ -n "$m" ]; then
+            case "$m" in
+                KN-[0-9]*) _zkm_kn_to_name "$m"; return 0 ;;
+                Keenetic*) echo "$m"; return 0 ;;
+                *) echo "Keenetic $m"; return 0 ;;
+            esac
+        fi
         _kn="$(printf '%s\n' "$_ver" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
         [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
     fi
@@ -696,11 +707,18 @@ zkm_banner_get_system() {
     # 2) ndmc show system
     _sys="$(ndmc -c show system 2>/dev/null | tr -d '\r')"
     if [ -n "$_sys" ]; then
-        m="$(printf '%s\n' "$_sys" | awk -F'[: ]' '
-            /description:|model:|product:|device:|hardware:|board:/ {
-                for(i=2;i<=NF;i++) if($i!="") { v=$i; for(j=i+1;j<=NF;j++) v=v" "$j; gsub(/^[ \t]+|[ \t]+$/,"",v); if(v!="") {print v; exit} }
+        m="$(printf '%s\n' "$_sys" | awk -F': ' '
+            /model:|description:|product:|device:|hardware:|board:/ {
+                gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                if ($2 != "") { print $2; exit }
             }')"
-        [ -n "$m" ] && { echo "$m"; return 0; }
+        if [ -n "$m" ]; then
+            case "$m" in
+                KN-[0-9]*) _zkm_kn_to_name "$m"; return 0 ;;
+                Keenetic*) echo "$m"; return 0 ;;
+                *) echo "Keenetic $m"; return 0 ;;
+            esac
+        fi
         _kn="$(printf '%s\n' "$_sys" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
         [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
     fi
@@ -6250,14 +6268,20 @@ telegram_device_info_init() {
     _ver="$(ndmc -c show version 2>/dev/null)"
     if [ -n "$_ver" ]; then
         # 1) Key:value lines
-        TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | awk -F'[:=]' '
-            BEGIN{IGNORECASE=1}
-            $1 ~ /(model|product|device|hardware|board)/ {
-                v=$2;
-                gsub(/^[ \t]+|[ \t]+$/, "", v);
-                if (v != "") { print v; exit }
+        TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | awk -F': ' '
+            /model:|description:|product:|device:|hardware:|board:/ {
+                gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                if ($2 != "") { print $2; exit }
             }')"
-        # 2) KN-xxxx token anywhere
+        # 2) Sadece tam KN-xxxx ise tabloya bak; Keenetic ile başlamıyorsa ekle
+        case "$TG_DEVICE_MODEL" in
+            KN-[0-9]*)
+                _kn2="$(_zkm_kn_to_name "$TG_DEVICE_MODEL" 2>/dev/null)"
+                [ -n "$_kn2" ] && TG_DEVICE_MODEL="$_kn2"
+                ;;
+            Keenetic*) ;;
+            ?*) TG_DEVICE_MODEL="Keenetic $TG_DEVICE_MODEL" ;;
+        esac
         [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | grep -Eo 'KN-[0-9]{3,5}' | head -n 1)"
         # 3) "Keenetic XXX" line (fallback human name)
         if [ -z "$TG_DEVICE_MODEL" ]; then
@@ -6271,12 +6295,19 @@ telegram_device_info_init() {
     # 4) ndmc show system (some firmwares keep product name there)
     if [ -z "$TG_DEVICE_MODEL" ]; then
         _sys="$(ndmc -c show system 2>/dev/null)"
-        TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | awk -F'[:=]' '
-            BEGIN{IGNORECASE=1}
-            $1 ~ /(model|product|device|hardware|board)/ {
-                v=$2; gsub(/^[ \t]+|[ \t]+$/, "", v);
-                if (v != "") { print v; exit }
+        TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | awk -F': ' '
+            /model:|description:|product:|device:|hardware:|board:/ {
+                gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                if ($2 != "") { print $2; exit }
             }')"
+        case "$TG_DEVICE_MODEL" in
+            KN-[0-9]*)
+                _kn2="$(_zkm_kn_to_name "$TG_DEVICE_MODEL" 2>/dev/null)"
+                [ -n "$_kn2" ] && TG_DEVICE_MODEL="$_kn2"
+                ;;
+            Keenetic*) ;;
+            ?*) TG_DEVICE_MODEL="Keenetic $TG_DEVICE_MODEL" ;;
+        esac
         [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | grep -Eo 'KN-[0-9]{3,5}' | head -n 1)"
     fi
 
@@ -6292,12 +6323,21 @@ telegram_device_info_init() {
 
     [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="keenetic"
 
-    # KN-xxxx kodunu tam ada çevir (hem "KN-1812" hem "Keenetic KN-1812" gibi değerleri yakala)
-    _kn_code="$(printf '%s' "$TG_DEVICE_MODEL" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
-    if [ -n "$_kn_code" ]; then
-        _full="$(_zkm_kn_to_name "$_kn_code" 2>/dev/null)"
-        [ -n "$_full" ] && TG_DEVICE_MODEL="$_full"
-    fi
+    # KN-xxxx kodunu tam ada çevir - sadece tam "KN-xxxx" veya "Keenetic KN-xxxx" formatındaysa
+    # Keenetic ile başlamıyorsa ekle
+    case "$TG_DEVICE_MODEL" in
+        KN-[0-9]*)
+            _full="$(_zkm_kn_to_name "$TG_DEVICE_MODEL" 2>/dev/null)"
+            [ -n "$_full" ] && TG_DEVICE_MODEL="$_full"
+            ;;
+        Keenetic\ KN-[0-9]*)
+            _kn_code="$(printf '%s' "$TG_DEVICE_MODEL" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
+            _full="$(_zkm_kn_to_name "$_kn_code" 2>/dev/null)"
+            [ -n "$_full" ] && TG_DEVICE_MODEL="$_full"
+            ;;
+        Keenetic*) ;;
+        ?*) TG_DEVICE_MODEL="Keenetic $TG_DEVICE_MODEL" ;;
+    esac
     return 0
 }
 
@@ -7553,16 +7593,13 @@ healthmon_start() {
     # already running? don't spawn a 2nd daemon
     healthmon_is_running && return 0
 
+
     healthmon_load_config
     HM_ENABLE="1"
     healthmon_write_config
 
 
     healthmon_autostart_install
-    # If already running, do nothing
-    if healthmon_is_running; then
-        return 0
-    fi
 
     # Clear stale state (safe)
     rm -f "$HM_PID_FILE" /tmp/healthmon.log 2>/dev/null
@@ -7930,8 +7967,11 @@ health_monitor_menu() {
         healthmon_stop
         print_status PASS "$(T TXT_HM_DISABLED)"
     else
-        healthmon_start
-        print_status PASS "$(T TXT_HM_ENABLED)"
+        if healthmon_start; then
+            print_status PASS "$(T TXT_HM_ENABLED)"
+        else
+            print_status FAIL "$(T TXT_HM_ENABLED)"
+        fi
     fi
     press_enter_to_continue
     ;;
