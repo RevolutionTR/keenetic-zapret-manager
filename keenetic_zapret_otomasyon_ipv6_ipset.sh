@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.15"
+SCRIPT_VERSION="v26.2.15.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -838,6 +838,15 @@ zkm_banner_fmt_zapret_state() {
     esac
 }
 
+zkm_banner_fmt_keendns_state() {
+    # $1: direct|cloud|unknown/empty
+    case "$1" in
+        direct) printf '%b' "${CLR_GREEN}$(T TXT_KEENDNS_DIRECT)${CLR_RESET}" ;;
+        cloud)  printf '%b' "${CLR_YELLOW}$(T TXT_KEENDNS_CLOUD)${CLR_RESET}" ;;
+        *)      printf '%b' "${CLR_RED}$(T TXT_KEENDNS_UNKNOWN)${CLR_RESET}" ;;
+    esac
+}
+
 
 
 
@@ -941,8 +950,8 @@ TXT_ACTIVE_DPI_DEFAULT_EN=" Default / Manual"
 TXT_ACTIVE_DPI_PARAMS_TR=" Parametreler"
 TXT_ACTIVE_DPI_PARAMS_EN=" Parameters"
 
-TXT_DPI_AUTO_NOTE_TR=" Not: Blockcheck (Otomatik) aktifken asagidaki 1–8 profilleri pasiftir."
-TXT_DPI_AUTO_NOTE_EN=" Note: While Blockcheck (Auto) is active, profiles 1–8 below are inactive."
+TXT_DPI_AUTO_NOTE_TR=" Not: Blockcheck (Otomatik) aktifken asagidaki 1-8 profilleri pasiftir."
+TXT_DPI_AUTO_NOTE_EN=" Note: While Blockcheck (Auto) is active, profiles 1-8 below are inactive."
 
 TXT_DPI_BASE_TR=" (Taban)"
 TXT_DPI_BASE_EN=" (Base)"
@@ -971,8 +980,8 @@ TXT_MENU_10_EN="10. Script update check (Latest/Installed - GitHub)"
 TXT_MENU_11_TR="11. Hostlist / Autohostlist (Filtreleme)"
 TXT_MENU_11_EN="11. Hostlist / Autohostlist (Filtering)"
 
-TXT_MENU_12_TR="12. IPSET (Statik IP kullanan cihazlarla calisir – DHCP desteklenmez!)"
-TXT_MENU_12_EN="12. IPSET (Works with static IP devices – DHCP is not supported!)"
+TXT_MENU_12_TR="12. IPSET (Statik IP kullanan cihazlarla calisir - DHCP desteklenmez!)"
+TXT_MENU_12_EN="12. IPSET (Works with static IP devices - DHCP is not supported!)"
 
 TXT_MENU_13_TR="13. Betik: Yedekten Geri Don (Rollback)"
 TXT_MENU_13_EN="13. Script: Roll Back from Backup"
@@ -2139,6 +2148,23 @@ TXT_ADD_IP_EN="IP to add (Enter=Cancel): "
 
 TXT_DEL_IP_TR="Silinecek IP (Enter=Vazgec): "
 TXT_DEL_IP_EN="IP to remove (Enter=Cancel): "
+
+# --- KeenDNS Izleme ---
+TXT_KEENDNS_BANNER_LABEL_TR="KeenDNS"
+TXT_KEENDNS_BANNER_LABEL_EN="KeenDNS"
+TXT_KEENDNS_DIRECT_TR="Dogrudan Erisim"
+TXT_KEENDNS_DIRECT_EN="Direct Access"
+TXT_KEENDNS_CLOUD_TR="Yalnizca Cloud"
+TXT_KEENDNS_CLOUD_EN="Cloud Only"
+TXT_KEENDNS_NONE_TR="KeenDNS kaydi yok"
+TXT_KEENDNS_NONE_EN="No KeenDNS record"
+TXT_KEENDNS_UNKNOWN_TR="Bilinmiyor"
+TXT_KEENDNS_UNKNOWN_EN="Unknown"
+TXT_KEENDNS_LOST_TR="⚠️ KeenDNS Uyari\n%s\nDogrudan erisim kesildi, yalnizca cloud aktif."
+TXT_KEENDNS_LOST_EN="⚠️ KeenDNS Alert\n%s\nDirect access lost, cloud only."
+TXT_KEENDNS_BACK_TR="✅ KeenDNS Geri Geldi\n%s\nDogrudan erisim yeniden aktif."
+TXT_KEENDNS_BACK_EN="✅ KeenDNS Restored\n%s\nDirect access is active again."
+
 T() {
     # Kullanim:
     #   T KEY                 -> sozlukten KEY_TR / KEY_EN
@@ -5034,6 +5060,15 @@ display_menu() {
     _fw="$(zkm_banner_get_firmware 2>/dev/null)"
     [ -n "$_fw" ] && printf "  %b%-*s%b : %b%b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'Firmware' 'Firmware')" "${CLR_RESET}" "${CLR_BOLD}" "${CLR_CYAN}" "$_fw" "${CLR_RESET}"
     printf "  %b%-*s%b : %b%s | %b\n"   "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_WAN_LABEL)"                        "${CLR_RESET}" "${CLR_RESET}"  "$_wan_dev" "$(zkm_banner_fmt_wan_state "$_wan_state")"
+    local _kdns_raw _kdns_access
+    _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
+    _kdns_access="$(printf '%s\n' "$_kdns_raw" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
+    if [ -n "$_kdns_access" ]; then
+        local _kdns_name _kdns_domain
+        _kdns_name="$(printf '%s\n' "$_kdns_raw"   | awk '/^[[:space:]]*name:/   {print $2; exit}')"
+        _kdns_domain="$(printf '%s\n' "$_kdns_raw" | awk '/^[[:space:]]*domain:/ {print $2; exit}')"
+        printf "  %b%-*s%b : %s | %b\n" "${CLR_BOLD}" "$_lw" "$(T TXT_KEENDNS_BANNER_LABEL)"             "${CLR_RESET}" "${_kdns_name}.${_kdns_domain}" "$(zkm_banner_fmt_keendns_state "$_kdns_access")"
+    fi
     printf "  %b%-*s%b : %b%b\n"        "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_ZAPRET_LABEL)"                     "${CLR_RESET}" "${CLR_RESET}"  "$(zkm_banner_fmt_zapret_state "$_zap_state")"
     healthmon_load_config 2>/dev/null
     if healthmon_is_running 2>/dev/null; then
@@ -5345,6 +5380,20 @@ run_health_check() {
     add_line "$HC_SVC" "$(T TXT_HEALTH_OPKG)" "" "$opkg_ok"
     add_line "$HC_SVC" "$(T TXT_HEALTH_ZAPRET)" "" "$zap_ok"
 
+    # KeenDNS durumu (ndns varsa göster, yoksa INFO)
+    local kdns_raw kdns_name kdns_domain kdns_access
+    kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
+    kdns_name="$(printf '%s\n' "$kdns_raw"   | awk '/^[[:space:]]*name:/   {print $2; exit}')"
+    kdns_domain="$(printf '%s\n' "$kdns_raw" | awk '/^[[:space:]]*domain:/ {print $2; exit}')"
+    kdns_access="$(printf '%s\n' "$kdns_raw" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
+    if [ -z "$kdns_name" ]; then
+        add_line "$HC_SVC" "KeenDNS" " ($(T TXT_KEENDNS_NONE))" "INFO"
+    elif [ "$kdns_access" = "direct" ]; then
+        add_line "$HC_SVC" "KeenDNS" " (${kdns_name}.${kdns_domain} - ${CLR_GREEN}$(T TXT_KEENDNS_DIRECT)${CLR_RESET})" "PASS"
+    else
+        add_line "$HC_SVC" "KeenDNS" " (${kdns_name}.${kdns_domain} - ${CLR_YELLOW}$(T TXT_KEENDNS_CLOUD)${CLR_RESET})" "WARN"
+    fi
+
     # ----------------------------
     # SCORE + SUMMARY
     # ----------------------------
@@ -5366,7 +5415,7 @@ run_health_check() {
     fi
     rating_txt="$(T "$rating_key")"
 
-    printf "\n%-35s : %s / 10   ✅ %s   (%d/%d OK)\n" "$(T TXT_HEALTH_SCORE)" "$score" "$rating_txt" "$ok_n" "$total_n"
+    printf "\n%-35s : %s / 10  [OK] %s   (%d/%d OK)\n" "$(T TXT_HEALTH_SCORE)" "$score" "$rating_txt" "$ok_n" "$total_n"
     print_line "-"
     printf "%s\n" "$(T TXT_HEALTH_SECTION_NETDNS)"
     print_line "-"
@@ -7418,6 +7467,35 @@ healthmon_loop() {
 
 # periodic update check (GitHub)
         healthmon_updatecheck_do
+        # ---- KEENDNS MONITOR ----
+        local kdns_raw2 kdns_name2 kdns_domain2 kdns_access2
+        kdns_raw2="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
+        kdns_name2="$(printf '%s\n' "$kdns_raw2"   | awk '/^[[:space:]]*name:/   {print $2; exit}')"
+        kdns_domain2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*domain:/ {print $2; exit}')"
+        kdns_access2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
+        if [ -n "$kdns_name2" ]; then
+            local kdns_prev_f="/tmp/healthmon_keendns.prev"
+            local kdns_fqdn="${kdns_name2}.${kdns_domain2}"
+            local kdns_prev
+            kdns_prev="$(cat "$kdns_prev_f" 2>/dev/null)"
+            # Durum değişince bildirim gönder
+            if [ -n "$kdns_prev" ] && [ "$kdns_prev" != "$kdns_access2" ]; then
+                if [ "$kdns_access2" = "direct" ]; then
+                    if healthmon_should_alert "keendns_up" "$HM_COOLDOWN_SEC"; then
+                        telegram_send "$(printf "$(T TXT_KEENDNS_BACK)" "$kdns_fqdn")"
+                        healthmon_log "$now | keendns_up | $kdns_fqdn"
+                    fi
+                else
+                    if healthmon_should_alert "keendns_down" "$HM_COOLDOWN_SEC"; then
+                        telegram_send "$(printf "$(T TXT_KEENDNS_LOST)" "$kdns_fqdn")"
+                        healthmon_log "$now | keendns_down | $kdns_fqdn access=$kdns_access2"
+                    fi
+                fi
+            fi
+            # Güncel durumu kaydet
+            printf '%s\n' "$kdns_access2" > "$kdns_prev_f" 2>/dev/null
+        fi
+
         # ---- WAN MONITOR ----
         hm_wanmon_tick
 
@@ -8019,10 +8097,10 @@ main_menu_loop() {
             4) stop_zapret; press_enter_to_continue ;;
             5) restart_zapret; press_enter_to_continue ;;
             6) check_remote_update ;;
-        10) check_manager_update ;;
-        7) configure_zapret_ipv6_support ;;
-        8) backup_restore_menu ;;
-        9)
+			10) check_manager_update ;;
+			7) configure_zapret_ipv6_support ;;
+			8) backup_restore_menu ;;
+			9)
             while true; do
                 if select_dpi_profile; then
                     apply_dpi_profile_now
@@ -8031,12 +8109,12 @@ main_menu_loop() {
                 fi
             done
             ;;
-        11) manage_hostlist_menu ;;
+			11) manage_hostlist_menu ;;
             12) manage_ipset_clients ;;
-        13) script_rollback_menu ;;
-        14) run_health_check ;;
-        15) telegram_notifications_menu ;;
-        16) health_monitor_menu ;;
+			13) script_rollback_menu ;;
+			14) run_health_check ;;
+			15) telegram_notifications_menu ;;
+			16) health_monitor_menu ;;
 B|b) blockcheck_test_menu ;;
 L|l) toggle_lang ;; 
         U|u) zkm_full_uninstall ;;
