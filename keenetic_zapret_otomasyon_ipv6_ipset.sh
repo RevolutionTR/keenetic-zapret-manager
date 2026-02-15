@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.15.1"
+SCRIPT_VERSION="v26.2.15.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -773,9 +773,9 @@ zkm_banner_get_firmware() {
 
     # Kanal adını yerelleştir
     case "$_sandbox" in
-        stable)  _channel_tr="$(T _ 'Kararlı'     'Stable')"     ;;
-        preview) _channel_tr="$(T _ 'Önizleme'    'Preview')"    ;;
-        alpha)   _channel_tr="$(T _ 'Geliştirici' 'Developer')"  ;;
+        stable)  _channel_tr="$(T _ 'Kararli'     'Stable')"     ;;
+        preview) _channel_tr="$(T _ 'Onizleme'    'Preview')"    ;;
+        alpha)   _channel_tr="$(T _ 'Gelistirici' 'Developer')"  ;;
         *)       _channel_tr="$_sandbox"                          ;;
     esac
 
@@ -2161,9 +2161,17 @@ TXT_KEENDNS_NONE_EN="No KeenDNS record"
 TXT_KEENDNS_UNKNOWN_TR="Bilinmiyor"
 TXT_KEENDNS_UNKNOWN_EN="Unknown"
 TXT_KEENDNS_LOST_TR="⚠️ KeenDNS Uyari\n%s\nDogrudan erisim kesildi, yalnizca cloud aktif."
+TXT_KEENDNS_CGN_LOST_TR="⚠️ KeenDNS Uyari\n%s\nCloud erisimi kesildi (CGN/direkt erisim yok)."
+TXT_KEENDNS_CGN_LOST_EN="⚠️ KeenDNS Alert\n%s\nCloud access lost (CGN / no direct access)."
+TXT_KEENDNS_CGN_BACK_TR="✅ KeenDNS Geri Geldi\n%s\nCloud erisimi yeniden aktif."
+TXT_KEENDNS_CGN_BACK_EN="✅ KeenDNS Restored\n%s\nCloud access is active again."
 TXT_KEENDNS_LOST_EN="⚠️ KeenDNS Alert\n%s\nDirect access lost, cloud only."
 TXT_KEENDNS_BACK_TR="✅ KeenDNS Geri Geldi\n%s\nDogrudan erisim yeniden aktif."
 TXT_KEENDNS_BACK_EN="✅ KeenDNS Restored\n%s\nDirect access is active again."
+TXT_KEENDNS_FAIL_TR="❌ KeenDNS Erisim Yok\n%s\nDomain disaridan erisilebilir degil."
+TXT_KEENDNS_FAIL_EN="❌ KeenDNS Unreachable\n%s\nDomain is not accessible from outside."
+TXT_KEENDNS_REACH_TR="✅ KeenDNS Erisim Geri Geldi\n%s\nDomain tekrar disaridan erisilebilir."
+TXT_KEENDNS_REACH_EN="✅ KeenDNS Reachable Again\n%s\nDomain is accessible from outside again."
 
 T() {
     # Kullanim:
@@ -5381,17 +5389,38 @@ run_health_check() {
     add_line "$HC_SVC" "$(T TXT_HEALTH_ZAPRET)" "" "$zap_ok"
 
     # KeenDNS durumu (ndns varsa göster, yoksa INFO)
-    local kdns_raw kdns_name kdns_domain kdns_access
+    local kdns_raw kdns_name kdns_domain kdns_access kdns_can_direct
     kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
     kdns_name="$(printf '%s\n' "$kdns_raw"   | awk '/^[[:space:]]*name:/   {print $2; exit}')"
     kdns_domain="$(printf '%s\n' "$kdns_raw" | awk '/^[[:space:]]*domain:/ {print $2; exit}')"
     kdns_access="$(printf '%s\n' "$kdns_raw" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
+    kdns_can_direct="$(printf '%s\n' "$kdns_raw" | awk '/^[[:space:]]*direct:/ {print $2; exit}')"
     if [ -z "$kdns_name" ]; then
         add_line "$HC_SVC" "KeenDNS" " ($(T TXT_KEENDNS_NONE))" "INFO"
-    elif [ "$kdns_access" = "direct" ]; then
-        add_line "$HC_SVC" "KeenDNS" " (${kdns_name}.${kdns_domain} - ${CLR_GREEN}$(T TXT_KEENDNS_DIRECT)${CLR_RESET})" "PASS"
     else
-        add_line "$HC_SVC" "KeenDNS" " (${kdns_name}.${kdns_domain} - ${CLR_YELLOW}$(T TXT_KEENDNS_CLOUD)${CLR_RESET})" "WARN"
+        local kdns_fqdn="${kdns_name}.${kdns_domain}"
+        local kdns_dest kdns_port kdns_http_code kdns_reach
+        kdns_dest="$(printf '%s\n' "$kdns_raw" | awk '/^[[:space:]]*destination:/ {print $2; exit}')"
+        kdns_port="$(printf '%s\n' "$kdns_dest" | awk -F: '{print $NF}')"
+        [ -z "$kdns_port" ] && kdns_port="443"
+        [ "$kdns_port" = "443" ] && kdns_proto="https" || kdns_proto="http"
+        kdns_http_code="$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}"             "${kdns_proto}://${kdns_fqdn}:${kdns_port}" 2>/dev/null)"
+        case "$kdns_http_code" in
+            2*|3*|401|403) kdns_reach="yes" ;;
+            *)             kdns_reach="no"  ;;
+        esac
+        if [ "$kdns_access" = "direct" ] && [ "$kdns_reach" = "no" ]; then
+            # Direct modda curl başarısız → gerçek sorun
+            add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_RED}$(T TXT_KEENDNS_UNKNOWN)${CLR_RESET})" "FAIL"
+        elif [ "$kdns_access" = "direct" ]; then
+            add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_GREEN}$(T TXT_KEENDNS_DIRECT)${CLR_RESET})" "PASS"
+        elif [ "$kdns_can_direct" = "no" ]; then
+            # CGN / direct imkansız → cloud kritik, kaybederse erişim tamamen gider
+            add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_YELLOW}$(T TXT_KEENDNS_CLOUD)${CLR_RESET})" "WARN"
+        else
+            # direct: yes ama henüz cloud → OTO geçiş yapacak, geçici
+            add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_YELLOW}$(T TXT_KEENDNS_CLOUD)${CLR_RESET})" "INFO"
+        fi
     fi
 
     # ----------------------------
@@ -6314,7 +6343,7 @@ telegram_device_info_init() {
     # -------------------------
     TG_DEVICE_MODEL=""
 
-    _ver="$(ndmc -c show version 2>/dev/null)"
+    _ver="$(LD_LIBRARY_PATH= ndmc -c show version 2>/dev/null)"
     if [ -n "$_ver" ]; then
         # 1) Key:value lines
         TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | awk -F': ' '
@@ -6343,7 +6372,7 @@ telegram_device_info_init() {
 
     # 4) ndmc show system (some firmwares keep product name there)
     if [ -z "$TG_DEVICE_MODEL" ]; then
-        _sys="$(ndmc -c show system 2>/dev/null)"
+        _sys="$(LD_LIBRARY_PATH= ndmc -c show system 2>/dev/null)"
         TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | awk -F': ' '
             /model:|description:|product:|device:|hardware:|board:/ {
                 gsub(/^[ \t]+|[ \t]+$/, "", $2);
@@ -6370,7 +6399,7 @@ telegram_device_info_init() {
         done
     fi
 
-    [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="keenetic"
+    [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="Keenetic"
 
     # KN-xxxx kodunu tam ada çevir - sadece tam "KN-xxxx" veya "Keenetic KN-xxxx" formatındaysa
     # Keenetic ile başlamıyorsa ekle
@@ -7474,26 +7503,74 @@ healthmon_loop() {
         kdns_domain2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*domain:/ {print $2; exit}')"
         kdns_access2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
         if [ -n "$kdns_name2" ]; then
-            local kdns_prev_f="/tmp/healthmon_keendns.prev"
             local kdns_fqdn="${kdns_name2}.${kdns_domain2}"
+            # --- Erişim modu (direct/cloud) izleme ---
+            local kdns_prev_f="/tmp/healthmon_keendns.prev"
             local kdns_prev
             kdns_prev="$(cat "$kdns_prev_f" 2>/dev/null)"
-            # Durum değişince bildirim gönder
+            local kdns_can_direct2
+            kdns_can_direct2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*direct:/ {print $2; exit}')"
             if [ -n "$kdns_prev" ] && [ "$kdns_prev" != "$kdns_access2" ]; then
                 if [ "$kdns_access2" = "direct" ]; then
+                    # direct'e döndü
                     if healthmon_should_alert "keendns_up" "$HM_COOLDOWN_SEC"; then
                         telegram_send "$(printf "$(T TXT_KEENDNS_BACK)" "$kdns_fqdn")"
                         healthmon_log "$now | keendns_up | $kdns_fqdn"
                     fi
-                else
+                elif [ "$kdns_can_direct2" = "no" ]; then
+                    # CGN: cloud'a düştü, direct imkansız → kritik alarm
                     if healthmon_should_alert "keendns_down" "$HM_COOLDOWN_SEC"; then
-                        telegram_send "$(printf "$(T TXT_KEENDNS_LOST)" "$kdns_fqdn")"
-                        healthmon_log "$now | keendns_down | $kdns_fqdn access=$kdns_access2"
+                        telegram_send "$(printf "$(T TXT_KEENDNS_CGN_LOST)" "$kdns_fqdn")"
+                        healthmon_log "$now | keendns_cgn_lost | $kdns_fqdn"
+                    fi
+                fi
+                # direct:yes + cloud → OTO geçiş yapacak, alarm verme
+            fi
+            printf '%s\n' "$kdns_access2" > "$kdns_prev_f" 2>/dev/null
+            # --- Gercek erisim (curl) izleme ---
+            local kdns_dest2 kdns_port2 kdns_http2 kdns_reach2
+            kdns_dest2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*destination:/ {print $2; exit}')"
+            kdns_port2="$(printf '%s\n' "$kdns_dest2" | awk -F: '{print $NF}')"
+            [ -z "$kdns_port2" ] && kdns_port2="443"
+            [ "$kdns_port2" = "443" ] && kdns_proto2="https" || kdns_proto2="http"
+            kdns_http2="$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}"                 "${kdns_proto2}://${kdns_fqdn}:${kdns_port2}" 2>/dev/null)"
+            case "$kdns_http2" in
+                2*|3*|401|403) kdns_reach2="yes" ;;
+                *)             kdns_reach2="no"  ;;
+            esac
+            local kdns_reach_f="/tmp/healthmon_keendns_reach.prev"
+            local kdns_reach_prev
+            kdns_reach_prev="$(cat "$kdns_reach_f" 2>/dev/null)"
+            # Curl alarmı:
+            # - direct modda: erişim kesilirse/gelirse alarm
+            # - CGN (direct:no) + cloud modda: cloud erişimi kesilirse/gelirse alarm
+            local kdns_do_curl_alarm="no"
+            [ "$kdns_access2" = "direct" ] && kdns_do_curl_alarm="yes"
+            [ "$kdns_can_direct2" = "no" ] && kdns_do_curl_alarm="yes"
+            if [ "$kdns_do_curl_alarm" = "yes" ]; then
+                if [ -n "$kdns_reach_prev" ] && [ "$kdns_reach_prev" != "$kdns_reach2" ]; then
+                    if [ "$kdns_reach2" = "yes" ]; then
+                        if healthmon_should_alert "keendns_reach" "$HM_COOLDOWN_SEC"; then
+                            if [ "$kdns_can_direct2" = "no" ]; then
+                                telegram_send "$(printf "$(T TXT_KEENDNS_CGN_BACK)" "$kdns_fqdn")"
+                            else
+                                telegram_send "$(printf "$(T TXT_KEENDNS_REACH)" "$kdns_fqdn")"
+                            fi
+                            healthmon_log "$now | keendns_reachable | $kdns_fqdn"
+                        fi
+                    else
+                        if healthmon_should_alert "keendns_unreach" "$HM_COOLDOWN_SEC"; then
+                            if [ "$kdns_can_direct2" = "no" ]; then
+                                telegram_send "$(printf "$(T TXT_KEENDNS_CGN_LOST)" "$kdns_fqdn")"
+                            else
+                                telegram_send "$(printf "$(T TXT_KEENDNS_FAIL)" "$kdns_fqdn")"
+                            fi
+                            healthmon_log "$now | keendns_unreachable | $kdns_fqdn port=$kdns_port2 http=$kdns_http2"
+                        fi
                     fi
                 fi
             fi
-            # Güncel durumu kaydet
-            printf '%s\n' "$kdns_access2" > "$kdns_prev_f" 2>/dev/null
+            printf '%s\n' "$kdns_reach2" > "$kdns_reach_f" 2>/dev/null
         fi
 
         # ---- WAN MONITOR ----
