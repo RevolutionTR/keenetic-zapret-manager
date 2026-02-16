@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.15.2"
+SCRIPT_VERSION="v26.2.16"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -193,16 +193,26 @@ if [ "$ZKM_SKIP_LOCK" != "1" ]; then
         rm -rf "$ZKM_LOCKDIR" 2>/dev/null
     }
 
+    # Forceful exit helper: in BusyBox ash, "exit" inside a trap handler may fail
+    # to terminate the shell when deep in nested function calls (e.g., during
+    # healthmon_start's sleep loop). kill -KILL $$ guarantees termination.
+    _zkm_force_exit() {
+        zkm_cleanup
+        trap - EXIT INT TERM HUP 2>/dev/null
+        kill -KILL $$ 2>/dev/null
+        exit "$1" 2>/dev/null
+    }
+
     # Always cleanup the lock
     trap 'zkm_cleanup' EXIT
 
     # Extra traps: ensure Ctrl-C (INT) and disconnect signals actually EXIT
-    trap 'zkm_cleanup; exit 130' INT
-    trap 'zkm_cleanup; exit 143' TERM
-    trap 'zkm_cleanup; exit 129' HUP
-    trap 'zkm_cleanup; exit 148' TSTP
-    trap 'zkm_cleanup; exit 150' TTIN
-    trap 'zkm_cleanup; exit 151' TTOU
+    trap '_zkm_force_exit 130' INT
+    trap '_zkm_force_exit 143' TERM
+    trap '_zkm_force_exit 129' HUP
+    trap '_zkm_force_exit 148' TSTP
+    trap '_zkm_force_exit 150' TTIN
+    trap '_zkm_force_exit 151' TTOU
 
     # END_SESSION_GUARD_V3
 fi
@@ -887,10 +897,10 @@ TXT_MAIN_WAN_LABEL_EN="WAN"
 TXT_MAIN_ZAPRET_LABEL_TR="Zapret"
 TXT_MAIN_ZAPRET_LABEL_EN="Zapret"
 
-TXT_MAIN_UP_TR="UP"
+TXT_MAIN_UP_TR="ACIK"
 TXT_MAIN_UP_EN="UP"
 
-TXT_MAIN_DOWN_TR="DOWN"
+TXT_MAIN_DOWN_TR="KAPALI"
 TXT_MAIN_DOWN_EN="DOWN"
 
 TXT_MAIN_RUNNING_TR="CALISIYOR"
@@ -1013,7 +1023,7 @@ TXT_TG_WAN_LABEL_EN="WAN IP"
 TXT_TG_LAN_LABEL_TR="LAN IP"
 TXT_TG_LAN_LABEL_EN="LAN IP"
 
-TXT_TG_DEVICE_LABEL_TR="Router"
+TXT_TG_DEVICE_LABEL_TR="Cihaz"
 TXT_TG_DEVICE_LABEL_EN="Router"
 
 TXT_TG_EVENT_LABEL_TR="Olay"
@@ -1073,6 +1083,7 @@ TXT_TG_TEST_OK_MSG_EN="✅ Telegram Test: Notifications working"
 # -------------------------------------------------------------------
 TXT_HM_TITLE_TR="Sistem Sagligi Monitoru"
 TXT_HM_TITLE_EN="System Health Monitor"
+
 TXT_HM_BANNER_LABEL_TR="Saglik Mon."
 TXT_HM_BANNER_LABEL_EN="Health Mon."
 
@@ -1114,17 +1125,17 @@ TXT_HM_PROMPT_WANMON_FAIL_TH_EN="DOWN detect threshold (count)"
 TXT_HM_PROMPT_WANMON_OK_TH_TR="UP dogrulama esigi (adet)"
 TXT_HM_PROMPT_WANMON_OK_TH_EN="UP confirm threshold (count)"
 
-TXT_HM_WAN_DOWN_MSG_TR="🚫 WAN DOWN (%IF%)"
+TXT_HM_WAN_DOWN_MSG_TR="🚫 WAN KAPALI (%IF%)"
 TXT_HM_WAN_DOWN_MSG_EN="🚫 WAN DOWN (%IF%)"
 TXT_HM_WAN_UP_MSG_TR="✅ WAN UP (%IF%)\nKesinti: %DUR%"
 TXT_HM_WAN_UP_MSG_EN="✅ WAN UP (%IF%)\nOutage: %DUR%"
 
 # WAN monitor - rich UP notification (Down/Up/Duration labels)
-TXT_HM_WAN_UP_TITLE_TR="✅ WAN UP (%IF%)"
+TXT_HM_WAN_UP_TITLE_TR="✅ WAN ACIK (%IF%)"
 TXT_HM_WAN_UP_TITLE_EN="✅ WAN UP (%IF%)"
-TXT_HM_WAN_DOWN_TIME_LABEL_TR="Down"
+TXT_HM_WAN_DOWN_TIME_LABEL_TR="Kapali"
 TXT_HM_WAN_DOWN_TIME_LABEL_EN="Down"
-TXT_HM_WAN_UP_TIME_LABEL_TR="Up"
+TXT_HM_WAN_UP_TIME_LABEL_TR="Acik"
 TXT_HM_WAN_UP_TIME_LABEL_EN="Up"
 TXT_HM_WAN_DUR_LABEL_TR="Sure"
 TXT_HM_WAN_DUR_LABEL_EN="Duration"
@@ -1156,10 +1167,10 @@ TXT_HM_STATUS_CPU_EN="CPU"
 TXT_HM_STATUS_ZAPRET_TR="Zapret"
 TXT_HM_STATUS_ZAPRET_EN="Zapret"
 
-TXT_HM_ZAPRET_UP_SHORT_TR="up"
+TXT_HM_ZAPRET_UP_SHORT_TR="acik"
 TXT_HM_ZAPRET_UP_SHORT_EN="up"
 
-TXT_HM_ZAPRET_DOWN_SHORT_TR="down"
+TXT_HM_ZAPRET_DOWN_SHORT_TR="kapali"
 TXT_HM_ZAPRET_DOWN_SHORT_EN="down"
 
 TXT_HM_ZAPRET_NA_SHORT_TR="n/a"
@@ -1222,25 +1233,25 @@ TXT_HM_ENABLED_EN="Health Monitor enabled."
 TXT_HM_DISABLED_TR="Sistem Sagligi Monitoru kapatildi."
 TXT_HM_DISABLED_EN="Health Monitor disabled."
 
-TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Health Monitor test\nCPU: %CPU%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Saglik Izleme testi\nCPU: %CPU%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
 TXT_HM_TEST_MSG_EN="📌 HealthMon %TS%\n✅ Health Monitor test\nCPU: %CPU%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
 
-TXT_HM_CPU_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ CPU UYARI: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_CPU_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ CPU UYARI: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
 TXT_HM_CPU_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ CPU WARN: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
 
-TXT_HM_CPU_CRIT_MSG_TR="📌 HealthMon %TS%\n🚨 CPU KRITIK: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_CPU_CRIT_MSG_TR="📌 HealthMon %TS%\n🚨 CPU KRITIK: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
 TXT_HM_CPU_CRIT_MSG_EN="📌 HealthMon %TS%\n🚨 CPU CRIT: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
 
-TXT_HM_DISK_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ Disk dolu: /opt %DISK%%%\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB"
+TXT_HM_DISK_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ Disk dolu: /opt %DISK%%%\nCPU: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB"
 TXT_HM_DISK_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Disk high: /opt %DISK%%%\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB"
 
-TXT_HM_RAM_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ RAM dusuk: %RAM% MB\nCPU: %CPU%%\nLoad: %LOAD%\nDisk(/opt): %DISK%%"
+TXT_HM_RAM_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ RAM dusuk: %RAM% MB\nCPU: %CPU%%\nYuk: %LOAD%\nDisk(/opt): %DISK%%"
 TXT_HM_RAM_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Low RAM: %RAM% MB\nCPU: %CPU%%\nLoad: %LOAD%\nDisk(/opt): %DISK%%"
 
-TXT_HM_ZAPRET_DOWN_MSG_TR="📌 HealthMon %TS%\n🚨 Zapret durmus olabilir!\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_ZAPRET_DOWN_MSG_TR="📌 HealthMon %TS%\n🚨 Zapret durmus olabilir!\nCPU: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
 TXT_HM_ZAPRET_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Zapret may be down!\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
 
-TXT_HM_ZAPRET_UP_MSG_TR="📌 HealthMon %TS%\n✅ Zapret tekrar calisiyor.\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_ZAPRET_UP_MSG_TR="📌 HealthMon %TS%\n✅ Zapret tekrar calisiyor.\nCPU: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
 TXT_HM_ZAPRET_UP_MSG_EN="📌 HealthMon %TS%\n✅ Zapret is running again.\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
 
 TXT_HM_STATUS_RUNNING_TR="Calisiyor:"
@@ -1344,15 +1355,15 @@ TXT_HM_PROMPT_UPDATECHECK_SEC_EN="Update check interval (sec) [e.g. 21600]:"
 
 TXT_UPD_ZKM_NEW_TR="
 [Guncelleme]
-📦 Paket  : ZKM
+📦 Paket  : KZM
 🔖 Mevcut : %CUR%
 🆕 Yeni   : %NEW%
 🔗 Link   : %URL%
 
-Install now? (menu 10)"
+Simdi kur? (menu 10)"
 TXT_UPD_ZKM_NEW_EN="
 [Update]
-📦 Package : ZKM
+📦 Package : KZM
 🔖 Current : %CUR%
 🆕 Latest  : %NEW%
 🔗 Link    : %URL%
@@ -1370,21 +1381,21 @@ TXT_UPD_ZAPRET_NEW_EN="
 🔖 Installed: %CUR%
 🆕 Latest   : %NEW%
 🔗 Link     : %URL%"
-TXT_UPD_ZKM_AUTO_OK_TR="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_OK_TR="[OtoGuncelleme]\nKZM otomatik kurulum basarili.\nBetigi yeniden calistirin.\n\nMevcut : %CUR%\nYeni   : %NEW%\nLink   : %URL%"
 TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 
 TXT_UPD_ZKM_UP_TO_DATE_TR="
 [Guncelleme]
-📦 Paket : ZKM
+📦 Paket : KZM
 🔄 Durum : Guncel ✅
 🔖 Surum : %CUR%"
 TXT_UPD_ZKM_UP_TO_DATE_EN="
 [Update]
-📦 Package : ZKM
+📦 Package : KZM
 🔄 Status  : Up to date ✅
 🔖 Version : %CUR%"
 
-TXT_UPD_ZKM_AUTO_FAIL_TR="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_FAIL_TR="[OtoGuncelleme]\nKZM otomatik kurulum BASARISIZ.\nLutfen elle guncelleyin (menu 10).\n\nMevcut : %CUR%\nYeni   : %NEW%\nLink   : %URL%"
 TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 
 TXT_HM_PROMPT_AUTOUPDATE_MODE_TR="Otomatik guncelleme modu (0=KAPALI,1=BILDIR,2=OTO KUR) [or: 2]:"
@@ -1405,7 +1416,7 @@ TXT_HM_AUTOUPDATE_WARN_L2_EN="Recommended for advanced users."
 TXT_HM_AUTOUPDATE_WARN_L3_TR="Devam? (e/h): "
 TXT_HM_AUTOUPDATE_WARN_L3_EN="Continue? (y/n): "
 
-TXT_HM_AUTOUPDATE_SET_MSG_TR="Auto update modu ayarlandi: %MODE%"
+TXT_HM_AUTOUPDATE_SET_MSG_TR="Otomatik guncelleme modu ayarlandi: %MODE%"
 TXT_HM_AUTOUPDATE_SET_MSG_EN="Auto update mode set: %MODE%"
 
 TXT_HM_PROMPT_COOLDOWN_TR="Bildirim soguma (sn) [or: 600]:"
@@ -1459,14 +1470,14 @@ TXT_DNS_MODE_PLAIN_EN="Plain"
 TXT_DNS_MODE_MIXED_TR="DoH+DoT"
 TXT_DNS_MODE_MIXED_EN="DoH+DoT"
 
-TXT_DNS_SEC_HIGH_TR="HIGH"
+TXT_DNS_SEC_HIGH_TR="YUKSEK"
 TXT_DNS_SEC_HIGH_EN="HIGH"
-TXT_DNS_SEC_LOW_TR="LOW"
+TXT_DNS_SEC_LOW_TR="DUSUK"
 TXT_DNS_SEC_LOW_EN="LOW"
 
-TXT_TG_DOWN_LABEL_TR="Down"
+TXT_TG_DOWN_LABEL_TR="Kapali"
 TXT_TG_DOWN_LABEL_EN="Down"
-TXT_TG_UP_LABEL_TR="Up"
+TXT_TG_UP_LABEL_TR="Açık"
 TXT_TG_UP_LABEL_EN="Up"
 TXT_TG_DURATION_LABEL_TR="Sure"
 TXT_TG_DURATION_LABEL_EN="Duration"
@@ -2059,14 +2070,58 @@ TXT_IPSET_4_EN=" 4. Add a Single IP to list"
 TXT_IPSET_5_TR=" 5. Listeden Tek IP Sil"
 TXT_IPSET_5_EN=" 5. Remove a Single IP from list"
 
+TXT_IPSET_6_TR=" 6. No Zapret (Muafiyet) Yonetimi"
+TXT_IPSET_6_EN=" 6. No Zapret (Exemption) Management"
+
 TXT_IPSET_0_TR=" 0. Ana Menuye Don"
 TXT_IPSET_0_EN=" 0. Back to Main Menu"
 
-TXT_PROMPT_IPSET_TR=" Seciminizi Yapin (0-5): "
-TXT_PROMPT_IPSET_EN=" Select an Option (0-5): "
+TXT_PROMPT_IPSET_TR=" Seciminizi Yapin (0-6): "
+TXT_PROMPT_IPSET_EN=" Select an Option (0-6): "
 
-TXT_PROMPT_IPSET_BASIC_TR=" Seciminizi Yapin (0-2): "
-TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-2): "
+TXT_PROMPT_IPSET_BASIC_TR=" Seciminizi Yapin (0-2, 6): "
+TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-2, 6): "
+
+TXT_NOZAPRET_TITLE_TR="No Zapret (Muafiyet) Yonetimi"
+TXT_NOZAPRET_TITLE_EN="No Zapret (Exemption) Management"
+TXT_NOZAPRET_DESC_TR="Bu listedeki IP'ler Zapret isleminden MUAF tutulur (ornegin IPTV kutulari)"
+TXT_NOZAPRET_DESC_EN="IPs in this list are EXEMPT from Zapret processing (e.g. IPTV boxes)"
+TXT_NOZAPRET_1_TR=" 1. Muafiyet Listesini Goster"
+TXT_NOZAPRET_1_EN=" 1. Show Exemption List"
+TXT_NOZAPRET_2_TR=" 2. IP Ekle (Zapret'ten Muaf Tut)"
+TXT_NOZAPRET_2_EN=" 2. Add IP (Exempt from Zapret)"
+TXT_NOZAPRET_3_TR=" 3. IP Sil"
+TXT_NOZAPRET_3_EN=" 3. Remove IP"
+TXT_NOZAPRET_4_TR=" 4. Listeyi Temizle"
+TXT_NOZAPRET_4_EN=" 4. Clear List"
+TXT_NOZAPRET_0_TR=" 0. Geri"
+TXT_NOZAPRET_0_EN=" 0. Back"
+TXT_NOZAPRET_PROMPT_TR=" Seciminizi Yapin (0-4): "
+TXT_NOZAPRET_PROMPT_EN=" Select an Option (0-4): "
+TXT_NOZAPRET_ADD_TR="Muaf tutulacak IP'i girin (Enter=iptal): "
+TXT_NOZAPRET_ADD_EN="Enter IP to exempt (Enter=cancel): "
+TXT_NOZAPRET_DEL_TR="Silmek istediginiz IP'i girin (Enter=iptal): "
+TXT_NOZAPRET_DEL_EN="Enter IP to remove (Enter=cancel): "
+TXT_NOZAPRET_EMPTY_TR="Muafiyet listesi bos."
+TXT_NOZAPRET_EMPTY_EN="Exemption list is empty."
+TXT_NOZAPRET_ADDED_TR="Tamam: IP muafiyet listesine eklendi."
+TXT_NOZAPRET_ADDED_EN="OK: IP added to exemption list."
+TXT_NOZAPRET_EXISTS_TR="Bu IP zaten listede."
+TXT_NOZAPRET_EXISTS_EN="This IP is already in the list."
+TXT_NOZAPRET_REMOVED_TR="Tamam: IP muafiyet listesinden silindi."
+TXT_NOZAPRET_REMOVED_EN="OK: IP removed from exemption list."
+TXT_NOZAPRET_NOTFOUND_TR="IP listede bulunamadi."
+TXT_NOZAPRET_NOTFOUND_EN="IP not found in list."
+TXT_NOZAPRET_CLEARED_TR="Tamam: Muafiyet listesi temizlendi."
+TXT_NOZAPRET_CLEARED_EN="OK: Exemption list cleared."
+TXT_NOZAPRET_CONFIRM_CLEAR_TR="Tum muafiyet listesini silmek istiyor musunuz? (e/h): "
+TXT_NOZAPRET_CONFIRM_CLEAR_EN="Delete entire exemption list? (y/n): "
+TXT_NOZAPRET_INVALID_IP_TR="Gecersiz IP adresi!"
+TXT_NOZAPRET_INVALID_IP_EN="Invalid IP address!"
+TXT_NOZAPRET_IPSET_ACTIVE_TR="  IPSET Aktif Uyeler:"
+TXT_NOZAPRET_IPSET_ACTIVE_EN="  IPSET Active Members:"
+TXT_NOZAPRET_IPSET_EMPTY_TR="  (IPSET bos veya tanimsiz)"
+TXT_NOZAPRET_IPSET_EMPTY_EN="  (IPSET empty or undefined)"
 
 # Ceviri secici
 # --- EK DIL METINLERI (TR/EN) ---
@@ -2209,7 +2264,8 @@ T() {
 press_enter_to_continue() {
     # Robust pause: always read from controlling TTY so it cannot be skipped by buffered stdin.
     # We keep clear after the keypress because menus redraw anyway.
-    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _ </dev/tty
+    # EOF guard: if terminal is gone (SSH/Telnet disconnect), exit cleanly.
+    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _ </dev/tty || exit 0
     clear
 }
 
@@ -2246,6 +2302,10 @@ load_lang
 IPSET_CLIENT_NAME="zapret_clients"
 IPSET_CLIENT_FILE="/opt/zapret/ipset_clients.txt"
 IPSET_CLIENT_MODE_FILE="/opt/zapret/ipset_clients_mode"  # all | list
+
+# No Zapret (muafiyet) ayarlari
+NOZAPRET_IPSET_NAME="nozapret"
+NOZAPRET_FILE="/opt/zapret/ipset/nozapret.txt"
 
 # WAN arayuzu (cikis) secimi / otomatik algilama
 WAN_IF_FILE="/opt/zapret/wan_if"
@@ -2596,7 +2656,7 @@ fi
     done
     echo " 0. $(T back_main 'Ana Menuye Don' 'Back')"
     print_line "-"
-    read -r -p "$(T dpi_prompt "Seciminizi yapin (0-8): " "Select an option (0-8): ")" sel
+    read -r -p "$(T dpi_prompt "Seciminizi yapin (0-8): " "Select an option (0-8): ")" sel || return 1
     # sanitize selection (avoid "0 applies 1" edge cases)
     sel="$(echo "$sel" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     if [ -z "$sel" ] || [ "$sel" = "0" ]; then
@@ -3506,6 +3566,23 @@ show_ipset_client_status() {
             printf '%b%s%b\n' "${CLR_RED}" "$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")" "${CLR_RESET}"
         fi
         
+        print_line "-"
+
+        # No Zapret (Muafiyet) Uyeleri
+        printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T nozapret_members 'No Zapret (Muafiyet)' 'No Zapret (Exempt)')" "${CLR_RESET}"
+        local noz_members="$(ipset list "$NOZAPRET_IPSET_NAME" 2>/dev/null | sed -n '/^Members:/,$p' | tail -n +2)"
+        if [ -f "$NOZAPRET_FILE" ] && [ -s "$NOZAPRET_FILE" ]; then
+            local noz_count="$(grep -c '[0-9]' "$NOZAPRET_FILE" 2>/dev/null | tr -d ' ')"
+            printf '%b%d IP%b\n' "${CLR_GREEN}" "$noz_count" "${CLR_RESET}"
+            echo ""
+            awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
+                NF > 0 {
+                    printf "  %s%2d.%s %s\n", cyan, NR, reset, $0
+                }' "$NOZAPRET_FILE"
+        else
+            printf '%b%s%b\n' "${CLR_RED}" "$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")" "${CLR_RESET}"
+        fi
+
         print_line "="
     else
         print_line "="
@@ -3513,6 +3590,23 @@ show_ipset_client_status() {
         print_line "="
         echo ""
         printf '%b%s%b\n' "${CLR_GREEN}" "$(T ipset_all_network "$TXT_IPSET_ALL_NETWORK_TR" "$TXT_IPSET_ALL_NETWORK_EN")" "${CLR_RESET}"
+
+        print_line "-"
+
+        # No Zapret (Muafiyet) Uyeleri - Tum Ag modunda da goster
+        printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T nozapret_members 'No Zapret (Muafiyet)' 'No Zapret (Exempt)')" "${CLR_RESET}"
+        if [ -f "$NOZAPRET_FILE" ] && [ -s "$NOZAPRET_FILE" ]; then
+            local noz_count2="$(grep -c '[0-9]' "$NOZAPRET_FILE" 2>/dev/null | tr -d ' ')"
+            printf '%b%d IP%b\n' "${CLR_GREEN}" "$noz_count2" "${CLR_RESET}"
+            echo ""
+            awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
+                NF > 0 {
+                    printf "  %s%2d.%s %s\n", cyan, NR, reset, $0
+                }' "$NOZAPRET_FILE"
+        else
+            printf '%b%s%b\n' "${CLR_RED}" "$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")" "${CLR_RESET}"
+        fi
+
         print_line "="
     fi
 }
@@ -3556,6 +3650,7 @@ manage_ipset_clients() {
         else
             printf '\033[1;32m%s\033[0m\n' "$(T ipset_mode 'Mod: Tum ag' 'Mode: Whole network')"
         fi
+        echo ""
 
 
         echo "$(T TXT_IPSET_1)"
@@ -3564,15 +3659,17 @@ manage_ipset_clients() {
             echo "$(T TXT_IPSET_3)"
             echo "$(T TXT_IPSET_4)"
             echo "$(T TXT_IPSET_5)"
+            echo "$(T TXT_IPSET_6)"
             echo "$(T TXT_IPSET_0)"
             print_line "-"
             printf "$(T TXT_PROMPT_IPSET)"
         else
+            echo "$(T TXT_IPSET_6)"
             echo "$(T TXT_IPSET_0)"
             print_line "-"
             printf "$(T TXT_PROMPT_IPSET_BASIC)"
         fi
-        read -r ipset_choice
+        read -r ipset_choice || return 0
         echo ""
 
         case "$ipset_choice" in
@@ -3585,6 +3682,13 @@ manage_ipset_clients() {
                 clear
                 ;;
             2)
+                # Mevcut listeyi goster
+                if [ -f "$IPSET_CLIENT_FILE" ] && [ -s "$IPSET_CLIENT_FILE" ]; then
+                    echo "$(T ipset_current_list 'Mevcut liste (bu islem listeyi KOMPLE degistirecek):' 'Current list (this will REPLACE the entire list):')"
+                    awk '{printf "  %d. %s\n", NR, $0}' "$IPSET_CLIENT_FILE"
+                    echo ""
+                fi
+                echo "$(T ipset_bulk_hint 'Not: Tek IP eklemek icin menu 4u kullanin.' 'Note: To add a single IP, use option 4.')"
                 echo "Ornek: 192.168.1.10 192.168.1.20 (bosluk/virgul ile ayirabilirsiniz)"
                 read -r -p "IP'leri girin (Enter=iptal): " ips
 
@@ -3598,11 +3702,33 @@ manage_ipset_clients() {
                         rm -f "$tmp_ips" 2>/dev/null
                         echo "$(T ipset_invalid 'Gecersiz IP listesi. Degisiklik yapilmadi.' 'Invalid IP list. No changes made.')"
                     else
-                        mv "$tmp_ips" "$IPSET_CLIENT_FILE" 2>/dev/null
-                        echo "list" > "$IPSET_CLIENT_MODE_FILE" 2>/dev/null
-
-                        apply_ipset_client_settings
-                        echo "Tamam: Zapret sadece bu IP'lere uygulanacak."
+                        # No Zapret listesinde olan IP'leri filtrele (catisma onleme)
+                        if [ -f "$NOZAPRET_FILE" ] && [ -s "$NOZAPRET_FILE" ]; then
+                            filtered="/tmp/ipset_clients_filtered.$$"
+                            clash_list=""
+                            while IFS= read -r ip; do
+                                [ -z "$ip" ] && continue
+                                if grep -Fqx "$ip" "$NOZAPRET_FILE" 2>/dev/null; then
+                                    clash_list="${clash_list} $ip"
+                                else
+                                    echo "$ip" >> "$filtered"
+                                fi
+                            done < "$tmp_ips"
+                            rm -f "$tmp_ips"
+                            if [ -n "$clash_list" ]; then
+                                echo "$(T ipset_clash_warn 'Uyari: Su IP(ler) No Zapret listesinde oldugu icin eklenmedi:' 'Warning: The following IP(s) are in No Zapret list and were skipped:')$clash_list"
+                            fi
+                            tmp_ips="$filtered"
+                        fi
+                        if [ -s "$tmp_ips" ]; then
+                            mv "$tmp_ips" "$IPSET_CLIENT_FILE" 2>/dev/null
+                            echo "list" > "$IPSET_CLIENT_MODE_FILE" 2>/dev/null
+                            apply_ipset_client_settings
+                            echo "Tamam: Zapret sadece bu IP'lere uygulanacak."
+                        else
+                            rm -f "$tmp_ips" 2>/dev/null
+                            echo "$(T ipset_invalid 'Gecersiz IP listesi. Degisiklik yapilmadi.' 'Invalid IP list. No changes made.')"
+                        fi
                     fi
                 fi
 
@@ -3639,7 +3765,18 @@ manage_ipset_clients() {
                     touch "$IPSET_CLIENT_FILE" 2>/dev/null
                     grep -Fqx "$oneip" "$IPSET_CLIENT_FILE" 2>/dev/null || echo "$oneip" >> "$IPSET_CLIENT_FILE"
                     apply_ipset_client_settings
-                    echo "Tamam: IP eklendi."
+                    # Ayni IP nozapret listesinde varsa cikar (catisma onleme)
+                    if [ -f "$NOZAPRET_FILE" ] && grep -Fqx "$oneip" "$NOZAPRET_FILE" 2>/dev/null; then
+                        tmpf="/tmp/nozapret_clash.$$"
+                        grep -Fvx "$oneip" "$NOZAPRET_FILE" > "$tmpf" 2>/dev/null
+                        cp "$tmpf" "$NOZAPRET_FILE" 2>/dev/null
+                        rm -f "$tmpf"
+                        ipset del "$NOZAPRET_IPSET_NAME" "$oneip" 2>/dev/null
+                        nozapret_apply_rules
+                        echo "Tamam: IP eklendi. Not: IP, No Zapret listesinden de cikarildi."
+                    else
+                        echo "Tamam: IP eklendi."
+                    fi
                 fi
                 fi
                 read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
@@ -3661,7 +3798,8 @@ manage_ipset_clients() {
                 fi
                 if [ -f "$IPSET_CLIENT_FILE" ]; then
                     tmpf="/tmp/ipset_clients.$$"
-                    grep -Fvx "$oneip" "$IPSET_CLIENT_FILE" > "$tmpf" 2>/dev/null && mv "$tmpf" "$IPSET_CLIENT_FILE"
+                    grep -Fvx "$oneip" "$IPSET_CLIENT_FILE" > "$tmpf" 2>/dev/null
+                    cp "$tmpf" "$IPSET_CLIENT_FILE" 2>/dev/null; rm -f "$tmpf"
                     apply_ipset_client_settings
                     echo "Tamam: IP silindi."
                 else
@@ -3669,6 +3807,10 @@ manage_ipset_clients() {
                 fi
                 fi
                 read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                clear
+                ;;
+            6)
+                manage_nozapret_menu
                 clear
                 ;;
             0)
@@ -3685,6 +3827,176 @@ manage_ipset_clients() {
     done
 
     return 0
+}
+
+# -------------------------------------------------------------------
+# nozapret (Muafiyet) Alt-Menusu
+# -------------------------------------------------------------------
+
+# ipset'i olusturur (yoksa) ve dosyadan yukler
+nozapret_ensure_and_load() {
+    ipset list "$NOZAPRET_IPSET_NAME" >/dev/null 2>&1 || \
+        ipset create "$NOZAPRET_IPSET_NAME" hash:ip 2>/dev/null
+    if [ -f "$NOZAPRET_FILE" ]; then
+        while IFS= read -r line; do
+            line="${line%%#*}"
+            line="$(echo "$line" | tr -d '[:space:]')"
+            [ -z "$line" ] && continue
+            ipset -exist add "$NOZAPRET_IPSET_NAME" "$line" 2>/dev/null
+        done < "$NOZAPRET_FILE"
+    fi
+}
+
+# iptables RETURN kurali ekler (nozapret listesindeki IP'ler Zapret'ten muaf)
+nozapret_apply_rules() {
+    local wan_if
+    wan_if="$(get_wan_if 2>/dev/null)"
+    # Eski kurallari temizle
+    nozapret_remove_rules
+    # ipset'i yukle
+    nozapret_ensure_and_load
+    # RETURN kurali: nozapret listesindeki kaynak IP'ler NFQUEUE'ya gitmez
+    if [ -n "$wan_if" ]; then
+        iptables -t mangle -I POSTROUTING -o "$wan_if" \
+            -m set --match-set "$NOZAPRET_IPSET_NAME" src \
+            -j RETURN 2>/dev/null
+    else
+        iptables -t mangle -I POSTROUTING \
+            -m set --match-set "$NOZAPRET_IPSET_NAME" src \
+            -j RETURN 2>/dev/null
+    fi
+}
+
+# iptables kurallarini temizler
+nozapret_remove_rules() {
+    while iptables -t mangle -D POSTROUTING \
+        -m set --match-set "$NOZAPRET_IPSET_NAME" src \
+        -j RETURN 2>/dev/null; do :; done
+}
+
+# Mevcut muafiyet listesini gosterir
+nozapret_show_status() {
+    print_line "-"
+    printf '\033[1;36m %s\033[0m\n' "$(T TXT_NOZAPRET_TITLE)"
+    print_line "-"
+    if [ ! -f "$NOZAPRET_FILE" ] || [ ! -s "$NOZAPRET_FILE" ]; then
+        echo "  $(T TXT_NOZAPRET_EMPTY)"
+    else
+        local i=0
+        while IFS= read -r line; do
+            line="${line%%#*}"
+            line="$(echo "$line" | tr -d '[:space:]')"
+            [ -z "$line" ] && continue
+            i=$((i+1))
+            printf '  \033[1;33m%2d.\033[0m %s\n' "$i" "$line"
+        done < "$NOZAPRET_FILE"
+        if [ "$i" -eq 0 ]; then
+            echo "  $(T TXT_NOZAPRET_EMPTY)"
+        fi
+    fi
+    echo ""
+    printf '\033[1;32m%s\033[0m\n' "$(T TXT_NOZAPRET_IPSET_ACTIVE)"
+    ipset list "$NOZAPRET_IPSET_NAME" 2>/dev/null | grep -E '^[0-9]' | \
+        while read -r ip; do printf '    %s\n' "$ip"; done || \
+        echo "$(T TXT_NOZAPRET_IPSET_EMPTY)"
+    print_line "-"
+}
+
+# nozapret alt-menusu
+manage_nozapret_menu() {
+    while true; do
+        clear
+        print_line "="
+        printf '\033[1;36m  %s\033[0m\n' "$(T TXT_NOZAPRET_TITLE)"
+        echo ""
+        printf '  %s\n' "$(T TXT_NOZAPRET_DESC)"
+        print_line "="
+        echo "$(T TXT_NOZAPRET_1)"
+        echo "$(T TXT_NOZAPRET_2)"
+        echo "$(T TXT_NOZAPRET_3)"
+        echo "$(T TXT_NOZAPRET_4)"
+        echo "$(T TXT_NOZAPRET_0)"
+        print_line "-"
+        printf "$(T TXT_NOZAPRET_PROMPT)"
+        read -r noz_choice || return 0
+        echo ""
+
+        case "$noz_choice" in
+            1)
+                nozapret_show_status
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                ;;
+            2)
+                printf "$(T TXT_NOZAPRET_ADD)"
+                read -r noz_ip
+                if [ -z "$noz_ip" ]; then
+                    echo "$(T cancelled 'Iptal edildi.' 'Cancelled.')"
+                elif echo "$noz_ip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+                    mkdir -p "$(dirname "$NOZAPRET_FILE")"
+                    touch "$NOZAPRET_FILE"
+                    if grep -Fqx "$noz_ip" "$NOZAPRET_FILE" 2>/dev/null; then
+                        echo "$(T TXT_NOZAPRET_EXISTS)"
+                    else
+                        echo "$noz_ip" >> "$NOZAPRET_FILE"
+                        nozapret_apply_rules
+                        # Ayni IP zapret_clients listesinde varsa cikar (catisma onleme)
+                        if [ -f "$IPSET_CLIENT_FILE" ] && grep -Fqx "$noz_ip" "$IPSET_CLIENT_FILE" 2>/dev/null; then
+                            tmpf="/tmp/ipset_clients_clash.$$"
+                            grep -Fvx "$noz_ip" "$IPSET_CLIENT_FILE" > "$tmpf" 2>/dev/null
+                            cp "$tmpf" "$IPSET_CLIENT_FILE" 2>/dev/null; rm -f "$tmpf"
+                            apply_ipset_client_settings
+                            echo "$(T TXT_NOZAPRET_ADDED) $(T ipset_clash_removed 'Not: IP, Secili IP listesinden de cikarildi.' 'Note: IP also removed from Selected IPs list.')"
+                        else
+                            echo "$(T TXT_NOZAPRET_ADDED)"
+                        fi
+                    fi
+                else
+                    echo "$(T TXT_NOZAPRET_INVALID_IP)"
+                fi
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                ;;
+            3)
+                printf "$(T TXT_NOZAPRET_DEL)"
+                read -r noz_ip
+                if [ -z "$noz_ip" ]; then
+                    echo "$(T cancelled 'Iptal edildi.' 'Cancelled.')"
+                elif [ -f "$NOZAPRET_FILE" ] && grep -Fqx "$noz_ip" "$NOZAPRET_FILE" 2>/dev/null; then
+                    tmpf="/tmp/nozapret_del.$$"
+                    grep -Fvx "$noz_ip" "$NOZAPRET_FILE" > "$tmpf" 2>/dev/null
+                    cp "$tmpf" "$NOZAPRET_FILE" 2>/dev/null; rm -f "$tmpf"
+                    ipset del "$NOZAPRET_IPSET_NAME" "$noz_ip" 2>/dev/null
+                    nozapret_apply_rules
+                    echo "$(T TXT_NOZAPRET_REMOVED)"
+                else
+                    echo "$(T TXT_NOZAPRET_NOTFOUND)"
+                fi
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                ;;
+            4)
+                printf "$(T TXT_NOZAPRET_CONFIRM_CLEAR)"
+                read -r confirm
+                case "$confirm" in
+                    e|E|y|Y)
+                        rm -f "$NOZAPRET_FILE"
+                        ipset flush "$NOZAPRET_IPSET_NAME" 2>/dev/null
+                        nozapret_remove_rules
+                        echo "$(T TXT_NOZAPRET_CLEARED)"
+                        ;;
+                    *)
+                        echo "$(T cancelled 'Iptal edildi.' 'Cancelled.')"
+                        ;;
+                esac
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')"
+                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                ;;
+        esac
+    done
 }
 
 # Kurulumdan sonra gereksiz dosyalari temizler
@@ -4363,9 +4675,9 @@ echo " 0. $(T TXT_SCOPE_BACK)"
 
     # Prefer reading from TTY (works reliably even in $(...)). Fallback to normal stdin.
     if [ -r /dev/tty ]; then
-        read -r msel </dev/tty
+        read -r msel </dev/tty || msel=""
     else
-        read -r msel
+        read -r msel || msel=""
     fi
 
     case "$msel" in
@@ -4466,8 +4778,7 @@ manage_hostlist_menu() {
         echo " 0. $(T TXT_HL_OPT_0)"
         print_line "-"
         printf "%s" "$(T TXT_HL_PICK)"
-        read -r sel
-
+        read -r sel || return 0
         case "$sel" in
             1)
                 mode="$(choose_mode_filter_interactive)"
@@ -4697,9 +5008,9 @@ echo " 2. $(T TXT_SCOPE_SMART)  (${sdesc})"
                 printf "%s" "$(T TXT_HL_PICK)"
 
                 if [ -r /dev/tty ]; then
-                    read -r ssel </dev/tty
+                    read -r ssel </dev/tty || ssel=""
                 else
-                    read -r ssel
+                    read -r ssel || ssel=""
                 fi
 
 case "$ssel" in
@@ -4955,7 +5266,7 @@ rollback_local_storage_menu() {
         echo " 0) $(T TXT_BACK)"
         print_line
 
-        read -r -p "$(T TXT_ROLLBACK_MAIN_PICK) " sel
+        read -r -p "$(T TXT_ROLLBACK_MAIN_PICK) " sel || return 0
         sel=$(echo "$sel" | tr -d '[:space:]')
 
         case "$sel" in
@@ -5747,7 +6058,7 @@ blockcheck_test_menu() {
         echo " 3. $(T TXT_BLOCKCHECK_CLEAN)"
         echo " 0. $(T TXT_BACK)"
         print_line
-        read -r -p "$(T TXT_CHOICE) " ch
+        read -r -p "$(T TXT_CHOICE) " ch || return 0
         case "$ch" in
             1) run_blockcheck_full ;;
             2) run_blockcheck_save_summary ;;
@@ -5791,7 +6102,7 @@ print_line "="
         echo "  $(T TXT_BACKUP_SUB_BACK)"
         print_line "-"
         printf "%s: " "$(T TXT_SELECT_ACTION)"
-        read -r CH
+        read -r CH || return 0
 
         case "$CH" in
             1)
@@ -5888,7 +6199,7 @@ print_line "="
         echo " $(T TXT_BACKUP_SUB_BACK_LIST)"
         print_line "-"
         printf "%s: " "$(T TXT_SELECT_ACTION)"
-        read -r sel
+        read -r sel || return 0
         [ "$sel" = "0" ] && return 0
 
         i=1
@@ -6097,7 +6408,7 @@ restore_zapret_settings() {
 " "$(T TXT_BACK)"
     print_line "-"
     printf "%s" "$(T TXT_CHOICE)"
-    read -r sel
+    read -r sel || return 0
     [ -z "$sel" ] && return 0
     if echo "$sel" | grep -Eq "^[cC]$"; then
         clean_zapret_settings_backups
@@ -6436,6 +6747,7 @@ telegram_build_msg() {
 🏠 $(T TXT_TG_LAN_LABEL) : $TG_DEVICE_LAN_IP
 🌍 $(T TXT_TG_WAN_LABEL) : $TG_DEVICE_WAN_IP
 🔧 $(T TXT_TG_MODEL_LABEL) : $TG_DEVICE_MODEL
+
 $event
 🕒 $(T TXT_TG_TIME_LABEL) : $(date '+%Y-%m-%d %H:%M:%S')
 EOF
@@ -6581,7 +6893,7 @@ telegram_notifications_menu() {
         echo " 0) $(T TXT_BACK)"
         print_line "-"
         printf "%s" "$(T TXT_CHOICE) "
-        read -r c
+        read -r c || return 0
         clear
         case "$c" in
             1)
@@ -6979,10 +7291,10 @@ hm_wanmon_tick() {
 %s : %s
 %s : %s
 %s : %s' \
-                "✅ WAN UP (${wan_disp})" \
-                "📉 Down" "$down_hms" \
-                "📈 Up  " "$up_hms" \
-                "🕐 Sure" "$dur")"
+                "$(tpl_render "$(T TXT_HM_WAN_UP_TITLE)" IF "$wan_disp")" \
+                "📉 $(T TXT_HM_WAN_DOWN_TIME_LABEL)" "$down_hms" \
+                "📈 $(T TXT_HM_WAN_UP_TIME_LABEL)" "$up_hms" \
+                "🕐 $(T TXT_HM_WAN_DUR_LABEL)" "$dur")"
             healthmon_log "$now | wanmon | up iface=$ifc dur=$dur"
         fi
         return 0
@@ -7768,13 +8080,20 @@ healthmon_start() {
     fi
 
     # Wait up to 5s for PID to appear and process to be alive (BusyBox-safe)
+    # NOTE: Each iteration checks terminal liveness. If the controlling terminal
+    # is gone (SSH/Telnet disconnect, Ctrl-C), we bail out immediately to prevent
+    # the main script from getting stuck in a zombie loop.
     local i pid
     for i in 1 2 3 4 5; do
         pid="$(cat "$HM_PID_FILE" 2>/dev/null)"
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             return 0
         fi
-        sleep 1
+        # If our controlling TTY is gone, don't keep looping
+        if ! [ -t 0 ] && ! [ -e /dev/tty ]; then
+            return 0
+        fi
+        sleep 1 || return 0
     done
 
     # Failed to start: cleanup any stale state
@@ -7987,7 +8306,7 @@ healthmon_config_menu() {
 echo
         printf " %2s) %s\n" "0" "$(T _ 'Kaydet ve geri' 'Save & back')"
         echo
-        read -r -p "$(T _ 'Secim: ' 'Choice: ')" _c
+        read -r -p "$(T _ 'Secim: ' 'Choice: ')" _c || return 0
 
         case "$_c" in
             1)
@@ -8112,7 +8431,7 @@ health_monitor_menu() {
         echo " 0) $(T TXT_BACK)"
         print_line "-"
         printf "%s" "$(T TXT_CHOICE) "
-        read -r c
+        read -r c || return 0
         clear
         case "$c" in
 1)
@@ -8159,7 +8478,7 @@ main_menu_loop() {
     while true; do
     clear  # clear_on_start_main_loop
         display_menu
-        read -r choice
+        read -r choice || break
     clear  # clear_after_choice_main
         echo ""
         case "$choice" in
