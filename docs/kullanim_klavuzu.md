@@ -24,25 +24,26 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 
 # 🧭 Ana Menü Haritası
 
-
 | Menü | Açıklama |
 |--------|------------|
 | 1 | Zapret Kur |
 | 2 | Zapret'i Kaldır |
-| 3 | DPI Profil Yönetimi |
-| 4 | Kapsam Modu |
-| 5 | Hostlist Yönetimi |
-| 6 | Autohostlist |
-| 7 | NFQWS / Paket Motoru |
-| 8 | IPSet Yönetimi |
-| 9 | Tanılama Araçları |
+| 3 | Zapret'i Başlat |
+| 4 | Zapret'i Durdur |
+| 5 | Zapret'i Yeniden Başlat |
+| 6 | Zapret Sürüm Bilgisi |
+| 7 | IPv6 Sihirbaz |
+| 8 | Yedek / Geri Yükle |
+| 9 | DPI Profil Yönetimi |
 | 10 | Betik Güncelleme |
-| 11 | Domain Araçları |
-| 12 | IP Araçları |
-| 13 | Liste Görüntüleme |
-| 14 | Yedek / Temizlik |
-| 15 | Betik Araçları |
+| 11 | Hostlist / Autohostlist |
+| 12 | IPSet Yönetimi |
+| 13 | Rollback (Sürüm Geri Dön) |
+| 14 | Tanılama Araçları |
+| 15 | Telegram Bildirimleri |
 | 16 | Sağlık Monitörü |
+| B | Blockcheck |
+| L | Dil Değiştir (TR/EN) |
 | U | Tam Temiz Kaldırma |
 
 ---
@@ -86,7 +87,47 @@ Zapret’i sistemden güvenli şekilde kaldırır.
 
 ---
 
-# 🔹 Menü 3 — DPI Profil Yönetimi
+# 🔹 Menü 3 — Zapret’i Başlat
+
+Zapret servislerini aktif eder ve DPI bypass kurallarını devreye alır.
+
+---
+
+# 🔹 Menü 4 — Zapret’i Durdur
+
+Zapret servisini durdurur. Tüm yönlendirme/bypass işlemleri pasif olur.
+
+---
+
+# 🔹 Menü 5 — Zapret’i Yeniden Başlat
+
+Zapret servisini yeniden başlatır.
+
+👉 Profil değişikliği veya ayar değişimi yaptıysanız önerilir.
+
+---
+
+# 🔹 Menü 6 — Zapret Sürüm Bilgisi (Güncel/Kurulu - GitHub)
+
+GitHub’daki güncel Zapret sürümünü ve cihazda kurulu sürümü gösterir.
+
+---
+
+# 🔹 Menü 7 — Zapret IPv6 Desteği (Sihirbaz)
+
+IPv6 açık hatlarda gerekli yapılandırmayı sihirbaz ile uygular.
+
+---
+
+# 🔹 Menü 8 — Zapret Yedekle / Geri Yükle
+
+Zapret ayarlarını yedekler veya önceki bir yedeği geri yükler.
+
+👉 Büyük değişikliklerden önce yedek almak önerilir.
+
+---
+
+# 🔹 Menü 9 — DPI Profil Yönetimi
 
 DPI bypass yöntemini değiştirir.
 
@@ -109,7 +150,30 @@ DPI bypass yöntemini değiştirir.
 
 ---
 
-# 🔹 Menü 4 — Kapsam Modu (Global / Akıllı)
+---
+
+# 🔹 Menü 10 — Betik Güncelleme
+
+Manager betiğini GitHub üzerinden günceller.
+
+### Güvenlik Mekanizması:
+
+| Durum | Davranış |
+|--------|------------|
+| Yerel < GitHub | Günceller |
+| Yerel = GitHub | Atlar |
+| Yerel > GitHub | Atlar |
+
+✔ Downgrade engellenir  
+✔ Version loop oluşmaz  
+
+---
+
+---
+
+# 🔹 Menü 11 — Hostlist / Autohostlist (Filtreleme + Kapsam Modu)
+
+Bu menü altında; manuel hostlist, otomatik autohostlist ve bypass kapsamı birlikte yönetilir.
 
 Bypass’ın uygulanacağı alanı belirler.
 
@@ -138,7 +202,7 @@ Sadece engellenen hostlara uygulanır.
 
 ---
 
-# 🔹 Menü 5 — Hostlist Yönetimi
+## Hostlist Yönetimi
 
 Manuel engelli domain listesi.
 
@@ -154,7 +218,7 @@ Manuel engelli domain listesi.
 
 ---
 
-# 🔹 Menü 6 — Autohostlist
+## Autohostlist
 
 Engellenen servisleri otomatik öğrenir.
 
@@ -170,23 +234,9 @@ Engellenen servisleri otomatik öğrenir.
 
 ---
 
-# 🔹 Menü 7 — NFQWS / Paket Motoru
-
-Zapret’in paket manipülasyon ayarları.
-
-### Örnek ayarlar:
-
-- TTL değeri  
-- Fake paket sayısı  
-- Queue parametreleri  
-
-⚠️ İleri seviye kullanıcılar içindir.
-
-Yanlış ayarlar performansı düşürebilir.
-
 ---
 
-# 🔹 Menü 8 — IPSet Yönetimi
+# 🔹 Menü 12 — IPSet Yönetimi
 
 Bypass uygulanacak cihazları belirler.
 
@@ -210,7 +260,27 @@ Bypass sadece şu cihazlarda çalışsın:
 
 ---
 
-# 🔹 Menü 9 — Tanılama Araçları
+### No Zapret (Muafiyet) Yönetimi
+
+Bu listede bulunan IP’ler Zapret işleminden **muaf** tutulur (örn. IPTV kutuları).
+
+---
+
+# 🔹 Menü 13 — Rollback (Sürüm Geri Dön)
+
+Script güncellemesi sonrası sorun yaşarsanız önceki sürüme dönüş yapmanızı sağlar.
+
+İçerir:
+
+✔ GitHub sürüm listesini alma
+✔ Seçilen sürümü kurma
+✔ Mevcut dosyayı yedekleme
+
+👉 Güncelleme sonrası hayat kurtarır.
+
+---
+
+# 🔹 Menü 14 — Tanılama Araçları
 
 Sistem sağlığını analiz eder.
 
@@ -226,89 +296,19 @@ Sistem sağlığını analiz eder.
 
 ---
 
-# 🔹 Menü 10 — Betik Güncelleme
-
-Manager betiğini GitHub üzerinden günceller.
-
-### Güvenlik Mekanizması:
-
-| Durum | Davranış |
-|--------|------------|
-| Yerel < GitHub | Günceller |
-| Yerel = GitHub | Atlar |
-| Yerel > GitHub | Atlar |
-
-✔ Downgrade engellenir  
-✔ Version loop oluşmaz  
-
 ---
 
-# 🔹 Menü 11 — Domain Araçları
+# 🔹 Menü 15 — Telegram Bildirimleri
 
-Domain bazlı işlemleri hızlandırır.
+Telegram bot entegrasyonunu ve bildirim ayarlarını yönetir.
 
-### Alt Menü:
+Ne işe yarar?
 
-✔ Çoklu domain ekleme  
-✔ Toplu silme  
-✔ Liste doğrulama  
+- Servis restart / recovery bildirimleri
+- Health Monitor uyarıları (CPU/RAM/Disk/WAN vb.)
+- Güncelleme bilgilendirmeleri
 
-👉 Büyük hostlist yönetenler için idealdir.
-
----
-
-# 🔹 Menü 12 — IP Araçları
-
-IP bazlı kontrol ve analiz araçları.
-
-### Alt Menü:
-
-✔ IP listesini göster  
-✔ Aktif IPSet üyelerini gör  
-✔ Çakışma kontrolü  
-
-👉 Ağ yöneten ileri kullanıcılar içindir.
-
----
-
-# 🔹 Menü 13 — Liste Görüntüleme
-
-Tüm aktif listeleri tek ekranda gösterir.
-
-✔ Hostlist  
-✔ Autohostlist  
-✔ IPSet  
-✔ Aktif profiller  
-
-👉 Sistem snapshot gibidir.
-
----
-
-# 🔹 Menü 14 — Yedek & Temizlik
-
-Artık dosyaları temizler.
-
-### Temizlenenler:
-
-✔ Eski backup dosyaları  
-✔ Blockcheck raporları  
-✔ Geçici test çıktıları  
-
-👉 Disk alanını korur.
-
----
-
-# 🔹 Menü 15 — Betik Araçları
-
-Manager için yardımcı araçlar.
-
-### İçerik:
-
-✔ Self-test  
-✔ Konfigürasyon doğrulama  
-✔ Kurulum yolu kontrolü  
-
-👉 Sorun giderirken çok değerlidir.
+⚠️ Bot Token ve Chat ID doğru girilmelidir.
 
 ---
 
@@ -335,31 +335,23 @@ Arka planda çalışan otomasyon motorudur.
 
 ---
 
-# 💾 B — Backup Yönetimi
+---
 
-Script yedeklerini yönetir.
+# 🔵 B — Blockcheck Test Menüsü
 
-İçerir:
+DPI testlerini çalıştırır ve bağlantı durumunu analiz eder.
 
-✔ Script backup listesi  
-✔ Geri yükleme  
-✔ Eski sürüme dönüş  
+Ne işe yarar?
 
-👉 Güncelleme sonrası hayat kurtarır.
+- Hangi protokolün sorunlu olduğunu görmek
+- DPI Health Score / test sonuçları ile profil doğrulamak
+- Sorun giderme sürecinde hızlı teşhis
 
 ---
 
-# 📜 L — Log Görüntüleme
+# 🌐 L — Dil Değiştir (TR/EN)
 
-Health Monitor ve script loglarını gösterir.
-
-Özellikle şu durumlarda kritik:
-
-- Güncelleme hataları  
-- Servis durmaları  
-- WAN kopmaları  
-
-👉 Support öncesi ilk bakılacak yer.
+Arayüz dilini Türkçe / İngilizce arasında değiştirir.
 
 ---
 
@@ -402,6 +394,8 @@ Amaç:
 
 ---
 
+---
+
 # ⭐ ÖNERİLEN KULLANIM AKIŞI
 
 ## Yeni Kullanıcı
@@ -419,7 +413,7 @@ Akıllı Mod + Autohostlist kullan.
 
 ## Sorun Giderme
 
-Tanılama → Tam temiz kaldır → yeniden kur.
+14 → Tanılama → Tam temiz kaldır → yeniden kur.
 
 ---
 
@@ -431,4 +425,4 @@ Sorunların çoğu şunlardan kaynaklanır:
 
 ✔ ISP değişiklikleri  
 ✔ DNS problemleri  
-✔ Yanlış profil  
+✔ Yanlış profil
