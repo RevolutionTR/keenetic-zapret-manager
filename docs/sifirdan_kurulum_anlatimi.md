@@ -15,7 +15,7 @@ ISS’larının en güncel sofistike erişim engelleme metodu DPI’dır. Bazı 
 4-    OpenDNS: 208.67.222.222 ve 208.67.220.220
   
 ## Neden özelleştirilmiş betiğe ihtiyaç var; güvenilir mi?
-Zapret kurulumu düz kullanıcılar için oldukça karmaşıktır. Betikler aracılığı ile kurulum ve yönetimler kolaylıkla yapılabilmektedir. Sayfamızda paylaştığımız Keenetic Zaprer Manager betiğinin geliştiricisi DH forum üyesi de olan @Revolution_TR arkadaşımızdır. Bu betik ile Zapret kurulumu ve yönetimi oldukça basittir; Türk Telekom başta olmak üzere yaygın ISS’ler için hazır profillerin seçimi, cihaz bazlı çalıştırma, yedek alma, güncelleme gibi pek çok pratik işlevi barındırmakta olup halen geliştirilmektedir. Betik, GitHub üzerinden açık kaynak kodlu olarak dağıtılmaktadır; dolayısı ile güvenlidir.
+Zapret kurulumu düz kullanıcılar için oldukça karmaşıktır. Betikler aracılığı ile kurulum ve yönetimler kolaylıkla yapılabilmektedir. Sayfamızda paylaştığımız Keenetic Zapret Manager betiğinin geliştiricisi DH forum üyesi de olan @Revolution_TR arkadaşımızdır. Bu betik ile Zapret kurulumu ve yönetimi oldukça basittir; Türk Telekom başta olmak üzere yaygın ISS’ler için hazır profillerin seçimi, cihaz bazlı çalıştırma, yedek alma, güncelleme gibi pek çok pratik işlevi barındırmakta olup halen geliştirilmektedir. Betik, GitHub üzerinden açık kaynak kodlu olarak dağıtılmaktadır; dolayısı ile güvenlidir.
   
 ## Tüm Keenetic router’lara bu betik (Zapret) kurulabilir mi; kurulum için ön şart var mı?
 Bir USB portu ve/veya dahili depolaması olan, OPKG paket yöneticisi kurulabilen, v3.x ve üzeri OS yüklü Keenetic modellerinde kullanabilirsiniz. OPKG, router gibi yerleşik tip sistemler için ücretsiz bir paket yöneticisidir.
