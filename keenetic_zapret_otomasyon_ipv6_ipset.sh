@@ -32,13 +32,13 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.16"
+SCRIPT_VERSION="v26.2.19"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
 
-# Daemon için +x gerekli; "sh script.sh" ile çalışınca izin olmasa da menü açılır
-# ama healthmon başlatılamaz. Script her çalıştığında otomatik düzelt.
+# Daemon icin +x gerekli; "sh script.sh" ile calisinca izin olmasa da menu acilir
+# ama healthmon baslatilamaz. Script her calistiginda otomatik duzelt.
 [ -x "$ZKM_SCRIPT_PATH" ] || chmod +x "$ZKM_SCRIPT_PATH" 2>/dev/null
 # -------------------------------------------------------------------
 
@@ -221,8 +221,8 @@ fi
 # Dogru Dizin Uyarisi (keenetic / keenetic-zapret)
 # -------------------------------------------------------------------
 
-#------ Komple Kaldırma ---------------------------------------------------------------
-# KZM + Zapret tam temiz kaldırma (UNSAFE / irreversible)
+#------ Komple Kaldirma ---------------------------------------------------------------
+# KZM + Zapret tam temiz kaldirma (UNSAFE / irreversible)
 # Not: "Zapret’i Kaldir" (mevcut) rutini aynen calisir, sonra KZM kalintilari temizlenir.
 # TR/EN Dictionary (Komple Kaldirma)
 TXT_ZKM_FULL_UNINSTALL_TITLE_TR="KZM + Zapret Kaldirma (Tam Temiz)"
@@ -609,7 +609,7 @@ zkm_banner_get_ndmc_field() {
     ndmc -c 'show version' 2>/dev/null | tr -d '\r' | awk -v f="$1" '$1==f{ $1=""; sub(/^[ \t]+/,""); print; exit }'
 }
 
-# KN numarasından cihaz adı döndürür
+# KN numarasindan cihaz adi dondurur
 _zkm_kn_to_name() {
     case "$1" in
         KN-1010) echo "Keenetic Giga (KN-1010)"           ;;
@@ -750,7 +750,7 @@ zkm_banner_get_system() {
     fi
 
     # 5) MTD U-Config partition — ndmhwid=KN-XXXX
-    # /proc/mtd'den "U-Config" adlı bölümü bul, sadece ilk 64KB oku
+    # /proc/mtd'den "U-Config" adli bolumu bul, sadece ilk 64KB oku
     if [ -r /proc/mtd ]; then
         local _mtddev
         _mtddev="$(awk -F'[: "]+' '/U-Config/{print "/dev/"$1"ro"; exit}' /proc/mtd 2>/dev/null)"
@@ -767,13 +767,13 @@ zkm_banner_get_system() {
 
 zkm_banner_get_firmware() {
     # /etc/components.xml'den firmware versiyonu ve kanal bilgisini okur
-    # Çıktı: "5.0.6 (Önizleme)" gibi
+    # Cikti: "5.0.6 (Onizleme)" gibi
     local _xml _version _sandbox _channel_tr
 
     [ -r /etc/components.xml ] || return 1
     _xml="$(cat /etc/components.xml 2>/dev/null)" || return 1
 
-    # Kısa versiyon: <title>5.0.6</title>
+    # Kisa versiyon: <title>5.0.6</title>
     _version="$(printf '%s' "$_xml" | grep -o '<title>[^<]*</title>' | head -1 | sed 's/<title>//;s/<\/title>//')"
     [ -z "$_version" ] && _version="$(printf '%s' "$_xml" | grep -o 'version="[^"]*"' | head -1 | sed 's/version="//;s/"//')"
     [ -z "$_version" ] && return 1
@@ -781,7 +781,7 @@ zkm_banner_get_firmware() {
     # Kanal: sandbox="stable|preview|alpha"
     _sandbox="$(printf '%s' "$_xml" | grep -o 'sandbox="[^"]*"' | head -1 | sed 's/sandbox="//;s/"//')"
 
-    # Kanal adını yerelleştir
+    # Kanal adini yerellestir
     case "$_sandbox" in
         stable)  _channel_tr="$(T _ 'Kararli'     'Stable')"     ;;
         preview) _channel_tr="$(T _ 'Onizleme'    'Preview')"    ;;
@@ -1233,26 +1233,26 @@ TXT_HM_ENABLED_EN="Health Monitor enabled."
 TXT_HM_DISABLED_TR="Sistem Sagligi Monitoru kapatildi."
 TXT_HM_DISABLED_EN="Health Monitor disabled."
 
-TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Saglik Izleme testi\nCPU: %CPU%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
-TXT_HM_TEST_MSG_EN="📌 HealthMon %TS%\n✅ Health Monitor test\nCPU: %CPU%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Saglik Izleme testi\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
+TXT_HM_TEST_MSG_EN="📌 HealthMon %TS%\n✅ Health Monitor test\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 
-TXT_HM_CPU_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ CPU UYARI: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
-TXT_HM_CPU_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ CPU WARN: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_CPU_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ CPU UYARI: %CPU%%\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
+TXT_HM_CPU_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ CPU WARN: %CPU%%\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 
-TXT_HM_CPU_CRIT_MSG_TR="📌 HealthMon %TS%\n🚨 CPU KRITIK: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
-TXT_HM_CPU_CRIT_MSG_EN="📌 HealthMon %TS%\n🚨 CPU CRIT: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_CPU_CRIT_MSG_TR="📌 HealthMon %TS%\n🚨 CPU KRITIK: %CPU%%\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
+TXT_HM_CPU_CRIT_MSG_EN="📌 HealthMon %TS%\n🚨 CPU CRIT: %CPU%%\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 
-TXT_HM_DISK_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ Disk dolu: /opt %DISK%%%\nCPU: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB"
-TXT_HM_DISK_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Disk high: /opt %DISK%%%\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB"
+TXT_HM_DISK_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ Disk dolu: /opt %DISK%%%\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB"
+TXT_HM_DISK_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Disk high: /opt %DISK%%%\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB"
 
-TXT_HM_RAM_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ RAM dusuk: %RAM% MB\nCPU: %CPU%%\nYuk: %LOAD%\nDisk(/opt): %DISK%%"
-TXT_HM_RAM_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Low RAM: %RAM% MB\nCPU: %CPU%%\nLoad: %LOAD%\nDisk(/opt): %DISK%%"
+TXT_HM_RAM_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ RAM dusuk: %RAM% MB\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n💾 Disk(/opt): %DISK%%"
+TXT_HM_RAM_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Low RAM: %RAM% MB\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n💾 Disk(/opt): %DISK%%"
 
-TXT_HM_ZAPRET_DOWN_MSG_TR="📌 HealthMon %TS%\n🚨 Zapret durmus olabilir!\nCPU: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
-TXT_HM_ZAPRET_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Zapret may be down!\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_ZAPRET_DOWN_MSG_TR="📌 HealthMon %TS%\n🚨 Zapret durmus olabilir!\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
+TXT_HM_ZAPRET_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Zapret may be down!\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 
-TXT_HM_ZAPRET_UP_MSG_TR="📌 HealthMon %TS%\n✅ Zapret tekrar calisiyor.\nCPU: %CPU%%\nYuk: %LOAD%\nRAM bos: %RAM% MB\nDisk(/opt): %DISK%%"
-TXT_HM_ZAPRET_UP_MSG_EN="📌 HealthMon %TS%\n✅ Zapret is running again.\nCPU: %CPU%%\nLoad: %LOAD%\nRAM free: %RAM% MB\nDisk(/opt): %DISK%%"
+TXT_HM_ZAPRET_UP_MSG_TR="📌 HealthMon %TS%\n✅ Zapret tekrar calisiyor.\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
+TXT_HM_ZAPRET_UP_MSG_EN="📌 HealthMon %TS%\n✅ Zapret is running again.\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 
 TXT_HM_STATUS_RUNNING_TR="Calisiyor:"
 TXT_HM_STATUS_RUNNING_EN="Running:"
@@ -1353,30 +1353,26 @@ TXT_HM_PROMPT_UPDATECHECK_ENABLE_EN="Update check (1=on,0=off) [e.g. 1]:"
 TXT_HM_PROMPT_UPDATECHECK_SEC_TR="Update check araligi (sn) [or: 21600]:"
 TXT_HM_PROMPT_UPDATECHECK_SEC_EN="Update check interval (sec) [e.g. 21600]:"
 
-TXT_UPD_ZKM_NEW_TR="
-[Guncelleme]
+TXT_UPD_ZKM_NEW_TR="[Guncelleme]
 📦 Paket  : KZM
 🔖 Mevcut : %CUR%
 🆕 Yeni   : %NEW%
 🔗 Link   : %URL%
 
 Simdi kur? (menu 10)"
-TXT_UPD_ZKM_NEW_EN="
-[Update]
+TXT_UPD_ZKM_NEW_EN="[Update]
 📦 Package : KZM
 🔖 Current : %CUR%
 🆕 Latest  : %NEW%
 🔗 Link    : %URL%
 
 Install now? (menu 10)"
-TXT_UPD_ZAPRET_NEW_TR="
-[Guncelleme]
+TXT_UPD_ZAPRET_NEW_TR="[Guncelleme]
 📦 Paket  : zapret
 🔖 Kurulu : %CUR%
 🆕 Yeni   : %NEW%
 🔗 Link   : %URL%"
-TXT_UPD_ZAPRET_NEW_EN="
-[Update]
+TXT_UPD_ZAPRET_NEW_EN="[Update]
 📦 Package  : zapret
 🔖 Installed: %CUR%
 🆕 Latest   : %NEW%
@@ -1384,13 +1380,11 @@ TXT_UPD_ZAPRET_NEW_EN="
 TXT_UPD_ZKM_AUTO_OK_TR="[OtoGuncelleme]\nKZM otomatik kurulum basarili.\nBetigi yeniden calistirin.\n\nMevcut : %CUR%\nYeni   : %NEW%\nLink   : %URL%"
 TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 
-TXT_UPD_ZKM_UP_TO_DATE_TR="
-[Guncelleme]
+TXT_UPD_ZKM_UP_TO_DATE_TR="[Guncelleme]
 📦 Paket : KZM
 🔄 Durum : Guncel ✅
 🔖 Surum : %CUR%"
-TXT_UPD_ZKM_UP_TO_DATE_EN="
-[Update]
+TXT_UPD_ZKM_UP_TO_DATE_EN="[Update]
 📦 Package : KZM
 🔄 Status  : Up to date ✅
 🔖 Version : %CUR%"
@@ -1477,7 +1471,7 @@ TXT_DNS_SEC_LOW_EN="LOW"
 
 TXT_TG_DOWN_LABEL_TR="Kapali"
 TXT_TG_DOWN_LABEL_EN="Down"
-TXT_TG_UP_LABEL_TR="Açık"
+TXT_TG_UP_LABEL_TR="Acik"
 TXT_TG_UP_LABEL_EN="Up"
 TXT_TG_DURATION_LABEL_TR="Sure"
 TXT_TG_DURATION_LABEL_EN="Duration"
@@ -2227,6 +2221,93 @@ TXT_KEENDNS_FAIL_TR="❌ KeenDNS Erisim Yok\n%s\nDomain disaridan erisilebilir d
 TXT_KEENDNS_FAIL_EN="❌ KeenDNS Unreachable\n%s\nDomain is not accessible from outside."
 TXT_KEENDNS_REACH_TR="✅ KeenDNS Erisim Geri Geldi\n%s\nDomain tekrar disaridan erisilebilir."
 TXT_KEENDNS_REACH_EN="✅ KeenDNS Reachable Again\n%s\nDomain is accessible from outside again."
+
+
+# Component Check translations
+TXT_COMP_CHECK_TITLE_TR="=== Keenetic Bilesenler Kontrolu ==="
+TXT_COMP_CHECK_TITLE_EN="=== Keenetic Components Check ==="
+
+TXT_COMP_OPKG_TR="OPKG (Entware)"
+TXT_COMP_OPKG_EN="OPKG (Entware)"
+TXT_COMP_OPKG_REQ_TR="OPKG (Entware) - ZORUNLU!"
+TXT_COMP_OPKG_REQ_EN="OPKG (Entware) - REQUIRED!"
+
+TXT_COMP_IPV6_TR="IPv6 destegi (ip6tables)"
+TXT_COMP_IPV6_EN="IPv6 support (ip6tables)"
+TXT_COMP_IPV6_REQ_TR="IPv6 destegi - ZORUNLU!"
+TXT_COMP_IPV6_REQ_EN="IPv6 support - REQUIRED!"
+TXT_COMP_IPV6_SHORT_TR="IPv6 destegi"
+TXT_COMP_IPV6_SHORT_EN="IPv6 support"
+
+TXT_COMP_IPTABLES_TR="iptables"
+TXT_COMP_IPTABLES_EN="iptables"
+TXT_COMP_IPTABLES_REQ_TR="iptables - ZORUNLU!"
+TXT_COMP_IPTABLES_REQ_EN="iptables - REQUIRED!"
+
+TXT_COMP_NFQUEUE_TR="Netfilter Queue modulleri"
+TXT_COMP_NFQUEUE_EN="Netfilter Queue modules"
+TXT_COMP_NFQUEUE_WARN_TR="Netfilter kernel modulleri yuklu degil - Zapret servisi baslamaz!"
+TXT_COMP_NFQUEUE_WARN_EN="Netfilter kernel modules not installed - Zapret service will not start!"
+
+TXT_COMP_CURL_TR="curl (guncelleme icin)"
+TXT_COMP_CURL_EN="curl (for updates)"
+TXT_COMP_WGET_TR="wget (guncelleme icin)"
+TXT_COMP_WGET_EN="wget (for updates)"
+TXT_COMP_CURL_REQ_TR="curl veya wget - ZORUNLU!"
+TXT_COMP_CURL_REQ_EN="curl or wget - REQUIRED!"
+TXT_COMP_OR_TR="veya"
+TXT_COMP_OR_EN="or"
+
+TXT_COMP_IPSET_TR="ipset"
+TXT_COMP_IPSET_EN="ipset"
+TXT_COMP_IPSET_REQ_TR="ipset - ZORUNLU!"
+TXT_COMP_IPSET_REQ_EN="ipset - REQUIRED!"
+
+TXT_COMP_STORAGE_USB_TR="Harici depolama - USB (/opt bagli)"
+TXT_COMP_STORAGE_USB_EN="External storage - USB (/opt mounted)"
+TXT_COMP_STORAGE_INTERNAL_TR="Dahili depolama - eMMC/SD (/opt bagli)"
+TXT_COMP_STORAGE_INTERNAL_EN="Internal storage - eMMC/SD (/opt mounted)"
+TXT_COMP_STORAGE_EMMC_HINT_TR="      (Not: USB kullanimi onerilir - eMMC yipranma riski)"
+TXT_COMP_STORAGE_EMMC_HINT_EN="      (Note: USB recommended - eMMC wear risk)"
+TXT_COMP_STORAGE_GENERIC_TR="Depolama (/opt bagli)"
+TXT_COMP_STORAGE_GENERIC_EN="Storage (/opt mounted)"
+TXT_COMP_STORAGE_TMPFS_TR="/opt tmpfs - yeniden baslatmada kayip"
+TXT_COMP_STORAGE_TMPFS_EN="/opt on tmpfs - lost on reboot"
+TXT_COMP_STORAGE_REC_TR="Depolama - onerilir (USB/eMMC)"
+TXT_COMP_STORAGE_REC_EN="Storage - recommended (USB/eMMC)"
+TXT_COMP_STORAGE_INTERNAL_SD_TR="Dahili depolama - eMMC/NAND (/opt bagli)"
+TXT_COMP_STORAGE_INTERNAL_SD_EN="Internal storage - eMMC/NAND (/opt mounted)"
+TXT_COMP_STORAGE_INTERNAL_HINT_TR="      (Not: Dahili bellegin omru kisalabilir. Harici USB kullanimi onerilir.)"
+TXT_COMP_STORAGE_INTERNAL_HINT_EN="      (Note: Internal storage wear may occur. External USB is recommended.)"
+
+TXT_COMP_CRIT_FAIL_TR="KRITIK bilesenler eksik. Zapret calismayacak!"
+TXT_COMP_CRIT_FAIL_EN="CRITICAL components missing. Zapret will NOT work!"
+TXT_COMP_MISSING_TR="Eksik bilesenler:"
+TXT_COMP_MISSING_EN="Missing components:"
+TXT_COMP_INSTALL_FROM_TR="Bu bilesenler Keenetic Web UI uzerinden yuklenmelidir:"
+TXT_COMP_INSTALL_FROM_EN="These components must be installed from Keenetic Web UI:"
+TXT_COMP_INSTALL_PATH_TR="Keenetic Web UI > Yonetim > Genel Sistem Ayarlari > Bilesen Secenekleri > Guncelle"
+TXT_COMP_INSTALL_PATH_EN="Keenetic Web UI > Management > General System Settings > Component Options > Update"
+TXT_COMP_REBOOT_WARN_TR="UYARI: Bilesenler yuklendikten sonra cihaz yeniden baslatilir!"
+TXT_COMP_REBOOT_WARN_EN="WARNING: Device will restart after installing components!"
+TXT_COMP_REQUIRED_TR="Gerekli bilesenler:"
+TXT_COMP_REQUIRED_EN="Required components:"
+
+TXT_COMP_OPT_WARN_TR="Bazi OPSIYONEL bilesenler eksik. Zapret calisir ama tam fonksiyonel olmayabilir."
+TXT_COMP_OPT_WARN_EN="Some OPTIONAL components missing. Zapret will work but may not be fully functional."
+TXT_COMP_ALL_OK_TR="Tum gerekli bilesenler mevcut!"
+TXT_COMP_ALL_OK_EN="All required components present!"
+TXT_COMP_XTABLES_TR="Netfilter Xtables-addons genisletme paketleri"
+TXT_COMP_XTABLES_EN="Netfilter Xtables-addons extension packages"
+TXT_COMP_XTABLES_WARN_TR="Xtables-addons yuklu degil - Zapret servisi baslamaz!"
+TXT_COMP_XTABLES_WARN_EN="Xtables-addons not installed - Zapret service will not start!"
+TXT_COMP_TC_TR="Trafik Kontrol (tc) kernel modulleri"
+TXT_COMP_TC_EN="Traffic Control (tc) kernel modules"
+TXT_COMP_TC_WARN_TR="Trafik Kontrol modulleri yuklu degil - Zapret servisi baslamaz!"
+TXT_COMP_TC_WARN_EN="Traffic Control modules not installed - Zapret service will not start!"
+TXT_COMP_PRESS_ENTER_TR="Devam etmek icin Enter..."
+TXT_COMP_PRESS_ENTER_EN="Press Enter to continue..."
+
 
 T() {
     # Kullanim:
@@ -3030,6 +3111,237 @@ exit 0' > /opt/etc/ndm/netfilter.d/000-zapret.sh || {
     return 0
 }
 
+# Check Keenetic components required for Zapret
+check_keenetic_components() {
+    local missing_critical=0
+    local missing_optional=0
+    local all_components=""
+    
+    echo ""
+    echo "$(T TXT_COMP_CHECK_TITLE)"
+    print_line "-"
+    
+    # 1. OPKG (Entware) - CRITICAL
+    if check_opkg; then
+        print_status PASS "$(T TXT_COMP_OPKG)"
+    else
+        print_status FAIL "$(T TXT_COMP_OPKG_REQ)"
+        missing_critical=1
+        all_components="${all_components}  - OPKG (Entware)\n"
+    fi
+    
+    # 2. IPv6 Support - CRITICAL
+    if command -v ip6tables >/dev/null 2>&1 && ip6tables --version >/dev/null 2>&1; then
+        print_status PASS "$(T TXT_COMP_IPV6)"
+    else
+        print_status FAIL "$(T TXT_COMP_IPV6_REQ)"
+        missing_critical=1
+        all_components="${all_components}  - $(T TXT_COMP_IPV6_SHORT)\n"
+    fi
+    
+    # 3. iptables - CRITICAL
+    if command -v iptables >/dev/null 2>&1 && iptables --version >/dev/null 2>&1; then
+        print_status PASS "$(T TXT_COMP_IPTABLES)"
+    else
+        print_status FAIL "$(T TXT_COMP_IPTABLES_REQ)"
+        missing_critical=1
+        all_components="${all_components}  - iptables\n"
+    fi
+    
+    # 4. Netfilter kernel modules - CRITICAL
+    # Zapret'in zorunlu tuttugu modul: xt_multiport
+    # Tespit sirasi: lsmod > modinfo > /lib/modules *.ko dosyasi
+    _nfmod_ok=0
+    if lsmod 2>/dev/null | grep -qE "^xt_multiport"; then
+        _nfmod_ok=1
+    elif modinfo xt_multiport >/dev/null 2>&1; then
+        _nfmod_ok=1
+    elif find /lib/modules -name "xt_multiport.ko" 2>/dev/null | grep -q .; then
+        _nfmod_ok=1
+    fi
+    if [ "$_nfmod_ok" -eq 1 ]; then
+        print_status PASS "$(T TXT_COMP_NFQUEUE)"
+    else
+        print_status FAIL "$(T TXT_COMP_NFQUEUE_WARN)"
+        missing_critical=1
+        all_components="${all_components}  - $(T TXT_COMP_NFQUEUE)\n"
+    fi
+    
+    # 5. curl or wget - CRITICAL
+    if command -v curl >/dev/null 2>&1; then
+        print_status PASS "$(T TXT_COMP_CURL)"
+    elif command -v wget >/dev/null 2>&1; then
+        print_status PASS "$(T TXT_COMP_WGET)"
+    else
+        print_status FAIL "$(T TXT_COMP_CURL_REQ)"
+        missing_critical=1
+        all_components="${all_components}  - curl $(T TXT_COMP_OR) wget\n"
+    fi
+    
+    # 6. ipset - CRITICAL
+    if command -v ipset >/dev/null 2>&1 && ipset --version >/dev/null 2>&1; then
+        print_status PASS "$(T TXT_COMP_IPSET)"
+    else
+        print_status FAIL "$(T TXT_COMP_IPSET_REQ)"
+        missing_critical=1
+        all_components="${all_components}  - ipset\n"
+    fi
+    
+    # 7. Xtables-addons - CRITICAL (Keenetic OPKG bileseni)
+    # Eksik olursa zapret servisi baslatma hatasi verir
+    # Tespit sirasi: opkg kaydi > /lib/modules *.ko > lsmod > xtables .so
+    _xtables_ok=0
+    if opkg list-installed 2>/dev/null | grep -q "^kmod-ipt-xtables-extra\|^xtables-addons"; then
+        _xtables_ok=1
+    elif find /lib/modules -name "xt_condition.ko" -o -name "xt_ipp2p.ko" \
+         -o -name "xt_iface.ko" -o -name "xt_fuzzy.ko" 2>/dev/null | grep -q .; then
+        _xtables_ok=1
+    elif lsmod 2>/dev/null | grep -qE "^xt_condition|^xt_fuzzy|^xt_iface|^xt_ipp2p"; then
+        _xtables_ok=1
+    elif ls /lib/xtables/libxt_condition.so \
+            /usr/lib/xtables/libxt_condition.so \
+            /usr/lib/iptables/libxt_condition.so 2>/dev/null | grep -q .; then
+        _xtables_ok=1
+    fi
+    if [ "$_xtables_ok" -eq 1 ]; then
+        print_status PASS "$(T TXT_COMP_XTABLES)"
+    else
+        print_status FAIL "$(T TXT_COMP_XTABLES_WARN)"
+        missing_critical=1
+        all_components="${all_components}  - $(T TXT_COMP_XTABLES)\n"
+    fi
+
+    # 8. Traffic Control kernel modules - CRITICAL (Keenetic OPKG bileseni)
+    # Eksik olursa zapret servisi baslatma hatasi verir
+    # Tespit sirasi: opkg kaydi > /lib/modules *.ko > lsmod > tc komutu
+    _tc_ok=0
+    if opkg list-installed 2>/dev/null | grep -q "^kmod-sched\|^kmod-tc\|^kmod-trafik"; then
+        _tc_ok=1
+    elif find /lib/modules -name "sch_ingress.ko" -o -name "sch_htb.ko" \
+         -o -name "sch_hfsc.ko" -o -name "cls_u32.ko" 2>/dev/null | grep -q .; then
+        _tc_ok=1
+    elif lsmod 2>/dev/null | grep -qE "^sch_ingress|^sch_htb|^sch_hfsc|^cls_fw|^cls_u32"; then
+        _tc_ok=1
+    elif command -v tc >/dev/null 2>&1; then
+        _tc_ok=1
+    fi
+    if [ "$_tc_ok" -eq 1 ]; then
+        print_status PASS "$(T TXT_COMP_TC)"
+    else
+        print_status FAIL "$(T TXT_COMP_TC_WARN)"
+        missing_critical=1
+        all_components="${all_components}  - $(T TXT_COMP_TC)\n"
+    fi
+
+    # 9. Storage - OPTIONAL (for persistence)
+    # Adim 1: /proc/mounts'ta /opt icin ayri bir mount satiri ara
+    local _opt_line=""
+    _opt_line=$(awk '$2=="/opt"{print; exit}' /proc/mounts 2>/dev/null)
+    local opt_dev=""
+    local opt_fstype=""
+    if [ -n "$_opt_line" ]; then
+        opt_dev=$(printf '%s' "$_opt_line" | awk '{print $1}')
+        opt_fstype=$(printf '%s' "$_opt_line" | awk '{print $3}')
+    fi
+
+    # /dev/sdX icin removable flag kontrol: 1=USB(cikabilir), 0=dahili
+    _is_usb_removable() {
+        local _bdev
+        _bdev=$(basename "$1" | sed 's/[0-9]*$//')
+        local _removable=0
+        if [ -f "/sys/block/${_bdev}/removable" ]; then
+            _removable=$(cat "/sys/block/${_bdev}/removable" 2>/dev/null)
+        fi
+        [ "$_removable" = "1" ]
+    }
+
+    if [ -n "$opt_dev" ]; then
+        # /opt ayri mount edilmis - device tipine gore karar ver
+        if echo "$opt_dev" | grep -q "^/dev/sd"; then
+            if _is_usb_removable "$opt_dev"; then
+                print_status PASS "$(T TXT_COMP_STORAGE_USB)"
+            else
+                # Dahili /dev/sdX (bazi modellerde eMMC USB controller'a bagli)
+                print_status WARN "$(T TXT_COMP_STORAGE_INTERNAL_SD)"
+                echo "$(T TXT_COMP_STORAGE_INTERNAL_HINT)"
+                missing_optional=1
+            fi
+        elif echo "$opt_dev" | grep -q "^/dev/mmcblk"; then
+            print_status WARN "$(T TXT_COMP_STORAGE_INTERNAL)"
+            echo "$(T TXT_COMP_STORAGE_EMMC_HINT)"
+            missing_optional=1
+        elif echo "$opt_dev" | grep -q "^/dev/nvme"; then
+            print_status WARN "$(T TXT_COMP_STORAGE_INTERNAL)"
+            missing_optional=1
+        elif echo "$opt_fstype" | grep -qE "^tmpfs$"; then
+            print_status INFO "$(T TXT_COMP_STORAGE_TMPFS)"
+        elif echo "$opt_fstype" | grep -qE "^(overlay|overlayfs|ubifs)$" || \
+             echo "$opt_dev" | grep -qE "^(overlay|ubi[0-9])"; then
+            print_status WARN "$(T TXT_COMP_STORAGE_INTERNAL_SD)"
+            echo "$(T TXT_COMP_STORAGE_INTERNAL_HINT)"
+            missing_optional=1
+        else
+            print_status PASS "$(T TXT_COMP_STORAGE_GENERIC)"
+        fi
+    else
+        # Adim 2: /opt ayri mount degil - df ile rootfs mount noktasini kontrol et
+        # df son sutunu (Mounted on): "/" ise /opt rootfs'in parcasi = dahili flash
+        local _opt_mounton=""
+        _opt_mounton=$(df /opt 2>/dev/null | awk 'NR==2{print $NF}')
+        if [ "$_opt_mounton" = "/" ]; then
+            # /opt, kok dizinin altinda bir klasor = Keenetic dahili flash
+            print_status WARN "$(T TXT_COMP_STORAGE_INTERNAL_SD)"
+            echo "$(T TXT_COMP_STORAGE_INTERNAL_HINT)"
+            missing_optional=1
+        elif [ -n "$_opt_mounton" ]; then
+            # Mount var ama /proc/mounts'ta gorunmedi (edge case)
+            print_status PASS "$(T TXT_COMP_STORAGE_GENERIC)"
+        else
+            # /opt mevcut degil veya tespit edilemedi
+            print_status WARN "$(T TXT_COMP_STORAGE_REC)"
+            missing_optional=1
+        fi
+    fi
+    
+    print_line "-"
+    
+    if [ "$missing_critical" -eq 1 ]; then
+        echo ""
+        print_status FAIL "$(T TXT_COMP_CRIT_FAIL)"
+        echo ""
+        echo "$(T TXT_COMP_MISSING)"
+        printf "$all_components"
+        echo ""
+        echo "$(T TXT_COMP_INSTALL_FROM)"
+        echo "  $(T TXT_COMP_INSTALL_PATH)"
+        echo ""
+        echo "$(T TXT_COMP_REBOOT_WARN)"
+        echo ""
+        echo "$(T TXT_COMP_REQUIRED)"
+        echo "  - OPKG"
+        echo "  - $(T TXT_COMP_IPV6_SHORT)"
+        echo "  - iptables"
+        echo "  - ipset"
+        echo "  - curl"
+        echo "  - $(T TXT_COMP_XTABLES)"
+        echo "  - $(T TXT_COMP_TC)"
+        echo ""
+        return 1
+    elif [ "$missing_optional" -eq 1 ]; then
+        echo ""
+        print_status WARN "$(T TXT_COMP_OPT_WARN)"
+        echo ""
+        return 0
+    else
+        echo ""
+        print_status PASS "$(T TXT_COMP_ALL_OK)"
+        echo ""
+        return 0
+    fi
+}
+
+
+
 # Zapret'in otomatik baslamasini ayarlar
 add_auto_start_zapret() {
     ln -fs /opt/zapret/init.d/sysv/zapret /opt/etc/init.d/S90-zapret && \
@@ -3194,6 +3506,11 @@ is_zapret_installed() {
 
 # Zapret servisini baslatir
 start_zapret() {
+    # Component check before starting
+    if ! check_keenetic_components; then
+        return 1
+    fi
+    
     if ! is_zapret_installed; then
         echo "Zapret yuklu degil. Baslatma islemi yapilamiyor."
         return 1
@@ -4184,6 +4501,11 @@ Kendi aracimiz tarafindan kaldirilmasini ister misiniz? (e/h): " manual_cleanup_
 
 # Zapret'i kurar
 install_zapret() {
+    # Component check before installation
+    if ! check_keenetic_components; then
+        return 1
+    fi
+    
     is_zapret_installed && echo "Zapret zaten yuklu." && return 1
 
     echo "OPKG paketleri denetleniyor, eksik olan varsa indirilip kurulacaktir..."
@@ -5364,7 +5686,7 @@ display_menu() {
     printf "  %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_MAIN_TITLE)" "${CLR_RESET}"
     print_line "-"
 
-    # ---- Bilgi satırlari ----
+    # ---- Bilgi satirlari ----
     local _sys _wan_dev _wan_state _zap_state
     _sys="$(zkm_banner_get_system)"
     _wan_dev="$(zkm_banner_get_wan_dev)"
@@ -5412,13 +5734,13 @@ display_menu() {
     printf " %b%s%b\n" "${CLR_DIM}" "$(T dpi_warn "$TXT_DPI_WARNING_TR" "$TXT_DPI_WARNING_EN")" "${CLR_RESET}"
     print_line "-"
 
-    # _mi: menü item — numara TURUNCU, metin dim
+    # _mi: menu item — numara TURUNCU, metin dim
     _mi() {
         local _raw="$1"
         local _num _txt _main _note
         _num="${_raw%%.*}."
         _txt="${_raw#*.}"
-        # Parantez varsa: ana metin bold, parantez içi dim
+        # Parantez varsa: ana metin bold, parantez ici dim
         case "$_txt" in
             *" ("*")"*)
                 _main="${_txt% (*}"
@@ -5541,7 +5863,7 @@ run_health_check() {
     # ----------------------------
     # DNS MODE / SECURITY / PROVIDERS (meta lines, NOT counted)
     # ----------------------------
-    local doh_list dot_on dns_mode dns_sec dns_providers
+    local doh_list dot_list dot_on dns_mode dns_sec dns_providers
     doh_list="$(ps w 2>/dev/null | awk '
         /https_dns_proxy/ && !/awk/{
           r=""
@@ -5552,11 +5874,38 @@ run_health_check() {
           }
         }' | sort -u 2>/dev/null | tr "\n" "," | sed 's/,$//')"
 
+    # Keenetic dns-proxy'den tum saglayicilari oku
+    local _dns_proxy_raw
+    _dns_proxy_raw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
+    # dns_server satirlarindan @sonrasi SNI al (dnsm ve bos haric)
+    local _dot_providers
+    _dot_providers="$(printf '%s\n' "$_dns_proxy_raw" | grep 'dns_server.*@' | \
+        sed 's/.*@//' | sed 's/[[:space:]].*//' | grep -v '^dnsm$' | grep -v '^$' | sort -u)"
+    # server-https uri'lerinden domain al
+    local _doh_providers
+    _doh_providers="$(printf '%s\n' "$_dns_proxy_raw" | grep 'uri:' | \
+        sed 's|.*https://||' | sed 's|/.*||' | grep -v '^$' | sort -u)"
+    # Ikisini birlestir ve tekrarlananlar temizle
+    dot_list="$(printf '%s\n%s\n' "$_dot_providers" "$_doh_providers" | \
+        sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')"
+
     if netstat -lntp 2>/dev/null | grep -qE ':[[:space:]]*853[[:space:]]'; then
         dot_on="1"
     else
         dot_on="0"
     fi
+
+    # Tum saglayicilari birlestir (https_dns_proxy + dns-proxy)
+    local all_providers=""
+    [ -n "$doh_list" ] && all_providers="$doh_list"
+    if [ -n "$dot_list" ]; then
+        if [ -n "$all_providers" ]; then
+            all_providers="${all_providers},${dot_list}"
+        else
+            all_providers="$dot_list"
+        fi
+    fi
+    all_providers="$(printf '%s\n' "$all_providers" | tr ',' '\n' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')"
 
     if [ -n "$doh_list" ] && [ "$dot_on" = "1" ]; then
         dns_mode="$(T TXT_DNS_MODE_MIXED)"
@@ -5574,9 +5923,9 @@ run_health_check() {
         dns_sec="$(T TXT_DNS_SEC_LOW)"
     fi
 
-    dns_providers="${doh_list:-unknown}"
-    if [ -n "$doh_list" ]; then
-        dns_providers="$(echo "$doh_list" | tr ',' '\n' | sed '/^$/d' | head -n 6 | tr '\n' ',' | sed 's/,$//')"
+    dns_providers="${all_providers:-unknown}"
+    if [ -n "$all_providers" ]; then
+        dns_providers="$(printf '%s\n' "$all_providers" | tr ',' '\n' | sed '/^$/d' | head -n 8 | tr '\n' ',' | sed 's/,$//')"
     fi
 
     # DNS checks (existing behavior)
@@ -5699,7 +6048,7 @@ run_health_check() {
     add_line "$HC_SVC" "$(T TXT_HEALTH_OPKG)" "" "$opkg_ok"
     add_line "$HC_SVC" "$(T TXT_HEALTH_ZAPRET)" "" "$zap_ok"
 
-    # KeenDNS durumu (ndns varsa göster, yoksa INFO)
+    # KeenDNS durumu (ndns varsa goster, yoksa INFO)
     local kdns_raw kdns_name kdns_domain kdns_access kdns_can_direct
     kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
     kdns_name="$(printf '%s\n' "$kdns_raw"   | awk '/^[[:space:]]*name:/   {print $2; exit}')"
@@ -5721,15 +6070,15 @@ run_health_check() {
             *)             kdns_reach="no"  ;;
         esac
         if [ "$kdns_access" = "direct" ] && [ "$kdns_reach" = "no" ]; then
-            # Direct modda curl başarısız → gerçek sorun
+            # Direct modda curl basarisiz > gercek sorun
             add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_RED}$(T TXT_KEENDNS_UNKNOWN)${CLR_RESET})" "FAIL"
         elif [ "$kdns_access" = "direct" ]; then
             add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_GREEN}$(T TXT_KEENDNS_DIRECT)${CLR_RESET})" "PASS"
         elif [ "$kdns_can_direct" = "no" ]; then
-            # CGN / direct imkansız → cloud kritik, kaybederse erişim tamamen gider
+            # CGN / direct imkansiz > cloud kritik, kaybederse erisim tamamen gider
             add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_YELLOW}$(T TXT_KEENDNS_CLOUD)${CLR_RESET})" "WARN"
         else
-            # direct: yes ama henüz cloud → OTO geçiş yapacak, geçici
+            # direct: yes ama henuz cloud > OTO gecis yapacak, gecici
             add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_YELLOW}$(T TXT_KEENDNS_CLOUD)${CLR_RESET})" "INFO"
         fi
     fi
@@ -6662,7 +7011,7 @@ telegram_device_info_init() {
                 gsub(/^[ \t]+|[ \t]+$/, "", $2);
                 if ($2 != "") { print $2; exit }
             }')"
-        # 2) Sadece tam KN-xxxx ise tabloya bak; Keenetic ile başlamıyorsa ekle
+        # 2) Sadece tam KN-xxxx ise tabloya bak; Keenetic ile baslamiyorsa ekle
         case "$TG_DEVICE_MODEL" in
             KN-[0-9]*)
                 _kn2="$(_zkm_kn_to_name "$TG_DEVICE_MODEL" 2>/dev/null)"
@@ -6712,8 +7061,8 @@ telegram_device_info_init() {
 
     [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="Keenetic"
 
-    # KN-xxxx kodunu tam ada çevir - sadece tam "KN-xxxx" veya "Keenetic KN-xxxx" formatındaysa
-    # Keenetic ile başlamıyorsa ekle
+    # KN-xxxx kodunu tam ada cevir - sadece tam "KN-xxxx" veya "Keenetic KN-xxxx" formatindaysa
+    # Keenetic ile baslamiyorsa ekle
     case "$TG_DEVICE_MODEL" in
         KN-[0-9]*)
             _full="$(_zkm_kn_to_name "$TG_DEVICE_MODEL" 2>/dev/null)"
@@ -6739,7 +7088,8 @@ telegram_build_msg() {
 
     # If it's a single line, prefix with a neutral label for backward compat.
     if [ "$(printf '%s' "$event" | wc -l 2>/dev/null)" -le 1 ]; then
-        event="📣 $(T TXT_TG_EVENT_LABEL) : $event"
+        event="📣 $(T TXT_TG_EVENT_LABEL) :
+$event"
     fi
 
     cat <<EOF
@@ -6950,7 +7300,7 @@ HM_LOG_FILE="/tmp/healthmon.log"
 HM_AUTOSTART_FILE="/opt/etc/init.d/S99zkm_healthmon"
 # defaults (used if config missing)
 HM_ENABLE="0"
-HM_INTERVAL="30"
+HM_INTERVAL="60"
 HM_CPU_WARN="70"
 HM_CPU_WARN_DUR="180"
 HM_CPU_CRIT="90"
@@ -6968,6 +7318,15 @@ HM_UPDATECHECK_REPO_ZAPRET="bol-van/zapret"
 HM_COOLDOWN_SEC="600"
 HM_ZAPRET_COOLDOWN_SEC="120"
 
+# NFQUEUE qlen watchdog (qnum=200)
+# qlen > HM_QLEN_WARN_TH olan ardisik tur sayisi HM_QLEN_CRIT_TURNS'e ulasirsa -> restart_zapret
+HM_QLEN_WATCHDOG="1"          # 0=disable, 1=enable
+HM_QLEN_WARN_TH="50"          # paket esigi: bu degeri asarsa sayac artar
+HM_QLEN_CRIT_TURNS="3"        # kac ardisik tur ust uste yuksekse aksiyon alinir
+
+# KeenDNS curl throttle: her dongu degil, bu kadar saniyede bir curl cek
+HM_KEENDNS_CURL_SEC="120"     # 0 = her dongude (eski davranis)
+
 
 healthmon_print_autoupdate_warning() {
     # Show a single WARN header, then plain indented lines (less noisy)
@@ -6982,7 +7341,7 @@ healthmon_print_autoupdate_warning() {
 
 healthmon_load_config() {
     HM_ENABLE="0"
-    HM_INTERVAL="30"
+    HM_INTERVAL="60"
     HM_CPU_WARN="70"
     HM_CPU_WARN_DUR="180"
     HM_CPU_CRIT="90"
@@ -6998,11 +7357,14 @@ healthmon_load_config() {
     HM_UPDATECHECK_REPO_ZAPRET="bol-van/zapret"
     HM_AUTOUPDATE_MODE="2"
 
-HM_WANMON_ENABLE="0"
-HM_WANMON_FAIL_TH="3"
-HM_WANMON_OK_TH="2"
-HM_WANMON_IFACE=""
-
+    HM_WANMON_ENABLE="0"
+    HM_WANMON_FAIL_TH="3"
+    HM_WANMON_OK_TH="2"
+    HM_WANMON_IFACE=""
+    HM_QLEN_WATCHDOG="1"
+    HM_QLEN_WARN_TH="50"
+    HM_QLEN_CRIT_TURNS="3"
+    HM_KEENDNS_CURL_SEC="120"
 
     [ -f "$HM_CONF_FILE" ] && . "$HM_CONF_FILE" 2>/dev/null
 }
@@ -7033,6 +7395,10 @@ HM_WANMON_ENABLE="$HM_WANMON_ENABLE"
 HM_WANMON_FAIL_TH="$HM_WANMON_FAIL_TH"
 HM_WANMON_OK_TH="$HM_WANMON_OK_TH"
 HM_WANMON_IFACE="$HM_WANMON_IFACE"
+HM_QLEN_WATCHDOG="$HM_QLEN_WATCHDOG"
+HM_QLEN_WARN_TH="$HM_QLEN_WARN_TH"
+HM_QLEN_CRIT_TURNS="$HM_QLEN_CRIT_TURNS"
+HM_KEENDNS_CURL_SEC="$HM_KEENDNS_CURL_SEC"
 EOF
     chmod 600 "$HM_CONF_FILE" 2>/dev/null
 }
@@ -7446,7 +7812,7 @@ healthmon_updatecheck_do() {
     if [ -n "$last_ts" ] && [ $((now - last_ts)) -lt "$sec" ] 2>/dev/null; then
         # keep a small "defer" marker so users can see it is intentionally throttled
         : > /tmp/healthmon_updatecheck.defer 2>/dev/null
-        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | deferred next_in=$((sec - (now - last_ts)))s cur=$cur" >> /tmp/healthmon.log 2>/dev/null
+        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | deferred next_in=$((sec - (now - last_ts)))s cur=$(zkm_get_installed_script_version)" >> /tmp/healthmon.log 2>/dev/null
         return 0
     fi
 
@@ -7574,6 +7940,7 @@ healthmon_loop() {
     # Stale-state cleanup on daemon start (keep PID/log intact)
     rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
     rm -f /tmp/healthmon_cpu_* /tmp/healthmon_disk* /tmp/healthmon_ram* /tmp/healthmon_zapret_* /tmp/healthmon_last_* 2>/dev/null
+    rm -f /tmp/healthmon_qlen.cnt /tmp/healthmon_qlen.prev /tmp/healthmon_keendns_curl.ts 2>/dev/null
     # single-instance guard (robust against stale PID/lock after power loss)
     if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
         # If a healthy daemon exists, do nothing.
@@ -7777,6 +8144,68 @@ healthmon_loop() {
             fi
         fi
 
+        # ---- NFQUEUE qlen watchdog (qnum=200) ----
+        # nfqws calisiyor gorunse de kuyruk tikanirsa (zombie working) tespit eder ve restart atar.
+        if [ "${HM_QLEN_WATCHDOG:-1}" = "1" ]; then
+            local qlen_th qlen_turns qlen_val qlen_cnt_f qlen_prev_f qlen_cnt qlen_prev
+            qlen_th="${HM_QLEN_WARN_TH:-50}"
+            qlen_turns="${HM_QLEN_CRIT_TURNS:-3}"
+            qlen_cnt_f="/tmp/healthmon_qlen.cnt"
+            qlen_prev_f="/tmp/healthmon_qlen.prev"
+
+            # /proc/net/netfilter/nfnetlink_queue formati:
+            # queue_num  portid  qlen  copy_mode  copy_range  ...
+            # Alan 3 = qlen (0-indexed: $3)
+            qlen_val="$(awk '$1 == 200 { print $3; exit }' /proc/net/netfilter/nfnetlink_queue 2>/dev/null)"
+            case "$qlen_val" in ''|*[!0-9]*) qlen_val=0 ;; esac
+
+            # Onceki qlen degerini oku (artip artmadigini loglamak icin)
+            qlen_prev="$(cat "$qlen_prev_f" 2>/dev/null)"
+            case "$qlen_prev" in ''|*[!0-9]*) qlen_prev=0 ;; esac
+            echo "$qlen_val" > "$qlen_prev_f" 2>/dev/null
+
+            if [ "$qlen_val" -gt "$qlen_th" ]; then
+                # Kuyrug yuksek: sayaci artir
+                qlen_cnt="$(cat "$qlen_cnt_f" 2>/dev/null)"
+                case "$qlen_cnt" in ''|*[!0-9]*) qlen_cnt=0 ;; esac
+                qlen_cnt=$((qlen_cnt + 1))
+                echo "$qlen_cnt" > "$qlen_cnt_f" 2>/dev/null
+                healthmon_log "$now | qlen_high | qnum=200 qlen=$qlen_val prev=$qlen_prev cnt=$qlen_cnt/${qlen_turns}"
+
+                if [ "$qlen_cnt" -ge "$qlen_turns" ]; then
+                    # Ardisik N tur yuksek: restart_zapret
+                    healthmon_log "$now | qlen_crit | qnum=200 qlen=$qlen_val cnt=$qlen_cnt triggers=restart_zapret"
+                    if healthmon_should_alert "qlen_crit" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
+                        telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen=$qlen_val]"
+                    fi
+                    restart_zapret >/dev/null 2>&1
+                    sleep 2
+                    # zapret_watchdog ile cift-restart cakmasi onlemek icin state dosyalarini sifirla.
+                    # zapret_watchdog bir sonraki turda is_zapret_running=true gorur (ok) ya da
+                    # 30s sayacini bastan baslatir (fail) > tek kaynaktan kontrol saglanir.
+                    rm -f /tmp/healthmon_zapret_down.start /tmp/healthmon_zapret_restart.tried 2>/dev/null
+                    # Restart sonrasi kontrol
+                    if is_zapret_running; then
+                        healthmon_log "$now | qlen_restart_ok | qnum=200 zapret is running"
+                        if healthmon_should_alert "qlen_restart_ok" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
+                            telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen watchdog ok]"
+                        fi
+                    else
+                        healthmon_log "$now | qlen_restart_fail | qnum=200 zapret still not running after restart"
+                    fi
+                    # Sayaci sifirla (restart sonrasi tekrar izlemeye basla)
+                    rm -f "$qlen_cnt_f" 2>/dev/null
+                fi
+            else
+                # qlen normal: sayaci sifirla
+                if [ -f "$qlen_cnt_f" ]; then
+                    qlen_cnt="$(cat "$qlen_cnt_f" 2>/dev/null)"
+                    [ "${qlen_cnt:-0}" -gt 0 ] && healthmon_log "$now | qlen_recovered | qnum=200 qlen=$qlen_val cnt_reset"
+                    rm -f "$qlen_cnt_f" 2>/dev/null
+                fi
+            fi
+        fi
+
 
         # ---- Heartbeat log (no Telegram) ----
         if [ -n "$HM_HEARTBEAT_SEC" ] && [ "$HM_HEARTBEAT_SEC" -gt 0 ] 2>/dev/null; then
@@ -7816,7 +8245,7 @@ healthmon_loop() {
         kdns_access2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
         if [ -n "$kdns_name2" ]; then
             local kdns_fqdn="${kdns_name2}.${kdns_domain2}"
-            # --- Erişim modu (direct/cloud) izleme ---
+            # --- Erisim modu (direct/cloud) izleme ---
             local kdns_prev_f="/tmp/healthmon_keendns.prev"
             local kdns_prev
             kdns_prev="$(cat "$kdns_prev_f" 2>/dev/null)"
@@ -7824,38 +8253,56 @@ healthmon_loop() {
             kdns_can_direct2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*direct:/ {print $2; exit}')"
             if [ -n "$kdns_prev" ] && [ "$kdns_prev" != "$kdns_access2" ]; then
                 if [ "$kdns_access2" = "direct" ]; then
-                    # direct'e döndü
+                    # direct'e dondu
                     if healthmon_should_alert "keendns_up" "$HM_COOLDOWN_SEC"; then
                         telegram_send "$(printf "$(T TXT_KEENDNS_BACK)" "$kdns_fqdn")"
                         healthmon_log "$now | keendns_up | $kdns_fqdn"
                     fi
                 elif [ "$kdns_can_direct2" = "no" ]; then
-                    # CGN: cloud'a düştü, direct imkansız → kritik alarm
+                    # CGN: cloud'a dustu, direct imkansiz > kritik alarm
                     if healthmon_should_alert "keendns_down" "$HM_COOLDOWN_SEC"; then
                         telegram_send "$(printf "$(T TXT_KEENDNS_CGN_LOST)" "$kdns_fqdn")"
                         healthmon_log "$now | keendns_cgn_lost | $kdns_fqdn"
                     fi
                 fi
-                # direct:yes + cloud → OTO geçiş yapacak, alarm verme
+                # direct:yes + cloud > OTO gecis yapacak, alarm verme
             fi
             printf '%s\n' "$kdns_access2" > "$kdns_prev_f" 2>/dev/null
-            # --- Gercek erisim (curl) izleme ---
+            # --- Gercek erisim (curl) izleme --- THROTTLED (HM_KEENDNS_CURL_SEC) ---
+            # curl her dongude degil, sadece HM_KEENDNS_CURL_SEC saniyede bir calisir.
+            # Bu sayede NFQUEUE (qnum=200) kuyruklari curl yukunden korunur.
+            local kdns_curl_ts_f="/tmp/healthmon_keendns_curl.ts"
+            local kdns_curl_last kdns_curl_interval
+            kdns_curl_last="$(cat "$kdns_curl_ts_f" 2>/dev/null)"
+            case "$kdns_curl_last" in ''|*[!0-9]*) kdns_curl_last=0 ;; esac
+            kdns_curl_interval="${HM_KEENDNS_CURL_SEC:-120}"
+            case "$kdns_curl_interval" in ''|*[!0-9]*) kdns_curl_interval=120 ;; esac
             local kdns_dest2 kdns_port2 kdns_http2 kdns_reach2
-            kdns_dest2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*destination:/ {print $2; exit}')"
-            kdns_port2="$(printf '%s\n' "$kdns_dest2" | awk -F: '{print $NF}')"
-            [ -z "$kdns_port2" ] && kdns_port2="443"
-            [ "$kdns_port2" = "443" ] && kdns_proto2="https" || kdns_proto2="http"
-            kdns_http2="$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}"                 "${kdns_proto2}://${kdns_fqdn}:${kdns_port2}" 2>/dev/null)"
-            case "$kdns_http2" in
-                2*|3*|401|403) kdns_reach2="yes" ;;
-                *)             kdns_reach2="no"  ;;
-            esac
+            if [ "$kdns_curl_interval" -eq 0 ] || [ $((now - kdns_curl_last)) -ge "$kdns_curl_interval" ]; then
+                echo "$now" > "$kdns_curl_ts_f" 2>/dev/null
+                kdns_dest2="$(printf '%s\n' "$kdns_raw2" | awk '/^[[:space:]]*destination:/ {print $2; exit}')"
+                kdns_port2="$(printf '%s\n' "$kdns_dest2" | awk -F: '{print $NF}')"
+                [ -z "$kdns_port2" ] && kdns_port2="443"
+                [ "$kdns_port2" = "443" ] && kdns_proto2="https" || kdns_proto2="http"
+                kdns_http2="$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "${kdns_proto2}://${kdns_fqdn}:${kdns_port2}" 2>/dev/null)"
+                case "$kdns_http2" in
+                    2*|3*|401|403) kdns_reach2="yes" ;;
+                    *)             kdns_reach2="no"  ;;
+                esac
+            else
+                # Throttled: onceki sonucu kullan, curl yapma
+                kdns_reach2="$(cat "/tmp/healthmon_keendns_reach.prev" 2>/dev/null)"
+                [ -z "$kdns_reach2" ] && kdns_reach2="yes"  # ilk turda bilinmiyor, alarm uretme
+                # Log icin safe default: throttle turunda bu degerler set edilmemis olabilir
+                [ -z "$kdns_port2" ]  && kdns_port2="(throttled)"
+                [ -z "$kdns_http2" ]  && kdns_http2="(throttled)"
+            fi
             local kdns_reach_f="/tmp/healthmon_keendns_reach.prev"
             local kdns_reach_prev
             kdns_reach_prev="$(cat "$kdns_reach_f" 2>/dev/null)"
-            # Curl alarmı:
-            # - direct modda: erişim kesilirse/gelirse alarm
-            # - CGN (direct:no) + cloud modda: cloud erişimi kesilirse/gelirse alarm
+            # Curl alarmi:
+            # - direct modda: erisim kesilirse/gelirse alarm
+            # - CGN (direct:no) + cloud modda: cloud erisimi kesilirse/gelirse alarm
             local kdns_do_curl_alarm="no"
             [ "$kdns_access2" = "direct" ] && kdns_do_curl_alarm="yes"
             [ "$kdns_can_direct2" = "no" ] && kdns_do_curl_alarm="yes"
@@ -8219,6 +8666,8 @@ healthmon_status() {
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_WD)" "$HM_ZAPRET_WATCHDOG"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_CD)" "${HM_ZAPRET_COOLDOWN_SEC}s"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_AR)" "$HM_ZAPRET_AUTORESTART"
+    hm_kv "NFQUEUE qlen watchdog" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}"
+    hm_kv "KeenDNS curl interval" "${HM_KEENDNS_CURL_SEC}s"
 
     echo
     printf "%s\n" "$(T TXT_HM_STATUS_SEC_NOW)"
@@ -8303,6 +8752,7 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "9" "$_w" "$(T TXT_HM_CFG_ITEM9)" "$HM_COOLDOWN_SEC"
         printf " %2s) %-*s : %s\n" "10" "$_w" "$(T TXT_HM_CFG_ITEM10)" "$HM_HEARTBEAT_SEC"
         printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (conf=${HM_WANMON_IFACE:-auto} ndm=$(healthmon_detect_wan_iface_ndm))"
+        printf " %2s) %-*s : %s\n" "12" "$_w" "NFQUEUE qlen watchdog" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} keendns_curl=${HM_KEENDNS_CURL_SEC}s"
 echo
         printf " %2s) %s\n" "0" "$(T _ 'Kaydet ve geri' 'Save & back')"
         echo
@@ -8380,6 +8830,12 @@ esac
                 hm_ask_num "$(T TXT_HM_PROMPT_WANMON_FAIL_TH)" HM_WANMON_FAIL_TH
                 hm_ask_num "$(T TXT_HM_PROMPT_WANMON_OK_TH)" HM_WANMON_OK_TH
                 print_status INFO "$(T _ \'NDM WAN: \' \'NDM WAN: \')$(healthmon_detect_wan_iface_ndm)"
+                ;;
+            12)
+                hm_ask_01  "$(T _ 'NFQUEUE qlen watchdog (0=kapat 1=ac)' 'NFQUEUE qlen watchdog (0=off 1=on)')" HM_QLEN_WATCHDOG
+                hm_ask_num "$(T _ 'qlen esigi (paket sayisi)' 'qlen threshold (packet count)')" HM_QLEN_WARN_TH
+                hm_ask_num "$(T _ 'Ardisik yuksek tur sayisi -> restart' 'Consecutive high turns -> restart')" HM_QLEN_CRIT_TURNS
+                hm_ask_num "$(T _ 'KeenDNS curl araligi (sn, 0=her tur)' 'KeenDNS curl interval (sec, 0=every loop)')" HM_KEENDNS_CURL_SEC
                 ;;
             0)
                 healthmon_write_config
