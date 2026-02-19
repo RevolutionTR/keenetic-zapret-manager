@@ -47,12 +47,12 @@ USB olmadan (cihazın dahili hafızasına / geçici ortama kurulum) yapılması 
 - "Çalışıyor gibi görünüp" DPI sitelerine erişim kesilebilir
 
 **Bu bir betik hatası değildir.**  
-Sebep, USB olmadan `/opt` dizininin kalıcı olmamasıdır.
+Sebep, USB olmadan `/opt/lib/opkg` dizininin kalıcı olmamasıdır.
 
 **✅ Önerilen Kurulum:**
 - Keenetic'e USB bellek takılı
 - Entware USB'ye kurulu
-- Betik ve Zapret `/opt` altında çalışıyor olmalı
+- Betik ve Zapret `/opt/lib/opkg` altında çalışıyor olmalı
 
 ---
 
