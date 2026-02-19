@@ -36,20 +36,7 @@ Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
 > Daha eski Keenetic OS sürümlerinde test edilmemiştir.  
 > Eski sürümlerde OPKG/Entware paketleri, iptables/ipset davranışı veya binary uyumluluğu farklı olabilir.
 
-### ⚠️ USB Olmadan Kurulum Hakkında Önemli Uyarı
-
-USB olmadan (cihazın dahili hafızasına / geçici ortama kurulum) yapılması durumunda aşağıdaki sorunlar kaçınılmazdır:
-- Otomatik güncelleme (GitHub) çalışmayabilir
-- Ayarlar reboot / elektrik kesintisi sonrası silinebilir
-- Hostlist / Autohostlist / IPSET listeleri kalıcı olmaz
-- keenetic / keenetic-zapret CLI kısayolları kaybolabilir
-- Yedekleme / geri yükleme güvenilir çalışmaz
-- "Çalışıyor gibi görünüp" DPI sitelerine erişim kesilebilir
-
-**Bu bir betik hatası değildir.**  
-Sebep, USB olmadan `/opt/lib/opkg` dizininin kalıcı olmamasıdır.
-
-**✅ Önerilen Kurulum:**
+## ✅ Önerilen Kurulum:
 - Keenetic'e USB bellek takılı
 - Entware USB'ye kurulu
 - Betik ve Zapret `/opt/lib/opkg` altında çalışıyor olmalı
