@@ -3441,9 +3441,66 @@ check_keenetic_components() {
 
 # Zapret'in otomatik baslamasini ayarlar
 add_auto_start_zapret() {
-    ln -fs /opt/zapret/init.d/sysv/zapret /opt/etc/init.d/S90-zapret && \
-    echo "$(T TXT_AUTOSTART_OK)" || \
-    { echo "$(T TXT_AUTOSTART_FAIL)"; return 0; }
+
+  rm -f /opt/etc/init.d/S90-zapret
+
+  cat > /opt/etc/init.d/S90-zapret <<'EOF'
+#!/bin/sh
+### Zapret autostart wrapper (WAN-aware)
+
+ZAPRET_BIN="/opt/zapret/init.d/sysv/zapret"
+LOG_TAG="[zapret-autostart]"
+
+wait_for_wan() {
+    timeout=180
+
+    echo "$LOG_TAG WAN bekleniyor..."
+
+    while [ $timeout -gt 0 ]; do
+
+        # default route var mı?
+        WAN_IF="$(ip route 2>/dev/null | awk '$1=="default"{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+
+        if [ -n "$WAN_IF" ]; then
+            # IPv4 adres alınmış mı?
+            IP_ADDR="$(ip -4 addr show "$WAN_IF" 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print $2}' | head -1)"
+
+            if [ -n "$IP_ADDR" ]; then
+                echo "$LOG_TAG WAN hazır: $WAN_IF ($IP_ADDR)"
+                return 0
+            fi
+        fi
+
+        sleep 5
+        timeout=$((timeout - 5))
+    done
+
+    echo "$LOG_TAG WAN timeout!"
+    return 1
+}
+
+case "$1" in
+    start)
+        if wait_for_wan; then
+            $ZAPRET_BIN start
+        else
+            echo "$LOG_TAG WAN hazır değil, zapret başlatılmadı."
+            exit 1
+        fi
+        ;;
+    stop|restart|status)
+        $ZAPRET_BIN "$1"
+        ;;
+    *)
+        echo "Kullanim: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+EOF
+
+  chmod +x /opt/etc/init.d/S90-zapret && \
+  echo "$(T TXT_AUTOSTART_OK)" || \
+  { echo "$(T TXT_AUTOSTART_FAIL)"; return 0; }
 }
 
 # Total paket engellemeyi devre disi birakmayi ayarlar
