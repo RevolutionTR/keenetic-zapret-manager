@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.20"
+SCRIPT_VERSION="v26.2.20.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -324,7 +324,7 @@ zkm_full_uninstall() {
     rm -f /tmp/healthmon_* /tmp/wanmon.* 2>/dev/null
 
     # Remove helper/wrapper commands created by this script
-    rm -f /opt/bin/keenetic /opt/bin/keenetic-zapret 2>/dev/null
+    rm -f /opt/bin/keenetic /opt/bin/keenetic-zapret /opt/bin/kzm /opt/bin/KZM 2>/dev/null
 
     # Remove KZM backup files (script backups)
     rm -f /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_* 2>/dev/null
@@ -408,6 +408,8 @@ ensure_cli_shortcut() {
 
     WRAP1="/opt/bin/keenetic-zapret"
     WRAP2="/opt/bin/keenetic"
+    WRAP3="/opt/bin/kzm"
+    WRAP4="/opt/bin/KZM"
 
     # keenetic-zapret her zaman yarat / guncelle
     cat > "$WRAP1" <<EOF
@@ -420,6 +422,18 @@ EOF
     if [ ! -e "$WRAP2" ]; then
         ln -s "$WRAP1" "$WRAP2" 2>/dev/null || cp -a "$WRAP1" "$WRAP2"
         chmod +x "$WRAP2" 2>/dev/null
+    fi
+
+    # kzm sadece yoksa olustur
+    if [ ! -e "$WRAP3" ]; then
+        ln -s "$WRAP1" "$WRAP3" 2>/dev/null || cp -a "$WRAP1" "$WRAP3"
+        chmod +x "$WRAP3" 2>/dev/null
+    fi
+
+    # KZM (buyuk harf) sadece yoksa olustur
+    if [ ! -e "$WRAP4" ]; then
+        ln -s "$WRAP1" "$WRAP4" 2>/dev/null || cp -a "$WRAP1" "$WRAP4"
+        chmod +x "$WRAP4" 2>/dev/null
     fi
 
     return 0
@@ -2050,14 +2064,14 @@ TXT_LANG_NOW_EN="Language: English"
 TXT_IPSET_TITLE_TR=" Zapret IPSET (Istemci Secimi)"
 TXT_IPSET_TITLE_EN=" Zapret IPSET (Client Selection)"
 
-TXT_IPSET_1_TR=" 1. Tum Aga Uygula (client Filtresi Kapali)"
-TXT_IPSET_1_EN=" 1. Apply to Whole Network (Client Filter Off)"
+TXT_IPSET_1_TR=" 1. Mevcut IP Listesini Goster"
+TXT_IPSET_1_EN=" 1. Show Current IP List"
 
-TXT_IPSET_2_TR=" 2. Secili IP'lere Uygula (IP gir)"
-TXT_IPSET_2_EN=" 2. Apply to Selected IPs (enter IPs)"
+TXT_IPSET_2_TR=" 2. Tum Aga Uygula (client Filtresi Kapali)"
+TXT_IPSET_2_EN=" 2. Apply to Whole Network (Client Filter Off)"
 
-TXT_IPSET_3_TR=" 3. Mevcut IP Listesini Goster"
-TXT_IPSET_3_EN=" 3. Show Current IP list"
+TXT_IPSET_3_TR=" 3. Secili IP'lere Uygula (IP gir)"
+TXT_IPSET_3_EN=" 3. Apply to Selected IPs (enter IPs)"
 
 TXT_IPSET_4_TR=" 4. Listeye Tek IP Ekle"
 TXT_IPSET_4_EN=" 4. Add a Single IP to list"
@@ -2074,8 +2088,8 @@ TXT_IPSET_0_EN=" 0. Back to Main Menu"
 TXT_PROMPT_IPSET_TR=" Seciminizi Yapin (0-6): "
 TXT_PROMPT_IPSET_EN=" Select an Option (0-6): "
 
-TXT_PROMPT_IPSET_BASIC_TR=" Seciminizi Yapin (0-2, 6): "
-TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-2, 6): "
+TXT_PROMPT_IPSET_BASIC_TR=" Seciminizi Yapin (0-3, 6): "
+TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-3, 6): "
 
 TXT_NOZAPRET_TITLE_TR="No Zapret (Muafiyet) Yonetimi"
 TXT_NOZAPRET_TITLE_EN="No Zapret (Exemption) Management"
@@ -4069,8 +4083,8 @@ manage_ipset_clients() {
 
         echo "$(T TXT_IPSET_1)"
         echo "$(T TXT_IPSET_2)"
+        echo "$(T TXT_IPSET_3)"
         if [ "$MODE" = "list" ]; then
-            echo "$(T TXT_IPSET_3)"
             echo "$(T TXT_IPSET_4)"
             echo "$(T TXT_IPSET_5)"
             echo "$(T TXT_IPSET_6)"
@@ -4087,7 +4101,7 @@ manage_ipset_clients() {
         echo ""
 
         case "$ipset_choice" in
-            1)
+            2)
                 echo "all" > "$IPSET_CLIENT_MODE_FILE"
                 rm -f "$IPSET_CLIENT_FILE" 2>/dev/null
                 apply_ipset_client_settings
@@ -4095,7 +4109,7 @@ manage_ipset_clients() {
                 read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
                 clear
                 ;;
-            2)
+            3)
                 # Mevcut listeyi goster
                 if [ -f "$IPSET_CLIENT_FILE" ] && [ -s "$IPSET_CLIENT_FILE" ]; then
                     echo "$(T ipset_current_list 'Mevcut liste (bu islem listeyi KOMPLE degistirecek):' 'Current list (this will REPLACE the entire list):')"
@@ -4116,6 +4130,25 @@ manage_ipset_clients() {
                         rm -f "$tmp_ips" 2>/dev/null
                         echo "$(T ipset_invalid 'Gecersiz IP listesi. Degisiklik yapilmadi.' 'Invalid IP list. No changes made.')"
                     else
+                        # Gecersiz formattaki satirlari filtrele (sadece IPv4 kabul et)
+                        tmp_ips_valid="/tmp/ipset_clients_valid.$$"
+                        invalid_count=0
+                        while IFS= read -r _line; do
+                            [ -z "$_line" ] && continue
+                            if echo "$_line" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+                                echo "$_line" >> "$tmp_ips_valid"
+                            else
+                                invalid_count=$((invalid_count + 1))
+                            fi
+                        done < "$tmp_ips"
+                        rm -f "$tmp_ips"
+                        tmp_ips="$tmp_ips_valid"
+                        [ "$invalid_count" -gt 0 ] && echo "$(T _ "$invalid_count gecersiz satir atildi." "$invalid_count invalid line(s) skipped.")"
+
+                        if [ ! -s "$tmp_ips" ]; then
+                            rm -f "$tmp_ips" 2>/dev/null
+                            echo "$(T ipset_invalid 'Gecersiz IP listesi. Degisiklik yapilmadi.' 'Invalid IP list. No changes made.')"
+                        else
                         # No Zapret listesinde olan IP'leri filtrele (catisma onleme)
                         if [ -f "$NOZAPRET_FILE" ] && [ -s "$NOZAPRET_FILE" ]; then
                             filtered="/tmp/ipset_clients_filtered.$$"
@@ -4143,13 +4176,14 @@ manage_ipset_clients() {
                             rm -f "$tmp_ips" 2>/dev/null
                             echo "$(T ipset_invalid 'Gecersiz IP listesi. Degisiklik yapilmadi.' 'Invalid IP list. No changes made.')"
                         fi
+                        fi  # gecersiz IP filtresi sonrasi bos kontrol
                     fi
                 fi
 
                 read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
                 clear
                 ;;
-            3)
+            1)
                 if [ "$MODE" = "list" ]; then
                     show_ipset_client_status
                 else
@@ -4160,11 +4194,11 @@ manage_ipset_clients() {
                 clear
                 ;;
 
-        4)
+            4)
                 MODE="$(cat "$IPSET_CLIENT_MODE_FILE" 2>/dev/null)"
                 [ -z "$MODE" ] && MODE="all"
                 if [ "$MODE" != "list" ]; then
-                    echo "Bu menu sadece \"Secili IP'lere Uygula\" (mod=list) acikken kullanilabilir. Once 2'yi secin."
+                    echo "Bu menu sadece \"Secili IP'lere Uygula\" (mod=list) acikken kullanilabilir. Once 3'u secin."
                 else
                 read -r -p "$(T add_ip_prompt "$TXT_ADD_IP_TR" "$TXT_ADD_IP_EN")" oneip
                 if [ -z "$oneip" ]; then
@@ -4201,7 +4235,7 @@ manage_ipset_clients() {
                 MODE="$(cat "$IPSET_CLIENT_MODE_FILE" 2>/dev/null)"
                 [ -z "$MODE" ] && MODE="all"
                 if [ "$MODE" != "list" ]; then
-                    echo "Bu menu sadece \"Secili IP'lere Uygula\" (mod=list) acikken kullanilabilir. Once 2'yi secin."
+                    echo "Bu menu sadece \"Secili IP'lere Uygula\" (mod=list) acikken kullanilabilir. Once 3'u secin."
                 else
                 read -r -p "$(T del_ip_prompt "$TXT_DEL_IP_TR" "$TXT_DEL_IP_EN")" oneip
                 if [ -z "$oneip" ]; then
