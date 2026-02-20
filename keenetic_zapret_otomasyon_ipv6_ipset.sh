@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.19"
+SCRIPT_VERSION="v26.2.20"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -172,6 +172,7 @@ fi
 if [ "$ZKM_DEV_CHECK" = "1" ] && [ -x /opt/etc/zkm_guard.sh ]; then
     /opt/bin/sh /opt/etc/zkm_guard.sh "$0" >/dev/null 2>&1
 fi
+
 
 if [ "$ZKM_SKIP_LOCK" != "1" ]; then
     if ! mkdir "$ZKM_LOCKDIR" 2>/dev/null; then
@@ -2458,12 +2459,12 @@ select_wan_if() {
     local rec="$(detect_recommended_wan_if)"
     [ -z "$rec" ] && rec="ppp0"
     print_line "-"
-printf " \033[1;33mZapret cikis arayuzu secimi\033[0m\n"
-    echo " (Ornek: ppp0 = WAN, wg0/wg1 = WireGuard)"
-    echo " Su Anki: $(get_wan_if)"
-    echo " Onerilen: $rec"
+    printf " ${CLR_YELLOW}%s${CLR_RESET}\n" "$(T TXT_WAN_SEL_TITLE)"
+    echo "$(T TXT_WAN_SEL_EXAMPLE)"
+    echo "$(T TXT_WAN_SEL_CURRENT) $(get_wan_if)"
+    echo "$(T TXT_WAN_SEL_RECOMMENDED) $rec"
     print_line "-"
-    printf "\033[1;32mArayuz adini yazin (Enter = %s)\033[0m: " "$rec"
+    printf "${CLR_GREEN}%s${CLR_RESET}" "$(tpl_render "$(T TXT_WAN_SEL_PROMPT)" REC "$rec")"
     read -r ans
     [ -z "$ans" ] && ans="$rec"
     # bazen kopyala-yapistir ile sonuna nokta gelebiliyor (ppp0.)
@@ -2473,7 +2474,7 @@ printf " \033[1;33mZapret cikis arayuzu secimi\033[0m\n"
     [ -z "$ans" ] && return 0
     mkdir -p /opt/zapret 2>/dev/null
     echo "$ans" > "$WAN_IF_FILE" 2>/dev/null
-    echo "Secildi: $(get_wan_if)"
+    echo "$(T TXT_WAN_SEL_SELECTED) $(get_wan_if)"
 }
 
 enforce_wan_if_nfqueue_rules() {
@@ -2895,6 +2896,102 @@ enforce_client_mode_rules() {
 }
 
 # Cekirdek modulu yapilandirmasini gunceller
+# TR/EN Dictionary (WAN Interface Selection & Cleanup)
+TXT_WAN_SEL_TITLE_TR="Zapret cikis arayuzu secimi"
+TXT_WAN_SEL_TITLE_EN="Zapret output interface selection"
+TXT_WAN_SEL_EXAMPLE_TR=" (Ornek: ppp0 = WAN, wg0/wg1 = WireGuard)"
+TXT_WAN_SEL_EXAMPLE_EN=" (Example: ppp0 = WAN, wg0/wg1 = WireGuard)"
+TXT_WAN_SEL_CURRENT_TR=" Su Anki:"
+TXT_WAN_SEL_CURRENT_EN=" Current:"
+TXT_WAN_SEL_RECOMMENDED_TR=" Onerilen:"
+TXT_WAN_SEL_RECOMMENDED_EN=" Recommended:"
+TXT_WAN_SEL_PROMPT_TR="Arayuz adini yazin (Enter = %REC%): "
+TXT_WAN_SEL_PROMPT_EN="Enter interface name (Enter = %REC%): "
+TXT_WAN_SEL_SELECTED_TR="Secildi:"
+TXT_WAN_SEL_SELECTED_EN="Selected:"
+TXT_CLEANUP_REMOVING_TR="Indirilen Zapret arsivi ve gereksiz binary dosyalari siliniyor..."
+TXT_CLEANUP_REMOVING_EN="Removing downloaded Zapret archive and unnecessary binary files..."
+TXT_CLEANUP_REMOVED_TR="Indirilen Zapret arsivi ve gereksiz binary dosyalari silindi."
+TXT_CLEANUP_REMOVED_EN="Downloaded Zapret archive and unnecessary binary files removed."
+
+# TR/EN Dictionary (Kernel & Firewall & Zapret Service)
+TXT_KERN_MOD_ADD_FAIL_TR="HATA: Kernel modulu yukleme dosyasina eklenemedi."
+TXT_KERN_MOD_ADD_FAIL_EN="ERROR: Failed to write to kernel module load file."
+TXT_KERN_MOD_CHMOD_FAIL_TR="HATA: Kernel modulu yukleme dosyasina calistirma izni verilemedi."
+TXT_KERN_MOD_CHMOD_FAIL_EN="ERROR: Failed to set execute permission on kernel module load file."
+TXT_KERN_MOD_OK_TR="Kernel modulu yukleme dosyasina eklendi."
+TXT_KERN_MOD_OK_EN="Kernel module load file updated."
+TXT_FW_WRITE_FAIL_TR="HATA: Guvenlik duvari izni verilirken hata olustu."
+TXT_FW_WRITE_FAIL_EN="ERROR: Failed to write firewall permission file."
+TXT_FW_CHMOD_FAIL_TR="HATA: Guvenlik duvari izni dosyasina calistirma izni verilemedi."
+TXT_FW_CHMOD_FAIL_EN="ERROR: Failed to set execute permission on firewall file."
+TXT_FW_OK_TR="Guvenlik duvari izni verildi."
+TXT_FW_OK_EN="Firewall permission granted."
+TXT_AUTOSTART_OK_TR="Zapret otomatik baslatma etkinlestirildi."
+TXT_AUTOSTART_OK_EN="Zapret autostart enabled."
+TXT_AUTOSTART_FAIL_TR="UYARI: Zapret otomatik baslatma etkinlestirilemedi."
+TXT_AUTOSTART_FAIL_EN="WARNING: Failed to enable Zapret autostart."
+TXT_TOTAL_PKT_FAIL_TR="HATA: Toplam paket kontrolu devre disi birakilirken hata olustu."
+TXT_TOTAL_PKT_FAIL_EN="ERROR: Failed to disable total packet check."
+TXT_TOTAL_PKT_CHMOD_FAIL_TR="HATA: Toplam paket kontrolu devre disi birakma dosyasina calistirma izni verilemedi."
+TXT_TOTAL_PKT_CHMOD_FAIL_EN="ERROR: Failed to set execute permission on total packet disable file."
+TXT_COMPAT_FAIL_TR="HATA: Keenetic icin uyumlu hale getirilemedi."
+TXT_COMPAT_FAIL_EN="ERROR: Failed to apply Keenetic compatibility settings."
+TXT_UDP_FIX_FAIL_TR="HATA: Keenetic UDP duzeltmesi eklenemedi."
+TXT_UDP_FIX_FAIL_EN="ERROR: Failed to apply Keenetic UDP fix."
+TXT_START_NOT_INSTALLED_TR="Zapret yuklu degil. Baslatma islemi yapilamiyor."
+TXT_START_NOT_INSTALLED_EN="Zapret is not installed. Cannot start."
+TXT_START_ALREADY_TR="Zapret servisi zaten calisiyor."
+TXT_START_ALREADY_EN="Zapret service is already running."
+TXT_START_OK_TR="Zapret servisi baslatildi."
+TXT_START_OK_EN="Zapret service started."
+TXT_START_FAIL_TR="HATA: Zapret servisi baslatilirken hata olustu."
+TXT_START_FAIL_EN="ERROR: Failed to start Zapret service."
+TXT_STOP_NOT_INSTALLED_TR="Zapret yuklu degil. Durdurma islemi yapilamiyor."
+TXT_STOP_NOT_INSTALLED_EN="Zapret is not installed. Cannot stop."
+TXT_STOP_STOPPING_TR="Zapret durduruluyor (NFQWS + NFQUEUE)..."
+TXT_STOP_STOPPING_EN="Stopping Zapret (NFQWS + NFQUEUE)..."
+TXT_STOP_NFQWS_WARN_TR="UYARI: nfqws hala calisiyor (otomatik yeniden baslatiliyor olabilir)."
+TXT_STOP_NFQWS_WARN_EN="WARNING: nfqws is still running (may be auto-restarting)."
+TXT_STOP_NFQUEUE_WARN_TR="UYARI: NFQUEUE kurali hala var (otomatik yeniden basiliyor olabilir)."
+TXT_STOP_NFQUEUE_WARN_EN="WARNING: NFQUEUE rule still exists (may be auto-restarting)."
+TXT_STOP_OK_TR="Zapret durduruldu."
+TXT_STOP_OK_EN="Zapret stopped."
+TXT_RESTART_NOT_INSTALLED_TR="Zapret yuklu degil. Yeniden baslatma islemi yapilamiyor."
+TXT_RESTART_NOT_INSTALLED_EN="Zapret is not installed. Cannot restart."
+TXT_ZAPRET_NOT_INSTALLED_TR="HATA: Zapret yuklu degil."
+TXT_ZAPRET_NOT_INSTALLED_EN="ERROR: Zapret is not installed."
+TXT_IPV6_NOT_INSTALLED_TR="HATA: Zapret yuklu degil. Once kurulum yapin."
+TXT_IPV6_NOT_INSTALLED_EN="ERROR: Zapret is not installed. Please install first."
+TXT_IPV6_WIZARD_START_TR="Zapret yapilandirma sihirbazi calistiriliyor (IPv6: %VAL%)..."
+TXT_IPV6_WIZARD_START_EN="Running Zapret configuration wizard (IPv6: %VAL%)..."
+TXT_IPV6_CFG_FAIL_TR="HATA: Zapret yapilandirma betigi calistirilirken hata olustu."
+TXT_IPV6_CFG_FAIL_EN="ERROR: Failed to run Zapret configuration script."
+TXT_UNINSTALL_NOT_INSTALLED_TR="Zapret yuklu degil. Kaldirma islemi yapilamaz."
+TXT_UNINSTALL_NOT_INSTALLED_EN="Zapret is not installed. Nothing to remove."
+TXT_UNINSTALL_REMOVING_TR="Zapret kaldiriliyor..."
+TXT_UNINSTALL_REMOVING_EN="Removing Zapret..."
+TXT_UNINSTALL_OK_TR="Zapret basariyla kaldirildi."
+TXT_UNINSTALL_OK_EN="Zapret removed successfully."
+TXT_INSTALL_ALREADY_TR="Zapret zaten yuklu."
+TXT_INSTALL_ALREADY_EN="Zapret is already installed."
+TXT_INSTALL_INSTALLING_TR="Zapret yukleniyor..."
+TXT_INSTALL_INSTALLING_EN="Installing Zapret..."
+TXT_INSTALL_OK_TR="Zapret basariyla yuklendi."
+TXT_INSTALL_OK_EN="Zapret installed successfully."
+TXT_INSTALL_DONE_TR="Zapret basariyla kuruldu ve yapilandirildi."
+TXT_INSTALL_DONE_EN="Zapret successfully installed and configured."
+TXT_INSTALL_PKG_FAIL_TR="HATA: Gerekli paketler yuklenemedi veya guncellenemedi."
+TXT_INSTALL_PKG_FAIL_EN="ERROR: Failed to install or update required packages."
+TXT_INSTALL_CFG_FAIL_TR="HATA: Zapret yapilandirma betigi calistirilirken hata olustu."
+TXT_INSTALL_CFG_FAIL_EN="ERROR: Failed to run Zapret configuration script."
+TXT_INSTALL_COMPAT_WARN_TR="UYARI: Keenetic uyumlulugu ayarlanirken bir sorun olustu."
+TXT_INSTALL_COMPAT_WARN_EN="WARNING: An issue occurred while applying Keenetic compatibility settings."
+TXT_INSTALL_CFG_RUNNING_TR="Zapret yapilandirma betigi calistiriliyor..."
+TXT_INSTALL_CFG_RUNNING_EN="Running Zapret configuration script..."
+TXT_INSTALL_KEENETIC_CFG_TR="Zapret'in Keenetic cihazlarda calisabilmesi icin gerekli yapilandirmalar yapiliyor..."
+TXT_INSTALL_KEENETIC_CFG_EN="Applying required configurations for Zapret to run on Keenetic devices..."
+
 update_kernel_module_config() {
     awk '
       BEGIN { inserted=0 }
@@ -2943,16 +3040,16 @@ update_kernel_module_config() {
         prev_line = $0
       }
     ' /opt/zapret/init.d/sysv/zapret > /tmp/zapret_new && mv /tmp/zapret_new /opt/zapret/init.d/sysv/zapret || {
-        echo "HATA: Kernel modulu yukleme dosyasina eklenemedi."
+        echo "$(T TXT_KERN_MOD_ADD_FAIL)"
         return 1
     }
 
     chmod +x /opt/zapret/init.d/sysv/zapret || {
-        echo "HATA: Kernel modulu yukleme dosyasina calistirma izni verilemedi."
+        echo "$(T TXT_KERN_MOD_CHMOD_FAIL)"
         return 1
     }
 
-    echo "Kernel modulu yukleme dosyasina eklendi."
+    echo "$(T TXT_KERN_MOD_OK)"
     return 0
 }
 
@@ -3097,17 +3194,17 @@ allow_firewall() {
 [ "$table" != "mangle" ] && [ "$table" != "nat" ] && exit 0
 /opt/zapret/init.d/sysv/zapret restart-fw
 exit 0' > /opt/etc/ndm/netfilter.d/000-zapret.sh || {
-        echo "HATA: Guvenlik duvari izni verilirken hata olustu."
+        echo "$(T TXT_FW_WRITE_FAIL)"
         return 1
     }
-	
+
     # Dosyayi calistirilabilir yapar
     chmod +x /opt/etc/ndm/netfilter.d/000-zapret.sh || {
-        echo "HATA: Guvenlik duvari izni dosyasina calistirma izni verilemedi."
+        echo "$(T TXT_FW_CHMOD_FAIL)"
         return 1
     }
     
-    echo "Guvenlik duvari izni verildi."
+    echo "$(T TXT_FW_OK)"
     return 0
 }
 
@@ -3345,8 +3442,8 @@ check_keenetic_components() {
 # Zapret'in otomatik baslamasini ayarlar
 add_auto_start_zapret() {
     ln -fs /opt/zapret/init.d/sysv/zapret /opt/etc/init.d/S90-zapret && \
-    echo "Zapret'in otomatik baslatilmasi etkinlestirildi." || \
-    { echo "UYARI: Zapret'in otomatik baslatilmasi etkinlestirilemedi."; return 0; }
+    echo "$(T TXT_AUTOSTART_OK)" || \
+    { echo "$(T TXT_AUTOSTART_FAIL)"; return 0; }
 }
 
 # Total paket engellemeyi devre disi birakmayi ayarlar
@@ -3372,32 +3469,32 @@ case "$1" in
         ;;
 esac
 exit 0' > /opt/etc/init.d/S00fix || {
-        echo "HATA: Toplam paket kontrolu devredisi birakilirken hata olustu."
+        echo "$(T TXT_TOTAL_PKT_FAIL)"
         return 1
     }
 
     # Dosyayi calistirilabilir yapar
     chmod +x /opt/etc/init.d/S00fix || {
-        echo "HATA: Toplam paket kontrolu devre disi birakma dosyasina calistirma izni verilemedi."
+        echo "$(T TXT_TOTAL_PKT_CHMOD_FAIL)"
         return 1
     }
     
-    echo "Toplam paket kontrolu devre disi birakildi."
+    echo "$(T _ 'Toplam paket kontrolu devre disi birakildi.' 'Total packet check disabled.')"
     return 0
 }
 
 # Keenetic uyumlulugunu etkinlestirir
 keenetic_compatibility() {
     sed -i "s/^#WS_USER=nobody/WS_USER=nobody/" /opt/zapret/config.default && \
-    echo "Keenetic icin uyumlu hale getirildi." || \
-    { echo "HATA: Keenetic icin uyumlu hale getirilemedi."; return 1; }
+    echo "$(T _ 'Keenetic icin uyumlu hale getirildi.' 'Keenetic compatibility applied.')" || \
+    { echo "$(T TXT_COMPAT_FAIL)"; return 1; }
 }
 
 # Keenetic UDP duzeltmesini ekler
 fix_keenetic_udp() {
     cp -af /opt/zapret/init.d/custom.d.examples.linux/10-keenetic-udp-fix /opt/zapret/init.d/sysv/custom.d/10-keenetic-udp-fix && \
-    echo "Keenetic UDP duzeltmesi eklendi." || \
-    { echo "HATA: Keenetic UDP duzeltmesi eklenemedi."; return 1; }
+    echo "$(T _ 'Keenetic UDP duzeltmesi eklendi.' 'Keenetic UDP fix applied.')" || \
+    { echo "$(T TXT_UDP_FIX_FAIL)"; return 1; }
 }
 
 # -------------------------------------------------------------------
@@ -3512,7 +3609,7 @@ start_zapret() {
     fi
     
     if ! is_zapret_installed; then
-        echo "Zapret yuklu degil. Baslatma islemi yapilamiyor."
+        echo "$(T TXT_START_NOT_INSTALLED)"
         return 1
     fi
 
@@ -3521,7 +3618,7 @@ start_zapret() {
     install_zapret_pause_guard
 
     if is_zapret_running; then
-        echo "Zapret servisi zaten calisiyor."
+        echo "$(T TXT_START_ALREADY)"
         return 0
     fi
 
@@ -3534,22 +3631,22 @@ start_zapret() {
 
     sleep 1
     if is_zapret_running && iptables-save | grep -q "NFQUEUE"; then
-        echo "Zapret servisi baslatildi."
+        echo "$(T TXT_START_OK)"
         return 0
     fi
 
-    echo "HATA: Zapret servisi baslatilirken hata olustu."
+    echo "$(T TXT_START_FAIL)"
     return 1
 }
 
 # Zapret servisini durdurur (kalici durdurma: otomatik restart'i da engeller)
 stop_zapret() {
     if ! is_zapret_installed; then
-        echo "Zapret yuklu degil. Durdurma islemi yapilamiyor."
+        echo "$(T TXT_STOP_NOT_INSTALLED)"
         return 1
     fi
 
-    echo "Zapret durduruluyor (NFQWS + NFQUEUE)..."
+    echo "$(T TXT_STOP_STOPPING)"
 
     # Pause ON: netfilter hook/otomatik restart tetiklense bile start* no-op olur.
     zapret_pause
@@ -3566,25 +3663,25 @@ stop_zapret() {
 
     sleep 1
     if is_zapret_running; then
-        echo "UYARI: nfqws hala calisiyor (otomatik yeniden baslatiliyor olabilir)."
+        echo "$(T TXT_STOP_NFQWS_WARN)"
     else
         echo "OK: NFQWS YOK"
     fi
 
     if iptables-save | grep -q "NFQUEUE"; then
-        echo "UYARI: NFQUEUE kurali hala var (otomatik yeniden basiliyor olabilir)."
+        echo "$(T TXT_STOP_NFQUEUE_WARN)"
     else
         echo "OK: NFQUEUE YOK"
     fi
 
-    echo "Zapret durduruldu."
+    echo "$(T TXT_STOP_OK)"
     return 0
 }
 
 # Zapret servisini yeniden baslatir (guvenli)
 restart_zapret() {
     if ! is_zapret_installed; then
-        echo "Zapret yuklu degil. Yeniden baslatma islemi yapilamiyor."
+        echo "$(T TXT_RESTART_NOT_INSTALLED)"
         return 1
     fi
     stop_zapret
@@ -3594,7 +3691,7 @@ restart_zapret() {
 
 # --- KURULU VERSIYONU GORUNTULE (6. MADDE) ---
 check_zapret_version() {
-    if ! is_zapret_installed; then echo "HATA: Zapret yuklu degil."; return 1; fi
+    if ! is_zapret_installed; then echo "$(T TXT_ZAPRET_NOT_INSTALLED)"; return 1; fi
     if [ -f "/opt/zapret/version" ]; then
         echo "$(T ver_installed "$TXT_VERSION_INSTALLED_TR" "$TXT_VERSION_INSTALLED_EN")$(cat /opt/zapret/version)"
     else
@@ -3655,7 +3752,7 @@ check_zapret_ipv6_status() {
 # Zapret'in kendi kurulum sihirbazindaki "enable ipv6 support" secenegini yonetir.
 configure_zapret_ipv6_support() {
     if ! is_zapret_installed; then
-        echo "HATA: Zapret yuklu degil. Once kurulum yapin."
+        echo "$(T TXT_IPV6_NOT_INSTALLED)"
         read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
         clear
         return 1
@@ -3690,7 +3787,7 @@ if [ "$IPV6_ANSWER" = "$CURRENT_IPV6" ]; then
     return 0
 fi
 
-echo "Zapret yapilandirma sihirbazi calistiriliyor (IPv6: $IPV6_ANSWER)..."
+echo "$(tpl_render "$(T TXT_IPV6_WIZARD_START)" VAL "$IPV6_ANSWER")"
 
     # install_easy.sh interaktif bir sihirbazdir. Burada mevcut otomasyon akisini koruyup
     # sadece "enable ipv6 support" sorusunu secilebilir hale getiriyoruz.
@@ -3709,8 +3806,8 @@ echo "Zapret yapilandirma sihirbazi calistiriliyor (IPv6: $IPV6_ANSWER)..."
         echo "WAN_IFINDEX: $WAN_IFINDEX" >&2
         echo "1"    # LAN arayuzu secimi (1 = none)
         echo "${WAN_IFINDEX:-1}"    # WAN arayuzu secimi (1 = none)
-    ) | /opt/zapret/install_easy.sh &> /dev/null || {
-        echo "HATA: Zapret yapilandirma betigi calistirilirken hata olustu."
+    ) | /opt/zapret/install_easy.sh >/dev/null 2>&1 || {
+        echo "$(T TXT_IPV6_CFG_FAIL)"
         read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
         clear
         return 1
@@ -3949,7 +4046,7 @@ apply_ipset_client_settings() {
 
 manage_ipset_clients() {
     if ! is_zapret_installed; then
-        echo "HATA: Zapret yuklu degil. Once kurulum yapin."
+        echo "$(T TXT_IPV6_NOT_INSTALLED)"
         read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
         clear
         return 1
@@ -4318,7 +4415,7 @@ manage_nozapret_menu() {
 
 # Kurulumdan sonra gereksiz dosyalari temizler
 cleanup_files_after_extracted() {
-    echo "Indirilen Zapret arsivi ve gereksiz binary dosyalari siliniyor..."
+    echo "$(T TXT_CLEANUP_REMOVING)"
 
     for file in \
         /opt/zapret/binaries/mac64 \
@@ -4338,7 +4435,7 @@ cleanup_files_after_extracted() {
         [ -e "$file" ] && rm -rf "$file"
     done
 
-    echo "Indirilen Zapret arsivi ve gereksiz binary dosyalari silindi."
+    echo "$(T TXT_CLEANUP_REMOVED)"
 }
 
 # Kaldirma sirasinda kalan iptables/ipset kalintilarini temizler (zapret kaldirildiktan sonra bile kural kalabiliyor)
@@ -4452,49 +4549,51 @@ cleanup_only_leftovers() {
 uninstall_zapret() {
 
 if ! is_zapret_installed; then
-        echo "Zapret yuklu degil. Kaldirma islemi yapilamaz."
+        echo "$(T TXT_UNINSTALL_NOT_INSTALLED)"
         echo ""
-        echo "Ama NFQUEUE/IPSET gibi kalintilar kalmis olabilir."
-        read -r -p "Kalintilari temizlemek ister misiniz? (e/h): " _cc
-        if echo "$_cc" | grep -qi '^e'; then
+        echo "$(T _ 'Ama NFQUEUE/IPSET gibi kalintilar kalmis olabilir.' 'But NFQUEUE/IPSET leftovers may still exist.')"
+        printf "%s" "$(T _ 'Kalintilari temizlemek ister misiniz? (e/h): ' 'Clean up leftovers? (y/n): ')"; read -r _cc
+        if echo "$_cc" | grep -qi '^[ey]'; then
             cleanup_zapret_firewall_leftovers
             remove_nfqueue_rules_200
-            echo "Kalintilar temizlendi."
+            echo "$(T _ 'Kalintilar temizlendi.' 'Leftovers cleaned.')"
         else
-            echo "Iptal edildi."
+            echo "$(T _ 'Iptal edildi.' 'Cancelled.')"
         fi
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         clear
         return 0
     fi
 
-    read -r -p "Zapret'i kaldirmak istediginizden emin misiniz? (e/h): " uninstall_confirmation
-    [[ ! "$uninstall_confirmation" =~ ^[eE]$ ]] && { echo "Zapret'i kaldirma islemi iptal edildi."; return 0; }
+    printf "%s" "$(T _ 'Zapret kaldirilsin mi? (e/h): ' 'Remove Zapret? (y/n): ')"; read -r uninstall_confirmation
+    case "$uninstall_confirmation" in
+        e|E|y|Y) ;;
+        *) echo "$(T _ 'Iptal edildi.' 'Cancelled.')"; return 0 ;;
+    esac
 
     is_zapret_running && stop_zapret
 
     cleanup_zapret_firewall_leftovers
 
-    echo "Zapret kaldiriliyor..."
+    echo "$(T TXT_UNINSTALL_REMOVING)"
 
-    if ! echo "y" | /opt/zapret/uninstall_easy.sh &> /dev/null; then
-        read -r -p "Zapret kaldirma betigi bulunamadi veya calistirilamadi.
-Kendi aracimiz tarafindan kaldirilmasini ister misiniz? (e/h): " manual_cleanup_confirmation
+    if ! echo "y" | /opt/zapret/uninstall_easy.sh >/dev/null 2>&1; then
+        printf "%s" "$(T _ 'Zapret kaldirma betigi bulunamadi. Kendi aracimizla kaldirilsin mi? (e/h): ' 'Zapret uninstall script not found. Use built-in cleanup? (y/n): ')"; read -r manual_cleanup_confirmation
         
-        if [[ "$manual_cleanup_confirmation" =~ ^[eE]$ ]]; then
-            echo "Kendi kaldirma aracimiz calistiriliyor..."
+        if echo "$manual_cleanup_confirmation" | grep -qi '^[ey]'; then
+            echo "$(T _ 'Kendi kaldirma aracimiz calistiriliyor...' 'Running built-in cleanup...')"
             cleanup_files_after_uninstall
             return 0 
         else
-            echo "Zapret'i kaldirma islemi iptal edildi."
+            echo "$(T _ 'Iptal edildi.' 'Cancelled.')"
             return 1 
         fi
     fi
 
     cleanup_files_after_uninstall
 
-    echo "Zapret basariyla kaldirildi."
-	read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    echo "$(T TXT_UNINSTALL_OK)"
+	press_enter_to_continue
 	clear 
     return 0
 }
@@ -4506,14 +4605,17 @@ install_zapret() {
         return 1
     fi
     
-    is_zapret_installed && echo "Zapret zaten yuklu." && return 1
+    if is_zapret_installed; then
+        echo "$(T TXT_INSTALL_ALREADY)"
+        return 1
+    fi
 
-    echo "OPKG paketleri denetleniyor, eksik olan varsa indirilip kurulacaktir..."
+    echo "$(T _ 'OPKG paketleri denetleniyor, eksik olan varsa indirilip kurulacaktir...' 'Checking OPKG packages, missing ones will be downloaded and installed...')"
     opkg update >/dev/null 2>&1
     opkg install coreutils-sort curl grep gzip ipset iptables kmod_ndms xtables-addons_legacy >/dev/null 2>&1 || \
-    { echo "HATA: Gerekli paketler yuklenemedi veya guncellenemedi."; return 1; }
+    { echo "$(T TXT_INSTALL_PKG_FAIL)"; return 1; }
     
-    echo "Zapret yukleniyor..."
+    echo "$(T TXT_INSTALL_INSTALLING)"
 
     ZAPRET_API_URL="https://api.github.com/repos/bol-van/zapret/releases/latest"
     ZAP_DATA=$(curl -s "$ZAPRET_API_URL")
@@ -4524,35 +4626,34 @@ install_zapret() {
     DIR="/opt/zapret"
 
     if [ -z "$ZAPRET_ARCHIVE_URL" ]; then
-        echo "HATA: Zapret'in en guncel surumu alinamadi."
+        echo "$(T _ 'HATA: Zapret en guncel surumu alinamadi.' 'ERROR: Could not fetch latest Zapret version.')"
         return 1
     fi
 
-    curl -L -o "$ARCHIVE" "$ZAPRET_ARCHIVE_URL" >/dev/null 2>&1 || { echo "HATA: Arsiv indirilemedi."; return 1; }
+    curl -L -o "$ARCHIVE" "$ZAPRET_ARCHIVE_URL" >/dev/null 2>&1 || { echo "$(T _ 'HATA: Arsiv indirilemedi.' 'ERROR: Failed to download archive.')"; return 1; }
     rm -rf "$DIR"
     mkdir -p /opt/tmp
-    tar -xzf "$ARCHIVE" -C /opt/tmp >/dev/null 2>&1 || { echo "HATA: Arsiv acilamadi."; return 1; }
+    tar -xzf "$ARCHIVE" -C /opt/tmp >/dev/null 2>&1 || { echo "$(T _ 'HATA: Arsiv acilamadi.' 'ERROR: Failed to extract archive.')"; return 1; }
     EXTRACTED_DIR=$(tar -tzf "$ARCHIVE" | head -1 | cut -f1 -d"/")
-    mv "/opt/tmp/$EXTRACTED_DIR" "$DIR" || { echo "HATA: Dosya tasinamadi."; return 1; }
+    mv "/opt/tmp/$EXTRACTED_DIR" "$DIR" || { echo "$(T _ 'HATA: Dosya tasinamadi.' 'ERROR: Failed to move files.')"; return 1; }
 
     # Surum bilgisini kaydet
     echo "$ZAPRET_VER" > /opt/zapret/version
 
-    echo "Zapret basariyla yuklendi."
+    echo "$(T TXT_INSTALL_OK)"
 
     cleanup_files_after_extracted
 
-    keenetic_compatibility || echo "UYARI: Keenetic uyumlulugu ayarlanirken bir sorun olustu."
+    keenetic_compatibility || echo "$(T TXT_INSTALL_COMPAT_WARN)"
 
-printf "\033[1;32mZapret icin IPv6 destegi etkinlestirilsin mi? (e/h):\033[0m "
-read -r ipv6_ans
-    if echo "$ipv6_ans" | grep -qi "^e"; then
+    printf "%s " "$(T _ 'Zapret icin IPv6 destegi etkinlestirilsin mi? (e/h):' 'Enable IPv6 support for Zapret? (y/n):')"; read -r ipv6_ans
+    if echo "$ipv6_ans" | grep -qi "^[ey]"; then
         ZAPRET_IPV6="y"
     else
         ZAPRET_IPV6="n"
     fi
 
-    echo "Zapret yapilandirma betigi calistiriliyor..."
+    echo "$(T TXT_INSTALL_CFG_RUNNING)"
 
     IPV6_ANSWER="$ZAPRET_IPV6"
 
@@ -4574,10 +4675,10 @@ read -r ipv6_ans
         echo "WAN_IFINDEX: $WAN_IFINDEX" >&2
         echo "1"    # LAN arayuzu secimi (1 = none)
         echo "${WAN_IFINDEX:-1}"    # WAN arayuzu secimi (1 = none)   
-    ) | /opt/zapret/install_easy.sh &> /dev/null || \
-    { echo "HATA: Zapret yapilandirma betigi calistirilirken hata olustu."; return 1; }
+    ) | /opt/zapret/install_easy.sh >/dev/null 2>&1 || \
+    { echo "$(T TXT_INSTALL_CFG_FAIL)"; return 1; }
     
-    echo "Zapret'in Keenetic cihazlarda calisabilmesi icin gerekli yapilandirmalar yapiliyor..."
+    echo "$(T TXT_INSTALL_KEENETIC_CFG)"
 
     fix_keenetic_udp
     update_kernel_module_config
@@ -4586,7 +4687,7 @@ read -r ipv6_ans
     allow_firewall
     add_auto_start_zapret
 
-    echo "Zapret basariyla kuruldu ve yapilandirildi."
+    echo "$(T TXT_INSTALL_DONE)"
 
     sync_zapret_iface_wan_config
     restart_zapret
@@ -4707,6 +4808,16 @@ fi
 
     # Backup current script if present
     if [ -f "$TARGET_SCRIPT" ]; then
+        # Backup limit: keep max 3, remove oldest if exceeded
+        _bak_dir="$(dirname "$TARGET_SCRIPT")"
+        _bak_pattern="keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*"
+        _bak_count=$(find "$_bak_dir" -maxdepth 1 -type f -name "$_bak_pattern" 2>/dev/null | wc -l | tr -d ' ')
+        if [ "${_bak_count:-0}" -ge 3 ] 2>/dev/null; then
+            find "$_bak_dir" -maxdepth 1 -type f -name "$_bak_pattern" 2>/dev/null | \
+                sort | head -n $((_bak_count - 2)) | while IFS= read -r _f; do
+                    rm -f "$_f" 2>/dev/null
+                done
+        fi
         cp -f "$TARGET_SCRIPT" "$BACKUP_FILE" 2>/dev/null
         echo "$(T mgr_update_backup 'Yedek alindi:' 'Backup created:') $BACKUP_FILE"
     fi
@@ -7692,7 +7803,18 @@ healthmon_log() {
     # so printing to stdout is the most reliable way to make logs visible immediately.
     if [ -t 1 ]; then
         # Interactive: append to log file (best-effort)
-        [ -n "$HM_LOG_FILE" ] && echo "$1" >>"$HM_LOG_FILE" 2>/dev/null
+        if [ -n "$HM_LOG_FILE" ]; then
+            # Log rotation: truncate to last 200 lines if file exceeds 500KB
+            if [ -f "$HM_LOG_FILE" ]; then
+                local _sz
+                _sz=$(wc -c < "$HM_LOG_FILE" 2>/dev/null)
+                if [ "${_sz:-0}" -gt 512000 ] 2>/dev/null; then
+                    local _tmp="${HM_LOG_FILE}.tmp"
+                    tail -n 200 "$HM_LOG_FILE" > "$_tmp" 2>/dev/null && mv "$_tmp" "$HM_LOG_FILE" 2>/dev/null
+                fi
+            fi
+            echo "$1" >>"$HM_LOG_FILE" 2>/dev/null
+        fi
     else
         # Daemon: write to stdout (captured by init.d redirection)
         echo "$1"
@@ -7810,9 +7932,7 @@ healthmon_updatecheck_do() {
     # Throttle: only run the GitHub API check every HM_UPDATECHECK_SEC seconds.
     last_ts="$(cat "$f" 2>/dev/null)"
     if [ -n "$last_ts" ] && [ $((now - last_ts)) -lt "$sec" ] 2>/dev/null; then
-        # keep a small "defer" marker so users can see it is intentionally throttled
         : > /tmp/healthmon_updatecheck.defer 2>/dev/null
-        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | deferred next_in=$((sec - (now - last_ts)))s cur=$(zkm_get_installed_script_version)" >> /tmp/healthmon.log 2>/dev/null
         return 0
     fi
 
@@ -8334,6 +8454,28 @@ healthmon_loop() {
 
         # ---- WAN MONITOR ----
         hm_wanmon_tick
+
+        # ---- LOG ROTATION ----
+        # Daemon stdout is redirected to HM_LOG_FILE by init.d (>> append).
+        # Truncate to last 300 lines if file exceeds 500KB to protect /tmp RAM.
+        if [ -f "$HM_LOG_FILE" ]; then
+            _lsz=$(wc -c < "$HM_LOG_FILE" 2>/dev/null)
+            if [ "${_lsz:-0}" -gt 512000 ] 2>/dev/null; then
+                _ltmp="${HM_LOG_FILE}.tmp"
+                tail -n 300 "$HM_LOG_FILE" > "$_ltmp" 2>/dev/null && mv "$_ltmp" "$HM_LOG_FILE" 2>/dev/null
+            fi
+        fi
+
+        # ---- AUTOHOSTLIST LOG ROTATION ----
+        # Zapret's autohostlist log lives on /opt (persistent). Cap at 1MB.
+        _ahl_log="/opt/zapret/nfqws_autohostlist.log"
+        if [ -f "$_ahl_log" ]; then
+            _ahl_sz=$(wc -c < "$_ahl_log" 2>/dev/null)
+            if [ "${_ahl_sz:-0}" -gt 1048576 ] 2>/dev/null; then
+                _ahl_tmp="${_ahl_log}.tmp"
+                tail -n 500 "$_ahl_log" > "$_ahl_tmp" 2>/dev/null && mv "$_ahl_tmp" "$_ahl_log" 2>/dev/null
+            fi
+        fi
 
         sleep "$HM_INTERVAL"
     done
