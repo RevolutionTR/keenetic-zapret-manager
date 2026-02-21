@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.20.1"
+SCRIPT_VERSION="v26.2.21"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1101,6 +1101,8 @@ TXT_HM_TITLE_EN="System Health Monitor"
 
 TXT_HM_BANNER_LABEL_TR="Saglik Mon."
 TXT_HM_BANNER_LABEL_EN="Health Mon."
+TXT_SCHED_BANNER_LABEL_TR="Tekrar Baslat"
+TXT_SCHED_BANNER_LABEL_EN="Sched.Reboot"
 
 TXT_HM_MENU_LINE2_TR="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load (uptime)"
 TXT_HM_MENU_LINE2_EN="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load via uptime"
@@ -2044,6 +2046,9 @@ TXT_PROMPT_SELECTION_EN=" Selection: "
 TXT_MENU_L_TR=" L. Dil Degistir (TR/EN)"
 TXT_MENU_L_EN=" L. Switch Language (TR/EN)"
 
+TXT_MENU_R_TR=" R. Zamanli Yeniden Baslat (Cron)"
+TXT_MENU_R_EN=" R. Scheduled Reboot (Cron)"
+
 TXT_MENU_U_TR=" U. KZM + Zapret Kaldir (Tam Temiz)"
 TXT_MENU_U_EN=" U. KZM + Zapret Uninstall (Full Clean)"
 
@@ -2054,8 +2059,8 @@ TXT_MENU_0_EN=" 0. Exit"
 TXT_MENU_FOOT_TR="--------------------------------------------------------------------------------------------"
 TXT_MENU_FOOT_EN="--------------------------------------------------------------------------------------------"
 
-TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-16, B, L, U): "
-TXT_PROMPT_MAIN_EN=" Select an Option (0-16, B, L, U): "
+TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-16, B, L, R, U): "
+TXT_PROMPT_MAIN_EN=" Select an Option (0-16, B, L, R, U): "
 
 TXT_LANG_NOW_TR="Dil: Turkce"
 TXT_LANG_NOW_EN="Language: English"
@@ -5855,6 +5860,39 @@ display_menu() {
         _kdns_domain="$(printf '%s\n' "$_kdns_raw" | awk '/^[[:space:]]*domain:/ {print $2; exit}')"
         printf "  %b%-*s%b : %s | %b\n" "${CLR_BOLD}" "$_lw" "$(T TXT_KEENDNS_BANNER_LABEL)"             "${CLR_RESET}" "${_kdns_name}.${_kdns_domain}" "$(zkm_banner_fmt_keendns_state "$_kdns_access")"
     fi
+    # Zamanli reboot varsa goster
+    local _sched_cur
+    _sched_cur="$(crontab -l 2>/dev/null | grep '# KZM_REBOOT' | head -n 1)"
+    if [ -n "$_sched_cur" ]; then
+        local _sm _sh _sd _shh _smm _sname
+        _sm="$(printf '%s\n' "$_sched_cur" | awk '{print $1}')"
+        _sh="$(printf '%s\n' "$_sched_cur" | awk '{print $2}')"
+        _sd="$(printf '%s\n' "$_sched_cur" | awk '{print $5}')"
+        _shh="$(printf '%02d' "$_sh" 2>/dev/null)"
+        _smm="$(printf '%02d' "$_sm" 2>/dev/null)"
+        if [ "$_sd" = "*" ]; then
+            printf "  %b%-*s%b : %b%b%s%b\n" \
+                "${CLR_BOLD}" "$_lw" "$(T TXT_SCHED_BANNER_LABEL)" "${CLR_RESET}" \
+                "${CLR_ORANGE}" "${CLR_BOLD}" "${_shh}:${_smm}" "${CLR_RESET}"
+        else
+            if [ "$LANG" = "en" ]; then
+                case "$_sd" in
+                    0|7) _sname="Sun" ;; 1) _sname="Mon" ;; 2) _sname="Tue" ;;
+                    3) _sname="Wed" ;; 4) _sname="Thu" ;; 5) _sname="Fri" ;; 6) _sname="Sat" ;;
+                    *) _sname="$_sd" ;;
+                esac
+            else
+                case "$_sd" in
+                    0|7) _sname="Paz" ;; 1) _sname="Pzt" ;; 2) _sname="Sal" ;;
+                    3) _sname="Car" ;; 4) _sname="Per" ;; 5) _sname="Cum" ;; 6) _sname="Cmt" ;;
+                    *) _sname="$_sd" ;;
+                esac
+            fi
+            printf "  %b%-*s%b : %b%b%s%b (%s)\n" \
+                "${CLR_BOLD}" "$_lw" "$(T TXT_SCHED_BANNER_LABEL)" "${CLR_RESET}" \
+                "${CLR_ORANGE}" "${CLR_BOLD}" "${_shh}:${_smm}" "${CLR_RESET}" "$_sname"
+        fi
+    fi
     printf "  %b%-*s%b : %b%b\n"        "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_ZAPRET_LABEL)"                     "${CLR_RESET}" "${CLR_RESET}"  "$(zkm_banner_fmt_zapret_state "$_zap_state")"
     healthmon_load_config 2>/dev/null
     if healthmon_is_running 2>/dev/null; then
@@ -5941,6 +5979,7 @@ display_menu() {
     printf "%b%s%b\n"   "${CLR_DIM}"  "$_sep" "${CLR_RESET}"
     _mi "$(T TXT_MENU_B)"
     _mi "$(T TXT_MENU_L)  ($(lang_label))"
+    _mi "$(T TXT_MENU_R)"
     _mi "$(T TXT_MENU_U)"
     _mi "$(T TXT_MENU_0)"
 
@@ -9030,6 +9069,277 @@ esac
     done
 }
 
+# =============================================================================
+# ZAMANLI YENIDEN BASLAT (Scheduled Reboot via Cron)
+# =============================================================================
+
+# TR/EN Dictionary (Scheduled Reboot)
+TXT_SCHED_TITLE_TR="Zamanli Yeniden Baslat"
+TXT_SCHED_TITLE_EN="Scheduled Reboot"
+TXT_SCHED_STATUS_TR="Mevcut Zamanlama"
+TXT_SCHED_STATUS_EN="Current Schedule"
+TXT_SCHED_NONE_TR="Zamanlama yok"
+TXT_SCHED_NONE_EN="No schedule set"
+TXT_SCHED_CROND_WARN_TR="UYARI: cron servisi (crond) calismiyor! Zamanlama aktif olmayacak."
+TXT_SCHED_CROND_WARN_EN="WARNING: cron service (crond) is not running! Schedule will not be active."
+TXT_SCHED_TIME_WARN_TR="UYARI: Router saatinin dogru oldugunu kontrol edin (Sistem Ayarlari > Genel)."
+TXT_SCHED_TIME_WARN_EN="WARNING: Make sure the router time is set correctly (System Settings > General)."
+TXT_SCHED_MENU_1_TR="1. Mevcut Zamanlamayi Goster"
+TXT_SCHED_MENU_1_EN="1. Show Current Schedule"
+TXT_SCHED_MENU_2_TR="2. Gunluk Yeniden Baslat Ekle/Guncelle"
+TXT_SCHED_MENU_2_EN="2. Add/Update Daily Reboot"
+TXT_SCHED_MENU_3_TR="3. Haftalik Yeniden Baslat Ekle/Guncelle"
+TXT_SCHED_MENU_3_EN="3. Add/Update Weekly Reboot"
+TXT_SCHED_MENU_4_TR="4. Zamanlamayi Sil"
+TXT_SCHED_MENU_4_EN="4. Delete Schedule"
+TXT_SCHED_MENU_0_TR="0. Geri Don"
+TXT_SCHED_MENU_0_EN="0. Back"
+TXT_SCHED_PROMPT_TR="Seciminiz (0-4): "
+TXT_SCHED_PROMPT_EN="Your choice (0-4): "
+TXT_SCHED_HOUR_TR="Saat girin (0-23): "
+TXT_SCHED_HOUR_EN="Enter hour (0-23): "
+TXT_SCHED_MIN_TR="Dakika girin (0-59): "
+TXT_SCHED_MIN_EN="Enter minute (0-59): "
+TXT_SCHED_DOW_TR="Hangi gun? (0=Pazar, 1=Pzt, 2=Sal, 3=Car, 4=Per, 5=Cum, 6=Cmt): "
+TXT_SCHED_DOW_EN="Which day? (0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat): "
+TXT_SCHED_INVALID_HOUR_TR="Gecersiz saat! 0-23 arasinda olmali."
+TXT_SCHED_INVALID_HOUR_EN="Invalid hour! Must be between 0 and 23."
+TXT_SCHED_INVALID_MIN_TR="Gecersiz dakika! 0-59 arasinda olmali."
+TXT_SCHED_INVALID_MIN_EN="Invalid minute! Must be between 0 and 59."
+TXT_SCHED_INVALID_DOW_TR="Gecersiz gun! 0-6 arasinda olmali."
+TXT_SCHED_INVALID_DOW_EN="Invalid day! Must be between 0 and 6."
+TXT_SCHED_ADDED_TR="Zamanlama eklendi/guncellendi."
+TXT_SCHED_ADDED_EN="Schedule added/updated."
+TXT_SCHED_DELETED_TR="Zamanlama silindi."
+TXT_SCHED_DELETED_EN="Schedule deleted."
+TXT_SCHED_DEL_NONE_TR="Silinecek zamanlama bulunamadi."
+TXT_SCHED_DEL_NONE_EN="No schedule found to delete."
+TXT_SCHED_CONFIRM_DEL_TR="Zamanli yeniden baslatma silinsin mi? (e/h): "
+TXT_SCHED_CONFIRM_DEL_EN="Delete scheduled reboot? (y/n): "
+TXT_SCHED_DAILY_SET_TR="Gunluk yeniden baslat: Her gun saat %HOUR%"
+TXT_SCHED_DAILY_SET_EN="Daily reboot: Every day at %HOUR%"
+TXT_SCHED_WEEKLY_SET_TR="Haftalik yeniden baslat: Her hafta saat %HOUR% (Gun: %DOW%)"
+TXT_SCHED_WEEKLY_SET_EN="Weekly reboot: Every week at %HOUR% (Day: %DOW%)"
+
+# Crontab'daki KZM reboot satirini tanımlayan etiket
+KZM_REBOOT_TAG="# KZM_REBOOT"
+
+# crond calisiyor mu kontrol et (ps -w ile)
+_sched_crond_running() {
+    ps -w 2>/dev/null | grep -v grep | grep -q 'cron'
+}
+
+# Mevcut KZM_REBOOT satirini oku (yoksa bos doner)
+_sched_get_current() {
+    crontab -l 2>/dev/null | grep "$KZM_REBOOT_TAG" | head -n 1
+}
+
+# Crontab'dan KZM_REBOOT satirini kaldir
+_sched_remove() {
+    local _tmp="/tmp/kzm_cron_remove.$$"
+    crontab -l 2>/dev/null | grep -v '^#' | grep -v "$KZM_REBOOT_TAG" | grep -v '^[[:space:]]*$' > "$_tmp"
+    crontab "$_tmp"
+    rm -f "$_tmp"
+}
+
+# Crontab'a KZM_REBOOT satiri ekle
+# $1: min  $2: hour  $3: dow (* = her gun)
+_sched_write() {
+    local _min="$1" _hour="$2" _dow="$3"
+    local _tmp="/tmp/kzm_cron_write.$$"
+    crontab -l 2>/dev/null | grep -v '^#' | grep -v "$KZM_REBOOT_TAG" | grep -v '^[[:space:]]*$' > "$_tmp"
+    printf '%s %s * * %s LD_LIBRARY_PATH= ndmc -c "system reboot" %s\n' \
+        "$_min" "$_hour" "$_dow" "$KZM_REBOOT_TAG" >> "$_tmp"
+    crontab "$_tmp"
+    rm -f "$_tmp"
+}
+
+# Mevcut satiri okunabilir formatta goster
+_sched_show_current() {
+    local _cur
+    _cur="$(_sched_get_current)"
+    if [ -z "$_cur" ]; then
+        print_status INFO "$(T TXT_SCHED_NONE)"
+    else
+        # min hour * * dow seklinde parse et
+        local _min _hour _dow
+        _min="$(printf '%s\n' "$_cur" | awk '{print $1}')"
+        _hour="$(printf '%s\n' "$_cur" | awk '{print $2}')"
+        _dow="$(printf '%s\n' "$_cur" | awk '{print $5}')"
+        local _hh _mm _time
+        _hh="$(printf '%02d' "$_hour" 2>/dev/null)"
+        _mm="$(printf '%02d' "$_min"  2>/dev/null)"
+        _time="${CLR_ORANGE}${CLR_BOLD}${_hh}:${_mm}${CLR_RESET}"
+        if [ "$_dow" = "*" ]; then
+            print_status INFO "$(tpl_render "$(T TXT_SCHED_DAILY_SET)" HOUR "$_time" MIN "")"
+        else
+            # Gun adini bul
+            local _dow_name
+            if [ "$LANG" = "en" ]; then
+                case "$_dow" in
+                    0|7) _dow_name="Sunday" ;;
+                    1)   _dow_name="Monday" ;;
+                    2)   _dow_name="Tuesday" ;;
+                    3)   _dow_name="Wednesday" ;;
+                    4)   _dow_name="Thursday" ;;
+                    5)   _dow_name="Friday" ;;
+                    6)   _dow_name="Saturday" ;;
+                    *)   _dow_name="$_dow" ;;
+                esac
+            else
+                case "$_dow" in
+                    0|7) _dow_name="Pazar" ;;
+                    1)   _dow_name="Pazartesi" ;;
+                    2)   _dow_name="Sali" ;;
+                    3)   _dow_name="Carsamba" ;;
+                    4)   _dow_name="Persembe" ;;
+                    5)   _dow_name="Cuma" ;;
+                    6)   _dow_name="Cumartesi" ;;
+                    *)   _dow_name="$_dow" ;;
+                esac
+            fi
+            local _dow_fmt="${_dow} ${CLR_ORANGE}${CLR_BOLD}${_dow_name}${CLR_RESET}"
+            print_status INFO "$(tpl_render "$(T TXT_SCHED_WEEKLY_SET)" HOUR "$_time" MIN "" DOW "$_dow_fmt")"
+        fi
+    fi
+}
+
+scheduled_reboot_menu() {
+    while true; do
+        clear
+        print_line "="
+        printf "  %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_SCHED_TITLE)" "${CLR_RESET}"
+        print_line "="
+        echo
+
+        # crond uyarisi
+        if ! _sched_crond_running; then
+            print_status WARN "$(T TXT_SCHED_CROND_WARN)"
+            echo
+        fi
+
+        # Mevcut zamanlama
+        printf "  %b%s:%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_STATUS)" "${CLR_RESET}"
+        _sched_show_current
+        echo
+
+        # Saat uyarisi
+        print_status WARN "$(T TXT_SCHED_TIME_WARN)"
+        echo
+
+        print_line "-"
+        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_1)" "${CLR_RESET}"
+        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_2)" "${CLR_RESET}"
+        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_3)" "${CLR_RESET}"
+        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_4)" "${CLR_RESET}"
+        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_0)" "${CLR_RESET}"
+        print_line "-"
+        echo
+
+        printf "%s" "$(T TXT_SCHED_PROMPT)"
+        read -r _schoice
+
+        case "$_schoice" in
+            1)
+                clear
+                print_line "="
+                printf "  %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_SCHED_TITLE)" "${CLR_RESET}"
+                print_line "="
+                echo
+                _sched_show_current
+                echo
+                press_enter_to_continue
+                ;;
+            2)
+                # Gunluk reboot — saat + dakika sor
+                clear
+                print_line "-"
+                printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_2)" "${CLR_RESET}"
+                print_line "-"
+                echo
+                local _hour _min
+                printf "%s" "$(T TXT_SCHED_HOUR)"
+                read -r _hour
+                if ! printf '%s\n' "$_hour" | grep -Eq '^[0-9]+$' || [ "$_hour" -lt 0 ] 2>/dev/null || [ "$_hour" -gt 23 ] 2>/dev/null; then
+                    print_status FAIL "$(T TXT_SCHED_INVALID_HOUR)"
+                    press_enter_to_continue
+                    continue
+                fi
+                printf "%s" "$(T TXT_SCHED_MIN)"
+                read -r _min
+                if ! printf '%s\n' "$_min" | grep -Eq '^[0-9]+$' || [ "$_min" -lt 0 ] 2>/dev/null || [ "$_min" -gt 59 ] 2>/dev/null; then
+                    print_status FAIL "$(T TXT_SCHED_INVALID_MIN)"
+                    press_enter_to_continue
+                    continue
+                fi
+                _sched_write "$_min" "$_hour" "*"
+                print_status PASS "$(T TXT_SCHED_ADDED)"
+                press_enter_to_continue
+                ;;
+            3)
+                # Haftalik reboot — saat + dakika + gun sor
+                clear
+                print_line "-"
+                printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_3)" "${CLR_RESET}"
+                print_line "-"
+                echo
+                local _hour _min _dow
+                printf "%s" "$(T TXT_SCHED_HOUR)"
+                read -r _hour
+                if ! printf '%s\n' "$_hour" | grep -Eq '^[0-9]+$' || [ "$_hour" -lt 0 ] 2>/dev/null || [ "$_hour" -gt 23 ] 2>/dev/null; then
+                    print_status FAIL "$(T TXT_SCHED_INVALID_HOUR)"
+                    press_enter_to_continue
+                    continue
+                fi
+                printf "%s" "$(T TXT_SCHED_MIN)"
+                read -r _min
+                if ! printf '%s\n' "$_min" | grep -Eq '^[0-9]+$' || [ "$_min" -lt 0 ] 2>/dev/null || [ "$_min" -gt 59 ] 2>/dev/null; then
+                    print_status FAIL "$(T TXT_SCHED_INVALID_MIN)"
+                    press_enter_to_continue
+                    continue
+                fi
+                printf "%s" "$(T TXT_SCHED_DOW)"
+                read -r _dow
+                if ! printf '%s\n' "$_dow" | grep -Eq '^[0-6]$'; then
+                    print_status FAIL "$(T TXT_SCHED_INVALID_DOW)"
+                    press_enter_to_continue
+                    continue
+                fi
+                _sched_write "$_min" "$_hour" "$_dow"
+                print_status PASS "$(T TXT_SCHED_ADDED)"
+                press_enter_to_continue
+                ;;
+            4)
+                # Silme
+                if [ -z "$(_sched_get_current)" ]; then
+                    print_status WARN "$(T TXT_SCHED_DEL_NONE)"
+                    press_enter_to_continue
+                    continue
+                fi
+                printf "%s" "$(T TXT_SCHED_CONFIRM_DEL)"
+                read -r _ans
+                case "$_ans" in
+                    e|E|y|Y)
+                        _sched_remove
+                        print_status PASS "$(T TXT_SCHED_DELETED)"
+                        ;;
+                    *)
+                        echo "$(T _ 'Iptal edildi.' 'Cancelled.')"
+                        ;;
+                esac
+                press_enter_to_continue
+                ;;
+            0|"")
+                return 0
+                ;;
+            *)
+                echo "$(T _ 'Gecersiz secim.' 'Invalid choice.')"
+                press_enter_to_continue
+                ;;
+        esac
+    done
+}
+
 health_monitor_menu() {
     while true; do
         clear
@@ -9144,10 +9454,11 @@ main_menu_loop() {
 			15) telegram_notifications_menu ;;
 			16) health_monitor_menu ;;
 B|b) blockcheck_test_menu ;;
-L|l) toggle_lang ;; 
+L|l) toggle_lang ;;
+R|r) scheduled_reboot_menu ;;
         U|u) zkm_full_uninstall ;;
             0) echo "Cikis yapiliyor..."; break ;;
-            *) echo "Gecersiz secim! Lutfen 0 ile 16 arasinda bir sayi girin." ;;
+            *) echo "$(T _ 'Gecersiz secim! Lutfen 0-16, B, L, R veya U girin.' 'Invalid choice! Please enter 0-16, B, L, R or U.')" ;;
         esac
         echo ""
     done
