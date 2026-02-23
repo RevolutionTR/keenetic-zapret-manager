@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.21"
+SCRIPT_VERSION="v26.2.23"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -957,8 +957,8 @@ TXT_MENU_6_EN=" 6. Zapret Version Info (Latest/Installed - GitHub)"
 TXT_MENU_7_TR=" 7. Zapret IPv6 Destegi (Sihirbaz)"
 TXT_MENU_7_EN=" 7. Zapret IPv6 support (Wizard)"
 
-TXT_MENU_8_TR=" 8. Zapret Yedekle / Geri Yukle"
-TXT_MENU_8_EN=" 8. Zapret Backup / Restore"
+TXT_MENU_8_TR=" 8. Zapret / KZM Yedekle / Geri Yukle"
+TXT_MENU_8_EN=" 8. Zapret / KZM Backup / Restore"
 
 TXT_MENU_9_TR=" 9. DPI Profilini Degistir"
 TXT_MENU_9_EN=" 9. Change DPI profile"
@@ -1681,6 +1681,9 @@ TXT_RESTORE_SCOPE_IPSET_EN="Restore IPSET Sets Only"
 TXT_RESTORE_SCOPE_NFQWS_TR="Sadece Zapret Config (nfqws) Geri Yukle"
 TXT_RESTORE_SCOPE_NFQWS_EN="Restore Zapret Config (nfqws) Only"
 
+TXT_RESTORE_SCOPE_KZM_TR="KZM Ayarlarini Geri Yukle (HealthMon + Telegram)"
+TXT_RESTORE_SCOPE_KZM_EN="Restore KZM Settings (HealthMon + Telegram)"
+
 TXT_BACKUP_NO_BACKUPS_FOUND_TR="Yedek bulunamadi."
 TXT_BACKUP_NO_BACKUPS_FOUND_EN="No backups found."
 
@@ -1693,23 +1696,23 @@ TXT_BACKUP_SUB_RESTORE_EN="2. IPSET Restore"
 TXT_BACKUP_SUB_SHOW_TR="3. IPSET Yedekleri Goster"
 TXT_BACKUP_SUB_SHOW_EN="3. Show IPSET Backups"
 
-TXT_BACKUP_SUB_CFG_BACKUP_TR="4. Zapret Ayarlarini Yedekle"
-TXT_BACKUP_SUB_CFG_BACKUP_EN="4. Backup Zapret Settings"
+TXT_BACKUP_SUB_CFG_BACKUP_TR="4. Zapret / KZM Ayarlarini Yedekle"
+TXT_BACKUP_SUB_CFG_BACKUP_EN="4. Backup Zapret / KZM Settings"
 
-TXT_BACKUP_SUB_CFG_RESTORE_TR="5. Zapret Ayarlarini Geri Yukle"
-TXT_BACKUP_SUB_CFG_RESTORE_EN="5. Restore Zapret Settings"
+TXT_BACKUP_SUB_CFG_RESTORE_TR="5. Zapret / KZM Ayarlarini Geri Yukle"
+TXT_BACKUP_SUB_CFG_RESTORE_EN="5. Restore Zapret / KZM Settings"
 
 TXT_BACKUP_SUB_CFG_SHOW_TR="6. Zapret Ayar Yedeklerini Goster"
 TXT_BACKUP_SUB_CFG_SHOW_EN="6. Show Settings Backups"
 
-TXT_BACKUP_CFG_NO_FILES_TR="Yedeklenecek Zapret ayar dosyasi bulunamadi."
-TXT_BACKUP_CFG_NO_FILES_EN="No Zapret settings files found to backup."
+TXT_BACKUP_CFG_NO_FILES_TR="Yedeklenecek Zapret/KZM ayar dosyasi bulunamadi."
+TXT_BACKUP_CFG_NO_FILES_EN="No Zapret/KZM settings files found to backup."
 
-TXT_BACKUP_CFG_BACKED_UP_TR="Zapret ayarlari yedeklendi: %s"
-TXT_BACKUP_CFG_BACKED_UP_EN="Zapret settings backed up: %s"
+TXT_BACKUP_CFG_BACKED_UP_TR="Zapret/KZM ayarlari yedeklendi: %s"
+TXT_BACKUP_CFG_BACKED_UP_EN="Zapret/KZM settings backed up: %s"
 
-TXT_BACKUP_CFG_NO_BACKUPS_TR="Zapret ayar yedegi bulunamadi."
-TXT_BACKUP_CFG_NO_BACKUPS_EN="No Zapret settings backup found."
+TXT_BACKUP_CFG_NO_BACKUPS_TR="Zapret/KZM ayar yedegi bulunamadi."
+TXT_BACKUP_CFG_NO_BACKUPS_EN="No Zapret/KZM settings backup found."
 
 TXT_BACKUP_CFG_RESTORED_TR="Zapret ayarlari geri yuklendi: %s"
 TXT_BACKUP_CFG_RESTORED_EN="Zapret settings restored: %s"
@@ -2478,7 +2481,7 @@ select_wan_if() {
     local rec="$(detect_recommended_wan_if)"
     [ -z "$rec" ] && rec="ppp0"
     print_line "-"
-    printf " ${CLR_YELLOW}%s${CLR_RESET}\n" "$(T TXT_WAN_SEL_TITLE)"
+    printf " ${CLR_ORANGE}%s${CLR_RESET}\n" "$(T TXT_WAN_SEL_TITLE)"
     echo "$(T TXT_WAN_SEL_EXAMPLE)"
     echo "$(T TXT_WAN_SEL_CURRENT) $(get_wan_if)"
     echo "$(T TXT_WAN_SEL_RECOMMENDED) $rec"
@@ -2677,7 +2680,7 @@ show_active_dpi_info() {
     # Bilgi (Auto): Blockcheck (Otomatik) aktifken listelenen 1-8 profilleri pasiftir
     # Bilgi (Auto): Blockcheck (Otomatik) aktifken listelenen 1-8 profilleri pasiftir
 if [ "$origin" = "auto" ]; then
-    printf "%b\n" "${CLR_YELLOW} Not: $(T TXT_DPI_AUTO_NOTE)${CLR_RESET}"
+    printf "%b\n" "${CLR_ORANGE}$(T TXT_DPI_AUTO_NOTE)${CLR_RESET}"
 fi
 
 }
@@ -3966,7 +3969,7 @@ show_ipset_client_status() {
         echo ""
         
         # IP Listesi Dosyasi
-        printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN")" "${CLR_RESET}"
+        printf '%b%-25s:%b ' "${CLR_ORANGE}${CLR_BOLD}" "$(T ip_list_file "$TXT_IP_LIST_FILE_TR" "$TXT_IP_LIST_FILE_EN")" "${CLR_RESET}"
         if [ -f "$IPSET_CLIENT_FILE" ] && [ -s "$IPSET_CLIENT_FILE" ]; then
             local ip_count="$(wc -l < "$IPSET_CLIENT_FILE" 2>/dev/null | tr -d ' ')"
             printf '%b%d IP%b\n' "${CLR_GREEN}" "$ip_count" "${CLR_RESET}"
@@ -3984,7 +3987,7 @@ show_ipset_client_status() {
         print_line "-"
         
         # IPSET Uyeleri
-        printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN")" "${CLR_RESET}"
+        printf '%b%-25s:%b ' "${CLR_ORANGE}${CLR_BOLD}" "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN")" "${CLR_RESET}"
         local ipset_members="$(ipset list "$IPSET_CLIENT_NAME" 2>/dev/null | sed -n '/^Members:/,$p' | tail -n +2)"
         if [ -n "$ipset_members" ]; then
             local member_count="$(echo "$ipset_members" | wc -l | tr -d ' ')"
@@ -4002,7 +4005,7 @@ show_ipset_client_status() {
         print_line "-"
 
         # No Zapret (Muafiyet) Uyeleri
-        printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T nozapret_members 'No Zapret (Muafiyet)' 'No Zapret (Exempt)')" "${CLR_RESET}"
+        printf '%b%-25s:%b ' "${CLR_ORANGE}${CLR_BOLD}" "$(T nozapret_members 'No Zapret (Muafiyet)' 'No Zapret (Exempt)')" "${CLR_RESET}"
         local noz_members="$(ipset list "$NOZAPRET_IPSET_NAME" 2>/dev/null | sed -n '/^Members:/,$p' | tail -n +2)"
         if [ -f "$NOZAPRET_FILE" ] && [ -s "$NOZAPRET_FILE" ]; then
             local noz_count="$(grep -c '[0-9]' "$NOZAPRET_FILE" 2>/dev/null | tr -d ' ')"
@@ -4027,7 +4030,7 @@ show_ipset_client_status() {
         print_line "-"
 
         # No Zapret (Muafiyet) Uyeleri - Tum Ag modunda da goster
-        printf '%b%-25s:%b ' "${CLR_YELLOW}${CLR_BOLD}" "$(T nozapret_members 'No Zapret (Muafiyet)' 'No Zapret (Exempt)')" "${CLR_RESET}"
+        printf '%b%-25s:%b ' "${CLR_ORANGE}${CLR_BOLD}" "$(T nozapret_members 'No Zapret (Muafiyet)' 'No Zapret (Exempt)')" "${CLR_RESET}"
         if [ -f "$NOZAPRET_FILE" ] && [ -s "$NOZAPRET_FILE" ]; then
             local noz_count2="$(grep -c '[0-9]' "$NOZAPRET_FILE" 2>/dev/null | tr -d ' ')"
             printf '%b%d IP%b\n' "${CLR_GREEN}" "$noz_count2" "${CLR_RESET}"
@@ -5992,7 +5995,7 @@ display_menu() {
 # --- SAGLIK KONTROLU (HEALTH CHECK) ---
 run_health_check() {
     clear
-    printf "\n%s\n" "$(T TXT_HEALTH_TITLE)"
+    printf "\n%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_TITLE)" "${CLR_RESET}"
     print_line "="
 
     local HC_NET="/tmp/healthcheck_net.$$"
@@ -6290,17 +6293,17 @@ run_health_check() {
 
     printf "\n%-35s : %s / 10  [OK] %s   (%d/%d OK)\n" "$(T TXT_HEALTH_SCORE)" "$score" "$rating_txt" "$ok_n" "$total_n"
     print_line "-"
-    printf "%s\n" "$(T TXT_HEALTH_SECTION_NETDNS)"
+    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_NETDNS)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_NET"
 
     print_line "-"
-    printf "%s\n" "$(T TXT_HEALTH_SECTION_SYSTEM)"
+    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_SYSTEM)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_SYS"
 
     print_line "-"
-    printf "%s\n" "$(T TXT_HEALTH_SECTION_SERVICES)"
+    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_SERVICES)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_SVC"
 
@@ -6780,11 +6783,18 @@ backup_zapret_settings() {
     add_rel "/opt/zapret/wan_if"
     add_rel "/opt/zapret/lang"
     add_rel "/opt/zapret/hostlist_mode"
+    add_rel "/opt/zapret/scope_mode"
     add_rel "/opt/zapret/ipset_clients.txt"
     add_rel "/opt/zapret/ipset_clients_mode"
+    add_rel "/opt/zapret/dpi_profile"
+    add_rel "/opt/zapret/dpi_profile_origin"
+    add_rel "/opt/zapret/dpi_profile_params"
+    add_rel "/opt/zapret/blockcheck_auto_params"
+    add_rel "/opt/etc/healthmon.conf"
+    add_rel "/opt/etc/telegram.conf"
 
-    # include host lists if present (user/auto)
-    for f in /opt/zapret/ipset/zapret-hosts-*.txt; do
+    # include all .txt files from ipset dir (nozapret, zapret-hosts-*, future files)
+    for f in /opt/zapret/ipset/*.txt; do
         [ -e "$f" ] || break
         add_rel "$f"
     done
@@ -6866,7 +6876,7 @@ clean_zapret_settings_backups() {
             ;;
     esac
 
-    pause
+    press_enter_to_continue
 }
 
 
@@ -6900,7 +6910,7 @@ print_line "="
 
 restore_zapret_settings() {
     # $1 = BACKUP_BASE (root folder that contains zapret_settings/)
-    local BACKUP_BASE="${1:-$(get_backup_base_path 2>/dev/null)}"
+    local BACKUP_BASE="${1:-/opt/zapret_backups}"
     local SETTINGS_DIR="${BACKUP_BASE%/}/zapret_settings"
 
     clear_screen
@@ -6913,7 +6923,7 @@ restore_zapret_settings() {
 
     if [ ! -d "$SETTINGS_DIR" ]; then
         print_status WARN "$(T TXT_BACKUP_NO_BACKUPS_FOUND)"
-        pause_anykey
+        press_enter_to_continue
         return 1
     fi
 
@@ -6922,7 +6932,7 @@ restore_zapret_settings() {
     backups="$(ls -1t "$SETTINGS_DIR"/zapret_settings_*.tar.gz 2>/dev/null)"
     if [ -z "$backups" ]; then
         print_status WARN "$(T TXT_BACKUP_NO_BACKUPS_FOUND)"
-        pause_anykey
+        press_enter_to_continue
         return 1
     fi
 
@@ -6935,6 +6945,7 @@ restore_zapret_settings() {
         printf " %2d) %s\n" "$i" "$(basename "$b")"
         [ "$i" -ge 15 ] && break
     done
+    printf "\n"
     printf "  c) %s
 " "$(T TXT_ZAPRET_SETTINGS_CLEAN_MENU)"
     printf "  0) %s
@@ -6953,7 +6964,7 @@ restore_zapret_settings() {
     fi
     if ! echo "$sel" | grep -Eq '^[0-9]+$'; then
         print_status WARN "$(T TXT_INVALID_CHOICE)"
-        pause_anykey
+        press_enter_to_continue
         return 1
     fi
 
@@ -6969,7 +6980,7 @@ restore_zapret_settings() {
     done
     if [ -z "$chosen" ] || [ ! -f "$chosen" ]; then
         print_status WARN "$(T TXT_INVALID_CHOICE)"
-        pause_anykey
+        press_enter_to_continue
         return 1
     fi
 
@@ -6981,6 +6992,7 @@ restore_zapret_settings() {
     printf " 3. %s\n" "$(T TXT_RESTORE_SCOPE_HOSTLIST)"
     printf " 4. %s\n" "$(T TXT_RESTORE_SCOPE_IPSET)"
     printf " 5. %s\n" "$(T TXT_RESTORE_SCOPE_NFQWS)"
+    printf " 6. %s\n" "$(T TXT_RESTORE_SCOPE_KZM)"
     print_line "-"
     printf " 0. %s\n" "$(T TXT_BACK)"
     print_line "-"
@@ -6993,13 +7005,13 @@ restore_zapret_settings() {
 
     local tmp="/tmp/zapret_settings_restore.$$"
     rm -rf "$tmp" 2>/dev/null
-    mkdir -p "$tmp" || { print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"; pause_anykey; return 1; }
+    mkdir -p "$tmp" || { print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"; press_enter_to_continue; return 1; }
 
     # Extract to temp first (safer), then copy selected paths
     if ! tar -xzf "$chosen" -C "$tmp" >/dev/null 2>&1; then
         rm -rf "$tmp" 2>/dev/null
         print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"
-        pause_anykey
+        press_enter_to_continue
         return 1
     fi
 
@@ -7048,25 +7060,31 @@ restore_zapret_settings() {
             _copy_if_exists "opt/zapret/lang" || ok=1
             _copy_if_exists "opt/zapret/wan_if" || ok=1
             _copy_if_exists "opt/zapret/dpi_profile" || true
+            _copy_if_exists "opt/zapret/dpi_profile_origin" || true
+            _copy_if_exists "opt/zapret/dpi_profile_params" || true
+            _copy_if_exists "opt/zapret/blockcheck_auto_params" || true
             ;;
         3) # hostlist / autohostlist
             _copy_if_exists "opt/zapret/hostlist_mode" || ok=1
-            _copy_if_exists "opt/zapret/hostlist" || true
-            _copy_if_exists "opt/zapret/autohostlist" || true
-            _copy_if_exists "opt/zapret/hostlists" || true
+            _copy_if_exists "opt/zapret/scope_mode" || true
+            _copy_if_exists "opt/zapret/ipset" || true
             ;;
         4) # ipset settings
             _copy_if_exists "opt/zapret/ipset_clients.txt" || true
             _copy_if_exists "opt/zapret/ipset" || true
-            _copy_if_exists "opt/zapret/ipset_mode" || true
+            _copy_if_exists "opt/zapret/ipset_clients_mode" || true
             ;;
         5) # nfqws config only
             _copy_if_exists "opt/zapret/config" || ok=1
             ;;
+        6) # KZM settings (healthmon + telegram)
+            _copy_if_exists "opt/etc/healthmon.conf" || true
+            _copy_if_exists "opt/etc/telegram.conf" || true
+            ;;
         *)
             rm -rf "$tmp" 2>/dev/null
             print_status WARN "$(T TXT_INVALID_CHOICE)"
-            pause_anykey
+            press_enter_to_continue
             return 1
             ;;
     esac
@@ -7087,7 +7105,7 @@ restore_zapret_settings() {
     else
         print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"
     fi
-    pause_anykey
+    press_enter_to_continue
 }
 
 zapret_restore_menu() {
@@ -7415,7 +7433,7 @@ telegram_notifications_menu() {
             echo "  ChatID: $TG_CHAT_ID"
         else
             print_line "-"
-            printf "%b\n" "${CLR_BOLD}${CLR_YELLOW}$(T TXT_TG_STATUS_NOT_CONFIG)${CLR_RESET}"
+            printf "%b\n" "${CLR_BOLD}${CLR_ORANGE}$(T TXT_TG_STATUS_NOT_CONFIG)${CLR_RESET}"
             print_line "-"
             echo "  $TG_CONF_FILE"
         fi
@@ -8835,7 +8853,7 @@ healthmon_status() {
         upd_word="$(T TXT_HM_WORD_OFF)"
     fi
 
-    local _w=18
+    local _w=22
     local _lbl
 
     hm_kv() {
@@ -8847,16 +8865,16 @@ healthmon_status() {
 
     clear_screen
     print_line "="
-    echo "$(T TXT_HM_STATUS_TITLE)"
+    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_TITLE)" "${CLR_RESET}"
     print_line "="
     echo
 
     # Status line
     _lbl="$(T TXT_HM_STATUS_RUNNING)"; _lbl="${_lbl%:}"
-    printf "%-*s : %s (%s=%s%s)\n" "$_w" "$_lbl" "$run_txt" "$(T TXT_HM_ENABLE_LABEL)" "$HM_ENABLE" "${pid:+, pid=$pid}"
+    printf "  %-*s : %s (%s=%s%s)\n" "$_w" "$_lbl" "$run_txt" "$(T TXT_HM_ENABLE_LABEL)" "$HM_ENABLE" "${pid:+, pid=$pid}"
 
     echo
-    printf "%s\n" "$(T TXT_HM_STATUS_SEC_SETTINGS)"
+    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_SETTINGS)" "${CLR_RESET}"
     print_line "-"
 
     hm_kv "$(T TXT_HM_STATUS_INTERVAL)" "${HM_INTERVAL}s"
@@ -8866,7 +8884,7 @@ healthmon_status() {
     hm_kv "$(T TXT_HM_STATUS_AUTOUPDATE)" "${mode_txt} ($(T TXT_HM_FLAG_MODE)=${HM_AUTOUPDATE_MODE:-0})"
 
     echo
-    printf "%s\n" "$(T TXT_HM_STATUS_SEC_THRESH)"
+    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_THRESH)" "${CLR_RESET}"
     print_line "-"
 
     hm_kv "$(T TXT_HM_STATUS_CPU_WARN)" "${HM_CPU_WARN}% / ${HM_CPU_WARN_DUR}s"
@@ -8875,7 +8893,7 @@ healthmon_status() {
     hm_kv "$(T TXT_HM_STATUS_RAM_WARN)" "<= ${HM_RAM_WARN_MB} MB"
 
     echo
-    printf "%s\n" "$(T TXT_HM_STATUS_SEC_ZAPRET)"
+    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_ZAPRET)" "${CLR_RESET}"
     print_line "-"
 
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_WD)" "$HM_ZAPRET_WATCHDOG"
@@ -8885,7 +8903,7 @@ healthmon_status() {
     hm_kv "KeenDNS curl interval" "${HM_KEENDNS_CURL_SEC}s"
 
     echo
-    printf "%s\n" "$(T TXT_HM_STATUS_SEC_NOW)"
+    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_NOW)" "${CLR_RESET}"
     print_line "-"
 
     printf "  %s %s%% | %s %s
