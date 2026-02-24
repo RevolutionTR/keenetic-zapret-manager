@@ -5092,7 +5092,7 @@ check_manager_update() {
 
     # SHA256SUMS dosyasini GitHub release'ten indir ve karsilastir
     sha256sums_url="https://github.com/${repo}/releases/download/${REMOTE_VER}/SHA256SUMS"
-    expected_sha256="$(curl -fsS "$sha256sums_url" 2>/dev/null | grep "${script_name}" | cut -d' ' -f1)"
+    expected_sha256="$(curl -fsSL "$sha256sums_url" 2>/dev/null | grep "${script_name}" | cut -d' ' -f1)"
     actual_sha256="$(sha256sum "$ZKM_SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1)"
 
     print_line "-"
