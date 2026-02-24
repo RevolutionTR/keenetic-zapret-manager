@@ -3884,15 +3884,15 @@ check_remote_update() {
         CLR_REMOTE="${CLR_BOLD}${CLR_YELLOW}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
     fi
     print_line "-"
-    printf "  %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
-    printf "  %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
+    printf " %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
+    printf " %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
 
     # Binary surum bilgisi
     local nfqws_bin="/opt/zapret/nfq/nfqws"
     if [ -x "$nfqws_bin" ]; then
         local bin_ver
         bin_ver="$("$nfqws_bin" --version 2>&1 | head -n1)"
-        [ -n "$bin_ver" ] && print_status INFO "$bin_ver"
+        [ -n "$bin_ver" ] && printf " %-10s %s\n" "INFO" "$bin_ver"
     fi
 
     print_line "-"
@@ -5096,19 +5096,19 @@ check_manager_update() {
     actual_sha256="$(sha256sum "$ZKM_SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1)"
 
     print_line "-"
-    printf "  %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
-    printf "  %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
+    printf " %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
+    printf " %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
 
     if [ -n "$expected_sha256" ] && [ -n "$actual_sha256" ]; then
         if [ "$actual_sha256" = "$expected_sha256" ]; then
-            print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
+            printf " %-10s %b%s%b\n" "PASS" "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_OK)" "${CLR_RESET}"
         else
-            print_status WARN "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
-            printf "     GitHub : %s\n" "$expected_sha256"
-            printf "     Kurulu : %s\n" "$actual_sha256"
+            printf " %-10s %b%s%b\n" "WARN" "${CLR_YELLOW}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_FAIL)" "${CLR_RESET}"
+            printf " %-10s %s\n" "GitHub :" "$expected_sha256"
+            printf " %-10s %s\n" "Kurulu :" "$actual_sha256"
         fi
     elif [ -n "$actual_sha256" ]; then
-        print_status INFO "SHA256: $actual_sha256"
+        printf " %-10s %s\n" "INFO" "SHA256: $actual_sha256"
     fi
     print_line "-"
 
@@ -6208,7 +6208,7 @@ display_menu() {
 # --- SAGLIK KONTROLU (HEALTH CHECK) ---
 run_health_check() {
     clear
-    printf "\n%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_TITLE)" "${CLR_RESET}"
+    printf "\n %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_TITLE)" "${CLR_RESET}"
     print_line "="
 
     local HC_NET="/tmp/healthcheck_net.$$"
@@ -6220,7 +6220,7 @@ run_health_check() {
 
     add_line() {
         local file="$1" label="$2" value="$3" status="$4"
-        printf "%-35s : %s%s\n" "$label" "$(hc_word "$status")" "$value" >> "$file"
+        printf " %-35s : %s%s\n" "$label" "$(hc_word "$status")" "$value" >> "$file"
         total_n=$((total_n+1))
         case "$status" in
             PASS) pass_n=$((pass_n+1)) ;;
@@ -6422,9 +6422,9 @@ run_health_check() {
     # SECTION: Network & DNS
     # ----------------------------
     # meta lines first (not counted)
-    printf "%-35s : %s\n" "$(T TXT_HEALTH_DNS_MODE)" "$dns_mode" >> "$HC_NET"
-    printf "%-35s : %s\n" "$(T TXT_HEALTH_DNS_SEC)" "$dns_sec" >> "$HC_NET"
-    printf "%-35s : %s\n" "$(T TXT_HEALTH_DNS_PROVIDERS)" "$dns_providers" >> "$HC_NET"
+    printf " %-35s : %s\n" "$(T TXT_HEALTH_DNS_MODE)" "$dns_mode" >> "$HC_NET"
+    printf " %-35s : %s\n" "$(T TXT_HEALTH_DNS_SEC)" "$dns_sec" >> "$HC_NET"
+    printf " %-35s : %s\n" "$(T TXT_HEALTH_DNS_PROVIDERS)" "$dns_providers" >> "$HC_NET"
 
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_LOCAL)" "" "$dns_local_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_PUBLIC)" "" "$dns_8888_ok"
@@ -6504,19 +6504,19 @@ run_health_check() {
     fi
     rating_txt="$(T "$rating_key")"
 
-    printf "\n%-35s : %s / 10  [OK] %s   (%d/%d OK)\n" "$(T TXT_HEALTH_SCORE)" "$score" "$rating_txt" "$ok_n" "$total_n"
+    printf "\n %-35s : %s / 10  [OK] %s   (%d/%d OK)\n" "$(T TXT_HEALTH_SCORE)" "$score" "$rating_txt" "$ok_n" "$total_n"
     print_line "-"
-    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_NETDNS)" "${CLR_RESET}"
+    printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_NETDNS)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_NET"
 
     print_line "-"
-    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_SYSTEM)" "${CLR_RESET}"
+    printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_SYSTEM)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_SYS"
 
     print_line "-"
-    printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_SERVICES)" "${CLR_RESET}"
+    printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_SERVICES)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_SVC"
 
