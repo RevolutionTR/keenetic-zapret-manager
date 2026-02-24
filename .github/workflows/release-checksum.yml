@@ -2,7 +2,12 @@ name: Release Checksum
 
 on:
   release:
-    types: [published]
+    types: [published, edited]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v26.2.24)'
+        required: true
 
 jobs:
   add-checksum:
@@ -11,11 +16,20 @@ jobs:
       contents: write
 
     steps:
+      - name: Set tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Download release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download "${{ github.event.release.tag_name }}" \
+          gh release download "${{ steps.tag.outputs.tag }}" \
             --repo "${{ github.repository }}" \
             --pattern "keenetic_zapret_otomasyon_ipv6_ipset.sh" \
             --dir ./assets
@@ -30,7 +44,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" \
+          gh release upload "${{ steps.tag.outputs.tag }}" \
             ./assets/SHA256SUMS \
             --repo "${{ github.repository }}" \
             --clobber
