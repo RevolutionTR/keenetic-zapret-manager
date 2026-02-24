@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.23"
+SCRIPT_VERSION="v26.2.24"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -951,8 +951,8 @@ TXT_MENU_4_EN=" 4. Stop Zapret"
 TXT_MENU_5_TR=" 5. Zapret'i Yeniden Baslat"
 TXT_MENU_5_EN=" 5. Restart Zapret"
 
-TXT_MENU_6_TR=" 6. Zapret Surum Bilgisi (Guncel/Kurulu - GitHub)"
-TXT_MENU_6_EN=" 6. Zapret Version Info (Latest/Installed - GitHub)"
+TXT_MENU_6_TR=" 6. Zapret Guncelleme Kontrolu (Guncel/Kurulu - GitHub)"
+TXT_MENU_6_EN=" 6. Zapret Update Check (Latest/Installed - GitHub)"
 
 TXT_MENU_7_TR=" 7. Zapret IPv6 Destegi (Sihirbaz)"
 TXT_MENU_7_EN=" 7. Zapret IPv6 support (Wizard)"
@@ -1000,7 +1000,7 @@ TXT_BLOCKCHECK_TPWS_WARN_TR=" UYARI: Bulunan strateji tpws. Guvenli oldugu icin 
 TXT_BLOCKCHECK_TPWS_WARN_EN=" WARNING: Found strategy is tpws. It will NOT be applied automatically for safety. (For now only nfqws is supported.)"
 
 TXT_MENU_10_TR="10. Betik Guncelleme Kontrolu (Guncel/Kurulu - GitHub)"
-TXT_MENU_10_EN="10. Script update check (Latest/Installed - GitHub)"
+TXT_MENU_10_EN="10. Script Update Check (Latest/Installed - GitHub)"
 
 TXT_MENU_11_TR="11. Hostlist / Autohostlist (Filtreleme)"
 TXT_MENU_11_EN="11. Hostlist / Autohostlist (Filtering)"
@@ -1385,15 +1385,21 @@ TXT_UPD_ZKM_NEW_EN="[Update]
 
 Install now? (menu 10)"
 TXT_UPD_ZAPRET_NEW_TR="[Guncelleme]
-📦 Paket  : zapret
+Zapret guncellemesi icin Ana Menu > 6 secenegi kullanin
+
+📦 Paket  : Zapret
 🔖 Kurulu : %CUR%
 🆕 Yeni   : %NEW%
-🔗 Link   : %URL%"
+🔗 Link   : %URL%
+🕒 Zaman  : %TIME%"
 TXT_UPD_ZAPRET_NEW_EN="[Update]
-📦 Package  : zapret
+Use Main Menu > Option 6 to update Zapret
+
+📦 Package  : Zapret
 🔖 Installed: %CUR%
 🆕 Latest   : %NEW%
-🔗 Link     : %URL%"
+🔗 Link     : %URL%
+🕒 Time     : %TIME%"
 TXT_UPD_ZKM_AUTO_OK_TR="[OtoGuncelleme]\nKZM otomatik kurulum basarili.\nBetigi yeniden calistirin.\n\nMevcut : %CUR%\nYeni   : %NEW%\nLink   : %URL%"
 TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 
@@ -2203,17 +2209,56 @@ TXT_VERSION_INSTALLED_EN="Installed Version: "
 TXT_CHECKING_GITHUB_TR="GitHub uzerinden en guncel surum sorgulaniyor..."
 TXT_CHECKING_GITHUB_EN="Checking latest version on GitHub..."
 
-TXT_GITHUB_LATEST_TR="Guncel        : "
-TXT_GITHUB_LATEST_EN="Latest        : "
+TXT_GITHUB_LATEST_TR="Guncel"
+TXT_GITHUB_LATEST_EN="Latest"
 
-TXT_DEVICE_VERSION_TR="Kurulu       : "
-TXT_DEVICE_VERSION_EN="Installed     : "
+TXT_DEVICE_VERSION_TR="Kurulu"
+TXT_DEVICE_VERSION_EN="Installed"
 
 TXT_UPTODATE_TR="En guncel surumu kullaniyorsunuz."
 TXT_UPTODATE_EN="You are using the latest version."
 
 TXT_GITHUB_FAIL_TR="HATA: GitHub uzerinden surum bilgisi alinamadi."
 TXT_GITHUB_FAIL_EN="ERROR: Could not fetch version info from GitHub."
+
+TXT_ZAP_UPDATE_CONFIRM_TR="Guncellemek istiyor musunuz? (e/h): "
+TXT_ZAP_UPDATE_CONFIRM_EN="Do you want to update? (y/n): "
+
+TXT_ZAP_UPDATE_DOWNLOADING_TR="Zapret indiriliyor..."
+TXT_ZAP_UPDATE_DOWNLOADING_EN="Downloading Zapret..."
+
+TXT_ZAP_UPDATE_EXTRACTING_TR="Arsiv aciliyor..."
+TXT_ZAP_UPDATE_EXTRACTING_EN="Extracting archive..."
+
+TXT_ZAP_UPDATE_APPLYING_TR="Binary dosyalar yukleniyor..."
+TXT_ZAP_UPDATE_APPLYING_EN="Applying binaries..."
+
+TXT_ZAP_UPDATE_OK_TR="Zapret basariyla guncellendi."
+TXT_ZAP_UPDATE_OK_EN="Zapret updated successfully."
+
+TXT_ZAP_UPDATE_FAIL_DL_TR="HATA: Zapret indirilemedi."
+TXT_ZAP_UPDATE_FAIL_DL_EN="ERROR: Failed to download Zapret."
+
+TXT_ZAP_UPDATE_FAIL_EX_TR="HATA: Arsiv acilamadi."
+TXT_ZAP_UPDATE_FAIL_EX_EN="ERROR: Failed to extract archive."
+
+TXT_ZAP_UPDATE_FAIL_BIN_TR="HATA: Binary dosyalar kopyalanamadi."
+TXT_ZAP_UPDATE_FAIL_BIN_EN="ERROR: Failed to apply binaries."
+
+TXT_ZAP_UPDATE_SHA256_OK_TR="SHA256 dogrulamasi basarili."
+TXT_ZAP_UPDATE_SHA256_OK_EN="SHA256 verification passed."
+
+TXT_ZAP_UPDATE_SHA256_FAIL_TR="HATA: SHA256 dogrulamasi basarisiz! Dosya bozuk veya degistirilmis olabilir."
+TXT_ZAP_UPDATE_SHA256_FAIL_EN="ERROR: SHA256 verification failed! File may be corrupt or tampered."
+
+TXT_ZAP_UPDATE_SHA256_SKIP_TR="SHA256 bilgisi alinamadi, dogrulama atlandi."
+TXT_ZAP_UPDATE_SHA256_SKIP_EN="SHA256 not available from GitHub, verification skipped."
+
+TXT_ZAP_UPDATE_CANCELLED_TR="Guncelleme iptal edildi."
+TXT_ZAP_UPDATE_CANCELLED_EN="Update cancelled."
+
+TXT_ZAP_UPDATE_NO_INSTALLED_TR="Zapret kurulu degil. Once kurulum yapin."
+TXT_ZAP_UPDATE_NO_INSTALLED_EN="Zapret is not installed. Please install first."
 
 TXT_ADD_IP_TR="Eklenecek IP (Enter=Vazgec): "
 TXT_ADD_IP_EN="IP to add (Enter=Cancel): "
@@ -3723,34 +3768,155 @@ check_zapret_version() {
     clear
 }
 
-# --- YENI VERSIYON SORGULA (7. MADDE) ---
-check_remote_update() {
-    echo "$(T checking_github "$TXT_CHECKING_GITHUB_TR" "$TXT_CHECKING_GITHUB_EN")"
-    ZAP_API_URL="https://api.github.com/repos/bol-van/zapret/releases/latest"
-    REMOTE_VER=$(curl -s "$ZAP_API_URL" | grep "tag_name" | cut -d '"' -f4)
-    
-    if [ -z "$REMOTE_VER" ]; then
-        echo "$(T github_fail "$TXT_GITHUB_FAIL_TR" "$TXT_GITHUB_FAIL_EN")"
-    else
-        print_line "-"
-        _LBL_LATEST="$(T lbl_latest 'Guncel' 'Latest')"
-        _LBL_INSTALLED="$(T lbl_installed 'Kurulu' 'Installed')"
-        printf "%-12s: [1;32m%s[0m
-" "$_LBL_LATEST" "$REMOTE_VER"
-        if [ -f "/opt/zapret/version" ]; then
-            LOCAL_VER=$(cat /opt/zapret/version)
-            printf "%-12s: [1;33m%s[0m
-" "$_LBL_INSTALLED" "$LOCAL_VER"
-            print_line "-"
-            if [ "$REMOTE_VER" = "$LOCAL_VER" ]; then
-                echo "$(T uptodate "$TXT_UPTODATE_TR" "$TXT_UPTODATE_EN")"
-            else
-                echo "YENI SURUM MEVCUT!"
-            fi
-        fi
+# --- ZAPRET GUNCELLEME (6. MADDE) ---
+update_zapret() {
+    local repo="bol-van/zapret"
+    local api="https://api.github.com/repos/${repo}/releases/latest"
+    local tmpdir="/opt/tmp/zapret_update_$$"
+
+    # GitHub API'den hem tag_name hem asset SHA256 al (tek istek)
+    local api_raw latest tarball expected_sha256
+    api_raw="$(curl -fsS "$api" 2>/dev/null)"
+    latest="$(printf '%s\n' "$api_raw" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+    [ -z "$latest" ] && { print_status FAIL "$(T TXT_GITHUB_FAIL)"; return 1; }
+
+    tarball="zapret-${latest}.tar.gz"
+    local url="https://github.com/${repo}/releases/download/${latest}/${tarball}"
+
+    # Asset SHA256 digest'ini API'den cek (format: "digest":"sha256:HASH")
+    expected_sha256="$(printf '%s\n' "$api_raw" | grep -A5 "\"${tarball}\"" | \
+        sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"sha256:\([^"]*\)".*/\1/p' | head -n1)"
+
+    print_status INFO "$(T TXT_ZAP_UPDATE_DOWNLOADING)"
+    mkdir -p "$tmpdir" || { print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_DL)"; return 1; }
+
+    if ! curl -fsS -L "$url" -o "${tmpdir}/${tarball}" 2>/dev/null; then
+        rm -rf "$tmpdir"
+        print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_DL)"
+        return 1
     fi
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
-    clear
+
+    # SHA256 dogrulamasi
+    if [ -n "$expected_sha256" ]; then
+        local actual_sha256
+        actual_sha256="$(sha256sum "${tmpdir}/${tarball}" 2>/dev/null | cut -d' ' -f1)"
+        if [ "$actual_sha256" = "$expected_sha256" ]; then
+            print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
+        else
+            rm -rf "$tmpdir"
+            print_status FAIL "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
+            return 1
+        fi
+    else
+        print_status WARN "$(T TXT_ZAP_UPDATE_SHA256_SKIP)"
+    fi
+
+    print_status INFO "$(T TXT_ZAP_UPDATE_EXTRACTING)"
+    if ! tar -xzf "${tmpdir}/${tarball}" -C "$tmpdir" 2>/dev/null; then
+        rm -rf "$tmpdir"
+        print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_EX)"
+        return 1
+    fi
+
+    print_status INFO "$(T TXT_ZAP_UPDATE_APPLYING)"
+    local srcdir
+    srcdir="$(find "$tmpdir" -maxdepth 1 -mindepth 1 -type d | head -n1)"
+    if [ -z "$srcdir" ] || [ ! -d "${srcdir}/binaries" ]; then
+        rm -rf "$tmpdir"
+        print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_BIN)"
+        return 1
+    fi
+
+    if ! cp -r "${srcdir}/binaries/." /opt/zapret/binaries/ 2>/dev/null; then
+        rm -rf "$tmpdir"
+        print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_BIN)"
+        return 1
+    fi
+
+    if [ -f "${srcdir}/install_bin.sh" ]; then
+        cp "${srcdir}/install_bin.sh" /opt/zapret/install_bin.sh 2>/dev/null
+        sh /opt/zapret/install_bin.sh >/dev/null 2>&1 || true
+    fi
+
+    printf '%s\n' "$latest" > /opt/zapret/version 2>/dev/null
+    rm -rf "$tmpdir"
+    print_status PASS "$(T TXT_ZAP_UPDATE_OK)"
+
+    # Binary surum dogrulamasi
+    local nfqws_bin="/opt/zapret/nfq/nfqws"
+    if [ -x "$nfqws_bin" ]; then
+        local bin_ver
+        bin_ver="$("$nfqws_bin" --version 2>&1 | head -n1)"
+        [ -n "$bin_ver" ] && printf "     %s: %s\n" "$(T _ 'Binary' 'Binary')" "$bin_ver"
+    fi
+
+    restart_zapret >/dev/null 2>&1 || true
+    return 0
+}
+
+check_remote_update() {
+    if ! is_zapret_installed; then
+        print_status FAIL "$(T TXT_ZAP_UPDATE_NO_INSTALLED)"
+        press_enter_to_continue
+        return 1
+    fi
+
+    print_status INFO "$(T TXT_CHECKING_GITHUB)"
+    local repo="bol-van/zapret"
+    local api="https://api.github.com/repos/${repo}/releases/latest"
+    local REMOTE_VER LOCAL_VER
+    REMOTE_VER="$(curl -fsS "$api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+
+    if [ -z "$REMOTE_VER" ]; then
+        print_status FAIL "$(T TXT_GITHUB_FAIL)"
+        press_enter_to_continue
+        return 1
+    fi
+
+    LOCAL_VER="$(cat /opt/zapret/version 2>/dev/null)"
+    [ -z "$LOCAL_VER" ] && LOCAL_VER="$(T _ 'Bilinmiyor' 'Unknown')"
+
+    # Renkleri duruma gore ata
+    local CLR_REMOTE CLR_LOCAL
+    if ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
+        CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_YELLOW}"
+    else
+        CLR_REMOTE="${CLR_BOLD}${CLR_YELLOW}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
+    fi
+    print_line "-"
+    printf "  %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
+    printf "  %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
+
+    # Binary surum bilgisi
+    local nfqws_bin="/opt/zapret/nfq/nfqws"
+    if [ -x "$nfqws_bin" ]; then
+        local bin_ver
+        bin_ver="$("$nfqws_bin" --version 2>&1 | head -n1)"
+        [ -n "$bin_ver" ] && print_status INFO "$bin_ver"
+    fi
+
+    print_line "-"
+
+    if [ "$REMOTE_VER" = "$LOCAL_VER" ] || ! ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
+        print_status PASS "$(T TXT_UPTODATE)"
+        press_enter_to_continue
+        return 0
+    fi
+
+    print_status WARN "$(T _ 'Yeni surum mevcut!' 'New version available!')"
+    echo ""
+    printf "%s" "$(T TXT_ZAP_UPDATE_CONFIRM)"
+    read -r ans
+    case "$ans" in
+        e|E|y|Y)
+            echo ""
+            update_zapret
+            ;;
+        *)
+            print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
+            ;;
+    esac
+    press_enter_to_continue
 }
 
 
@@ -4803,17 +4969,41 @@ zkm_get_installed_script_version() {
 
 update_manager_script() {
     TARGET_SCRIPT="$ZKM_SCRIPT_PATH"
-    DL_URL="https://github.com/RevolutionTR/keenetic-zapret-manager/releases/latest/download/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    local repo="RevolutionTR/keenetic-zapret-manager"
+    local api="https://api.github.com/repos/${repo}/releases/latest"
+    local script_name="keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    DL_URL="https://github.com/${repo}/releases/latest/download/${script_name}"
     TMP_FILE="/tmp/keenetic_zapret_manager_update.$$"
     LOCAL_VER="$(zkm_get_installed_script_version)"
     [ -z "$LOCAL_VER" ] && LOCAL_VER="$SCRIPT_VERSION"
     BACKUP_FILE="${TARGET_SCRIPT}.bak_${LOCAL_VER#v}_$(date +%Y%m%d_%H%M%S 2>/dev/null).sh"
+
+    # GitHub API'den SHA256 digest al (tek istek)
+    local api_raw expected_sha256
+    api_raw="$(curl -fsS "$api" 2>/dev/null)"
+    expected_sha256="$(printf '%s\n' "$api_raw" | grep -A5 "\"${script_name}\"" | \
+        sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"sha256:\([^"]*\)".*/\1/p' | head -n1)"
 
     echo "$(T mgr_update_start 'Betik indiriliyor (GitHub)...' 'Downloading script (GitHub)...')"
     if ! download_file "$DL_URL" "$TMP_FILE"; then
         echo "$(T mgr_update_dl_fail 'Indirme basarisiz (curl/wget/SSL kontrol edin).' 'Download failed (check curl/wget/SSL).')"
         rm -f "$TMP_FILE" 2>/dev/null
         return 1
+    fi
+
+    # SHA256 dogrulamasi
+    if [ -n "$expected_sha256" ]; then
+        local actual_sha256
+        actual_sha256="$(sha256sum "$TMP_FILE" 2>/dev/null | cut -d' ' -f1)"
+        if [ "$actual_sha256" = "$expected_sha256" ]; then
+            print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
+        else
+            rm -f "$TMP_FILE" 2>/dev/null
+            print_status FAIL "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
+            return 1
+        fi
+    else
+        print_status WARN "$(T TXT_ZAP_UPDATE_SHA256_SKIP)"
     fi
 
     # Basic sanity: should look like a shell script and include expected markers
@@ -4874,59 +5064,90 @@ fi
 
 
 check_manager_update() {
-    echo "$(T checking_github "$TXT_CHECKING_GITHUB_TR" "$TXT_CHECKING_GITHUB_EN")"
-    MANAGER_API_URL="https://api.github.com/repos/RevolutionTR/keenetic-zapret-manager/releases/latest"
-
-    # Yerel (kurulu) betik surumu + GitHub tag_name cek
-    REMOTE_VER=$(curl -s "$MANAGER_API_URL" | grep "tag_name" | cut -d '"' -f4)
-
-    print_line "-"
-    _LBL_SCRIPT="$(T lbl_script_ver 'Kurulu Betik Surumu' 'Installed Script Version')"
-    _LBL_GH="$(T lbl_gh_ver 'GitHub Guncel Surum' 'GitHub Latest Version')"
-    _LBL_REPO="$(T lbl_repo 'Repo' 'Repository')"
-
-    # Kurulu betik surumu (sari)
-    printf "%-26s: \033[1;33m%s\033[0m\n" "$_LBL_SCRIPT" "$SCRIPT_VERSION"
+    print_status INFO "$(T TXT_CHECKING_GITHUB)"
+    local repo="RevolutionTR/keenetic-zapret-manager"
+    local script_name="keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    local api="https://api.github.com/repos/${repo}/releases/latest"
+    local REMOTE_VER LOCAL_VER api_raw expected_sha256 actual_sha256
+    api_raw="$(curl -fsS "$api" 2>/dev/null)"
+    REMOTE_VER="$(printf '%s\n' "$api_raw" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+    expected_sha256="$(printf '%s\n' "$api_raw" | grep -A5 "\"${script_name}\"" | \
+        sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"sha256:\([^"]*\)".*/\1/p' | head -n1)"
 
     if [ -z "$REMOTE_VER" ]; then
-        # Bilgi alinamadi (kirmizi)
-        printf "%-26s: \033[1;31m%s\033[0m\n" "$_LBL_GH" "$(T github_noinfo 'Bilgi alinamadi' 'Unable to fetch info')"
-    else
-        # GitHub surumu (yesil)
-        printf "%-26s: \033[1;32m%s\033[0m\n" "$_LBL_GH" "$REMOTE_VER"
+        print_status FAIL "$(T TXT_GITHUB_FAIL)"
+        press_enter_to_continue
+        return 1
     fi
 
-    # Repo (renksiz)
-    printf "%-26s: %s\n" "$_LBL_REPO" "$SCRIPT_REPO"
+    LOCAL_VER="$(zkm_get_installed_script_version)"
+    [ -z "$LOCAL_VER" ] && LOCAL_VER="$SCRIPT_VERSION"
+
+    # Renkleri duruma gore ata: yeni olan yesil, eskisi sari, esitse ikisi de yesil
+    # Renkleri duruma gore ata
+    local CLR_REMOTE CLR_LOCAL
+    if ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
+        # GitHub daha yeni: GitHub yesil, kurulu sari
+        CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_YELLOW}"
+    elif ver_is_newer "$LOCAL_VER" "$REMOTE_VER"; then
+        # Kurulu daha yeni: kurulu yesil, GitHub sari
+        CLR_REMOTE="${CLR_BOLD}${CLR_YELLOW}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
+    else
+        # Esit: ikisi de yesil
+        CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
+    fi
+    # SHA256SUMS dosyasini GitHub release'ten indir ve karsilastir
+    local sha256sums_url actual_sha256 expected_sha256_file
+    sha256sums_url="https://github.com/${repo}/releases/download/${REMOTE_VER}/SHA256SUMS"
+    actual_sha256="$(sha256sum "$ZKM_SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1)"
+    expected_sha256_file="$(curl -fsS "$sha256sums_url" 2>/dev/null | grep 'keenetic_zapret_otomasyon_ipv6_ipset.sh' | cut -d' ' -f1)"
+
+    print_line "-"
+    printf "  %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
+    printf "  %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
+
+    if [ -n "$expected_sha256_file" ] && [ -n "$actual_sha256" ]; then
+        if [ "$actual_sha256" = "$expected_sha256_file" ]; then
+            print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
+        else
+            print_status WARN "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
+            printf "     GitHub : %s\n" "$expected_sha256_file"
+            printf "     Kurulu : %s\n" "$actual_sha256"
+        fi
+    elif [ -n "$actual_sha256" ]; then
+        # SHA256SUMS henuz mevcut degil (gelistirici build veya eski release)
+        print_status INFO "SHA256: $actual_sha256"
+    fi
     print_line "-"
 
-    if [ -n "$REMOTE_VER" ]; then
-        if [ "${SCRIPT_VERSION#v}" = "${REMOTE_VER#v}" ]; then
-            echo "$(T uptodate "$TXT_UPTODATE_TR" "$TXT_UPTODATE_EN")"
-        else
-            if ver_is_newer "$REMOTE_VER" "$SCRIPT_VERSION"; then
-                echo "$(T new_version 'YENI SURUM MEVCUT!' 'NEW VERSION AVAILABLE!')"
-                _ASK_UPD="$(T mgr_ask 'Guncellemek ister misiniz? (e/h): ' 'Update now? (y/n): ')"
-                read -r -p "$_ASK_UPD" _ans
-                case "$_ans" in
-                    e|E|y|Y)
-                        update_manager_script
-                        ;;
-                    *) ;;
-                esac
-            else
-                # Local is newer or different; treat as up-to-date
-                echo "$(T uptodate "$TXT_UPTODATE_TR" "$TXT_UPTODATE_EN")"
-            fi
-        fi
+    if [ "$REMOTE_VER" = "$LOCAL_VER" ]; then
+        print_status PASS "$(T TXT_UPTODATE)"
+        press_enter_to_continue
+        return 0
     fi
 
-    if type press_enter_to_continue >/dev/null 2>&1; then
+    if ver_is_newer "$LOCAL_VER" "$REMOTE_VER"; then
+        # Kurulu surum GitHub'dan daha yeni (gelistirici build)
+        print_status INFO "$(T _ 'Kurulu surum GitHub surununden daha yeni (gelistirici build).' 'Installed version is newer than GitHub release (developer build).')"
         press_enter_to_continue
-    else
-        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+        return 0
     fi
-    clear
+
+    # Remote > Local: guncelleme mevcut
+    print_status WARN "$(T _ 'Yeni surum mevcut!' 'New version available!')"
+    echo ""
+    printf "%s" "$(T _ 'Guncellemek ister misiniz? (e/h): ' 'Update now? (y/n): ')"
+    read -r _ans
+    case "$_ans" in
+        e|E|y|Y)
+            echo ""
+            update_manager_script
+            ;;
+        *)
+            print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
+            ;;
+    esac
+    press_enter_to_continue
 }
 
 
@@ -8031,6 +8252,24 @@ healthmon_updatecheck_do() {
     rm -f /tmp/healthmon_updatecheck.defer 2>/dev/null
     echo "$now" > "$f" 2>/dev/null
 
+    # --- Zapret surum kontrolu (sadece bildirim, otomatik kurulum yok) ---
+    local zap_repo zap_api zap_latest zap_cur zap_url
+    zap_repo="${HM_UPDATECHECK_REPO_ZAPRET:-bol-van/zapret}"
+    zap_api="https://api.github.com/repos/${zap_repo}/releases/latest"
+    zap_cur="$(cat /opt/zapret/version 2>/dev/null)"
+
+    if [ -n "$zap_cur" ]; then
+        zap_latest="$(curl -fsS "$zap_api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+        echo "$(date +%s 2>/dev/null) | updatecheck | zapret | cur=$zap_cur latest=${zap_latest:-N/A}" >> /tmp/healthmon.log 2>/dev/null
+
+        if [ -n "$zap_latest" ] && ver_is_newer "$zap_latest" "$zap_cur"; then
+            zap_url="https://github.com/${zap_repo}/releases/latest"
+            telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" CUR "$zap_cur" NEW "$zap_latest" URL "$zap_url" TIME "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)")"
+            echo "$(date +%s 2>/dev/null) | updatecheck | zapret | notified cur=$zap_cur latest=$zap_latest" >> /tmp/healthmon.log 2>/dev/null
+        fi
+    fi
+
+    # --- KZM surum kontrolu ---
     local repo api latest cur
     repo="${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}"
     api="https://api.github.com/repos/${repo}/releases/latest"
@@ -8078,6 +8317,7 @@ healthmon_updatecheck_do() {
             echo "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_fail cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
         fi
     fi
+
     return 0
 }
 
@@ -8152,6 +8392,7 @@ healthmon_loop() {
     rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
     rm -f /tmp/healthmon_cpu_* /tmp/healthmon_disk* /tmp/healthmon_ram* /tmp/healthmon_zapret_* /tmp/healthmon_last_* 2>/dev/null
     rm -f /tmp/healthmon_qlen.cnt /tmp/healthmon_qlen.prev /tmp/healthmon_keendns_curl.ts 2>/dev/null
+    rm -f /tmp/healthmon_updatecheck.ts 2>/dev/null
     # single-instance guard (robust against stale PID/lock after power loss)
     if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
         # If a healthy daemon exists, do nothing.
@@ -9139,7 +9380,7 @@ TXT_SCHED_DAILY_SET_EN="Daily reboot: Every day at %HOUR%"
 TXT_SCHED_WEEKLY_SET_TR="Haftalik yeniden baslat: Her hafta saat %HOUR% (Gun: %DOW%)"
 TXT_SCHED_WEEKLY_SET_EN="Weekly reboot: Every week at %HOUR% (Day: %DOW%)"
 
-# Crontab'daki KZM reboot satirini tanımlayan etiket
+# Crontab'daki KZM reboot satirini tanimlayan etiket
 KZM_REBOOT_TAG="# KZM_REBOOT"
 
 # crond calisiyor mu kontrol et (ps -w ile)
