@@ -5097,25 +5097,24 @@ check_manager_update() {
         CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
     fi
     # SHA256SUMS dosyasini GitHub release'ten indir ve karsilastir
-    local sha256sums_url actual_sha256 expected_sha256_file
+    local sha256sums_url expected_sha256 actual_sha256
     sha256sums_url="https://github.com/${repo}/releases/download/${REMOTE_VER}/SHA256SUMS"
+    expected_sha256="$(curl -fsS "$sha256sums_url" 2>/dev/null | grep "${script_name}" | awk '{print $1}')"
     actual_sha256="$(sha256sum "$ZKM_SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1)"
-    expected_sha256_file="$(curl -fsS "$sha256sums_url" 2>/dev/null | grep 'keenetic_zapret_otomasyon_ipv6_ipset.sh' | cut -d' ' -f1)"
 
     print_line "-"
     printf "  %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
     printf "  %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
 
-    if [ -n "$expected_sha256_file" ] && [ -n "$actual_sha256" ]; then
-        if [ "$actual_sha256" = "$expected_sha256_file" ]; then
+    if [ -n "$expected_sha256" ] && [ -n "$actual_sha256" ]; then
+        if [ "$actual_sha256" = "$expected_sha256" ]; then
             print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
         else
             print_status WARN "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
-            printf "     GitHub : %s\n" "$expected_sha256_file"
+            printf "     GitHub : %s\n" "$expected_sha256"
             printf "     Kurulu : %s\n" "$actual_sha256"
         fi
     elif [ -n "$actual_sha256" ]; then
-        # SHA256SUMS henuz mevcut degil (gelistirici build veya eski release)
         print_status INFO "SHA256: $actual_sha256"
     fi
     print_line "-"
