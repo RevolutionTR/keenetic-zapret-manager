@@ -3892,7 +3892,7 @@ check_remote_update() {
     if [ -x "$nfqws_bin" ]; then
         local bin_ver
         bin_ver="$("$nfqws_bin" --version 2>&1 | head -n1)"
-        [ -n "$bin_ver" ] && printf " %-10s %s\n" "INFO" "$bin_ver"
+        [ -n "$bin_ver" ] && printf " %-10s: %s\n" "INFO" "$bin_ver"
     fi
 
     print_line "-"
@@ -5101,14 +5101,14 @@ check_manager_update() {
 
     if [ -n "$expected_sha256" ] && [ -n "$actual_sha256" ]; then
         if [ "$actual_sha256" = "$expected_sha256" ]; then
-            printf " %-10s %b%s%b\n" "PASS" "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_OK)" "${CLR_RESET}"
+            printf " %-10s: %b%s%b\n" "PASS" "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_OK)" "${CLR_RESET}"
         else
-            printf " %-10s %b%s%b\n" "WARN" "${CLR_YELLOW}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_FAIL)" "${CLR_RESET}"
-            printf " %-10s %s\n" "GitHub :" "$expected_sha256"
-            printf " %-10s %s\n" "Kurulu :" "$actual_sha256"
+            printf " %-10s: %b%s%b\n" "WARN" "${CLR_YELLOW}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_FAIL)" "${CLR_RESET}"
+            printf " %-10s: %s\n" "GitHub" "$expected_sha256"
+            printf " %-10s: %s\n" "Kurulu" "$actual_sha256"
         fi
     elif [ -n "$actual_sha256" ]; then
-        printf " %-10s %s\n" "INFO" "SHA256: $actual_sha256"
+        printf " %-10s: %s\n" "INFO" "$actual_sha256"
     fi
     print_line "-"
 
