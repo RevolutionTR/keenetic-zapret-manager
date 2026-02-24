@@ -4981,7 +4981,7 @@ update_manager_script() {
     # GitHub API'den SHA256 digest al (tek istek)
     local api_raw expected_sha256
     api_raw="$(curl -fsS "$api" 2>/dev/null)"
-    expected_sha256="$(printf '%s\n' "$api_raw" | grep -A5 "\"${script_name}\"" | \
+    expected_sha256="$(printf '%s\n' "$api_raw" | grep -A30 "\"${script_name}\"" | \
         sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"sha256:\([^"]*\)".*/\1/p' | head -n1)"
 
     echo "$(T mgr_update_start 'Betik indiriliyor (GitHub)...' 'Downloading script (GitHub)...')"
@@ -5068,11 +5068,9 @@ check_manager_update() {
     local repo="RevolutionTR/keenetic-zapret-manager"
     local script_name="keenetic_zapret_otomasyon_ipv6_ipset.sh"
     local api="https://api.github.com/repos/${repo}/releases/latest"
-    local REMOTE_VER LOCAL_VER api_raw expected_sha256 actual_sha256
+    local REMOTE_VER LOCAL_VER api_raw CLR_REMOTE CLR_LOCAL sha256sums_url expected_sha256 actual_sha256
     api_raw="$(curl -fsS "$api" 2>/dev/null)"
     REMOTE_VER="$(printf '%s\n' "$api_raw" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-    expected_sha256="$(printf '%s\n' "$api_raw" | grep -A5 "\"${script_name}\"" | \
-        sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"sha256:\([^"]*\)".*/\1/p' | head -n1)"
 
     if [ -z "$REMOTE_VER" ]; then
         print_status FAIL "$(T TXT_GITHUB_FAIL)"
@@ -5083,23 +5081,18 @@ check_manager_update() {
     LOCAL_VER="$(zkm_get_installed_script_version)"
     [ -z "$LOCAL_VER" ] && LOCAL_VER="$SCRIPT_VERSION"
 
-    # Renkleri duruma gore ata: yeni olan yesil, eskisi sari, esitse ikisi de yesil
     # Renkleri duruma gore ata
-    local CLR_REMOTE CLR_LOCAL
     if ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
-        # GitHub daha yeni: GitHub yesil, kurulu sari
         CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_YELLOW}"
     elif ver_is_newer "$LOCAL_VER" "$REMOTE_VER"; then
-        # Kurulu daha yeni: kurulu yesil, GitHub sari
         CLR_REMOTE="${CLR_BOLD}${CLR_YELLOW}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
     else
-        # Esit: ikisi de yesil
         CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
     fi
+
     # SHA256SUMS dosyasini GitHub release'ten indir ve karsilastir
-    local sha256sums_url expected_sha256 actual_sha256
     sha256sums_url="https://github.com/${repo}/releases/download/${REMOTE_VER}/SHA256SUMS"
-    expected_sha256="$(curl -fsS "$sha256sums_url" 2>/dev/null | grep "${script_name}" | awk '{print $1}')"
+    expected_sha256="$(curl -fsS "$sha256sums_url" 2>/dev/null | grep "${script_name}" | cut -d' ' -f1)"
     actual_sha256="$(sha256sum "$ZKM_SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1)"
 
     print_line "-"
