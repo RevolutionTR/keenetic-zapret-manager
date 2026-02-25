@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.25.1"
+SCRIPT_VERSION="v26.2.25.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -855,6 +855,35 @@ zkm_banner_fmt_wan_state() {
     esac
 }
 
+# IP adresini siniflandir: public / cgnat / private
+zkm_classify_ip() {
+    local ip="$1"
+    # CGNAT: 100.64.0.0/10
+    case "$ip" in
+        100.6[4-9].*|100.[7-9][0-9].*|100.1[01][0-9].*|100.12[0-7].*)
+            echo "cgnat"; return ;;
+    esac
+    # Private: 10.x, 192.168.x, 172.16-31.x
+    case "$ip" in
+        10.*|192.168.*) echo "private"; return ;;
+    esac
+    case "$ip" in
+        172.1[6-9].*|172.2[0-9].*|172.3[01].*) echo "private"; return ;;
+    esac
+    echo "public"
+}
+
+# IP'yi renkli formatla (alt-shell uyumu icin hardcoded escape)
+zkm_fmt_ip() {
+    local ip="$1" type
+    type="$(zkm_classify_ip "$ip")"
+    case "$type" in
+        cgnat)   printf '\033[1;33m%s\033[0m \033[33m[CGNAT]\033[0m'  "$ip" ;;
+        private) printf '\033[1;33m%s\033[0m \033[33m[NAT]\033[0m'    "$ip" ;;
+        *)       printf '\033[1;32m%s\033[0m'                            "$ip" ;;
+    esac
+}
+
 zkm_banner_fmt_zapret_state() {
     # $1: RUNNING|STOPPED
     case "$1" in
@@ -1469,6 +1498,10 @@ TXT_HEALTH_SECTION_SERVICES_EN="Services"
 
 TXT_HEALTH_WAN_STATUS_TR="WAN durumu"
 TXT_HEALTH_WAN_STATUS_EN="WAN status"
+TXT_HEALTH_WAN_IPV4_TR="WAN IPv4 adresi"
+TXT_HEALTH_WAN_IPV4_EN="WAN IPv4 address"
+TXT_HEALTH_WAN_IPV6_TR="WAN IPv6 adresi"
+TXT_HEALTH_WAN_IPV6_EN="WAN IPv6 address"
 TXT_HEALTH_DNS_MODE_TR="DNS Modu"
 TXT_HEALTH_DNS_MODE_EN="DNS Mode"
 TXT_HEALTH_DNS_SEC_TR="DNS Guvenlik Seviyesi"
@@ -6083,7 +6116,15 @@ display_menu() {
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_SYS_LABEL)"                        "${CLR_RESET}" "${CLR_ORANGE}" "$_sys"                                           "${CLR_RESET}"
     _fw="$(zkm_banner_get_firmware 2>/dev/null)"
     [ -n "$_fw" ] && printf "  %b%-*s%b : %b%b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'Firmware' 'Firmware')" "${CLR_RESET}" "${CLR_BOLD}" "${CLR_CYAN}" "$_fw" "${CLR_RESET}"
-    printf "  %b%-*s%b : %b%s | %b\n"   "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_WAN_LABEL)"                        "${CLR_RESET}" "${CLR_RESET}"  "$_wan_dev" "$(zkm_banner_fmt_wan_state "$_wan_state")"
+    local _wan_ipv4 _wan_ipv6 _wan_ip_str
+    _wan_ipv4="$(ip -4 addr show "$_wan_dev" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+    _wan_ipv6="$(ip -6 addr show "$_wan_dev" 2>/dev/null | awk '/inet6 / && !/fe80/{print $2; exit}' | cut -d/ -f1)"
+    _wan_ip_str=""
+    [ -n "$_wan_ipv4" ] && _wan_ip_str=" | $(zkm_fmt_ip "$_wan_ipv4")"
+    [ -n "$_wan_ipv6" ] && _wan_ip_str="${_wan_ip_str} | \033[0;36m${_wan_ipv6}\033[0m"
+    printf "  %b%-*s%b : %b%s%b | %b%s\n"   "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_WAN_LABEL)" \
+        "${CLR_RESET}" "${CLR_RESET}" "$_wan_dev" "${CLR_RESET}" \
+        "$(zkm_banner_fmt_wan_state "$_wan_state")${_wan_ip_str}"
     local _kdns_raw _kdns_access
     _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
     _kdns_access="$(printf '%s\n' "$_kdns_raw" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
@@ -6281,6 +6322,21 @@ run_health_check() {
         wan_state="FAIL"
     fi
     add_line "$HC_NET" "$(T TXT_HEALTH_WAN_STATUS)" " ($WAN_IF)" "$wan_state"
+
+    # WAN IP adresleri
+    local wan_ipv4 wan_ipv6 wan_ip_type wan_ip_label
+    wan_ipv4="$(ip -4 addr show "$WAN_IF" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+    wan_ipv6="$(ip -6 addr show "$WAN_IF" 2>/dev/null | awk '/inet6 / && !/fe80/{print $2; exit}' | cut -d/ -f1)"
+    if [ -n "$wan_ipv4" ]; then
+        wan_ip_type="$(zkm_classify_ip "$wan_ipv4")"
+        case "$wan_ip_type" in
+            cgnat)   wan_ip_label=" ${CLR_YELLOW}[CGNAT]${CLR_RESET}" ;;
+            private) wan_ip_label=" ${CLR_ORANGE}[NAT]${CLR_RESET}" ;;
+            *)       wan_ip_label=" ${CLR_GREEN}[Public]${CLR_RESET}" ;;
+        esac
+        add_line "$HC_NET" "$(T TXT_HEALTH_WAN_IPV4)" " ${wan_ipv4}${wan_ip_label}" "INFO"
+    fi
+    [ -n "$wan_ipv6" ] && add_line "$HC_NET" "$(T TXT_HEALTH_WAN_IPV6)" " ${wan_ipv6}" "INFO"
 
     # ----------------------------
     # DNS MODE / SECURITY / PROVIDERS (meta lines, NOT counted)
