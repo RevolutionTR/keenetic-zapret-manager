@@ -109,6 +109,8 @@ Bu durumda Zapret çalışıyor olsa bile bağlantı kurulamayabilir.
 - Güncel sürüm uyarıları
 
 ### CLI Kısayollar
+- `kzm`
+- `KZM`
 - `keenetic`
 - `keenetic-zapret`
 - Script'i tam path yazmadan çalıştırabilme
