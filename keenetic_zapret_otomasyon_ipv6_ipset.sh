@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.25"
+SCRIPT_VERSION="v26.2.25.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1398,8 +1398,8 @@ Use Main Menu > Option 6 to update Zapret
 🔖 Installed: %CUR%
 🆕 Latest   : %NEW%
 🔗 Link     : %URL%"
-TXT_UPD_ZKM_AUTO_OK_TR="[OtoGuncelleme]\nKZM otomatik kurulum basarili.\nBetigi yeniden calistirin.\n\nMevcut : %CUR%\nYeni   : %NEW%\nLink   : %URL%"
-TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_OK_TR="[OtoGuncelleme]\nKZM otomatik kurulum basarili.\nBetigi yeniden calistirin.\n\n📦 Paket  : KZM\n🔖 Mevcut : %CUR%\n🆕 Yeni   : %NEW%\n🔗 Link   : %URL%"
+TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\n📦 Package  : KZM\n🔖 Current  : %CUR%\n🆕 Latest   : %NEW%\n🔗 Link     : %URL%"
 
 TXT_UPD_ZKM_UP_TO_DATE_TR="[Guncelleme]
 📦 Paket : KZM
@@ -1410,8 +1410,8 @@ TXT_UPD_ZKM_UP_TO_DATE_EN="[Update]
 🔄 Status  : Up to date ✅
 🔖 Version : %CUR%"
 
-TXT_UPD_ZKM_AUTO_FAIL_TR="[OtoGuncelleme]\nKZM otomatik kurulum BASARISIZ.\nLutfen elle guncelleyin (menu 10).\n\nMevcut : %CUR%\nYeni   : %NEW%\nLink   : %URL%"
-TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\nKZM auto install FAILED.\nPlease update manually (menu 10).\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
+TXT_UPD_ZKM_AUTO_FAIL_TR="[OtoGuncelleme]\n❌ KZM otomatik kurulum BASARISIZ.\n⚠️ Lutfen elle guncelleyin (menu 10).\n\n📦 Paket  : KZM\n🔖 Mevcut : %CUR%\n🆕 Yeni   : %NEW%\n🔗 Link   : %URL%"
+TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\n❌ KZM auto install FAILED.\n⚠️ Please update manually (menu 10).\n\n📦 Package : KZM\n🔖 Current : %CUR%\n🆕 Latest  : %NEW%\n🔗 Link    : %URL%"
 
 TXT_HM_PROMPT_AUTOUPDATE_MODE_TR="Otomatik guncelleme modu (0=KAPALI,1=BILDIR,2=OTO KUR) [or: 2]:"
 TXT_HM_PROMPT_AUTOUPDATE_MODE_EN="Auto update mode (0=OFF,1=Notify,2=Auto install) [e.g. 2]:"
@@ -1519,6 +1519,18 @@ TXT_HEALTH_DISK_EN="Disk usage (/opt)"
 
 TXT_HEALTH_ZAPRET_TR="Zapret servis durumu"
 TXT_HEALTH_ZAPRET_EN="Zapret service status"
+TXT_HEALTH_SHA256_KZM_TR="KZM dosya butunlugu (SHA256)"
+TXT_HEALTH_SHA256_KZM_EN="KZM file integrity (SHA256)"
+TXT_HEALTH_SHA256_ZAP_TR="Zapret surum durumu"
+TXT_HEALTH_SHA256_ZAP_EN="Zapret version status"
+TXT_HEALTH_SHA256_OK_TR="Dogrulandi"
+TXT_HEALTH_SHA256_OK_EN="Verified"
+TXT_HEALTH_SHA256_FAIL_TR="Eslesmiyor / Dogrulanmamis"
+TXT_HEALTH_SHA256_FAIL_EN="Mismatch / Not verified"
+TXT_HEALTH_SHA256_UNKNOWN_TR="Henuz kontrol edilmedi (Menu 10)"
+TXT_HEALTH_SHA256_UNKNOWN_EN="Not checked yet (Menu 10)"
+TXT_HEALTH_SHA256_ZAP_UNKNOWN_TR="Henuz kontrol edilmedi (Menu 6)"
+TXT_HEALTH_SHA256_ZAP_UNKNOWN_EN="Not checked yet (Menu 6)"
 
 TXT_HEALTH_DNS_MATCH_TR="DNS tutarliligi"
 TXT_HEALTH_DNS_MATCH_EN="DNS consistency"
@@ -2275,16 +2287,16 @@ TXT_KEENDNS_NONE_TR="KeenDNS kaydi yok"
 TXT_KEENDNS_NONE_EN="No KeenDNS record"
 TXT_KEENDNS_UNKNOWN_TR="Bilinmiyor"
 TXT_KEENDNS_UNKNOWN_EN="Unknown"
-TXT_KEENDNS_LOST_TR="⚠️ KeenDNS Uyari\n%s\nDogrudan erisim kesildi, yalnizca cloud aktif."
-TXT_KEENDNS_CGN_LOST_TR="⚠️ KeenDNS Uyari\n%s\nCloud erisimi kesildi (CGN/direkt erisim yok)."
-TXT_KEENDNS_CGN_LOST_EN="⚠️ KeenDNS Alert\n%s\nCloud access lost (CGN / no direct access)."
-TXT_KEENDNS_CGN_BACK_TR="✅ KeenDNS Geri Geldi\n%s\nCloud erisimi yeniden aktif."
-TXT_KEENDNS_CGN_BACK_EN="✅ KeenDNS Restored\n%s\nCloud access is active again."
-TXT_KEENDNS_LOST_EN="⚠️ KeenDNS Alert\n%s\nDirect access lost, cloud only."
-TXT_KEENDNS_BACK_TR="✅ KeenDNS Geri Geldi\n%s\nDogrudan erisim yeniden aktif."
-TXT_KEENDNS_BACK_EN="✅ KeenDNS Restored\n%s\nDirect access is active again."
-TXT_KEENDNS_FAIL_TR="❌ KeenDNS Erisim Yok\n%s\nDomain disaridan erisilebilir degil."
-TXT_KEENDNS_FAIL_EN="❌ KeenDNS Unreachable\n%s\nDomain is not accessible from outside."
+TXT_KEENDNS_LOST_TR="⚠️ KeenDNS Uyari\n🔗 %s\n☁️ Dogrudan erisim kesildi, yalnizca cloud aktif."
+TXT_KEENDNS_CGN_LOST_TR="⚠️ KeenDNS Uyari\n🔗 %s\n☁️ Cloud erisimi kesildi (CGN/direkt erisim yok)."
+TXT_KEENDNS_CGN_LOST_EN="⚠️ KeenDNS Alert\n🔗 %s\n☁️ Cloud access lost (CGN / no direct access)."
+TXT_KEENDNS_CGN_BACK_TR="✅ KeenDNS Geri Geldi\n🔗 %s\n☁️ Cloud erisimi yeniden aktif."
+TXT_KEENDNS_CGN_BACK_EN="✅ KeenDNS Restored\n🔗 %s\n☁️ Cloud access is active again."
+TXT_KEENDNS_LOST_EN="⚠️ KeenDNS Alert\n🔗 %s\n☁️ Direct access lost, cloud only."
+TXT_KEENDNS_BACK_TR="✅ KeenDNS Geri Geldi\n🔗 %s\n🌐 Dogrudan erisim yeniden aktif."
+TXT_KEENDNS_BACK_EN="✅ KeenDNS Restored\n🔗 %s\n🌐 Direct access is active again."
+TXT_KEENDNS_FAIL_TR="❌ KeenDNS Erisim Yok\n🔗 %s\n🚫 Domain disaridan erisilebilir degil."
+TXT_KEENDNS_FAIL_EN="❌ KeenDNS Unreachable\n🔗 %s\n🚫 Domain is not accessible from outside."
 TXT_KEENDNS_REACH_TR="✅ KeenDNS Erisim Geri Geldi\n%s\nDomain tekrar disaridan erisilebilir."
 TXT_KEENDNS_REACH_EN="✅ KeenDNS Reachable Again\n%s\nDomain is accessible from outside again."
 
@@ -6494,6 +6506,27 @@ run_health_check() {
     fi
 
     # ----------------------------
+    # SHA256 DOSYA BUTUNLUGU (state dosyasindan, hizli)
+    # ----------------------------
+    local _sha_kzm _sha_zap _sha_kzm_status _sha_zap_status
+    _sha_kzm="$(cat /tmp/zkm_sha256_kzm.state 2>/dev/null)"
+    _sha_zap="$(cat /tmp/zkm_sha256_zapret.state 2>/dev/null)"
+
+    case "$_sha_kzm" in
+        ok)   _sha_kzm_status="PASS"; _sha_kzm_msg=" $(T TXT_HEALTH_SHA256_OK)" ;;
+        fail) _sha_kzm_status="WARN"; _sha_kzm_msg=" $(T TXT_HEALTH_SHA256_FAIL)" ;;
+        *)    _sha_kzm_status="INFO"; _sha_kzm_msg=" $(T TXT_HEALTH_SHA256_UNKNOWN)" ;;
+    esac
+    case "$_sha_zap" in
+        ok)   _sha_zap_status="PASS"; _sha_zap_msg=" $(T TXT_HEALTH_SHA256_OK)" ;;
+        fail) _sha_zap_status="WARN"; _sha_zap_msg=" $(T TXT_HEALTH_SHA256_FAIL)" ;;
+        *)    _sha_zap_status="INFO"; _sha_zap_msg=" $(T TXT_HEALTH_SHA256_ZAP_UNKNOWN)" ;;
+    esac
+
+    add_line "$HC_SVC" "$(T TXT_HEALTH_SHA256_KZM)" "$_sha_kzm_msg" "$_sha_kzm_status"
+    add_line "$HC_SVC" "$(T TXT_HEALTH_SHA256_ZAP)" "$_sha_zap_msg" "$_sha_zap_status"
+
+    # ----------------------------
     # SCORE + SUMMARY
     # ----------------------------
     local ok_n=$((pass_n+info_n))
@@ -6514,7 +6547,25 @@ run_health_check() {
     fi
     rating_txt="$(T "$rating_key")"
 
-    printf "\n %-35s : %s / 10  [OK] %s   (%d/%d OK)\n" "$(T TXT_HEALTH_SCORE)" "$score" "$rating_txt" "$ok_n" "$total_n"
+    # Skora gore renk ve etiket sec
+    local score_clr score_emoji
+    if awk -v s="$score" 'BEGIN{exit (s>=9.5)?0:1}'; then
+        score_clr="${CLR_GREEN}"; score_emoji="MUKEMMEL"
+    elif awk -v s="$score" 'BEGIN{exit (s>=8.5)?0:1}'; then
+        score_clr="${CLR_GREEN}"; score_emoji="COK IYI"
+    elif awk -v s="$score" 'BEGIN{exit (s>=7.0)?0:1}'; then
+        score_clr="${CLR_ORANGE}"; score_emoji="IYI"
+    elif awk -v s="$score" 'BEGIN{exit (s>=5.0)?0:1}'; then
+        score_clr="${CLR_YELLOW}"; score_emoji="ORTA"
+    else
+        score_clr="${CLR_RED}"; score_emoji="KOTU"
+    fi
+
+    printf "\n %-35s : %b%b%s / 10%b  [%b%s%b]   %b(%d/%d OK)%b\n" \
+        "$(T TXT_HEALTH_SCORE)" \
+        "${CLR_BOLD}" "$score_clr" "$score" "${CLR_RESET}" \
+        "${CLR_BOLD}${score_clr}" "$score_emoji" "${CLR_RESET}" \
+        "${CLR_BOLD}${score_clr}" "$ok_n" "$total_n" "${CLR_RESET}"
     print_line "-"
     printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_NETDNS)" "${CLR_RESET}"
     print_line "-"
