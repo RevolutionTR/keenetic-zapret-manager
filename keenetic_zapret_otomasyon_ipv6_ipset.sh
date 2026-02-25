@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.24"
+SCRIPT_VERSION="v26.2.25"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1390,16 +1390,14 @@ Zapret guncellemesi icin Ana Menu > 6 secenegi kullanin
 📦 Paket  : Zapret
 🔖 Kurulu : %CUR%
 🆕 Yeni   : %NEW%
-🔗 Link   : %URL%
-🕒 Zaman  : %TIME%"
+🔗 Link   : %URL%"
 TXT_UPD_ZAPRET_NEW_EN="[Update]
 Use Main Menu > Option 6 to update Zapret
 
 📦 Package  : Zapret
 🔖 Installed: %CUR%
 🆕 Latest   : %NEW%
-🔗 Link     : %URL%
-🕒 Time     : %TIME%"
+🔗 Link     : %URL%"
 TXT_UPD_ZKM_AUTO_OK_TR="[OtoGuncelleme]\nKZM otomatik kurulum basarili.\nBetigi yeniden calistirin.\n\nMevcut : %CUR%\nYeni   : %NEW%\nLink   : %URL%"
 TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\nCurrent : %CUR%\nLatest  : %NEW%\nLink    : %URL%"
 
@@ -2248,8 +2246,8 @@ TXT_ZAP_UPDATE_FAIL_BIN_EN="ERROR: Failed to apply binaries."
 TXT_ZAP_UPDATE_SHA256_OK_TR="SHA256 dogrulamasi basarili."
 TXT_ZAP_UPDATE_SHA256_OK_EN="SHA256 verification passed."
 
-TXT_ZAP_UPDATE_SHA256_FAIL_TR="HATA: SHA256 dogrulamasi basarisiz! Dosya bozuk veya degistirilmis olabilir."
-TXT_ZAP_UPDATE_SHA256_FAIL_EN="ERROR: SHA256 verification failed! File may be corrupt or tampered."
+TXT_ZAP_UPDATE_SHA256_FAIL_TR="SHA256 dogrulamasi basarisiz! Dosya bozuk veya degistirilmis olabilir."
+TXT_ZAP_UPDATE_SHA256_FAIL_EN="SHA256 verification failed! File may be corrupt or tampered."
 
 TXT_ZAP_UPDATE_SHA256_SKIP_TR="SHA256 bilgisi alinamadi, dogrulama atlandi."
 TXT_ZAP_UPDATE_SHA256_SKIP_EN="SHA256 not available from GitHub, verification skipped."
@@ -3802,9 +3800,11 @@ update_zapret() {
         actual_sha256="$(sha256sum "${tmpdir}/${tarball}" 2>/dev/null | cut -d' ' -f1)"
         if [ "$actual_sha256" = "$expected_sha256" ]; then
             print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
+            printf 'ok' > /tmp/zkm_sha256_zapret.state
         else
             rm -rf "$tmpdir"
             print_status FAIL "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
+            printf 'fail' > /tmp/zkm_sha256_zapret.state
             return 1
         fi
     else
@@ -3898,6 +3898,7 @@ check_remote_update() {
     print_line "-"
 
     if [ "$REMOTE_VER" = "$LOCAL_VER" ] || ! ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
+        printf 'ok' > /tmp/zkm_sha256_zapret.state
         print_status PASS "$(T TXT_UPTODATE)"
         press_enter_to_continue
         return 0
@@ -4997,9 +4998,11 @@ update_manager_script() {
         actual_sha256="$(sha256sum "$TMP_FILE" 2>/dev/null | cut -d' ' -f1)"
         if [ "$actual_sha256" = "$expected_sha256" ]; then
             print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
+            printf 'ok' > /tmp/zkm_sha256_zapret.state
         else
             rm -f "$TMP_FILE" 2>/dev/null
             print_status FAIL "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
+            printf 'fail' > /tmp/zkm_sha256_zapret.state
             return 1
         fi
     else
@@ -5102,8 +5105,10 @@ check_manager_update() {
     if [ -n "$expected_sha256" ] && [ -n "$actual_sha256" ]; then
         if [ "$actual_sha256" = "$expected_sha256" ]; then
             printf " %-10s: %b%s%b\n" "PASS" "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_OK)" "${CLR_RESET}"
+            printf 'ok' > /tmp/zkm_sha256_kzm.state
         else
-            printf " %-10s: %b%s%b\n" "WARN" "${CLR_YELLOW}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_FAIL)" "${CLR_RESET}"
+            printf " %-10s: %b%s%b\n" "WARN" "${CLR_ORANGE}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_FAIL)" "${CLR_RESET}"
+            printf 'fail' > /tmp/zkm_sha256_kzm.state
             printf " %-10s: %s\n" "GitHub" "$expected_sha256"
             printf " %-10s: %s\n" "Kurulu" "$actual_sha256"
         fi
@@ -6118,8 +6123,13 @@ display_menu() {
         printf "  %b%-*s%b : %b%s%b\n"  "${CLR_BOLD}" "$_lw" "$(T TXT_HM_BANNER_LABEL)" \
             "${CLR_RESET}" "${CLR_RED}"    "$(T TXT_HM_RUN_OFF)" "${CLR_RESET}"
     fi
-    printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_BOLD}" "${CLR_ORANGE}" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
-    printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'Zapret Surum' 'Zapret Version'  )"       "${CLR_RESET}" "${CLR_BOLD}" "${CLR_ORANGE}" "$(zkm_get_zapret_version)"                       "${CLR_RESET}"
+    local _kzm_sha_state _zap_sha_state _clr_kzm _clr_zap
+    _kzm_sha_state="$(cat /tmp/zkm_sha256_kzm.state 2>/dev/null)"
+    _zap_sha_state="$(cat /tmp/zkm_sha256_zapret.state 2>/dev/null)"
+    [ "$_kzm_sha_state" = "ok" ] && _clr_kzm="${CLR_GREEN}" || _clr_kzm="${CLR_ORANGE}"
+    [ "$_zap_sha_state" = "ok" ] && _clr_zap="${CLR_GREEN}" || _clr_zap="${CLR_ORANGE}"
+    printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_BOLD}" "$_clr_kzm" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
+    printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'Zapret Surum' 'Zapret Version'  )"       "${CLR_RESET}" "${CLR_BOLD}" "$_clr_zap" "$(zkm_get_zapret_version)"                       "${CLR_RESET}"
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'GitHub'       'GitHub'          )"       "${CLR_RESET}" "${CLR_DIM}"   "github.com/RevolutionTR/keenetic-zapret-manager"  "${CLR_RESET}"
 
     print_line "="
@@ -8256,7 +8266,7 @@ healthmon_updatecheck_do() {
 
         if [ -n "$zap_latest" ] && ver_is_newer "$zap_latest" "$zap_cur"; then
             zap_url="https://github.com/${zap_repo}/releases/latest"
-            telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" CUR "$zap_cur" NEW "$zap_latest" URL "$zap_url" TIME "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)")"
+            telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" CUR "$zap_cur" NEW "$zap_latest" URL "$zap_url")"
             echo "$(date +%s 2>/dev/null) | updatecheck | zapret | notified cur=$zap_cur latest=$zap_latest" >> /tmp/healthmon.log 2>/dev/null
         fi
     fi
