@@ -126,7 +126,7 @@ Yöntem 1 (pratik):
 PuTTY / Termius’daki komut satırına aşağıdaki komutu yazıp onaylayın. Betik internetten indirip kurulacaktır:
   
 ```bash
-curl -fsSLhttps://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/main/keenetic_zapret_otomasyon_ipv6_ipset.sh \
+curl -fsSL https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/main/keenetic_zapret_otomasyon_ipv6_ipset.sh \
 -o /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
