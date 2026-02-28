@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.25.2"
+SCRIPT_VERSION="v26.2.28"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -4866,7 +4866,7 @@ install_zapret() {
 
     echo "$(T _ 'OPKG paketleri denetleniyor, eksik olan varsa indirilip kurulacaktir...' 'Checking OPKG packages, missing ones will be downloaded and installed...')"
     opkg update >/dev/null 2>&1
-    opkg install coreutils-sort curl grep gzip ipset iptables kmod_ndms xtables-addons_legacy >/dev/null 2>&1 || \
+    opkg install coreutils-sort curl grep gzip ipset iptables kmod_ndms xtables-addons_legacy cron >/dev/null 2>&1 || \
     { echo "$(T TXT_INSTALL_PKG_FAIL)"; return 1; }
     
     echo "$(T TXT_INSTALL_INSTALLING)"
@@ -5505,12 +5505,12 @@ manage_hostlist_menu() {
         printf '%b\n' "$(T TXT_HL_CURRENT_MODE)$(color_mode_name "$cur")"
         echo "$(T TXT_HL_COUNTS)${ucnt}/${ecnt}/${acnt}"
         print_line "-"
-        echo " 1. $(T TXT_HL_OPT_1)"
-        echo " 2. $(T TXT_HL_OPT_2)"
-        echo " 3. $(T TXT_HL_OPT_3)"
-        echo " 4. $(T TXT_HL_OPT_4)"
-        echo " 5. $(T TXT_HL_OPT_5)"
-        echo " 6. $(T TXT_HL_OPT_6)"
+        echo " 1. $(T TXT_HL_OPT_6)"
+        echo " 2. $(T TXT_HL_OPT_1)"
+        echo " 3. $(T TXT_HL_OPT_2)"
+        echo " 4. $(T TXT_HL_OPT_3)"
+        echo " 5. $(T TXT_HL_OPT_4)"
+        echo " 6. $(T TXT_HL_OPT_5)"
         echo " 7. $(T TXT_HL_OPT_7)"
         echo " 8. $(T TXT_HL_OPT_8)"
         echo " 0. $(T TXT_HL_OPT_0)"
@@ -5519,6 +5519,21 @@ manage_hostlist_menu() {
         read -r sel || return 0
         case "$sel" in
             1)
+                show_hostlist_tail "$HOSTLIST_USER"    "/opt/zapret/ipset/zapret-hosts-user.txt"
+                echo ""
+                show_hostlist_tail "$HOSTLIST_EXCLUDE_DOM" "/opt/zapret/ipset/zapret-hosts-user-exclude.txt"
+                echo ""
+                show_hostlist_tail "$HOSTLIST_EXCLUDE_IP"  "/opt/zapret/ipset/zapret-hosts-localnets.txt"
+                echo ""
+                show_hostlist_tail "$HOSTLIST_AUTO"    "/opt/zapret/ipset/zapret-hosts-auto.txt"
+                if type press_enter_to_continue >/dev/null 2>&1; then
+                    press_enter_to_continue
+                else
+                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                fi
+                clear
+                ;;
+            2)
                 mode="$(choose_mode_filter_interactive)"
                 [ "$mode" = "__invalid__" ] && { echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')"; continue; }
                 [ -n "$mode" ] && apply_mode_filter "$mode"
@@ -5530,7 +5545,7 @@ manage_hostlist_menu() {
                 clear
                 ;;
 
-            2)
+            3)
 echo "$(T TXT_HL_BULK_HINT)"
 echo "$(T TXT_HL_BULK_HINT2)"
 added=0
@@ -5601,7 +5616,7 @@ fi
 clear
 
     ;;
-            3)
+            4)
                 read -r -p "$(T TXT_HL_PROMPT_DEL)" d
                 [ "$d" = "0" ] && continue
                 nd="$(normalize_domain "$d")"
@@ -5610,7 +5625,7 @@ clear
                 echo "$(T TXT_HL_MSG_REMOVED)$nd"
                 ;;
 
-            4)
+            5)
 echo "$(T TXT_HL_BULK_HINT)"
 echo "$(T TXT_HL_BULK_HINT2)"
 added=0
@@ -5681,28 +5696,13 @@ fi
 clear
 
     ;;
-            5)
+            6)
                 read -r -p "$(T TXT_HL_PROMPT_DEL)" d
                 [ "$d" = "0" ] && continue
                 nd="$(normalize_domain "$d")"
                 [ -z "$nd" ] && { echo "$(T TXT_HL_INVALID_DOMAIN)"; continue; }
                 remove_line_exact "$HOSTLIST_EXCLUDE_DOM" "$nd"
                 echo "$(T TXT_HL_MSG_REMOVED)$nd"
-                ;;
-            6)
-                show_hostlist_tail "$HOSTLIST_USER"    "/opt/zapret/ipset/zapret-hosts-user.txt"
-                echo ""
-                show_hostlist_tail "$HOSTLIST_EXCLUDE_DOM" "/opt/zapret/ipset/zapret-hosts-user-exclude.txt"
-                echo ""
-                show_hostlist_tail "$HOSTLIST_EXCLUDE_IP"  "/opt/zapret/ipset/zapret-hosts-localnets.txt"
-                echo ""
-                show_hostlist_tail "$HOSTLIST_AUTO"    "/opt/zapret/ipset/zapret-hosts-auto.txt"
-                if type press_enter_to_continue >/dev/null 2>&1; then
-                    press_enter_to_continue
-                else
-                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
-                fi
-                clear
                 ;;
             7)
                 print_line "-"
@@ -9846,6 +9846,23 @@ fi
 if [ "$1" = "cleanup" ]; then
     cleanup_only_leftovers
     exit 0
+fi
+
+# curl kontrolu (daemon ve cleanup modlarinda atla)
+if [ "$1" != "--healthmon-daemon" ] && [ "$1" != "cleanup" ]; then
+    if ! command -v curl >/dev/null 2>&1; then
+        printf '%b\n' "$(T _ 'WARN: curl bulunamadi. Yukleniyor...' 'WARN: curl not found. Installing...')"
+        if command -v opkg >/dev/null 2>&1; then
+            opkg update >/dev/null 2>&1
+            if opkg install curl >/dev/null 2>&1; then
+                printf '%b\n' "$(T _ 'PASS: curl basariyla yuklendi.' 'PASS: curl installed successfully.')"
+            else
+                printf '%b\n' "$(T _ 'WARN: curl yuklenemedi. Bazi ozellikler calismayabilir.' 'WARN: curl install failed. Some features may not work.')"
+            fi
+        else
+            printf '%b\n' "$(T _ 'WARN: opkg bulunamadi, curl yuklenemiyor.' 'WARN: opkg not found, cannot install curl.')"
+        fi
+    fi
 fi
 
 main_menu_loop
