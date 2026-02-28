@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.28"
+SCRIPT_VERSION="v26.2.28.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -2059,6 +2059,18 @@ TXT_BLOCKCHECK_SUMMARY_SAVED_EN="Summary saved:"
 
 TXT_BLOCKCHECK_SUMMARY_NOT_FOUND_TR="UYARI: SUMMARY bolumu bulunamadi."
 TXT_BLOCKCHECK_SUMMARY_NOT_FOUND_EN="WARNING: SUMMARY section not found."
+TXT_BLK_HM_AUTORESTART_WARN_TR="HealthMon, Zapret'i test sirasinda otomatik baslatabilir. Gecici olarak devre disi birakilsin mi? (e/h): "
+TXT_BLK_HM_AUTORESTART_WARN_EN="HealthMon may restart Zapret during test. Disable temporarily? (y/n): "
+TXT_BLK_HM_AUTORESTART_PAUSED_TR="HealthMon otomatik baslama gecici olarak devre disi birakildi."
+TXT_BLK_HM_AUTORESTART_PAUSED_EN="HealthMon auto-restart temporarily disabled."
+TXT_BLK_HM_AUTORESTART_RESTORED_TR="HealthMon otomatik baslama eski haline getirildi."
+TXT_BLK_HM_AUTORESTART_RESTORED_EN="HealthMon auto-restart restored."
+TXT_BLK_DNS_CHECKING_TR="DNS engeli kontrol ediliyor..."
+TXT_BLK_DNS_CHECKING_EN="Checking DNS block..."
+TXT_BLK_DNS_BLOCKED_TR="UYARI: DNS engeli tespit edildi! Sonuclar yaniltici olabilir. Devam? (e/h): "
+TXT_BLK_DNS_BLOCKED_EN="WARNING: DNS block detected! Results may be misleading. Continue? (y/n): "
+TXT_BLK_DNS_OK_TR="DNS sorgusu basarili, engel tespit edilmedi."
+TXT_BLK_DNS_OK_EN="DNS query successful, no block detected."
 
 # Blockcheck (Summary) - action screen (i18n)
 TXT_BLOCKCHECK_FOUND_TR="Blockcheck sonucu bulundu:"
@@ -6650,6 +6662,9 @@ run_blockcheck() {
     local BLOCKCHECK="/opt/zapret/blockcheck.sh"
     local DEF_DOMAIN="pastebin.com"
     local domains report today was_running stop_ans do_stop stopped_by_us
+    local hm_was_autorestart hm_pause_ans dns_check_ip hm_pause_done
+    hm_was_autorestart=0
+    hm_pause_done=0
 
     print_line "-"
     echo "$(T blk_title 'Blockcheck (DPI Test Raporu)' 'Blockcheck (DPI Test Report)')"
@@ -6694,6 +6709,42 @@ run_blockcheck() {
         fi
     fi
 
+    # HealthMon autorestart kontrolu
+    healthmon_load_config 2>/dev/null
+    if [ "${HM_ZAPRET_AUTORESTART:-0}" = "1" ]; then
+        hm_was_autorestart=1
+        printf "%s" "$(T TXT_BLK_HM_AUTORESTART_WARN)"
+        read -r hm_pause_ans </dev/tty 2>/dev/null || read -r hm_pause_ans
+        case "$hm_pause_ans" in
+            e|E|y|Y|"")
+                HM_ZAPRET_AUTORESTART="0"
+                healthmon_write_config 2>/dev/null
+                hm_pause_done=1
+                echo "$(T TXT_BLK_HM_AUTORESTART_PAUSED)"
+                ;;
+        esac
+    fi
+
+    # DNS engel on kontrolu (ilk domain icin)
+    local _first_domain dns_ans
+    _first_domain="$(printf '%s' "$domains" | awk '{print $1}' | sed 's/,.*//;s/;.*//')"
+    if [ -n "$_first_domain" ] && command -v nslookup >/dev/null 2>&1; then
+        printf "%s\n" "$(T TXT_BLK_DNS_CHECKING)"
+        dns_check_ip="$(nslookup "$_first_domain" 2>/dev/null | awk '/^Address/ && !/#53/{print $2; exit}')"
+        if [ -z "$dns_check_ip" ]; then
+            printf "%s" "$(T TXT_BLK_DNS_BLOCKED)"
+            read -r dns_ans </dev/tty 2>/dev/null || read -r dns_ans
+            case "$dns_ans" in
+                h|H|n|N)
+                    [ "$hm_pause_done" -eq 1 ] && { HM_ZAPRET_AUTORESTART="$hm_was_autorestart"; healthmon_write_config 2>/dev/null; }
+                    [ "$stopped_by_us" -eq 1 ] && start_zapret >/dev/null 2>&1
+                    clear; return 0 ;;
+            esac
+        else
+            echo "$(T TXT_BLK_DNS_OK)"
+        fi
+    fi
+
     echo
     echo "$(T blk_running2 "Calistiriliyor... (Rapor: ${report})" "Running... (Report: ${report})")"
     print_line "-"
@@ -6710,6 +6761,13 @@ run_blockcheck() {
 
     print_line "-"
     echo "$(T blk_done "Bitti. Rapor dosyasi: ${report}" "Done. Report file: ${report}")"
+
+    # HealthMon autorestart eski haline getir
+    if [ "$hm_pause_done" -eq 1 ]; then
+        HM_ZAPRET_AUTORESTART="$hm_was_autorestart"
+        healthmon_write_config 2>/dev/null
+        echo "$(T TXT_BLK_HM_AUTORESTART_RESTORED)"
+    fi
 
     # Daha once calisiyorduysa ve biz durdurduysak geri ac
     if [ "$was_running" -eq 1 ] && [ "$stopped_by_us" -eq 1 ]; then
