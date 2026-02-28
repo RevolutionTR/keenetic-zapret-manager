@@ -124,13 +124,30 @@ Başlıca opkg komutları:
   
 Yöntem 1 (pratik):  
 PuTTY / Termius’daki komut satırına aşağıdaki komutu yazıp onaylayın. Betik internetten indirip kurulacaktır:
-  
+
+wget ile
+
+```bash
+wget -O /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh \
+  https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/main/keenetic_zapret_otomasyon_ipv6_ipset.sh
+chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
+/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
+```
+Veya curl ile  
+
+Curl yoksa lütfen kurun
+
+```bash
+opkg update && opkg install curl
+```
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/main/keenetic_zapret_otomasyon_ipv6_ipset.sh \
 -o /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 ```
+
   
 İşlem tamamlandıktan sonra kurulu betiği komut satırına "keenetic" veya "keenetic-zapret" yazıp onaylayarak kullanmaya başlayabilirsiniz.
 
