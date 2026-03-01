@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.2.28.1"
+SCRIPT_VERSION="v26.3.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -128,7 +128,20 @@ zkm_self_test() {
         rm -f "$miss" 2>/dev/null
     fi
 
-    # 4) Telegram config (optional)
+    # 4) read -p usage (not supported in BusyBox ash)
+    local readp_count
+    readp_count="$(grep -E "read[[:space:]]+-r?[[:space:]]*-p|read[[:space:]]+-p" "$f" 2>/dev/null \
+        | grep -v '[[:space:]]*#\|_fail\|_pass\|_warn' | wc -l | tr -d ' ')"
+    readp_count="${readp_count:-0}"
+    if [ "$readp_count" -gt 0 ]; then
+        _fail "read -p detected ($readp_count occurrence(s)) - use 'printf + read -r' instead"
+        grep -nE "read[[:space:]]+-r?[[:space:]]*-p|read[[:space:]]+-p" "$f" 2>/dev/null \
+            | grep -v '[[:space:]]*#\|_fail\|_pass\|_warn' | head -n 10 | sed 's/^/  line /'
+    else
+        _pass "read -p: none detected"
+    fi
+
+    # 5) Telegram config (optional)
     if [ -f /opt/etc/telegram.conf ]; then
         . /opt/etc/telegram.conf 2>/dev/null
         if [ -n "$TG_BOT_TOKEN" ] && [ -n "$TG_CHAT_ID" ]; then
@@ -140,7 +153,7 @@ zkm_self_test() {
         _warn "telegram: /opt/etc/telegram.conf not found (optional)"
     fi
 
-    # 5) HealthMon auto-start (optional)
+    # 6) HealthMon auto-start (optional)
     if [ -f /opt/etc/healthmon.conf ]; then
         . /opt/etc/healthmon.conf 2>/dev/null
         if [ "${HM_ENABLE:-0}" = "1" ]; then
@@ -358,7 +371,7 @@ check_script_location_once() {
         echo "$(T TXT_WARN_CONTINUE)"
         echo
 
-        read -r -p "$(T TXT_WARN_CHOICE)" sel
+        printf '%s' "$(T TXT_WARN_CHOICE)"; read -r sel
         case "$sel" in
             1)
                 if mv "$CURRENT" "$EXPECTED" 2>/dev/null; then
@@ -367,7 +380,7 @@ check_script_location_once() {
                         echo
                         printf "%b
 " "${CLR_RED}$(T TXT_WARN_CHMOD_FAIL)${CLR_RESET}"
-                        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _
+                        press_enter_to_continue
                         return
                     fi
                     echo
@@ -378,7 +391,7 @@ check_script_location_once() {
                     echo
                     printf "%b
 " "${CLR_RED}$(T TXT_WARN_MOVE_FAIL)${CLR_RESET}"
-                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    press_enter_to_continue
                 fi
                 ;;
             0|"")
@@ -2469,7 +2482,7 @@ press_enter_to_continue() {
     # Robust pause: always read from controlling TTY so it cannot be skipped by buffered stdin.
     # We keep clear after the keypress because menus redraw anyway.
     # EOF guard: if terminal is gone (SSH/Telnet disconnect), exit cleanly.
-    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _ </dev/tty || exit 0
+    printf '%s' "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"; read -r _ </dev/tty || exit 0
     clear
 }
 
@@ -2860,7 +2873,7 @@ fi
     done
     echo " 0. $(T back_main 'Ana Menuye Don' 'Back')"
     print_line "-"
-    read -r -p "$(T dpi_prompt "Seciminizi yapin (0-8): " "Select an option (0-8): ")" sel || return 1
+    printf '%s' "$(T dpi_prompt "Seciminizi yapin (0-8): " "Select an option (0-8): ")"; read -r sel || return 1
     # sanitize selection (avoid "0 applies 1" edge cases)
     sel="$(echo "$sel" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     if [ -z "$sel" ] || [ "$sel" = "0" ]; then
@@ -2871,7 +2884,7 @@ fi
     # If auto profile is active, switching to a numbered profile disables auto (by user's choice)
     if [ "$origin" = "auto" ] && echo "$sel" | grep -Eq '^[1-8]$'; then
         local _ans
-        read -r -p "$(T TXT_DPI_AUTO_DISABLE_PROMPT)" _ans
+        printf '%s' "$(T TXT_DPI_AUTO_DISABLE_PROMPT)"; read -r _ans
         local _def_yes="y"
         [ "$LANG" = "tr" ] && _def_yes="e"
         _ans="${_ans:-$_def_yes}"
@@ -2914,7 +2927,7 @@ fi
     if type press_enter_to_continue >/dev/null 2>&1; then
         press_enter_to_continue
     else
-        read -r -p "$(T press_enter "Devam etmek icin Enter'a basin..." "Press Enter to continue...")" _tmp
+        press_enter_to_continue
     fi
 
     return 0
@@ -2923,7 +2936,7 @@ fi
 apply_dpi_profile_now() {
     if ! is_zapret_installed; then
         echo "$(T err_not_inst "HATA: Zapret yuklu degil." "ERROR: Zapret is not installed.")"
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         return 1
     fi
     update_nfqws_parameters
@@ -2931,7 +2944,7 @@ apply_dpi_profile_now() {
     enforce_client_mode_rules >/dev/null 2>&1 || true
     enforce_wan_if_nfqueue_rules >/dev/null 2>&1 || true
     echo "$(T dpi_applied "DPI profili uygulandi." "DPI profile applied.")"
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    press_enter_to_continue
 }
 
 get_client_mode() {
@@ -3819,7 +3832,7 @@ check_zapret_version() {
     else
         echo "Surum dosyasi bulunamadi. Lutfen script ile yeniden kurulum yapin."
     fi
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    press_enter_to_continue
     clear
 }
 
@@ -3857,11 +3870,11 @@ update_zapret() {
         actual_sha256="$(sha256sum "${tmpdir}/${tarball}" 2>/dev/null | cut -d' ' -f1)"
         if [ "$actual_sha256" = "$expected_sha256" ]; then
             print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
-            printf 'ok' > /tmp/zkm_sha256_zapret.state
+            printf 'ok' > /opt/etc/zkm_sha256_zapret.state
         else
             rm -rf "$tmpdir"
             print_status FAIL "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
-            printf 'fail' > /tmp/zkm_sha256_zapret.state
+            printf 'fail' > /opt/etc/zkm_sha256_zapret.state
             return 1
         fi
     else
@@ -3908,6 +3921,7 @@ update_zapret() {
     fi
 
     restart_zapret >/dev/null 2>&1 || true
+    printf 'ok' > /opt/etc/zkm_sha256_zapret.state 2>/dev/null
     return 0
 }
 
@@ -3955,7 +3969,7 @@ check_remote_update() {
     print_line "-"
 
     if [ "$REMOTE_VER" = "$LOCAL_VER" ] || ! ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
-        printf 'ok' > /tmp/zkm_sha256_zapret.state
+        printf 'ok' > /opt/etc/zkm_sha256_zapret.state
         print_status PASS "$(T TXT_UPTODATE)"
         press_enter_to_continue
         return 0
@@ -3999,7 +4013,7 @@ check_zapret_ipv6_status() {
 configure_zapret_ipv6_support() {
     if ! is_zapret_installed; then
         echo "$(T TXT_IPV6_NOT_INSTALLED)"
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         clear
         return 1
     fi
@@ -4008,7 +4022,7 @@ configure_zapret_ipv6_support() {
     echo "$(T ipv6_cfg_desc 'Bu, zapretin IPv6 (ip6tables) tarafinda da kural/yonlendirme kurmasini saglar.' 'This enables Zapret to also set up rules/routing on the IPv6 (ip6tables) side.')"
     check_zapret_ipv6_status
     echo ""
-    read -r -p "$(T ipv6_cfg_prompt 'IPv6 destegi etkinlestirilsin mi? (e/h) [h]: ' 'Enable IPv6 support? (y/n) [n]: ')" ans
+    printf '%s' "$(T ipv6_cfg_prompt 'IPv6 destegi etkinlestirilsin mi? (e/h) [h]: ' 'Enable IPv6 support? (y/n) [n]: ')"; read -r ans
 
     IPV6_ANSWER="n"
     case "$ans" in
@@ -4028,7 +4042,7 @@ fi
 # Kullanici secimi mevcut durumla ayniysa hicbir islem yapma
 if [ "$IPV6_ANSWER" = "$CURRENT_IPV6" ]; then
     echo "$(T ipv6_no_change 'Degisiklik yok (IPv6 destegi zaten bu durumda).' 'No change (IPv6 support is already in this state).')"
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    press_enter_to_continue
     clear
     return 0
 fi
@@ -4054,7 +4068,7 @@ echo "$(tpl_render "$(T TXT_IPV6_WIZARD_START)" VAL "$IPV6_ANSWER")"
         echo "${WAN_IFINDEX:-1}"    # WAN arayuzu secimi (1 = none)
     ) | /opt/zapret/install_easy.sh >/dev/null 2>&1 || {
         echo "$(T TXT_IPV6_CFG_FAIL)"
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         clear
         return 1
     }
@@ -4079,7 +4093,7 @@ echo "$(tpl_render "$(T TXT_IPV6_WIZARD_START)" VAL "$IPV6_ANSWER")"
     enforce_wan_if_nfqueue_rules >/dev/null 2>&1
 
     echo "IPv6 destegi ayari tamamlandi."
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    press_enter_to_continue
     clear
     return 0
 }
@@ -4293,7 +4307,7 @@ apply_ipset_client_settings() {
 manage_ipset_clients() {
     if ! is_zapret_installed; then
         echo "$(T TXT_IPV6_NOT_INSTALLED)"
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         clear
         return 1
     fi
@@ -4338,7 +4352,7 @@ manage_ipset_clients() {
                 rm -f "$IPSET_CLIENT_FILE" 2>/dev/null
                 apply_ipset_client_settings
                 echo "Tamam: Zapret tum ag icin calisacak."
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 clear
                 ;;
             3)
@@ -4350,7 +4364,7 @@ manage_ipset_clients() {
                 fi
                 echo "$(T ipset_bulk_hint 'Not: Tek IP eklemek icin menu 4u kullanin.' 'Note: To add a single IP, use option 4.')"
                 echo "Ornek: 192.168.1.10 192.168.1.20 (bosluk/virgul ile ayirabilirsiniz)"
-                read -r -p "IP'leri girin (Enter=iptal): " ips
+                printf '%s' "IP'leri girin (Enter=iptal): "; read -r ips
 
                 if [ -z "$ips" ]; then
                     echo "$(T ipset_cancelled 'Iptal edildi. Degisiklik yapilmadi.' 'Cancelled. No changes made.')"
@@ -4412,7 +4426,7 @@ manage_ipset_clients() {
                     fi
                 fi
 
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 clear
                 ;;
             1)
@@ -4422,7 +4436,7 @@ manage_ipset_clients() {
                     echo "IP listesi sadece Secili IP'lere Uygula (mode=list) aktifken gosterilir."
                     show_ipset_client_status
                 fi
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 clear
                 ;;
 
@@ -4432,10 +4446,10 @@ manage_ipset_clients() {
                 if [ "$MODE" != "list" ]; then
                     echo "Bu menu sadece \"Secili IP'lere Uygula\" (mod=list) acikken kullanilabilir. Once 3'u secin."
                 else
-                read -r -p "$(T add_ip_prompt "$TXT_ADD_IP_TR" "$TXT_ADD_IP_EN")" oneip
+                printf '%s' "$(T add_ip_prompt "$TXT_ADD_IP_TR" "$TXT_ADD_IP_EN")"; read -r oneip
                 if [ -z "$oneip" ]; then
                     echo "$(T cancelled "Islem iptal edildi." "Cancelled.")"
-                    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    press_enter_to_continue
                     clear
                     continue
                 fi
@@ -4459,7 +4473,7 @@ manage_ipset_clients() {
                     fi
                 fi
                 fi
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 clear
                 ;;
 
@@ -4469,10 +4483,10 @@ manage_ipset_clients() {
                 if [ "$MODE" != "list" ]; then
                     echo "Bu menu sadece \"Secili IP'lere Uygula\" (mod=list) acikken kullanilabilir. Once 3'u secin."
                 else
-                read -r -p "$(T del_ip_prompt "$TXT_DEL_IP_TR" "$TXT_DEL_IP_EN")" oneip
+                printf '%s' "$(T del_ip_prompt "$TXT_DEL_IP_TR" "$TXT_DEL_IP_EN")"; read -r oneip
                 if [ -z "$oneip" ]; then
                     echo "$(T cancelled "Islem iptal edildi." "Cancelled.")"
-                    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    press_enter_to_continue
                     clear
                     continue
                 fi
@@ -4486,7 +4500,7 @@ manage_ipset_clients() {
                     echo "IP listesi dosyasi yok."
                 fi
                 fi
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 clear
                 ;;
             6)
@@ -4499,7 +4513,7 @@ manage_ipset_clients() {
                 ;;
             *)
                 echo "$(T invalid_main 'Gecersiz secim! Lutfen 0 ile 11 arasinda bir sayi veya L girin.' 'Invalid choice! Please enter a number between 0 and 11 or L.')"
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 clear
                 ;;
         esac
@@ -4604,7 +4618,7 @@ manage_nozapret_menu() {
         case "$noz_choice" in
             1)
                 nozapret_show_status
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 ;;
             2)
                 printf "$(T TXT_NOZAPRET_ADD)"
@@ -4633,7 +4647,7 @@ manage_nozapret_menu() {
                 else
                     echo "$(T TXT_NOZAPRET_INVALID_IP)"
                 fi
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 ;;
             3)
                 printf "$(T TXT_NOZAPRET_DEL)"
@@ -4650,7 +4664,7 @@ manage_nozapret_menu() {
                 else
                     echo "$(T TXT_NOZAPRET_NOTFOUND)"
                 fi
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 ;;
             4)
                 printf "$(T TXT_NOZAPRET_CONFIRM_CLEAR)"
@@ -4666,14 +4680,14 @@ manage_nozapret_menu() {
                         echo "$(T cancelled 'Iptal edildi.' 'Cancelled.')"
                         ;;
                 esac
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 ;;
             0)
                 break
                 ;;
             *)
                 echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')"
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 ;;
         esac
     done
@@ -4795,7 +4809,7 @@ cleanup_only_leftovers() {
     echo " Kalinti Temizligi (Zapret olmasa da calisir)"
     print_line "-"
     echo "Bu islem, NFQUEUE (qnum 200) iptables kurallarini ve zapret'e ait ipset/netfilter kalintilarini temizler."
-    read -r -p "Devam edilsin mi? (e/h): " _c
+    printf '%s' "Devam edilsin mi? (e/h): "; read -r _c
     echo "$_c" | grep -qi '^e' || { echo "Iptal edildi."; return 0; }
 
     cleanup_zapret_firewall_leftovers
@@ -4805,7 +4819,7 @@ cleanup_only_leftovers() {
     rm -f /opt/zapret/ipset_clients_mode /opt/zapret/ipset_clients.txt /opt/zapret/wan_if 2>/dev/null
 
     echo "Kalinti temizligi tamamlandi."
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    press_enter_to_continue
     clear
     return 0
 }
@@ -4958,7 +4972,7 @@ install_zapret() {
     sync_zapret_iface_wan_config
     restart_zapret
     cleanup_nfqueue_rules_except_selected_wan
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    press_enter_to_continue
 	clear 
     return 0 
 }
@@ -5055,11 +5069,11 @@ update_manager_script() {
         actual_sha256="$(sha256sum "$TMP_FILE" 2>/dev/null | cut -d' ' -f1)"
         if [ "$actual_sha256" = "$expected_sha256" ]; then
             print_status PASS "$(T TXT_ZAP_UPDATE_SHA256_OK)"
-            printf 'ok' > /tmp/zkm_sha256_zapret.state
+            printf 'ok' > /opt/etc/zkm_sha256_zapret.state
         else
             rm -f "$TMP_FILE" 2>/dev/null
             print_status FAIL "$(T TXT_ZAP_UPDATE_SHA256_FAIL)"
-            printf 'fail' > /tmp/zkm_sha256_zapret.state
+            printf 'fail' > /opt/etc/zkm_sha256_zapret.state
             return 1
         fi
     else
@@ -5118,6 +5132,7 @@ fi
     cp -f "$TMP_FILE" "$TARGET_SCRIPT" 2>/dev/null && chmod +x "$TARGET_SCRIPT" 2>/dev/null
     rm -f "$TMP_FILE" 2>/dev/null
 
+    printf 'ok' > /opt/etc/zkm_sha256_kzm.state 2>/dev/null
     echo "$(T mgr_update_done 'Guncelleme tamamlandi. Lutfen betigi yeniden calistirin.' 'Update completed. Please re-run the script.')"
     return 0
 }
@@ -5162,10 +5177,10 @@ check_manager_update() {
     if [ -n "$expected_sha256" ] && [ -n "$actual_sha256" ]; then
         if [ "$actual_sha256" = "$expected_sha256" ]; then
             printf " %-10s: %b%s%b\n" "PASS" "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_OK)" "${CLR_RESET}"
-            printf 'ok' > /tmp/zkm_sha256_kzm.state
+            printf 'ok' > /opt/etc/zkm_sha256_kzm.state
         else
             printf " %-10s: %b%s%b\n" "WARN" "${CLR_ORANGE}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_FAIL)" "${CLR_RESET}"
-            printf 'fail' > /tmp/zkm_sha256_kzm.state
+            printf 'fail' > /opt/etc/zkm_sha256_kzm.state
             printf " %-10s: %s\n" "GitHub" "$expected_sha256"
             printf " %-10s: %s\n" "Kurulu" "$actual_sha256"
         fi
@@ -5452,7 +5467,7 @@ apply_mode_filter() {
         ucnt="$(hostlist_stats "$HOSTLIST_USER")"
         if [ "$ucnt" -eq 0 ]; then
             echo "$(T TXT_HL_WARN_EMPTY_STRICT)"
-            read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+            press_enter_to_continue
         fi
     fi
 
@@ -5498,7 +5513,7 @@ apply_scope_mode() {
 manage_hostlist_menu() {
     if ! is_zapret_installed; then
         echo "$(T TXT_HL_ERR_NOT_INSTALLED)"
-        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+        press_enter_to_continue
         clear
         return 1
     fi
@@ -5541,7 +5556,7 @@ manage_hostlist_menu() {
                 if type press_enter_to_continue >/dev/null 2>&1; then
                     press_enter_to_continue
                 else
-                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                    press_enter_to_continue
                 fi
                 clear
                 ;;
@@ -5552,7 +5567,7 @@ manage_hostlist_menu() {
                 if type press_enter_to_continue >/dev/null 2>&1; then
                     press_enter_to_continue
                 else
-                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                    press_enter_to_continue
                 fi
                 clear
                 ;;
@@ -5623,13 +5638,13 @@ echo "$(T X 'Ozet:' 'Summary:') $(T X 'Eklendi' 'Added')=$added, $(T X 'Zaten va
 if type press_enter_to_continue >/dev/null 2>&1; then
     press_enter_to_continue
 else
-    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+    press_enter_to_continue
 fi
 clear
 
     ;;
             4)
-                read -r -p "$(T TXT_HL_PROMPT_DEL)" d
+                printf '%s' "$(T TXT_HL_PROMPT_DEL)"; read -r d
                 [ "$d" = "0" ] && continue
                 nd="$(normalize_domain "$d")"
                 [ -z "$nd" ] && { echo "$(T TXT_HL_INVALID_DOMAIN)"; continue; }
@@ -5703,13 +5718,13 @@ echo "$(T X 'Ozet:' 'Summary:') $(T X 'Eklendi' 'Added')=$added, $(T X 'Zaten va
 if type press_enter_to_continue >/dev/null 2>&1; then
     press_enter_to_continue
 else
-    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+    press_enter_to_continue
 fi
 clear
 
     ;;
             6)
-                read -r -p "$(T TXT_HL_PROMPT_DEL)" d
+                printf '%s' "$(T TXT_HL_PROMPT_DEL)"; read -r d
                 [ "$d" = "0" ] && continue
                 nd="$(normalize_domain "$d")"
                 [ -z "$nd" ] && { echo "$(T TXT_HL_INVALID_DOMAIN)"; continue; }
@@ -5738,7 +5753,7 @@ clear
                 if type press_enter_to_continue >/dev/null 2>&1; then
                     press_enter_to_continue
                 else
-                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                    press_enter_to_continue
                 fi
                 clear
                 ;;
@@ -5773,7 +5788,7 @@ case "$ssel" in
                 if type press_enter_to_continue >/dev/null 2>&1; then
                     press_enter_to_continue
                 else
-                    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+                    press_enter_to_continue
                 fi
                 clear
                 ;;
@@ -6016,7 +6031,7 @@ rollback_local_storage_menu() {
         echo " 0) $(T TXT_BACK)"
         print_line
 
-        read -r -p "$(T TXT_ROLLBACK_MAIN_PICK) " sel || return 0
+        printf '%s' "$(T TXT_ROLLBACK_MAIN_PICK) "; read -r sel || return 0
         sel=$(echo "$sel" | tr -d '[:space:]')
 
         case "$sel" in
@@ -6189,8 +6204,8 @@ display_menu() {
             "${CLR_RESET}" "${CLR_RED}"    "$(T TXT_HM_RUN_OFF)" "${CLR_RESET}"
     fi
     local _kzm_sha_state _zap_sha_state _clr_kzm _clr_zap
-    _kzm_sha_state="$(cat /tmp/zkm_sha256_kzm.state 2>/dev/null)"
-    _zap_sha_state="$(cat /tmp/zkm_sha256_zapret.state 2>/dev/null)"
+    _kzm_sha_state="$(cat /opt/etc/zkm_sha256_kzm.state 2>/dev/null)"
+    _zap_sha_state="$(cat /opt/etc/zkm_sha256_zapret.state 2>/dev/null)"
     [ "$_kzm_sha_state" = "ok" ] && _clr_kzm="${CLR_GREEN}" || _clr_kzm="${CLR_ORANGE}"
     [ "$_zap_sha_state" = "ok" ] && _clr_zap="${CLR_GREEN}" || _clr_zap="${CLR_ORANGE}"
     printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_BOLD}" "$_clr_kzm" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
@@ -6577,8 +6592,8 @@ run_health_check() {
     # SHA256 DOSYA BUTUNLUGU (state dosyasindan, hizli)
     # ----------------------------
     local _sha_kzm _sha_zap _sha_kzm_status _sha_zap_status
-    _sha_kzm="$(cat /tmp/zkm_sha256_kzm.state 2>/dev/null)"
-    _sha_zap="$(cat /tmp/zkm_sha256_zapret.state 2>/dev/null)"
+    _sha_kzm="$(cat /opt/etc/zkm_sha256_kzm.state 2>/dev/null)"
+    _sha_zap="$(cat /opt/etc/zkm_sha256_zapret.state 2>/dev/null)"
 
     case "$_sha_kzm" in
         ok)   _sha_kzm_status="PASS"; _sha_kzm_msg=" $(T TXT_HEALTH_SHA256_OK)" ;;
@@ -6672,13 +6687,13 @@ run_blockcheck() {
 
     if [ ! -x "$BLOCKCHECK" ]; then
         echo "$(T blk_missing 'HATA: /opt/zapret/blockcheck.sh bulunamadi veya calistirilabilir degil.' 'ERROR: /opt/zapret/blockcheck.sh not found or not executable.')"
-        read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+        press_enter_to_continue
         clear
         return 1
     fi
 
     # Domain(ler)
-    read -r -p "$(T blk_domain 'Test edilecek domain(ler) (Enter=pastebin.com, 0=Iptal): ' 'Domain(s) to test (Enter=pastebin.com, 0=Cancel): ')" domains
+    printf '%s' "$(T blk_domain 'Test edilecek domain(ler) (Enter=pastebin.com, 0=Iptal): ' 'Domain(s) to test (Enter=pastebin.com, 0=Cancel): ')"; read -r domains
     if [ "$domains" = "0" ]; then
         clear
         return 0
@@ -6698,7 +6713,7 @@ run_blockcheck() {
     if is_zapret_running; then
         was_running=1
         echo "$(T blk_running 'Not: Zapret su anda calisiyor. Blockcheck testi icin gecici olarak durdurulmesi onerilir.' 'Note: Zapret is currently running. It is recommended to stop it temporarily for blockcheck.')"
-        read -r -p "$(T blk_stopq 'Zapret gecici olarak durdurulsun mu? (e/h) [e]: ' 'Stop Zapret temporarily? (y/n) [y]: ')" stop_ans
+        printf '%s' "$(T blk_stopq 'Zapret gecici olarak durdurulsun mu? (e/h) [e]: ' 'Stop Zapret temporarily? (y/n) [y]: ')"; read -r stop_ans
         case "$stop_ans" in
             [hHnN]) do_stop=0 ;;
             *) do_stop=1 ;;
@@ -6780,7 +6795,7 @@ run_blockcheck() {
         fi
     fi
 
-    read -r -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")" _tmp
+    press_enter_to_continue
     clear
     return 0
 }
@@ -6924,7 +6939,7 @@ else
 
     while :; do
         echo "$(T TXT_BLOCKCHECK_ACTION_MENU)"
-        read -r -p "$(T TXT_BLOCKCHECK_ACTION_PROMPT) " ans
+        printf '%s' "$(T TXT_BLOCKCHECK_ACTION_PROMPT) "; read -r ans
         ans="$(echo "$ans" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
         case "$ans" in
             1)
@@ -6941,7 +6956,7 @@ else
                 echo
                 echo "$params_filtered"
                 echo
-                press_enter
+                press_enter_to_continue
             ;;
             3)
                 # Save only (do not switch current profile / restart)
@@ -6982,7 +6997,7 @@ blockcheck_test_menu() {
         echo " 3. $(T TXT_BLOCKCHECK_CLEAN)"
         echo " 0. $(T TXT_BACK)"
         print_line
-        read -r -p "$(T TXT_CHOICE) " ch || return 0
+        printf '%s' "$(T TXT_CHOICE) "; read -r ch || return 0
         case "$ch" in
             1) run_blockcheck_full ;;
             2) run_blockcheck_save_summary ;;
@@ -7033,7 +7048,7 @@ print_line "="
                 # Backup: copy all existing .txt files to current + history timestamp
                 if [ ! -d "$SRC_DIR" ] || ! ls "$SRC_DIR"/*.txt >/dev/null 2>&1; then
                     echo "$(T TXT_BACKUP_NO_SRC)"
-                    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    press_enter_to_continue
                     continue
                 fi
                 TS="$(date +%Y%m%d_%H%M%S)"
@@ -7044,13 +7059,13 @@ print_line "="
                     cp -a "$f" "$HIST_DIR/$TS/$(basename "$f")" 2>/dev/null
                 done
                 echo "$(T TXT_BACKUP_DONE)"
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 ;;
             2)
                 # Restore: let user pick a file from current backups
                 if [ ! -d "$CUR_DIR" ] || ! ls "$CUR_DIR"/*.txt >/dev/null 2>&1; then
                     echo "$(T TXT_BACKUP_NO_BACKUP)"
-                    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                    press_enter_to_continue
                     continue
                 fi
                 restore_single_from_current "$CUR_DIR" "$SRC_DIR"
@@ -7068,7 +7083,7 @@ print_line "="
                 echo "[history - last 5]"
                 ls -1 "$HIST_DIR" 2>/dev/null | tail -n 5
                 print_line "-"
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 ;;
             4)
                 backup_zapret_settings "$BACKUP_BASE"
@@ -7103,7 +7118,7 @@ restore_single_from_current() {
 
     if [ -z "$files" ]; then
         echo "$(T TXT_BACKUP_NO_BACKUP)"
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         return 0
     fi
 
@@ -7142,7 +7157,7 @@ print_line "="
             echo "$(T TXT_RESTORE_RESTART_FAIL)"
         fi
     fi
-                read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+                press_enter_to_continue
                 return 0
             fi
             i=$((i+1))
@@ -7190,7 +7205,7 @@ backup_zapret_settings() {
     # nothing to back up?
     if [ -z "$(echo "$RELS" | tr -d ' ')" ]; then
         print_status WARN "$(T TXT_BACKUP_CFG_NO_FILES)"
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         return 0
     fi
 
@@ -7199,12 +7214,12 @@ backup_zapret_settings() {
     if [ $? -ne 0 ] || [ ! -s "$ARCHIVE" ]; then
         rm -f "$ARCHIVE" 2>/dev/null
         print_status FAIL "$(T backup_tar_fail 'Yedekleme basarisiz.' 'Backup failed.')"
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         return 1
     fi
 
     print_status PASS "$(printf "$(T TXT_BACKUP_CFG_BACKED_UP)" "$ARCHIVE")"
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    press_enter_to_continue
     return 0
 }
 
@@ -7282,7 +7297,7 @@ show_zapret_settings_backups() {
     DIR="$BACKUP_BASE/zapret_settings"
     if [ ! -d "$DIR" ] || ! ls "$DIR"/zapret_settings_*.tar.gz >/dev/null 2>&1; then
         print_status WARN "$(T TXT_BACKUP_CFG_NO_BACKUPS)"
-        read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+        press_enter_to_continue
         return 0
     fi
     clear
@@ -7292,7 +7307,7 @@ print_line "="
     echo
     ls -la "$DIR" 2>/dev/null | sed -n '1,200p'
     print_line "-"
-    read -p "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"
+    press_enter_to_continue
     return 0
 }
 
@@ -9397,7 +9412,7 @@ healthmon_config_menu() {
 echo
         printf " %2s) %s\n" "0" "$(T _ 'Kaydet ve geri' 'Save & back')"
         echo
-        read -r -p "$(T _ 'Secim: ' 'Choice: ')" _c || return 0
+        printf '%s' "$(T _ 'Secim: ' 'Choice: ')"; read -r _c || return 0
 
         case "$_c" in
             1)
@@ -9430,7 +9445,7 @@ echo
                     case "$_v" in
                         0|1) HM_AUTOUPDATE_MODE="$_v" ;;
                         2)healthmon_print_autoupdate_warning
-read -r -p "$(T TXT_HM_AUTOUPDATE_WARN_L3)" _w
+printf '%s' "$(T TXT_HM_AUTOUPDATE_WARN_L3)"; read -r _w
                             case "$_w" in
     y|Y|e|E)
         HM_AUTOUPDATE_MODE="2"
