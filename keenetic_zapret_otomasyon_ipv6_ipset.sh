@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.1"
+SCRIPT_VERSION="v26.3.3"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -59,6 +59,7 @@ ZKM_SELF_PID="$$"
 ZKM_SKIP_LOCK="0"
 case "$1" in
     --healthmon-daemon) ZKM_SKIP_LOCK="1" ;;
+    --telegram-daemon)  ZKM_SKIP_LOCK="1" ;;
     --self-test)        ZKM_SKIP_LOCK="1" ; ZKM_SELF_TEST="1" ;;
     --dev|--developer)  ZKM_DEV_CHECK="1" ;;
 esac
@@ -1086,8 +1087,8 @@ TXT_TG_DEVICE_LABEL_EN="Router"
 TXT_TG_EVENT_LABEL_TR="Olay"
 TXT_TG_EVENT_LABEL_EN="Event"
 
-TXT_TG_STATUS_ACTIVE_TR="Durum: AKTIF"
-TXT_TG_STATUS_ACTIVE_EN="Status: ACTIVE"
+TXT_TG_STATUS_ACTIVE_TR="Bildirimler: AKTIF (Token ve ChatID kayitli)"
+TXT_TG_STATUS_ACTIVE_EN="Notifications: ACTIVE (Token and ChatID saved)"
 
 TXT_TG_STATUS_NOT_CONFIG_TR="Durum: AYARLANMAMIS"
 TXT_TG_STATUS_NOT_CONFIG_EN="Status: NOT CONFIGURED"
@@ -1143,6 +1144,12 @@ TXT_HM_TITLE_EN="System Health Monitor"
 
 TXT_HM_BANNER_LABEL_TR="Saglik Mon."
 TXT_HM_BANNER_LABEL_EN="Health Mon."
+TXT_TGBOT_BANNER_LABEL_TR="Telegram Bot"
+TXT_TGBOT_BANNER_LABEL_EN="Telegram Bot"
+TXT_TGBOT_BANNER_ACTIVE_TR="AKTIF"
+TXT_TGBOT_BANNER_ACTIVE_EN="ACTIVE"
+TXT_TGBOT_BANNER_INACTIVE_TR="KAPALI"
+TXT_TGBOT_BANNER_INACTIVE_EN="INACTIVE"
 TXT_SCHED_BANNER_LABEL_TR="Tekrar Baslat"
 TXT_SCHED_BANNER_LABEL_EN="Sched.Reboot"
 
@@ -1440,6 +1447,18 @@ Use Main Menu > Option 6 to update Zapret
 🔖 Installed: %CUR%
 🆕 Latest   : %NEW%
 🔗 Link     : %URL%"
+TXT_UPD_ZAPRET_ROLLED_TR="[Uyari] Zapret geri cekilmis surum
+Ana Menu > 6 ile GitHub surumunu yeniden yukleyin
+
+📦 Paket  : Zapret
+⚠️ Kurulu : %CUR% (geri cekilmis)
+✅ Stabil : %NEW%"
+TXT_UPD_ZAPRET_ROLLED_EN="[Warning] Zapret pulled release
+Use Main Menu > 6 to reinstall from GitHub
+
+📦 Package  : Zapret
+⚠️ Installed: %CUR% (pulled)
+✅ Stable  : %NEW%"
 TXT_UPD_ZKM_AUTO_OK_TR="[OtoGuncelleme]\nKZM otomatik kurulum basarili.\nBetigi yeniden calistirin.\n\n📦 Paket  : KZM\n🔖 Mevcut : %CUR%\n🆕 Yeni   : %NEW%\n🔗 Link   : %URL%"
 TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\n📦 Package  : KZM\n🔖 Current  : %CUR%\n🆕 Latest   : %NEW%\n🔗 Link     : %URL%"
 
@@ -1543,6 +1562,133 @@ TXT_TG_UP_LABEL_EN="Up"
 TXT_TG_DURATION_LABEL_TR="Sure"
 TXT_TG_DURATION_LABEL_EN="Duration"
 
+# TR/EN Dictionary (Telegram Bot)
+TXT_TGBOT_MENU_TITLE_TR="KZM Ana Menu"
+TXT_TGBOT_MENU_TITLE_EN="KZM Main Menu"
+TXT_TGBOT_BTN_STATUS_TR="Durum"
+TXT_TGBOT_BTN_STATUS_EN="Status"
+TXT_TGBOT_BTN_ZAPRET_TR="Zapret"
+TXT_TGBOT_BTN_ZAPRET_EN="Zapret"
+TXT_TGBOT_BTN_SYSTEM_TR="Sistem"
+TXT_TGBOT_BTN_SYSTEM_EN="System"
+TXT_TGBOT_BTN_LOGS_TR="Loglar"
+TXT_TGBOT_BTN_LOGS_EN="Logs"
+TXT_TGBOT_LOG_MENU_TITLE_TR="Log Secenekleri"
+TXT_TGBOT_LOG_MENU_TITLE_EN="Log Options"
+TXT_TGBOT_BTN_KZMLOG_TR="KZM Log"
+TXT_TGBOT_BTN_KZMLOG_EN="KZM Log"
+TXT_TGBOT_BTN_SYSLOG_TR="Sistem Log"
+TXT_TGBOT_BTN_SYSLOG_EN="System Log"
+TXT_TGBOT_BTN_BACK_TR="Geri"
+TXT_TGBOT_BTN_BACK_EN="Back"
+TXT_TGBOT_BTN_START_TR="Baslat"
+TXT_TGBOT_BTN_START_EN="Start"
+TXT_TGBOT_BTN_STOP_TR="Durdur"
+TXT_TGBOT_BTN_STOP_EN="Stop"
+TXT_TGBOT_BTN_RESTART_TR="Yeniden Baslat"
+TXT_TGBOT_BTN_RESTART_EN="Restart"
+TXT_TGBOT_BTN_REBOOT_TR="Yeniden Baslat (Router)"
+TXT_TGBOT_BTN_REBOOT_EN="Reboot Router"
+TXT_TGBOT_BTN_REBOOT_CONFIRM_TR="Onayla - Yeniden Baslat"
+TXT_TGBOT_BTN_REBOOT_CONFIRM_EN="Confirm Reboot"
+TXT_TGBOT_BTN_CANCEL_TR="Iptal"
+TXT_TGBOT_BTN_CANCEL_EN="Cancel"
+TXT_TGBOT_BTN_KZM_UPDATE_TR="KZM Guncelle"
+TXT_TGBOT_BTN_KZM_UPDATE_EN="Update KZM"
+TXT_TGBOT_BTN_ZAP_UPDATE_TR="Zapret Guncelle"
+TXT_TGBOT_BTN_ZAP_UPDATE_EN="Update Zapret"
+TXT_TGBOT_STATUS_RUNNING_TR="Calisiyor"
+TXT_TGBOT_STATUS_RUNNING_EN="Running"
+TXT_TGBOT_STATUS_STOPPED_TR="Durduruldu"
+TXT_TGBOT_STATUS_STOPPED_EN="Stopped"
+TXT_TGBOT_STATUS_UNKNOWN_TR="Bilinmiyor"
+TXT_TGBOT_STATUS_UNKNOWN_EN="Unknown"
+TXT_TGBOT_REBOOT_SENT_TR="Yeniden baslatma komutu gonderildi."
+TXT_TGBOT_REBOOT_SENT_EN="Reboot command sent."
+TXT_TGBOT_ZAPRET_STARTED_TR="Zapret baslatildi."
+TXT_TGBOT_ZAPRET_STARTED_EN="Zapret started."
+TXT_TGBOT_ZAPRET_STOPPED_TR="Zapret durduruldu."
+TXT_TGBOT_ZAPRET_STOPPED_EN="Zapret stopped."
+TXT_TGBOT_ZAPRET_RESTARTED_TR="Zapret yeniden baslatildi."
+TXT_TGBOT_ZAPRET_RESTARTED_EN="Zapret restarted."
+TXT_TGBOT_UPDATE_STARTED_TR="Guncelleme baslatildi, lutfen bekleyin..."
+TXT_TGBOT_UPDATE_STARTED_EN="Update started, please wait..."
+TXT_TGBOT_UPDATE_DONE_TR="Guncelleme tamamlandi."
+TXT_TGBOT_UPDATE_DONE_EN="Update completed."
+TXT_TGBOT_UPDATE_FAIL_TR="Guncelleme basarisiz."
+TXT_TGBOT_UPDATE_FAIL_EN="Update failed."
+TXT_TGBOT_ALREADY_UPTODATE_TR="KZM zaten guncel."
+TXT_TGBOT_ALREADY_UPTODATE_EN="KZM is already up to date."
+TXT_TGBOT_NO_LOGS_TR="Log bulunamadi."
+TXT_TGBOT_NO_LOGS_EN="No logs found."
+TXT_TGBOT_MENU_ZAPRET_TITLE_TR="Zapret Yonetimi"
+TXT_TGBOT_MENU_ZAPRET_TITLE_EN="Zapret Management"
+TXT_TGBOT_MENU_KZM_TITLE_TR="KZM Yonetimi"
+TXT_TGBOT_MENU_KZM_TITLE_EN="KZM Management"
+TXT_TGBOT_BTN_KZM_TR="KZM"
+TXT_TGBOT_BTN_KZM_EN="KZM"
+TXT_TGBOT_MENU_SISTEM_TITLE_TR="Sistem"
+TXT_TGBOT_MENU_SISTEM_TITLE_EN="System"
+TXT_TGBOT_BTN_NET_DEVICES_TR="Ag Cihazlari"
+TXT_TGBOT_BTN_NET_DEVICES_EN="Network Devices"
+TXT_TGBOT_BTN_WIFI_TR="Wifi Yonetim"
+TXT_TGBOT_BTN_WIFI_EN="Wifi Management"
+TXT_TGBOT_NET_DEVICES_TITLE_TR="Bagli Cihazlar"
+TXT_TGBOT_NET_DEVICES_TITLE_EN="Connected Devices"
+TXT_TGBOT_NET_NO_DEVICES_TR="Bagli cihaz bulunamadi."
+TXT_TGBOT_NET_NO_DEVICES_EN="No connected devices found."
+TXT_TGBOT_WIFI_TITLE_TR="Wifi Durumu"
+TXT_TGBOT_WIFI_TITLE_EN="Wifi Status"
+TXT_TGBOT_WIFI_NO_IF_TR="Wifi arayuzu bulunamadi."
+TXT_TGBOT_WIFI_NO_IF_EN="No wifi interface found."
+TXT_TGBOT_SISTEM_HEADER_ISIM_TR="Isim"
+TXT_TGBOT_SISTEM_HEADER_ISIM_EN="Name"
+TXT_TGBOT_SISTEM_HEADER_MODEL_TR="Model"
+TXT_TGBOT_SISTEM_HEADER_MODEL_EN="Model"
+TXT_TGBOT_DEVICE_KEENDNS_LABEL_TR="KeenDNS"
+TXT_TGBOT_DEVICE_KEENDNS_LABEL_EN="KeenDNS"
+TXT_TGBOT_DEVICE_RELEASE_LABEL_TR="Release"
+TXT_TGBOT_DEVICE_RELEASE_LABEL_EN="Release"
+TXT_TGBOT_DEVICE_TRAFFIC_LABEL_TR="Trafik (WAN)"
+TXT_TGBOT_DEVICE_TRAFFIC_LABEL_EN="Traffic (WAN)"
+TXT_TGBOT_BTN_SELFTEST_TR="Selftest"
+TXT_TGBOT_BTN_SELFTEST_EN="Selftest"
+TXT_TGBOT_SELFTEST_PASS_TR="PASS=0 - Tum testler basarili."
+TXT_TGBOT_SELFTEST_PASS_EN="PASS=0 - All tests passed."
+TXT_TGBOT_SELFTEST_FAIL_TR="Selftest hata buldu."
+TXT_TGBOT_SELFTEST_FAIL_EN="Selftest found errors."
+TXT_TGBOT_MENU_LOGS_TITLE_TR="Son Loglar"
+TXT_TGBOT_MENU_LOGS_TITLE_EN="Recent Logs"
+TXT_TGBOT_BOT_ENABLE_TR="Bot aktif mi"
+TXT_TGBOT_BOT_ENABLE_EN="Bot enabled"
+TXT_TGBOT_POLL_SEC_TR="Polling araligi (saniye)"
+TXT_TGBOT_POLL_SEC_EN="Polling interval (seconds)"
+TXT_TGBOT_MENU_BOT_TITLE_TR="Telegram Bot Yonetimi"
+TXT_TGBOT_MENU_BOT_TITLE_EN="Telegram Bot Management"
+TXT_TGBOT_BOT_STATUS_ACTIVE_TR="AKTIF - 2 yonlu haberlesme calisiyor"
+TXT_TGBOT_BOT_STATUS_ACTIVE_EN="ACTIVE - 2-way communication running"
+TXT_TGBOT_BOT_STATUS_INACTIVE_TR="Bot KAPALI"
+TXT_TGBOT_BOT_STATUS_INACTIVE_EN="Bot DISABLED"
+TXT_TGBOT_ENABLE_BOT_TR="Botu Etkinlestir / Ayarla"
+TXT_TGBOT_ENABLE_BOT_EN="Enable / Configure Bot"
+TXT_TGBOT_DISABLE_BOT_TR="Botu Devre Disi Birak"
+TXT_TGBOT_DISABLE_BOT_EN="Disable Bot"
+TXT_TGBOT_RESTART_BOT_TR="Botu Yeniden Baslat"
+TXT_TGBOT_RESTART_BOT_EN="Restart Bot"
+TXT_TGBOT_ENTER_POLL_TR="Polling araligi saniye cinsinden girin (varsayilan 5): "
+TXT_TGBOT_ENTER_POLL_EN="Enter polling interval in seconds (default 5): "
+TXT_TGBOT_BOT_STARTED_TR="Bot baslatildi."
+TXT_TGBOT_BOT_STARTED_EN="Bot started."
+TXT_TGBOT_BOT_STOPPED_TR="Bot durduruldu."
+TXT_TGBOT_BOT_STOPPED_EN="Bot stopped."
+TXT_TGBOT_BOT_NOT_CONFIG_TR="Bot yapilandirilmamis. Once Telegram token ve chat ID girin."
+TXT_TGBOT_BOT_NOT_CONFIG_EN="Bot not configured. Enter Telegram token and chat ID first."
+TXT_TGBOT_AUTOSTART_CREATED_TR="Autostart dosyasi olusturuldu."
+TXT_TGBOT_AUTOSTART_CREATED_EN="Autostart file created."
+TXT_TGBOT_AUTOSTART_REMOVED_TR="Autostart dosyasi silindi."
+TXT_TGBOT_AUTOSTART_REMOVED_EN="Autostart file removed."
+TXT_TGBOT_ROUTER_ID_LABEL_TR="Router Kimlik"
+TXT_TGBOT_ROUTER_ID_LABEL_EN="Router ID"
 TXT_HEALTH_DNS_LOCAL_TR="DNS (Yerel resolver 127.0.0.1)"
 TXT_HEALTH_DNS_LOCAL_EN="DNS (Local resolver 127.0.0.1)"
 
@@ -2285,6 +2431,10 @@ TXT_DEVICE_VERSION_EN="Installed"
 
 TXT_UPTODATE_TR="En guncel surumu kullaniyorsunuz."
 TXT_UPTODATE_EN="You are using the latest version."
+TXT_ZAP_NEWER_LOCAL_TR="Kurulu surum GitHub'dakinden YENI (geri cekilmis olabilir). GitHub surumunu yeniden yuklemek ister misiniz? (e/h): "
+TXT_ZAP_NEWER_LOCAL_EN="Installed version is NEWER than GitHub (may have been pulled). Reinstall GitHub version? (y/n): "
+TXT_ZAP_NEWER_LOCAL_WARN_TR="UYARI: Kurulu surum GitHub'da mevcut degil veya geri cekilmis."
+TXT_ZAP_NEWER_LOCAL_WARN_EN="WARNING: Installed version is not available on GitHub or was pulled back."
 
 TXT_GITHUB_FAIL_TR="HATA: GitHub uzerinden surum bilgisi alinamadi."
 TXT_GITHUB_FAIL_EN="ERROR: Could not fetch version info from GitHub."
@@ -2809,10 +2959,10 @@ select_dpi_profile() {
 
     if [ "$origin" = "auto" ]; then
         # Auto: show current as Blockcheck, and show base profile separately
-        printf "\033[1;32m%s: %s\033[0m\n" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T TXT_ACTIVE_DPI_AUTO)"
+        printf "%b%s: %s%b\n" "${CLR_GREEN}${CLR_BOLD}" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T TXT_ACTIVE_DPI_AUTO)" "${CLR_RESET}"
         printf "%s: %s\n" "$(T TXT_DPI_BASE_PROFILE)" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")"
     else
-        printf "\033[1;32m%s: %s\033[0m\n" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")"
+        printf "%b%s: %s%b\n" "${CLR_GREEN}${CLR_BOLD}" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T dpi_curp "$(dpi_profile_name_tr "$cur")" "$(dpi_profile_name_en "$cur")")" "${CLR_RESET}"
     fi
 							 
 																																	  
@@ -3949,10 +4099,15 @@ check_remote_update() {
 
     # Renkleri duruma gore ata
     local CLR_REMOTE CLR_LOCAL
-    if ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
+    if [ "$REMOTE_VER" = "$LOCAL_VER" ]; then
+        # Guncel: ikisi de yesil
+        CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
+    elif ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
+        # Normal guncelleme: remote yeni (yesil), local eski (sari)
         CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_YELLOW}"
     else
-        CLR_REMOTE="${CLR_BOLD}${CLR_YELLOW}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
+        # Geri cekilen release: local daha yeni ama hatali (kirmizi), remote stabil (yesil)
+        CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_RED}"
     fi
     print_line "-"
     printf " %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
@@ -3968,26 +4123,44 @@ check_remote_update() {
 
     print_line "-"
 
-    if [ "$REMOTE_VER" = "$LOCAL_VER" ] || ! ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
+    if [ "$REMOTE_VER" = "$LOCAL_VER" ]; then
         printf 'ok' > /opt/etc/zkm_sha256_zapret.state
         print_status PASS "$(T TXT_UPTODATE)"
         press_enter_to_continue
         return 0
     fi
 
-    print_status WARN "$(T _ 'Yeni surum mevcut!' 'New version available!')"
-    echo ""
-    printf "%s" "$(T TXT_ZAP_UPDATE_CONFIRM)"
-    read -r ans
-    case "$ans" in
-        e|E|y|Y)
-            echo ""
-            update_zapret
-            ;;
-        *)
-            print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
-            ;;
-    esac
+    if ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
+        # Normal guncelleme: GitHub daha yeni
+        print_status WARN "$(T _ 'Yeni surum mevcut!' 'New version available!')"
+        echo ""
+        printf "%s" "$(T TXT_ZAP_UPDATE_CONFIRM)"
+        read -r ans
+        case "$ans" in
+            e|E|y|Y)
+                echo ""
+                update_zapret
+                ;;
+            *)
+                print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
+                ;;
+        esac
+    else
+        # Kurulu surum GitHub'dakinden yeni: geri cekilmis release senaryosu
+        print_status WARN "$(T TXT_ZAP_NEWER_LOCAL_WARN)"
+        echo ""
+        printf "%s" "$(T TXT_ZAP_NEWER_LOCAL)"
+        read -r ans
+        case "$ans" in
+            e|E|y|Y)
+                echo ""
+                update_zapret
+                ;;
+            *)
+                print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
+                ;;
+        esac
+    fi
     press_enter_to_continue
 }
 
@@ -4320,9 +4493,9 @@ manage_ipset_clients() {
         [ -z "$MODE" ] && MODE="all"
 
         if [ "$MODE" = "list" ]; then
-            printf '\033[1;33m%s\033[0m\n' "$(T ipset_mode 'Mod: Secili IP' 'Mode: Selected IPs')"
+            printf '%b%s%b\n' "${CLR_ORANGE}${CLR_BOLD}" "$(T ipset_mode 'Mod: Secili IP' 'Mode: Selected IPs')" "${CLR_RESET}"
         else
-            printf '\033[1;32m%s\033[0m\n' "$(T ipset_mode 'Mod: Tum ag' 'Mode: Whole network')"
+            printf '%b%s%b\n' "${CLR_GREEN}${CLR_BOLD}" "$(T ipset_mode 'Mod: Tum ag' 'Mode: Whole network')" "${CLR_RESET}"
         fi
         echo ""
 
@@ -4571,7 +4744,7 @@ nozapret_remove_rules() {
 # Mevcut muafiyet listesini gosterir
 nozapret_show_status() {
     print_line "-"
-    printf '\033[1;36m %s\033[0m\n' "$(T TXT_NOZAPRET_TITLE)"
+    printf '%b %s%b\n' "${CLR_CYAN}${CLR_BOLD}" "$(T TXT_NOZAPRET_TITLE)" "${CLR_RESET}"
     print_line "-"
     if [ ! -f "$NOZAPRET_FILE" ] || [ ! -s "$NOZAPRET_FILE" ]; then
         echo "  $(T TXT_NOZAPRET_EMPTY)"
@@ -4582,14 +4755,14 @@ nozapret_show_status() {
             line="$(echo "$line" | tr -d '[:space:]')"
             [ -z "$line" ] && continue
             i=$((i+1))
-            printf '  \033[1;33m%2d.\033[0m %s\n' "$i" "$line"
+            printf '  %b%2d.%b %s\n' "${CLR_ORANGE}${CLR_BOLD}" "$i" "${CLR_RESET}" "$line"
         done < "$NOZAPRET_FILE"
         if [ "$i" -eq 0 ]; then
             echo "  $(T TXT_NOZAPRET_EMPTY)"
         fi
     fi
     echo ""
-    printf '\033[1;32m%s\033[0m\n' "$(T TXT_NOZAPRET_IPSET_ACTIVE)"
+    printf '%b%s%b\n' "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_NOZAPRET_IPSET_ACTIVE)" "${CLR_RESET}"
     ipset list "$NOZAPRET_IPSET_NAME" 2>/dev/null | grep -E '^[0-9]' | \
         while read -r ip; do printf '    %s\n' "$ip"; done || \
         echo "$(T TXT_NOZAPRET_IPSET_EMPTY)"
@@ -4601,7 +4774,7 @@ manage_nozapret_menu() {
     while true; do
         clear
         print_line "="
-        printf '\033[1;36m  %s\033[0m\n' "$(T TXT_NOZAPRET_TITLE)"
+        printf '%b  %s%b\n' "${CLR_CYAN}${CLR_BOLD}" "$(T TXT_NOZAPRET_TITLE)" "${CLR_RESET}"
         echo ""
         printf '  %s\n' "$(T TXT_NOZAPRET_DESC)"
         print_line "="
@@ -5109,7 +5282,7 @@ fi
 if ! ver_is_newer "$REMOTE_FILE_VER" "$LOCAL_VER"; then
     echo "$(T mgr_update_skip 'Guncelleme atlandi (downgrade engellendi).' 'Update skipped (downgrade blocked).') $(T _ 'Kurulu:' 'Local:') $LOCAL_VER, $(T _ 'GitHub:' 'Remote:') $REMOTE_FILE_VER"
     rm -f "$TMP_FILE" 2>/dev/null
-    return 0
+    return 2
 fi
 
     # Backup current script if present
@@ -6202,6 +6375,16 @@ display_menu() {
     else
         printf "  %b%-*s%b : %b%s%b\n"  "${CLR_BOLD}" "$_lw" "$(T TXT_HM_BANNER_LABEL)" \
             "${CLR_RESET}" "${CLR_RED}"    "$(T TXT_HM_RUN_OFF)" "${CLR_RESET}"
+    fi
+    # Telegram Bot - sadece TG_BOT_ENABLE=1 ise goster
+    if [ "$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')" = "1" ]; then
+        if [ -f "/tmp/zkm_telegram_bot.pid" ] && kill -0 "$(cat "/tmp/zkm_telegram_bot.pid" 2>/dev/null)" 2>/dev/null; then
+            printf "  %b%-*s%b : %b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T TXT_TGBOT_BANNER_LABEL)" \
+                "${CLR_RESET}" "${CLR_GREEN}" "$(T TXT_TGBOT_BANNER_ACTIVE)" "${CLR_RESET}"
+        else
+            printf "  %b%-*s%b : %b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T TXT_TGBOT_BANNER_LABEL)" \
+                "${CLR_RESET}" "${CLR_RED}"   "$(T TXT_TGBOT_BANNER_INACTIVE)" "${CLR_RESET}"
+        fi
     fi
     local _kzm_sha_state _zap_sha_state _clr_kzm _clr_zap
     _kzm_sha_state="$(cat /opt/etc/zkm_sha256_kzm.state 2>/dev/null)"
@@ -7527,7 +7710,16 @@ TG_CONF_FILE="/opt/etc/telegram.conf"
 telegram_load_config() {
     TG_BOT_TOKEN=""
     TG_CHAT_ID=""
+    TG_BOT_ENABLE="0"
+    TG_BOT_POLL_SEC="5"
+    TG_ROUTER_ID=""
     [ -f "$TG_CONF_FILE" ] && . "$TG_CONF_FILE" 2>/dev/null
+    # Bos ise hostname'den al
+    if [ -z "$TG_ROUTER_ID" ]; then
+        TG_ROUTER_ID="$(hostname 2>/dev/null)"
+        [ -z "$TG_ROUTER_ID" ] && TG_ROUTER_ID="$(cat /proc/sys/kernel/hostname 2>/dev/null)"
+        [ -z "$TG_ROUTER_ID" ] && TG_ROUTER_ID="keenetic"
+    fi
     # validate minimal
     [ -n "$TG_BOT_TOKEN" ] && [ -n "$TG_CHAT_ID" ] || return 1
     return 0
@@ -7808,15 +8000,19 @@ tpl_render() {
 }
 
 telegram_write_config() {
-    # $1 token, $2 chatid
+    # $1 token, $2 chatid, $3 bot_enable (opt), $4 poll_sec (opt)
     local token="$1"
     local chatid="$2"
-
+    local bot_enable="${3:-${TG_BOT_ENABLE:-0}}"
+    local poll_sec="${4:-${TG_BOT_POLL_SEC:-5}}"
+    # Router ID her zaman hostname'den alinir, config'e yazilmaz
     mkdir -p /opt/etc 2>/dev/null
     umask 077
     cat >"$TG_CONF_FILE" <<EOF
 TG_BOT_TOKEN="$token"
 TG_CHAT_ID="$chatid"
+TG_BOT_ENABLE="$bot_enable"
+TG_BOT_POLL_SEC="$poll_sec"
 EOF
     chmod 600 "$TG_CONF_FILE" 2>/dev/null
 }
@@ -7845,6 +8041,7 @@ telegram_notifications_menu() {
         echo " 1) $(T TXT_TG_SAVE_UPDATE)"
         echo " 2) $(T TXT_TG_SEND_TEST)"
         echo " 3) $(T TXT_TG_DELETE_RESET)"
+        echo " 4) $(T TXT_TGBOT_MENU_BOT_TITLE)"
         echo " 0) $(T TXT_BACK)"
         print_line "-"
         printf "%s" "$(T TXT_CHOICE) "
@@ -7888,6 +8085,918 @@ telegram_notifications_menu() {
                 print_status PASS "$(T TXT_TG_CONFIG_DELETED)"
                 press_enter_to_continue
                 ;;
+            4) telegram_bot_menu ;;
+            0) return 0 ;;
+            *) echo "$(T TXT_INVALID_CHOICE)" ; sleep 1 ;;
+        esac
+    done
+}
+
+# -------------------------------------------------------------------
+# TELEGRAM BOT (INTERACTIVE)
+# -------------------------------------------------------------------
+TG_BOT_PID_FILE="/tmp/zkm_telegram_bot.pid"
+TG_BOT_LOG_FILE="/tmp/zkm_telegram_bot.log"
+TG_BOT_AUTOSTART="/opt/etc/init.d/S98zkm_telegram"
+_TGBOT_TMP="/tmp/zkm_tgbot_resp.json"
+
+# Low-level: call Telegram Bot API, save response to tmp file
+# $1=method, $2=JSON body
+# returns 0 on success, response in $_TGBOT_TMP
+_tgbot_api() {
+    local method="$1"
+    local body="$2"
+    local CURL_BIN
+    CURL_BIN="$(command -v curl 2>/dev/null)"
+    [ -z "$CURL_BIN" ] && [ -x /opt/bin/curl ] && CURL_BIN="/opt/bin/curl"
+    [ -z "$CURL_BIN" ] && return 1
+    "$CURL_BIN" -sS --connect-timeout 8 --max-time 25 \
+        -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/${method}" \
+        -H "Content-Type: application/json" \
+        -d "$body" > "$_TGBOT_TMP" 2>/dev/null
+}
+
+# Safe text: escape backslash and double-quote for JSON string
+_tgbot_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/ /g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//'
+}
+
+
+# Send file as document
+# $1=chat_id, $2=filepath, $3=caption (optional)
+tgbot_send_document() {
+    local chat_id="$1"
+    local filepath="$2"
+    local caption="${3:-}"
+    local CURL_BIN
+    CURL_BIN="$(command -v curl 2>/dev/null)"
+    [ -z "$CURL_BIN" ] && [ -x /opt/bin/curl ] && CURL_BIN="/opt/bin/curl"
+    [ -z "$CURL_BIN" ] && return 1
+    [ ! -f "$filepath" ] && return 1
+    if [ -n "$caption" ]; then
+        "$CURL_BIN" -sS --connect-timeout 8 --max-time 60 \
+            -F "chat_id=${chat_id}" \
+            -F "document=@${filepath}" \
+            -F "caption=${caption}" \
+            "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" >/dev/null 2>&1
+    else
+        "$CURL_BIN" -sS --connect-timeout 8 --max-time 60 \
+            -F "chat_id=${chat_id}" \
+            -F "document=@${filepath}" \
+            "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" >/dev/null 2>&1
+    fi
+}
+
+# Send new message with optional inline keyboard
+# $1=chat_id, $2=text, $3=keyboard_json (optional, empty string = no keyboard)
+tgbot_send() {
+    local chat_id="$1"
+    local text="$2"
+    local keyboard="$3"
+    local safe
+    safe="$(_tgbot_escape "$text")"
+    local body
+    if [ -n "$keyboard" ]; then
+        body="{\"chat_id\":${chat_id},\"text\":\"${safe}\",\"reply_markup\":{\"inline_keyboard\":${keyboard}}}"
+    else
+        body="{\"chat_id\":${chat_id},\"text\":\"${safe}\"}"
+    fi
+    if _tgbot_api "sendMessage" "$body"; then
+        grep -q '"ok":true' "$_TGBOT_TMP" 2>/dev/null || \
+            printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | send failed: $(head -c 120 "$_TGBOT_TMP" 2>/dev/null)" >> "$TG_BOT_LOG_FILE"
+    fi
+}
+
+# Edit existing message
+# $1=chat_id, $2=message_id, $3=text, $4=keyboard_json (optional)
+tgbot_edit() {
+    local chat_id="$1"
+    local msg_id="$2"
+    local text="$3"
+    local keyboard="$4"
+    local safe
+    safe="$(_tgbot_escape "$text")"
+    local body
+    if [ -n "$keyboard" ]; then
+        body="{\"chat_id\":${chat_id},\"message_id\":${msg_id},\"text\":\"${safe}\",\"reply_markup\":{\"inline_keyboard\":${keyboard}}}"
+    else
+        body="{\"chat_id\":${chat_id},\"message_id\":${msg_id},\"text\":\"${safe}\",\"reply_markup\":{\"inline_keyboard\":[]}}"
+    fi
+    _tgbot_api "editMessageText" "$body" >/dev/null 2>&1
+}
+
+# Answer callback query (dismiss spinner)
+# $1=callback_query_id
+tgbot_ack() {
+    _tgbot_api "answerCallbackQuery" "{\"callback_query_id\":\"$1\"}" >/dev/null 2>&1
+}
+
+# Keyboards
+tgbot_kb_main() {
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"📊 %s","callback_data":"%s:menu_status"},{"text":"⚙️ %s","callback_data":"%s:menu_sistem"}],[{"text":"🛠️ %s","callback_data":"%s:menu_kzm"},{"text":"🔧 %s","callback_data":"%s:menu_zapret"}],[{"text":"📋 %s","callback_data":"%s:menu_logs"}]]' \
+        "$(T TXT_TGBOT_BTN_STATUS)" "$rid" \
+        "$(T TXT_TGBOT_BTN_SYSTEM)" "$rid" \
+        "$(T TXT_TGBOT_BTN_KZM)" "$rid" \
+        "$(T TXT_TGBOT_BTN_ZAPRET)" "$rid" \
+        "$(T TXT_TGBOT_BTN_LOGS)" "$rid"
+}
+
+tgbot_kb_zapret() {
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"▶️ %s","callback_data":"%s:zap_start"},{"text":"⏹ %s","callback_data":"%s:zap_stop"}],[{"text":"🔄 %s","callback_data":"%s:zap_restart"}],[{"text":"⬆️ %s","callback_data":"%s:zap_update"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]'         "$(T TXT_TGBOT_BTN_START)" "$rid"         "$(T TXT_TGBOT_BTN_STOP)" "$rid"         "$(T TXT_TGBOT_BTN_RESTART)" "$rid"         "$(T TXT_TGBOT_BTN_ZAP_UPDATE)" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+}
+
+tgbot_kb_kzm() {
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"⬆️ %s","callback_data":"%s:sys_kzm_update"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]'         "$(T TXT_TGBOT_BTN_KZM_UPDATE)" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+}
+
+tgbot_kb_reboot_confirm() {
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"✅ %s","callback_data":"%s:sys_reboot_do"},{"text":"❌ %s","callback_data":"%s:sys_device_detail"}]]'         "$(T TXT_TGBOT_BTN_REBOOT_CONFIRM)" "$rid"         "$(T TXT_TGBOT_BTN_CANCEL)" "$rid"
+}
+
+tgbot_kb_sistem() {
+    local rid="${TG_ROUTER_ID:-default}"
+    # Router buton etiketi: "🟢 SweetHome (KN-1812)" formatinda
+    local _dev_label
+    _dev_label="${TG_DEVICE_NAME:-Router}"
+    [ -n "$TG_DEVICE_MODEL" ] && _dev_label="${_dev_label} (${TG_DEVICE_MODEL})"
+    printf '[[{"text":"📡 %s","callback_data":"%s:sys_net_devices"},{"text":"📶 %s","callback_data":"%s:sys_wifi"}],[{"text":"🟢 %s","callback_data":"%s:sys_device_detail"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]'         "$(T TXT_TGBOT_BTN_NET_DEVICES)" "$rid"         "$(T TXT_TGBOT_BTN_WIFI)" "$rid"         "$_dev_label" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+}
+
+# Cihaz detay klavyesi: Reboot / KZM Log + Sistem Log / Selftest / Geri
+tgbot_kb_device() {
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"🔁 %s","callback_data":"%s:sys_reboot_confirm"}],[{"text":"📋 %s","callback_data":"%s:sys_kzmlog"},{"text":"📄 %s","callback_data":"%s:sys_syslog"}],[{"text":"🧪 %s","callback_data":"%s:sys_selftest"}],[{"text":"⬅️ %s","callback_data":"%s:menu_sistem"}]]'         "$(T TXT_TGBOT_BTN_REBOOT)" "$rid"         "$(T TXT_TGBOT_BTN_KZMLOG)" "$rid"         "$(T TXT_TGBOT_BTN_SYSLOG)" "$rid"         "$(T TXT_TGBOT_BTN_SELFTEST)" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+}
+
+# Log alt menu klavyesi
+tgbot_kb_logs() {
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"📋 %s","callback_data":"%s:sys_kzmlog"},{"text":"📄 %s","callback_data":"%s:sys_syslog"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
+        "$(T TXT_TGBOT_BTN_KZMLOG)" "$rid" \
+        "$(T TXT_TGBOT_BTN_SYSLOG)" "$rid" \
+        "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+}
+
+# Ag cihazlari: ndmc show ip hotspot ile aktif hostlari inline keyboard olarak listele
+# $1=offset (sayfalama, varsayilan 0)
+tgbot_net_devices_kb() {
+    local offset="${1:-0}"
+    local rid="${TG_ROUTER_ID:-default}"
+    local page_size=10
+    local hotspot_raw all_names cnt kb next_offset prev_offset nav_row
+    hotspot_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ip hotspot' 2>/dev/null)"
+    # awk ile aktif cihaz adlarini cikart
+    # Format: host: > hostname: > name: (cihaz adi)
+    # hostname: bir alt-bloktur; altindaki name: cihaz adini verir
+    all_names="$(printf '%s\n' "$hotspot_raw" | awk '
+        BEGIN { in_host=0; in_hostname=0; devname=""; active="" }
+        /^[[:space:]]*host:/ {
+            if (in_host && active=="yes" && devname!="") print devname
+            in_host=1; in_hostname=0; devname=""; active=""; next
+        }
+        in_host && /^[[:space:]]*hostname:/ { in_hostname=1; next }
+        in_host && in_hostname && /^[[:space:]]*name:/ {
+            s=$0; sub(/.*name:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s)
+            if(s!="" && s!="-") devname=s
+            in_hostname=0
+        }
+        in_host && /^[[:space:]]*interface:/ { in_hostname=0 }
+        in_host && /^[[:space:]]*active:/ {
+            s=$0; sub(/.*active:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); active=s
+        }
+        END { if (in_host && active=="yes" && devname!="") print devname }
+    ')"
+    cnt="$(printf '%s\n' "$all_names" | grep -c .)"
+    if [ "$cnt" -eq 0 ]; then
+        printf '[[{"text":"⬅️ %s","callback_data":"%s:menu_sistem"}]]' "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+        return
+    fi
+    # Sayfa butonlarini olustur
+    kb="["
+    local row=0
+    while IFS= read -r name; do
+        [ -z "$name" ] && continue
+        row=$((row+1))
+        [ "$row" -le "$offset" ] && continue
+        [ "$row" -gt "$((offset+page_size))" ] && continue
+        # JSON icin cift tirnak escape
+        local safe_name
+        safe_name="$(printf '%s' "$name" | sed 's/"/\\"/g')"
+        kb="${kb}[{\"text\":\"🟢 ${safe_name}\",\"callback_data\":\"${rid}:noop\"}],"
+    done << NEOF
+$(printf '%s\n' "$all_names")
+NEOF
+    kb="${kb%,}"
+    # Sayfalama satiri
+    nav_row=""
+    next_offset=$((offset+page_size))
+    prev_offset=$((offset-page_size))
+    [ "$prev_offset" -lt 0 ] && prev_offset=0
+    if [ "$offset" -gt 0 ] && [ "$cnt" -gt "$next_offset" ]; then
+        nav_row="{\"text\":\"◀️\",\"callback_data\":\"${rid}:sys_clients_${prev_offset}\"},{\"text\":\"▶️\",\"callback_data\":\"${rid}:sys_clients_${next_offset}\"}"
+    elif [ "$offset" -gt 0 ]; then
+        nav_row="{\"text\":\"◀️\",\"callback_data\":\"${rid}:sys_clients_${prev_offset}\"}"
+    elif [ "$cnt" -gt "$next_offset" ]; then
+        nav_row="{\"text\":\"▶️\",\"callback_data\":\"${rid}:sys_clients_${next_offset}\"}"
+    fi
+    [ -n "$nav_row" ] && kb="${kb},[${nav_row}]"
+    kb="${kb},[{\"text\":\"⬅️ $(T TXT_TGBOT_BTN_BACK)\",\"callback_data\":\"${rid}:menu_sistem\"}]]"
+    printf '%s' "$kb"
+}
+
+# Wifi segmentlerini inline keyboard JSON olarak olustur
+# Her AP icin bireysel show interface sorgusu - link durumu kesin dogru
+tgbot_wifi_kb() {
+    local rid="${TG_ROUTER_ID:-default}"
+    local back_btn
+    back_btn="$(T TXT_TGBOT_BTN_BACK)"
+
+    local rc_raw _tmprc _apfile
+    rc_raw="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
+    _tmprc="/tmp/_zkm_rc_$$.txt"
+    _apfile="/tmp/_zkm_aps_$$.txt"
+    printf '%s\n' "$rc_raw" > "$_tmprc"
+    : > "$_apfile"
+
+    local _cur_id _cur_name _cur_ssid _in_ap
+    _cur_id=""; _cur_name=""; _cur_ssid=""; _in_ap=0
+    while IFS= read -r _rc_line; do
+        case "$_rc_line" in
+            interface\ WifiMaster*)
+                _cur_id="${_rc_line#interface }"
+                _cur_name=""; _cur_ssid=""; _in_ap=1
+                ;;
+            "!"*)
+                if [ "$_in_ap" = "1" ] && [ -n "$_cur_name" ]; then
+                    printf '%s|%s|%s\n' "$_cur_id" "$_cur_name" "$_cur_ssid" >> "$_apfile"
+                fi
+                _cur_id=""; _cur_name=""; _cur_ssid=""; _in_ap=0
+                ;;
+            *)
+                if [ "$_in_ap" = "1" ]; then
+                    case "$_rc_line" in
+                        *"rename "*)
+                            _cur_name="${_rc_line#*rename }"
+                            _cur_name="${_cur_name#\"}"
+                            _cur_name="${_cur_name%\"}"
+                            ;;
+                        *"ssid "*)
+                            _cur_ssid="${_rc_line#*ssid }"
+                            _cur_ssid="${_cur_ssid#\"}"
+                            _cur_ssid="${_cur_ssid%\"}"
+                            ;;
+                    esac
+                fi
+                ;;
+        esac
+    done < "$_tmprc"
+    if [ "$_in_ap" = "1" ] && [ -n "$_cur_name" ]; then
+        printf '%s|%s|%s\n' "$_cur_id" "$_cur_name" "$_cur_ssid" >> "$_apfile"
+    fi
+    rm -f "$_tmprc" 2>/dev/null
+
+    local out="" cnt=0
+    while IFS="|" read -r _apid _apname _apssid; do
+        [ -z "$_apid" ] || [ -z "$_apname" ] && continue
+        local _iface_out _aplink
+        _iface_out="$(LD_LIBRARY_PATH= ndmc -c "show interface ${_apname}" 2>/dev/null)"
+        _aplink="$(printf '%s\n' "$_iface_out" | grep '^[[:space:]]*link:' | head -1 \
+            | sed 's/.*link:[[:space:]]*//' | tr -d ' ')"
+        if [ -z "$_apssid" ]; then
+            _apssid="$(printf '%s\n' "$_iface_out" \
+                | grep '^[[:space:]]*ssid:' | head -1 \
+                | sed 's/.*ssid:[[:space:]]*//' | tr -d '"')"
+        fi
+        [ -z "$_apssid" ] && _apssid="$_apname"
+        local _band
+        case "$_apid" in
+            *WifiMaster1/*) _band="5GHz" ;;
+            *) _band="2.4GHz" ;;
+        esac
+        local _dot _tog _safename _lbl
+        _safename="$(printf '%s' "$_apname" | sed 's/[^a-zA-Z0-9_]/_/g')"
+        if [ "$_aplink" = "up" ]; then
+            _dot="🟢"; _tog="wifi_off_${_safename}"
+        else
+            _dot="⚪"; _tog="wifi_on_${_safename}"
+        fi
+        _lbl="$(printf '%s (%s)' "$_apssid" "$_band" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+        [ -n "$out" ] && out="${out},"
+        out="${out}[{\"text\":\"${_dot} ${_lbl}\",\"callback_data\":\"${rid}:${_tog}\"}]"
+        cnt=$((cnt+1))
+    done < "$_apfile"
+    rm -f "$_apfile" 2>/dev/null
+
+    if [ "$cnt" -eq 0 ]; then
+        printf '[[{"text":"(bos)","callback_data":"%s:noop"}],[{"text":"⬅️ %s","callback_data":"%s:menu_sistem"}]]' \
+            "$rid" "$back_btn" "$rid"
+    else
+        printf '[%s,[{"text":"⬅️ %s","callback_data":"%s:menu_sistem"}]]' \
+            "$out" "$back_btn" "$rid"
+    fi
+}
+# Bayt degerini okunabilir formata cevir (GB/MB/KB)
+_tgbot_fmt_bytes() {
+    local bytes="$1"
+    [ -z "$bytes" ] && { echo "-"; return; }
+    # awk ile hesapla
+    echo "$bytes" | awk '{
+        b = $1 + 0
+        if (b >= 1099511627776) printf "%.2f TB", b/1099511627776
+        else if (b >= 1073741824) printf "%.2f GB", b/1073741824
+        else if (b >= 1048576) printf "%.2f MB", b/1048576
+        else if (b >= 1024) printf "%.2f KB", b/1024
+        else printf "%d B", b
+    }'
+}
+
+# WAN arayuzunden rx/tx bytes oku (/proc/net/dev)
+_tgbot_wan_traffic() {
+    local wan_if="$1"
+    [ -z "$wan_if" ] && { echo "- / -"; return; }
+    local rx tx
+    rx="$(awk -v iface="${wan_if}:" '$1==iface{print $2}' /proc/net/dev 2>/dev/null)"
+    tx="$(awk -v iface="${wan_if}:" '$1==iface{print $10}' /proc/net/dev 2>/dev/null)"
+    [ -z "$rx" ] && rx=0
+    [ -z "$tx" ] && tx=0
+    printf '⬇️%s ⬆️%s' "$(_tgbot_fmt_bytes "$rx")" "$(_tgbot_fmt_bytes "$tx")"
+}
+
+# Cihaz detay metni (resim 2 gibi)
+tgbot_device_detail_text() {
+    telegram_device_info_init >/dev/null 2>&1
+    local name model fw cpu_val mem_val
+    name="${TG_DEVICE_NAME:-Keenetic}"
+    model="${TG_DEVICE_MODEL:-}"
+    fw="$(zkm_banner_get_firmware 2>/dev/null)"
+    [ -z "$fw" ] && fw="-"
+    # CPU (busybox top)
+    cpu_val="$(top -bn1 2>/dev/null | awk '/CPU:/{gsub(/%/,""); print int($2+$4); exit}')"
+    [ -z "$cpu_val" ] && cpu_val="-"
+    # MEM
+    mem_val="$(free 2>/dev/null | awk '/Mem:/{printf "%d%%", ($3/$2)*100}')"
+    [ -z "$mem_val" ] && mem_val="-"
+    # KeenDNS
+    local kdns_str kdns_raw kdns_name kdns_domain
+    kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
+    kdns_name="$(printf '%s' "$kdns_raw" | awk '/name:/{print $2; exit}')"
+    kdns_domain="$(printf '%s' "$kdns_raw" | awk '/domain:/{print $2; exit}')"
+    if [ -n "$kdns_name" ] && [ -n "$kdns_domain" ]; then
+        kdns_str="${kdns_name}.${kdns_domain}"
+    else
+        kdns_str="-"
+    fi
+    # WAN trafik (boot'tan bu yana)
+    local wan_if traffic_str
+    wan_if="$(cat /opt/zapret/wan_if 2>/dev/null)"
+    traffic_str="$(_tgbot_wan_traffic "$wan_if")"
+    # Cikti
+    local out
+    out="Name:  ${name}"
+    [ -n "$model" ] && out="${out} (${model})"
+    out="${out}
+KeenDNS: ${kdns_str}
+Release: ${fw}
+CPU: ${cpu_val}%  MEM: ${mem_val}
+
+$(T TXT_TGBOT_DEVICE_TRAFFIC_LABEL)
+→ $traffic_str"
+    printf '%s' "$out"
+}
+
+
+
+# System status text
+tgbot_status_text() {
+    local zapret_st profile_name wan_if wan_ip lan_ip cpu_val ram_val disk_val uptime_val hm_st
+    if is_zapret_running 2>/dev/null; then
+        zapret_st="$(T TXT_TGBOT_STATUS_RUNNING)"
+    else
+        zapret_st="$(T TXT_TGBOT_STATUS_STOPPED)"
+    fi
+    local _cur_profile
+    _cur_profile="$(get_dpi_profile 2>/dev/null)"
+    if [ -n "$_cur_profile" ]; then
+        profile_name="$(T dpi_pname "$(dpi_profile_name_tr "$_cur_profile" 2>/dev/null)" "$(dpi_profile_name_en "$_cur_profile" 2>/dev/null)")"
+    fi
+    [ -z "$profile_name" ] && profile_name="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    wan_if="$(cat /opt/zapret/wan_if 2>/dev/null)"
+    if [ -n "$wan_if" ]; then
+        wan_ip="$(ip -4 addr show "$wan_if" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d'/' -f1)"
+    fi
+    [ -z "$wan_ip" ] && wan_ip="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    lan_ip=""
+    for _lan_if in br0 bridge0 home0; do
+        lan_ip="$(ip -4 addr show "$_lan_if" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d'/' -f1)"
+        [ -n "$lan_ip" ] && break
+    done
+    [ -z "$lan_ip" ] && lan_ip="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    cpu_val="$(top -bn1 2>/dev/null | awk '/CPU:/{gsub(/%/,""); print int($2+$4); exit}')"
+    [ -z "$cpu_val" ] && cpu_val="-"
+    ram_val="$(free 2>/dev/null | awk '/Mem:/{printf "%d/%d MB", ($3/1024), ($2/1024)}')"
+    [ -z "$ram_val" ] && ram_val="-"
+    disk_val="$(df /opt 2>/dev/null | awk 'NR==2{print $5}')"
+    [ -z "$disk_val" ] && disk_val="-"
+    uptime_val="$(uptime 2>/dev/null | sed 's/.*up //' | cut -d',' -f1)"
+    [ -z "$uptime_val" ] && uptime_val="-"
+    if [ -f /tmp/healthmon.pid ] && kill -0 "$(cat /tmp/healthmon.pid 2>/dev/null)" 2>/dev/null; then
+        hm_st="$(T TXT_TGBOT_STATUS_RUNNING)"
+    else
+        hm_st="$(T TXT_TGBOT_STATUS_STOPPED)"
+    fi
+    local kzm_ver zapret_ver
+    kzm_ver="$(zkm_get_installed_script_version 2>/dev/null)"
+    [ -z "$kzm_ver" ] && kzm_ver="$SCRIPT_VERSION"
+    zapret_ver="$(cat /opt/zapret/version 2>/dev/null)"
+    [ -z "$zapret_ver" ] && zapret_ver="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    printf "Zapret: %s | %s\nWAN IP: %s\nLAN IP: %s\nCPU: %s%% | RAM: %s\nDisk: %s | Uptime: %s\nHealthMon: %s\nKZM: %s | Zapret: %s" \
+        "$zapret_st" "$profile_name" "$wan_ip" "$lan_ip" \
+        "$cpu_val" "$ram_val" "$disk_val" "$uptime_val" "$hm_st" \
+        "$kzm_ver" "$zapret_ver"
+}
+
+# Handle callback query action
+# $1=callback_data, $2=chat_id, $3=message_id, $4=callback_id
+tgbot_handle_callback() {
+    local cb_data="$1"
+    local chat_id="$2"
+    local msg_id="$3"
+    local cb_id="$4"
+
+    # Router ID prefix kontrolu: "rid:action" formatinda
+    local cb_rid cb_action
+    cb_rid="$(printf '%s' "$cb_data" | cut -d':' -f1)"
+    cb_action="$(printf '%s' "$cb_data" | cut -d':' -f2-)"
+    # Eski format (prefix yok) veya kendi ID'si degil ise yok say
+    if [ -z "$cb_action" ]; then
+        # prefix yok - eski format, direkt isle (geriye donuk uyumluluk)
+        cb_action="$cb_rid"
+    elif [ "$cb_rid" != "${TG_ROUTER_ID:-default}" ]; then
+        # Baska routerin callback'i - yoksay
+        tgbot_ack "$cb_id"
+        return 0
+    fi
+
+    tgbot_ack "$cb_id"
+
+    case "$cb_action" in
+        menu_main)
+            tgbot_edit "$chat_id" "$msg_id" \
+                "${TG_ROUTER_ID} | $(T TXT_TGBOT_MENU_TITLE)" "$(tgbot_kb_main)"
+            ;;
+        menu_status)
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(tgbot_status_text)" "$(tgbot_kb_main)"
+            ;;
+        menu_zapret)
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_MENU_ZAPRET_TITLE)" "$(tgbot_kb_zapret)"
+            ;;
+        menu_kzm)
+            tgbot_edit "$chat_id" "$msg_id" \
+                "${TG_ROUTER_ID} | $(T TXT_TGBOT_MENU_KZM_TITLE)" "$(tgbot_kb_kzm)"
+            ;;
+        menu_sistem)
+            telegram_device_info_init >/dev/null 2>&1
+            _dev_header="$(printf '%s: %s\n%s: %s' \
+                "$(T TXT_TGBOT_SISTEM_HEADER_ISIM)" "${TG_DEVICE_NAME:-Keenetic}" \
+                "$(T TXT_TGBOT_SISTEM_HEADER_MODEL)" "${TG_DEVICE_MODEL:--}")"
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$_dev_header" "$(tgbot_kb_sistem)"
+            ;;
+        sys_kzmlog)
+            local _log_file="/tmp/healthmon.log"
+            local _log_tmp="/tmp/tgbot_kzmlog_$$.txt"
+            if [ -f "$_log_file" ] && [ -s "$_log_file" ]; then
+                cp "$_log_file" "$_log_tmp" 2>/dev/null
+                tgbot_send_document "$chat_id" "$_log_tmp" \
+                    "📋 KZM HealthMon Log | ${TG_ROUTER_ID:-router}"
+                rm -f "$_log_tmp" 2>/dev/null
+            else
+                tgbot_send "$chat_id" "$(T TXT_TGBOT_NO_LOGS)" ""
+            fi
+            # Dosyadan sonra log menusunu ALTA taze gonder
+            tgbot_send "$chat_id" \
+                "$(T TXT_TGBOT_LOG_MENU_TITLE)" "$(tgbot_kb_logs)"
+            ;;
+        sys_syslog)
+            local _syslog_tmp="/tmp/tgbot_syslog_$$.txt"
+            LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null > "$_syslog_tmp"
+            if [ -s "$_syslog_tmp" ]; then
+                tgbot_send_document "$chat_id" "$_syslog_tmp" \
+                    "📄 System Log | ${TG_ROUTER_ID:-router}"
+            else
+                tgbot_send "$chat_id" "$(T TXT_TGBOT_NO_LOGS)" ""
+            fi
+            rm -f "$_syslog_tmp" 2>/dev/null
+            # Dosyadan sonra log menusunu ALTA taze gonder
+            tgbot_send "$chat_id" \
+                "$(T TXT_TGBOT_LOG_MENU_TITLE)" "$(tgbot_kb_logs)"
+            ;;
+        menu_logs)
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_LOG_MENU_TITLE)" "$(tgbot_kb_logs)"
+            ;;
+        zap_start)
+            start_zapret >/dev/null 2>&1
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_ZAPRET_STARTED)" "$(tgbot_kb_zapret)"
+            ;;
+        zap_stop)
+            stop_zapret >/dev/null 2>&1
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_ZAPRET_STOPPED)" "$(tgbot_kb_zapret)"
+            ;;
+        zap_restart)
+            restart_zapret >/dev/null 2>&1
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_ZAPRET_RESTARTED)" "$(tgbot_kb_zapret)"
+            ;;
+        zap_update)
+            tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_UPDATE_STARTED)" ""
+            if update_zapret >/dev/null 2>&1; then
+                tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_UPDATE_DONE)" "$(tgbot_kb_zapret)"
+            else
+                tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_UPDATE_FAIL)" "$(tgbot_kb_zapret)"
+            fi
+            ;;
+        sys_kzm_update)
+            tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_UPDATE_STARTED)" ""
+            update_manager_script >/dev/null 2>&1
+            _upd_rc=$?
+            case "$_upd_rc" in
+                0) tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_UPDATE_DONE)" "$(tgbot_kb_kzm)" ;;
+                2) tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_ALREADY_UPTODATE)" "$(tgbot_kb_kzm)" ;;
+                *) tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_UPDATE_FAIL)" "$(tgbot_kb_kzm)" ;;
+            esac
+            ;;
+        sys_net_devices)
+            local _nd_total
+            _nd_total="$(LD_LIBRARY_PATH= ndmc -c 'show ip hotspot' 2>/dev/null | grep -c 'active: yes')"
+            [ -z "$_nd_total" ] && _nd_total=0
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_NET_DEVICES_TITLE) (${_nd_total})" "$(tgbot_net_devices_kb 0)"
+            ;;
+        sys_clients_*)
+            local _pg_offset
+            _pg_offset="$(printf '%s' "$cb_action" | sed 's/sys_clients_//')"
+            _pg_offset="${_pg_offset:-0}"
+            local _nd_total2
+            _nd_total2="$(LD_LIBRARY_PATH= ndmc -c 'show ip hotspot' 2>/dev/null | grep -c 'active: yes')"
+            [ -z "$_nd_total2" ] && _nd_total2=0
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_NET_DEVICES_TITLE) (${_nd_total2})" "$(tgbot_net_devices_kb "$_pg_offset")"
+            ;;
+        sys_wifi)
+            local _wifi_kb _wifi_title _ts
+            _wifi_kb="$(tgbot_wifi_kb)"
+            # Segment sayisi: noop olmayan wifi buton satirlari
+            local _wifi_cnt
+            _wifi_cnt="$(printf '%s' "$_wifi_kb" | grep -o '"callback_data":"[^"]*:wifi_' | grep -c .)"
+            # Title: her zaman farkli olmali (timestamp) - "message is not modified" hatasini onler
+            _ts="$(date +%H:%M 2>/dev/null)"
+            _wifi_title="$(T TXT_TGBOT_WIFI_TITLE) (${_wifi_cnt}) ${_ts}"
+            tgbot_edit "$chat_id" "$msg_id" "$_wifi_title" "$_wifi_kb"
+            ;;
+        noop)
+            # ack zaten yukarda gonderildi, ek islem yok
+            ;;
+        wifi_on_*|wifi_off_*)
+            local _wf_safe _wf_id _wf_cmd
+            if printf '%s' "$cb_action" | grep -q '^wifi_on_'; then
+                _wf_safe="${cb_action#wifi_on_}"
+                _wf_cmd="up"
+            else
+                _wf_safe="${cb_action#wifi_off_}"
+                _wf_cmd="down"
+            fi
+            # Gercek ndmc ID bul (WifiMaster0/AccessPoint1 gibi - rename edilmis olabilir)
+            _wf_id="$(LD_LIBRARY_PATH= ndmc -c "show interface ${_wf_safe}" 2>/dev/null \
+                | grep "^[[:space:]]*id:" | sed "s/.*id:[[:space:]]*//" | tr -d " ")"
+            [ -z "$_wf_id" ] && _wf_id="$_wf_safe"
+            LD_LIBRARY_PATH= ndmc -c "interface ${_wf_id} ${_wf_cmd}" >/dev/null 2>&1
+            LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
+            sleep 2
+            local _wf_kb _wf_cnt _wf_ts
+            _wf_kb="$(tgbot_wifi_kb)"
+            _wf_cnt="$(printf '%s' "$_wf_kb" | grep -o '"callback_data":"[^"]*:wifi_' | grep -c .)"
+            _wf_ts="$(date +%H:%M 2>/dev/null)"
+            tgbot_send "$chat_id" \
+                "$(T TXT_TGBOT_WIFI_TITLE) (${_wf_cnt}) ${_wf_ts}" "$_wf_kb"
+            ;;
+        sys_device_detail)
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(tgbot_device_detail_text)" "$(tgbot_kb_device)"
+            ;;
+        sys_selftest)
+            # Selftest ciktiyi dosya olarak gonder - tam sonucu goruntule
+            local _st_tmp="/tmp/tgbot_selftest_$$.txt"
+            sh "$ZKM_SCRIPT_PATH" --self-test > "$_st_tmp" 2>&1
+            local _st_fail
+            _st_fail="$(grep -c 'FAIL' "$_st_tmp" 2>/dev/null || echo 0)"
+            if [ "${_st_fail:-0}" -eq 0 ]; then
+                tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_SELFTEST_PASS)" "$(tgbot_kb_device)"
+                tgbot_send_document "$chat_id" "$_st_tmp" \
+                    "✅ Selftest PASS | ${TG_ROUTER_ID:-router}"
+            else
+                tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_SELFTEST_FAIL)" "$(tgbot_kb_device)"
+                tgbot_send_document "$chat_id" "$_st_tmp" \
+                    "❌ Selftest FAIL (${_st_fail}) | ${TG_ROUTER_ID:-router}"
+            fi
+            rm -f "$_st_tmp" 2>/dev/null
+            ;;
+        sys_reboot_confirm)
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_BTN_REBOOT)?" "$(tgbot_kb_reboot_confirm)"
+            ;;
+        sys_reboot_do)
+            tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_REBOOT_SENT)" ""
+            sleep 2
+            LD_LIBRARY_PATH= ndmc -c "system reboot" >/dev/null 2>&1 || true
+            ;;
+    esac
+}
+
+# setMyCommands - Telegram komut listesini ayarla
+tgbot_set_commands() {
+    local _token="$1"
+    local _cmds
+    _cmds='[{"command":"start","description":"Ana menuyu ac"},{"command":"durum","description":"Sistem durumunu goster"},{"command":"zapret","description":"Zapret yonetimi"},{"command":"sistem","description":"Sistem ve router"},{"command":"kzm","description":"KZM yonetimi"},{"command":"help","description":"Yardim"}]'
+    curl -fsSL -X POST "https://api.telegram.org/bot${_token}/setMyCommands" \
+        -H "Content-Type: application/json" \
+        -d "{"commands":${_cmds}}" >/dev/null 2>&1
+}
+
+# Main bot polling loop
+telegram_bot_daemon() {
+    telegram_load_config || return 1
+    [ "${TG_BOT_ENABLE:-0}" != "1" ] && return 1
+
+    local offset=0
+    local raw ids update_id blk
+    local cb_id cb_data cb_chat cb_msg_id msg_chat msg_text
+
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | started" >> "$TG_BOT_LOG_FILE"
+    tgbot_set_commands "$TG_BOT_TOKEN"
+
+    while true; do
+        # getUpdates
+        _tgbot_api "getUpdates" \
+            "{\"offset\":${offset},\"timeout\":${TG_BOT_POLL_SEC:-5},\"allowed_updates\":[\"message\",\"callback_query\"]}"
+
+        if [ ! -s "$_TGBOT_TMP" ]; then
+            sleep "${TG_BOT_POLL_SEC:-5}"
+            continue
+        fi
+
+        raw="$(cat "$_TGBOT_TMP" 2>/dev/null)"
+
+        # ok:true kontrolu
+        printf '%s' "$raw" | grep -q '"ok":true' || {
+            printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | api error: $(printf '%s' "$raw" | head -c 120)" >> "$TG_BOT_LOG_FILE"
+            sleep "${TG_BOT_POLL_SEC:-5}"
+            continue
+        }
+
+        # update_id listesi
+        ids="$(printf '%s' "$raw" | grep -o '"update_id":[0-9]*' | sed 's/"update_id"://')"
+        [ -z "$ids" ] && { sleep "${TG_BOT_POLL_SEC:-5}"; continue; }
+
+        # Tum newline'lari kaldir - tek satir yap
+        raw="$(printf '%s' "$raw" | tr -d '\n\r')"
+
+        for update_id in $ids; do
+            offset=$((update_id + 1))
+
+            # Bu update'e ait bolumu kes
+            # update_id sonrasindaki ilk 800 karakteri al
+            blk="$(printf '%s' "$raw" | sed "s/.*\"update_id\":${update_id}//" | cut -c1-2000)"
+
+            # Tip: callback_query
+            if printf '%s' "$blk" | grep -q '"callback_query"'; then
+                cb_id="$(printf '%s' "$blk" | grep -o '"id":"[0-9]*"' | head -1 | cut -d'"' -f4)"
+                cb_data="$(printf '%s' "$blk" | grep -o '"data":"[^"]*"' | tail -1 | cut -d'"' -f4)"
+                cb_chat="$(printf '%s' "$blk" | grep -o '"chat":{"id":[0-9-]*' | head -1 | sed 's/.*://')"
+                cb_msg_id="$(printf '%s' "$blk" | grep -o '"message_id":[0-9]*' | head -1 | sed 's/.*://')"
+                printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | cb data=$cb_data chat=$cb_chat msg=$cb_msg_id" >> "$TG_BOT_LOG_FILE"
+                if [ -n "$cb_chat" ] && [ "$cb_chat" = "$TG_CHAT_ID" ] && [ -n "$cb_data" ]; then
+                    tgbot_handle_callback "$cb_data" "$cb_chat" "$cb_msg_id" "$cb_id"
+                fi
+
+            # Tip: message
+            elif printf '%s' "$blk" | grep -q '"message"'; then
+                msg_chat="$(printf '%s' "$blk" | grep -o '"chat":{"id":[0-9-]*' | head -1 | sed 's/.*://')"
+                msg_text="$(printf '%s' "$blk" | grep -o '"text":"[^"]*"' | head -1 | cut -d'"' -f4)"
+                printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | msg text=$msg_text chat=$msg_chat" >> "$TG_BOT_LOG_FILE"
+                if [ -n "$msg_chat" ] && [ "$msg_chat" = "$TG_CHAT_ID" ]; then
+                    case "$msg_text" in
+                        /start|/menu)
+                            tgbot_send "$msg_chat" \
+                                "${TG_ROUTER_ID} | $(T TXT_TGBOT_MENU_TITLE)" \
+                                "$(tgbot_kb_main)"
+                            ;;
+                        /durum|/status)
+                            tgbot_send "$msg_chat" \
+                                "$(tgbot_status_text)" \
+                                "$(tgbot_kb_main)"
+                            ;;
+                        /zapret)
+                            tgbot_send "$msg_chat" \
+                                "$(T TXT_TGBOT_BTN_ZAPRET)" \
+                                "$(tgbot_kb_zapret)"
+                            ;;
+                        /sistem|/system)
+                            tgbot_send "$msg_chat" \
+                                "$(T TXT_TGBOT_BTN_SYSTEM)" \
+                                "$(tgbot_kb_sistem)"
+                            ;;
+                        /kzm)
+                            tgbot_send "$msg_chat" \
+                                "$(T TXT_TGBOT_BTN_KZM)" \
+                                "$(tgbot_kb_kzm)"
+                            ;;
+                        /help|/yardim)
+                            tgbot_send "$msg_chat" \
+                                "$(T _ '📖 KZM Yardim
+
+📊 /durum — Sistemin anlık durumu
+  Zapret, HealthMon, WAN, IP bilgilerini gosterir.
+
+🔧 /zapret — Zapret yonetimi
+  Zapreti baslat, durdur, yeniden baslat veya guncelle.
+  DPI tabanli internet kisitlamalarini asmak icin kullanilir.
+
+⚙️ /sistem — Sistem ve router
+  Bagli cihazlari gor, WiFi ac/kapat, routeri yeniden baslat.
+
+🛠️ /kzm — KZM yonetimi
+  Betigi guncelle, self-test calistir.
+
+📋 /loglar — Log goruntulemek
+  KZM ve sistem loglarini Telegramdan oku.
+
+💡 Ipucu: Butonlara basarak da tum menulere ulasabilirsin.
+  Komutlar sadece hizli erisim icindir.' '📖 KZM Help
+
+📊 /durum — Live system status
+  Shows Zapret, HealthMon, WAN and IP info.
+
+🔧 /zapret — Zapret management
+  Start, stop, restart or update Zapret.
+  Used to bypass DPI-based internet restrictions.
+
+⚙️ /sistem — System and router
+  View connected devices, toggle WiFi, reboot router.
+
+🛠️ /kzm — KZM management
+  Update the script, run self-test.
+
+📋 /loglar — View logs
+  Read KZM and system logs from Telegram.
+
+💡 Tip: You can also use the buttons to access all menus.
+  Commands are just for quick access.')" \
+                                ""
+                            ;;
+                    esac
+                fi
+            fi
+        done
+
+        # long-poll timeout handles delay, no extra sleep needed
+    done
+}
+
+telegram_bot_start() {
+    telegram_load_config || { print_status FAIL "$(T TXT_TGBOT_BOT_NOT_CONFIG)"; return 1; }
+    [ "${TG_BOT_ENABLE:-0}" != "1" ] && { print_status WARN "$(T TXT_TGBOT_BOT_NOT_CONFIG)"; return 1; }
+    if [ -f "$TG_BOT_PID_FILE" ] && kill -0 "$(cat "$TG_BOT_PID_FILE" 2>/dev/null)" 2>/dev/null; then
+        print_status WARN "$(T TXT_TGBOT_BOT_STATUS_ACTIVE)"
+        return 0
+    fi
+    if command -v nohup >/dev/null 2>&1; then
+        nohup "$0" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &
+    else
+        "$0" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &
+    fi
+    echo $! > "$TG_BOT_PID_FILE"
+    print_status PASS "$(T TXT_TGBOT_BOT_STARTED)"
+}
+
+# Bot'u durdur
+telegram_bot_stop() {
+    if [ -f "$TG_BOT_PID_FILE" ]; then
+        local pid
+        pid="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
+        if [ -n "$pid" ]; then
+            kill "$pid" 2>/dev/null || true
+            sleep 1
+            kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+        fi
+        rm -f "$TG_BOT_PID_FILE" 2>/dev/null
+    fi
+    ps 2>/dev/null | awk -v n="$SCRIPT_NAME" \
+        'index($0,"--telegram-daemon")>0 && index($0,n)>0 {print $1}' | \
+        while read -r _p; do kill "$_p" 2>/dev/null || true; done
+    print_status PASS "$(T TXT_TGBOT_BOT_STOPPED)"
+}
+
+# Autostart
+telegram_bot_setup_autostart() {
+    local enable="$1"
+    if [ "$enable" = "1" ]; then
+        mkdir -p /opt/etc/init.d 2>/dev/null
+        local scr="$ZKM_SCRIPT_PATH"
+        cat >"$TG_BOT_AUTOSTART" <<INITEOF
+#!/bin/sh
+SCRIPT="${scr}"
+case "\$1" in
+    start)
+        [ -f "\$SCRIPT" ] && "\$SCRIPT" --telegram-daemon </dev/null >>/tmp/zkm_telegram_bot.log 2>&1 &
+        ;;
+    stop)
+        [ -f "/tmp/zkm_telegram_bot.pid" ] && kill "\$(cat /tmp/zkm_telegram_bot.pid 2>/dev/null)" 2>/dev/null || true
+        rm -f /tmp/zkm_telegram_bot.pid 2>/dev/null
+        ;;
+esac
+INITEOF
+        chmod +x "$TG_BOT_AUTOSTART" 2>/dev/null
+        print_status PASS "$(T TXT_TGBOT_AUTOSTART_CREATED)"
+    else
+        rm -f "$TG_BOT_AUTOSTART" 2>/dev/null
+        print_status PASS "$(T TXT_TGBOT_AUTOSTART_REMOVED)"
+    fi
+}
+
+# Bot yonetim menusu
+telegram_bot_menu() {
+    while true; do
+        clear
+        print_line "="
+        echo "$(T TXT_TGBOT_MENU_BOT_TITLE)"
+        print_line "="
+        echo
+        telegram_load_config 2>/dev/null
+        if [ -f "$TG_BOT_PID_FILE" ] && kill -0 "$(cat "$TG_BOT_PID_FILE" 2>/dev/null)" 2>/dev/null; then
+            printf " %-14s: %b%s%b\n" "$(T TXT_TGBOT_BOT_ENABLE)" \
+                "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_TGBOT_BOT_STATUS_ACTIVE)" "${CLR_RESET}"
+        else
+            printf " %-14s: %b%s%b\n" "$(T TXT_TGBOT_BOT_ENABLE)" \
+                "${CLR_ORANGE}${CLR_BOLD}" "$(T TXT_TGBOT_BOT_STATUS_INACTIVE)" "${CLR_RESET}"
+        fi
+        printf " %-14s: %s\n" "$(T TXT_TGBOT_POLL_SEC)" "${TG_BOT_POLL_SEC:-5}"
+        printf " %-14s: %s\n" "$(T TXT_TGBOT_ROUTER_ID_LABEL)" "${TG_ROUTER_ID}"
+        echo
+        print_line "-"
+        echo " 1) $(T TXT_TGBOT_ENABLE_BOT)"
+        echo " 2) $(T TXT_TGBOT_DISABLE_BOT)"
+        echo " 3) $(T TXT_TGBOT_RESTART_BOT)"
+        echo " 0) $(T TXT_BACK)"
+        print_line "-"
+        printf "%s" "$(T TXT_CHOICE) "
+        read -r c || return 0
+        clear
+        case "$c" in
+            1)
+                printf "%s" "$(T TXT_TGBOT_ENTER_POLL)"
+                read -r poll_input
+                [ -z "$poll_input" ] && poll_input=5
+                case "$poll_input" in
+                    [0-9]*) : ;;
+                    *) poll_input=5 ;;
+                esac
+                telegram_load_config 2>/dev/null
+                telegram_write_config "$TG_BOT_TOKEN" "$TG_CHAT_ID" "1" "$poll_input"
+                telegram_bot_setup_autostart "1"
+                telegram_bot_stop >/dev/null 2>&1
+                sleep 1
+                telegram_bot_start
+                press_enter_to_continue
+                ;;
+            2)
+                telegram_load_config 2>/dev/null
+                telegram_write_config "$TG_BOT_TOKEN" "$TG_CHAT_ID" "0" "${TG_BOT_POLL_SEC:-5}"
+                telegram_bot_stop
+                telegram_bot_setup_autostart "0"
+                press_enter_to_continue
+                ;;
+            3)
+                telegram_bot_stop >/dev/null 2>&1
+                sleep 1
+                telegram_bot_start
+                press_enter_to_continue
+                ;;
             0) return 0 ;;
             *) echo "$(T TXT_INVALID_CHOICE)" ; sleep 1 ;;
         esac
@@ -7913,6 +9022,7 @@ HM_CPU_CRIT_DUR="60"
 HM_DISK_WARN="90"          # percent used on /opt
 HM_RAM_WARN_MB="40"        # free+buffers+cached approximation in MB
 HM_ZAPRET_WATCHDOG="1"
+HM_TGBOT_WATCHDOG="1"
 HM_ZAPRET_COOLDOWN_SEC="120"
 HM_ZAPRET_AUTORESTART="0"
 HM_HEARTBEAT_SEC="300"
@@ -7954,6 +9064,7 @@ healthmon_load_config() {
     HM_DISK_WARN="90"
     HM_RAM_WARN_MB="40"
     HM_ZAPRET_WATCHDOG="1"
+    HM_TGBOT_WATCHDOG="1"
     HM_COOLDOWN_SEC="600"
     HM_ZAPRET_COOLDOWN_SEC="120"
     HM_UPDATECHECK_ENABLE="1"
@@ -8444,10 +9555,17 @@ healthmon_updatecheck_do() {
         zap_latest="$(curl -fsS "$zap_api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
         echo "$(date +%s 2>/dev/null) | updatecheck | zapret | cur=$zap_cur latest=${zap_latest:-N/A}" >> /tmp/healthmon.log 2>/dev/null
 
-        if [ -n "$zap_latest" ] && ver_is_newer "$zap_latest" "$zap_cur"; then
-            zap_url="https://github.com/${zap_repo}/releases/latest"
-            telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" CUR "$zap_cur" NEW "$zap_latest" URL "$zap_url")"
-            echo "$(date +%s 2>/dev/null) | updatecheck | zapret | notified cur=$zap_cur latest=$zap_latest" >> /tmp/healthmon.log 2>/dev/null
+        if [ -n "$zap_latest" ]; then
+            if ver_is_newer "$zap_latest" "$zap_cur"; then
+                # Normal guncelleme: yeni surum mevcut
+                zap_url="https://github.com/${zap_repo}/releases/latest"
+                telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" CUR "$zap_cur" NEW "$zap_latest" URL "$zap_url")"
+                echo "$(date +%s 2>/dev/null) | updatecheck | zapret | notified cur=$zap_cur latest=$zap_latest" >> /tmp/healthmon.log 2>/dev/null
+            elif ver_is_newer "$zap_cur" "$zap_latest"; then
+                # Geri cekilmis release: kurulu surum GitHub'dan yeni
+                telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_ROLLED)" CUR "$zap_cur" NEW "$zap_latest")"
+                echo "$(date +%s 2>/dev/null) | updatecheck | zapret | pulled_release cur=$zap_cur stable=$zap_latest" >> /tmp/healthmon.log 2>/dev/null
+            fi
         fi
     fi
 
@@ -8966,6 +10084,21 @@ healthmon_loop() {
             printf '%s\n' "$kdns_reach2" > "$kdns_reach_f" 2>/dev/null
         fi
 
+        # ---- TELEGRAM BOT WATCHDOG ----
+        if [ "${HM_TGBOT_WATCHDOG:-1}" = "1" ]; then
+            _tgconf="/opt/etc/telegram.conf"
+            _tgbot_enable="$(grep -s '^TG_BOT_ENABLE=' "$_tgconf" | cut -d= -f2)"
+            if [ "$_tgbot_enable" = "1" ]; then
+                _tgpid_f="$TG_BOT_PID_FILE"
+                _tgpid="$(cat "$_tgpid_f" 2>/dev/null)"
+                if [ -z "$_tgpid" ] || ! kill -0 "$_tgpid" 2>/dev/null; then
+                    healthmon_log "$now | tgbot_watchdog | bot dead, restarting"
+                    "$ZKM_SCRIPT_PATH" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &
+                    echo $! > "$_tgpid_f"
+                fi
+            fi
+        fi
+
         # ---- WAN MONITOR ----
         hm_wanmon_tick
 
@@ -9358,20 +10491,46 @@ healthmon_config_menu() {
 
     # helper: ask number with current value, empty keeps current
     hm_ask_num() {
-        local _label="$1" _var="$2" _cur _v
+        local _label="$1" _var="$2" _cur _v _sec _readable
         eval _cur="\${$_var}"
-        printf "%s [%s]: " "$_label" "${_cur:-}"
-        read -r _v
-        if [ -n "$_v" ]; then
-            case "$_v" in
-                *[!0-9]*)
-                    print_status WARN "$(T _ 'Gecersiz sayi, atlandi.' 'Invalid number, skipped.')"
-                    ;;
-                *)
-                    eval "$_var=\"$_v\""
-                    ;;
-            esac
+        # Mevcut degeri okunabilir formatla goster
+        _readable=""
+        if [ -n "$_cur" ] && [ "$_cur" -gt 0 ] 2>/dev/null; then
+            if [ "$_cur" -ge 3600 ] && [ "$((_cur % 3600))" -eq 0 ]; then
+                _readable=" = $((_cur/3600)) sa"
+            elif [ "$_cur" -ge 60 ] && [ "$((_cur % 60))" -eq 0 ]; then
+                _readable=" = $((_cur/60)) dk"
+            else
+                _readable=" = ${_cur} sn"
+            fi
         fi
+        printf "%s [%s%s] (ornek: 300s/5m/2h): " "$_label" "${_cur:-}" "$_readable"
+        read -r _v
+        [ -z "$_v" ] && return 0
+        # Birim parse: 5m, 2h, 300s veya duz sayi
+        case "$_v" in
+            *h) _num="${_v%h}"; _sec=$((_num * 3600)) ;;
+            *m) _num="${_v%m}"; _sec=$((_num * 60))   ;;
+            *s) _num="${_v%s}"; _sec="$_num"           ;;
+            *)  _sec="$_v"                              ;;
+        esac
+        # Sayi dogrulama
+        case "$_sec" in
+            *[!0-9]*)
+                print_status WARN "$(T _ 'Gecersiz deger, atlandi. (ornek: 300s, 5m, 2h)' 'Invalid value, skipped. (example: 300s, 5m, 2h)')"
+                ;;
+            *)
+                eval "$_var=\"$_sec\""
+                # Onay mesaji
+                if [ "$_sec" -ge 3600 ] && [ "$((_sec % 3600))" -eq 0 ]; then
+                    print_status INFO "$(T _ 'Kaydedildi' 'Saved'): ${_sec}s = $((_sec/3600)) sa"
+                elif [ "$_sec" -ge 60 ] && [ "$((_sec % 60))" -eq 0 ]; then
+                    print_status INFO "$(T _ 'Kaydedildi' 'Saved'): ${_sec}s = $((_sec/60)) dk"
+                else
+                    print_status INFO "$(T _ 'Kaydedildi' 'Saved'): ${_sec}s"
+                fi
+                ;;
+        esac
     }
 
     hm_ask_01() {
@@ -9805,6 +10964,14 @@ health_monitor_menu() {
         echo "CPU WARN %${HM_CPU_WARN}/${HM_CPU_WARN_DUR}s  |  CPU CRIT %${HM_CPU_CRIT}/${HM_CPU_CRIT_DUR}s"
         echo "$(tpl_render "$(T TXT_HM_MENU_LINE2)" DISK "$HM_DISK_WARN" RAM "$HM_RAM_WARN_MB")"
         echo "$(tpl_render "$(T TXT_HM_MENU_LINE3)" WD "$HM_ZAPRET_WATCHDOG" INT "$HM_INTERVAL")"
+        # Telegram Bot durumu
+        if [ "$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')" = "1" ]; then
+            if [ -f "/tmp/zkm_telegram_bot.pid" ] && kill -0 "$(cat "/tmp/zkm_telegram_bot.pid" 2>/dev/null)" 2>/dev/null; then
+                printf "%b\n" "${CLR_GREEN}Telegram Bot : $(T TXT_TGBOT_BANNER_ACTIVE) (PID: $(cat /tmp/zkm_telegram_bot.pid 2>/dev/null))${CLR_RESET}"
+            else
+                printf "%b\n" "${CLR_RED}Telegram Bot : $(T TXT_TGBOT_BANNER_INACTIVE)${CLR_RESET}"
+            fi
+        fi
         echo
         print_line "-"
         echo " 1) $(T TXT_HM_ENABLE_DISABLE)"
@@ -9914,6 +11081,13 @@ if [ "$1" = "--healthmon-daemon" ]; then
     exit 0
 fi
 
+if [ "$1" = "--telegram-daemon" ]; then
+    trap '' HUP 2>/dev/null
+    telegram_load_config 2>/dev/null
+    telegram_bot_daemon
+    exit 0
+fi
+
 # --- Betigin Baslangic Noktasi ---
 # Kullanim: ./script.sh cleanup  -> Zapret kurulu olmasa bile kalintilari temizler
 if [ "$1" = "cleanup" ]; then
@@ -9922,7 +11096,7 @@ if [ "$1" = "cleanup" ]; then
 fi
 
 # curl kontrolu (daemon ve cleanup modlarinda atla)
-if [ "$1" != "--healthmon-daemon" ] && [ "$1" != "cleanup" ]; then
+if [ "$1" != "--healthmon-daemon" ] && [ "$1" != "--telegram-daemon" ] && [ "$1" != "cleanup" ]; then
     if ! command -v curl >/dev/null 2>&1; then
         printf '%b\n' "$(T _ 'WARN: curl bulunamadi. Yukleniyor...' 'WARN: curl not found. Installing...')"
         if command -v opkg >/dev/null 2>&1; then
