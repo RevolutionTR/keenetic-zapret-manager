@@ -30,7 +30,7 @@
 
 Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
 
-- **Keenetic OS 5.0.5**
+- **Keenetic OS 5.0.7**
 - **Keenetic OS 4.3.6.3**
 
 > Daha eski Keenetic OS sürümlerinde test edilmemiştir.  
