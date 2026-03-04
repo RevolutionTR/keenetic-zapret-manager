@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.3"
+SCRIPT_VERSION="v26.3.4"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1156,13 +1156,13 @@ TXT_SCHED_BANNER_LABEL_EN="Sched.Reboot"
 TXT_HM_MENU_LINE2_TR="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load (uptime)"
 TXT_HM_MENU_LINE2_EN="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load via uptime"
 
-TXT_HM_MENU_LINE3_TR="Zapret watchdog: %WD%  |  Aralik: %INT%s"
+TXT_HM_MENU_LINE3_TR="Zapret denetimi: %WD%  |  Aralik: %INT%s"
 TXT_HM_MENU_LINE3_EN="Zapret watchdog: %WD%  |  Interval: %INT%s"
 
 TXT_HM_CFG_TITLE_TR="Saglik Ayarlari"
 TXT_HM_CFG_TITLE_EN="Health Settings"
 
-TXT_HM_CFG_ITEM5_TR="Zapret (watchdog)"
+TXT_HM_CFG_ITEM5_TR="Zapret (denetim)"
 TXT_HM_CFG_ITEM5_EN="Zapret (watchdog)"
 
 TXT_HM_CFG_ITEM6_TR="Guncelleme kontrolu"
@@ -1183,6 +1183,8 @@ TXT_HM_CFG_ITEM10_EN="Heartbeat (sec)"
 
 TXT_HM_CFG_ITEM11_TR="WAN izleme"
 TXT_HM_CFG_ITEM11_EN="WAN monitor"
+TXT_HM_CFG_ITEM12_TR="NFQUEUE kuyruk denetimi"
+TXT_HM_CFG_ITEM12_EN="NFQUEUE qlen watchdog"
 
 TXT_HM_PROMPT_WANMON_ENABLE_TR="WAN izleme aktif mi?"
 TXT_HM_PROMPT_WANMON_ENABLE_EN="Enable WAN monitoring?"
@@ -1347,7 +1349,7 @@ TXT_HM_STATUS_DISK_WARN_EN="Disk(/opt) WARN"
 TXT_HM_STATUS_RAM_WARN_TR="RAM UYARI"
 TXT_HM_STATUS_RAM_WARN_EN="RAM WARN"
 
-TXT_HM_STATUS_ZAPRET_WD_TR="Zapret izleme"
+TXT_HM_STATUS_ZAPRET_WD_TR="Zapret denetimi"
 TXT_HM_STATUS_ZAPRET_WD_EN="Zapret watchdog"
 
 TXT_HM_STATUS_ZAPRET_CD_TR="Zapret bekleme"
@@ -1401,7 +1403,7 @@ TXT_HM_PROMPT_DISK_WARN_EN="Disk threshold (/opt, %) [e.g. 90]:"
 TXT_HM_PROMPT_RAM_WARN_TR="RAM esigi (MB) [or: 40]:"
 TXT_HM_PROMPT_RAM_WARN_EN="RAM threshold (MB) [e.g. 40]:"
 
-TXT_HM_PROMPT_ZAPRET_WD_TR="Zapret watchdog (1=acik,0=kapali) [or: 1]:"
+TXT_HM_PROMPT_ZAPRET_WD_TR="Zapret denetimi (1=acik,0=kapali) [or: 1]:"
 TXT_HM_PROMPT_ZAPRET_WD_EN="Zapret watchdog (1=on,0=off) [e.g. 1]:"
 
 TXT_HM_PROMPT_ZAPRET_COOLDOWN_TR="Zapret cooldown (sn) [or: 120]:"
@@ -1637,6 +1639,28 @@ TXT_TGBOT_NET_DEVICES_TITLE_TR="Bagli Cihazlar"
 TXT_TGBOT_NET_DEVICES_TITLE_EN="Connected Devices"
 TXT_TGBOT_NET_NO_DEVICES_TR="Bagli cihaz bulunamadi."
 TXT_TGBOT_NET_NO_DEVICES_EN="No connected devices found."
+TXT_TGBOT_CLIENT_ACCESS_DENY_TR="Erisimi Engelle"
+TXT_TGBOT_CLIENT_ACCESS_DENY_EN="Block Access"
+TXT_TGBOT_CLIENT_ACCESS_PERMIT_TR="Erisime Izin Ver"
+TXT_TGBOT_CLIENT_ACCESS_PERMIT_EN="Allow Access"
+TXT_TGBOT_CLIENT_RENAME_TR="Ismi Degistir"
+TXT_TGBOT_CLIENT_RENAME_EN="Rename Device"
+TXT_TGBOT_CLIENT_RENAME_PROMPT_TR="Cihaz icin yeni isim girin. Iptal icin /iptal yaz."
+TXT_TGBOT_CLIENT_RENAME_PROMPT_EN="Enter new name for the device. Type /iptal to cancel."
+TXT_TGBOT_CLIENT_RENAME_DONE_TR="Isim guncellendi."
+TXT_TGBOT_CLIENT_RENAME_DONE_EN="Name updated."
+TXT_TGBOT_CLIENT_RENAME_CANCEL_TR="Isim degistirme iptal edildi."
+TXT_TGBOT_CLIENT_RENAME_CANCEL_EN="Rename cancelled."
+TXT_TGBOT_CLIENT_STATUS_ACTIVE_TR="Bagli"
+TXT_TGBOT_CLIENT_STATUS_ACTIVE_EN="Connected"
+TXT_TGBOT_CLIENT_STATUS_INACTIVE_TR="Bagli degil"
+TXT_TGBOT_CLIENT_STATUS_INACTIVE_EN="Not connected"
+TXT_TGBOT_CLIENT_ACCESS_LABEL_TR="Erisim"
+TXT_TGBOT_CLIENT_ACCESS_LABEL_EN="Access"
+TXT_TGBOT_CLIENT_ACCESS_OK_TR="Acik"
+TXT_TGBOT_CLIENT_ACCESS_OK_EN="Allowed"
+TXT_TGBOT_CLIENT_ACCESS_BLOCKED_TR="Engelli"
+TXT_TGBOT_CLIENT_ACCESS_BLOCKED_EN="Blocked"
 TXT_TGBOT_WIFI_TITLE_TR="Wifi Durumu"
 TXT_TGBOT_WIFI_TITLE_EN="Wifi Status"
 TXT_TGBOT_WIFI_NO_IF_TR="Wifi arayuzu bulunamadi."
@@ -8252,11 +8276,15 @@ tgbot_net_devices_kb() {
     # awk ile aktif cihaz adlarini cikart
     # Format: host: > hostname: > name: (cihaz adi)
     # hostname: bir alt-bloktur; altindaki name: cihaz adini verir
+    # awk: her aktif host icin "name|mac" formatinda satir uret
     all_names="$(printf '%s\n' "$hotspot_raw" | awk '
-        BEGIN { in_host=0; in_hostname=0; devname=""; active="" }
+        BEGIN { in_host=0; in_hostname=0; devname=""; devmac=""; active="" }
         /^[[:space:]]*host:/ {
-            if (in_host && active=="yes" && devname!="") print devname
-            in_host=1; in_hostname=0; devname=""; active=""; next
+            if (in_host && active=="yes" && devname!="" && devmac!="") print devname "|" devmac
+            in_host=1; in_hostname=0; devname=""; devmac=""; active=""; next
+        }
+        in_host && /^[[:space:]]*mac:/ && devmac=="" {
+            s=$0; sub(/.*mac:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); devmac=s
         }
         in_host && /^[[:space:]]*hostname:/ { in_hostname=1; next }
         in_host && in_hostname && /^[[:space:]]*name:/ {
@@ -8268,7 +8296,7 @@ tgbot_net_devices_kb() {
         in_host && /^[[:space:]]*active:/ {
             s=$0; sub(/.*active:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); active=s
         }
-        END { if (in_host && active=="yes" && devname!="") print devname }
+        END { if (in_host && active=="yes" && devname!="" && devmac!="") print devname "|" devmac }
     ')"
     cnt="$(printf '%s\n' "$all_names" | grep -c .)"
     if [ "$cnt" -eq 0 ]; then
@@ -8278,15 +8306,16 @@ tgbot_net_devices_kb() {
     # Sayfa butonlarini olustur
     kb="["
     local row=0
-    while IFS= read -r name; do
-        [ -z "$name" ] && continue
+    while IFS="|" read -r name mac; do
+        [ -z "$name" ] || [ -z "$mac" ] && continue
         row=$((row+1))
         [ "$row" -le "$offset" ] && continue
         [ "$row" -gt "$((offset+page_size))" ] && continue
-        # JSON icin cift tirnak escape
-        local safe_name
+        # MAC icindeki : isaretini - ile degistir (callback_data uyumlulugu)
+        local safe_name mac_enc
         safe_name="$(printf '%s' "$name" | sed 's/"/\\"/g')"
-        kb="${kb}[{\"text\":\"🟢 ${safe_name}\",\"callback_data\":\"${rid}:noop\"}],"
+        mac_enc="$(printf '%s' "$mac" | tr ':' '-')"
+        kb="${kb}[{\"text\":\"🟢 ${safe_name}\",\"callback_data\":\"${rid}:sys_client_${mac_enc}\"}],"
     done << NEOF
 $(printf '%s\n' "$all_names")
 NEOF
@@ -8424,6 +8453,118 @@ _tgbot_wan_traffic() {
     [ -z "$rx" ] && rx=0
     [ -z "$tx" ] && tx=0
     printf '⬇️%s ⬆️%s' "$(_tgbot_fmt_bytes "$rx")" "$(_tgbot_fmt_bytes "$tx")"
+}
+
+# Belirli bir MAC adresine ait hotspot host bilgisini parse eder
+# Cikti: satirlar halinde key=value
+_tgbot_parse_client() {
+    local target_mac="$1"
+    local hotspot_raw
+    hotspot_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ip hotspot' 2>/dev/null)"
+    printf '%s\n' "$hotspot_raw" | awk -v tmac="$target_mac" '
+        BEGIN { in_host=0; in_hostname=0; found=0
+            mac=""; name=""; ip=""; active=""; access=""; rxbytes=""; txbytes="" }
+        /^[[:space:]]*host:/ {
+            if (found) { exit }
+            in_host=1; in_hostname=0
+            mac=""; name=""; ip=""; active=""; access=""; rxbytes=""; txbytes=""
+            next
+        }
+        in_host && /^[[:space:]]*mac:/ && mac=="" {
+            s=$0; sub(/.*mac:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s)
+            mac=s
+            if (mac==tmac) found=1
+        }
+        in_host && found && /^[[:space:]]*ip:/ && ip=="" {
+            s=$0; sub(/.*ip:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); ip=s
+        }
+        in_host && found && /^[[:space:]]*hostname:/ { in_hostname=1; next }
+        in_host && found && in_hostname && /^[[:space:]]*name:/ {
+            s=$0; sub(/.*name:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s)
+            if(s!="" && s!="-") name=s
+            in_hostname=0
+        }
+        in_host && /^[[:space:]]*interface:/ { in_hostname=0 }
+        in_host && found && /^[[:space:]]*active:/ {
+            s=$0; sub(/.*active:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); active=s
+        }
+        in_host && found && /^[[:space:]]*access:/ {
+            s=$0; sub(/.*access:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); access=s
+        }
+        in_host && found && /^[[:space:]]*rxbytes:/ {
+            s=$0; sub(/.*rxbytes:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); rxbytes=s
+        }
+        in_host && found && /^[[:space:]]*txbytes:/ {
+            s=$0; sub(/.*txbytes:[[:space:]]*/,"",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); txbytes=s
+        }
+        END {
+            if (found) {
+                print "mac=" mac
+                print "name=" name
+                print "ip=" ip
+                print "active=" active
+                print "access=" access
+                print "rxbytes=" rxbytes
+                print "txbytes=" txbytes
+            }
+        }
+    '
+}
+
+# Istemci detay mesaj metni
+tgbot_client_detail_text() {
+    local mac="$1"
+    local info name ip active access rxbytes txbytes
+    info="$(_tgbot_parse_client "$mac")"
+    [ -z "$info" ] && { printf '%s' "$(T _ 'Cihaz bulunamadi.' 'Device not found.')"; return; }
+    name="$(printf '%s\n' "$info" | grep '^name=' | cut -d= -f2-)"
+    ip="$(printf '%s\n' "$info" | grep '^ip=' | cut -d= -f2-)"
+    active="$(printf '%s\n' "$info" | grep '^active=' | cut -d= -f2-)"
+    access="$(printf '%s\n' "$info" | grep '^access=' | cut -d= -f2-)"
+    rxbytes="$(printf '%s\n' "$info" | grep '^rxbytes=' | cut -d= -f2-)"
+    txbytes="$(printf '%s\n' "$info" | grep '^txbytes=' | cut -d= -f2-)"
+    [ -z "$name" ] && name="$mac"
+    [ -z "$ip" ] && ip="-"
+    local status_str access_str
+    if [ "$active" = "yes" ]; then
+        status_str="🟢 $(T TXT_TGBOT_CLIENT_STATUS_ACTIVE)"
+    else
+        status_str="⚪ $(T TXT_TGBOT_CLIENT_STATUS_INACTIVE)"
+    fi
+    if [ "$access" = "deny" ]; then
+        access_str="🚫 $(T TXT_TGBOT_CLIENT_ACCESS_BLOCKED)"
+    else
+        access_str="✅ $(T TXT_TGBOT_CLIENT_ACCESS_OK)"
+    fi
+    printf '%s\nMAC  : %s\nIP   : %s\n%s    : %s\n%s   : %s\n%s: %s\n%s: %s' \
+        "📱 ${name}" \
+        "$mac" \
+        "$ip" \
+        "$(T TXT_TGBOT_CLIENT_ACCESS_LABEL)" "$access_str" \
+        "$(T _ 'Durum' 'Status')" "$status_str" \
+        "$(T _ 'Indir' 'Down')" "$(_tgbot_fmt_bytes "$rxbytes")" \
+        "$(T _ 'Yukle' 'Up')" "$(_tgbot_fmt_bytes "$txbytes")"
+}
+
+# Istemci detay klavyesi
+tgbot_kb_client() {
+    local mac="$1"
+    local access="$2"
+    local mac_enc rid
+    mac_enc="$(printf '%s' "$mac" | tr ':' '-')"
+    rid="${TG_ROUTER_ID:-default}"
+    local access_btn access_cb
+    if [ "$access" = "deny" ]; then
+        access_btn="✅ $(T TXT_TGBOT_CLIENT_ACCESS_PERMIT)"
+        access_cb="${rid}:client_permit_${mac_enc}"
+    else
+        access_btn="🚫 $(T TXT_TGBOT_CLIENT_ACCESS_DENY)"
+        access_cb="${rid}:client_deny_${mac_enc}"
+    fi
+    printf '[[{"text":"%s","callback_data":"%s"}],[{"text":"✏️ %s","callback_data":"%s:client_rename_%s"}],[{"text":"⬅️ %s","callback_data":"%s:sys_net_devices"}]]' \
+        "$access_btn" "$access_cb" \
+        "$(T TXT_TGBOT_CLIENT_RENAME)" "$rid" "$mac_enc" \
+        "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
 
 # Cihaz detay metni (resim 2 gibi)
@@ -8697,6 +8838,53 @@ tgbot_handle_callback() {
             tgbot_edit "$chat_id" "$msg_id" \
                 "$(tgbot_device_detail_text)" "$(tgbot_kb_device)"
             ;;
+        sys_client_*)
+            local _cl_mac_enc _cl_mac _cl_info _cl_access
+            _cl_mac_enc="${cb_action#sys_client_}"
+            _cl_mac="$(printf '%s' "$_cl_mac_enc" | tr '-' ':')"
+            _cl_info="$(_tgbot_parse_client "$_cl_mac")"
+            _cl_access="$(printf '%s\n' "$_cl_info" | grep '^access=' | cut -d= -f2-)"
+            [ -z "$_cl_access" ] && _cl_access="permit"
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(tgbot_client_detail_text "$_cl_mac")" \
+                "$(tgbot_kb_client "$_cl_mac" "$_cl_access")"
+            ;;
+        client_deny_*)
+            local _cd_mac_enc _cd_mac
+            _cd_mac_enc="${cb_action#client_deny_}"
+            _cd_mac="$(printf '%s' "$_cd_mac_enc" | tr '-' ':')"
+            LD_LIBRARY_PATH= ndmc -c "ip hotspot host ${_cd_mac} deny" >/dev/null 2>&1
+            LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
+            local _cd_info _cd_access
+            _cd_info="$(_tgbot_parse_client "$_cd_mac")"
+            _cd_access="$(printf '%s\n' "$_cd_info" | grep '^access=' | cut -d= -f2-)"
+            [ -z "$_cd_access" ] && _cd_access="deny"
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(tgbot_client_detail_text "$_cd_mac")" \
+                "$(tgbot_kb_client "$_cd_mac" "$_cd_access")"
+            ;;
+        client_permit_*)
+            local _cp_mac_enc _cp_mac
+            _cp_mac_enc="${cb_action#client_permit_}"
+            _cp_mac="$(printf '%s' "$_cp_mac_enc" | tr '-' ':')"
+            LD_LIBRARY_PATH= ndmc -c "ip hotspot host ${_cp_mac} permit" >/dev/null 2>&1
+            LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
+            local _cpr_info _cpr_access
+            _cpr_info="$(_tgbot_parse_client "$_cp_mac")"
+            _cpr_access="$(printf '%s\n' "$_cpr_info" | grep '^access=' | cut -d= -f2-)"
+            [ -z "$_cpr_access" ] && _cpr_access="permit"
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(tgbot_client_detail_text "$_cp_mac")" \
+                "$(tgbot_kb_client "$_cp_mac" "$_cpr_access")"
+            ;;
+        client_rename_*)
+            local _cr_mac_enc _cr_mac
+            _cr_mac_enc="${cb_action#client_rename_}"
+            _cr_mac="$(printf '%s' "$_cr_mac_enc" | tr '-' ':')"
+            # Pending state kaydet
+            printf '%s\n' "rename:${_cr_mac}" > "/tmp/tgbot_pending_${chat_id}"
+            tgbot_send "$chat_id" "$(T TXT_TGBOT_CLIENT_RENAME_PROMPT)" ""
+            ;;
         sys_selftest)
             # Selftest ciktiyi dosya olarak gonder - tam sonucu goruntule
             local _st_tmp="/tmp/tgbot_selftest_$$.txt"
@@ -8733,9 +8921,11 @@ tgbot_set_commands() {
     local _token="$1"
     local _cmds
     _cmds='[{"command":"start","description":"Ana menuyu ac"},{"command":"durum","description":"Sistem durumunu goster"},{"command":"zapret","description":"Zapret yonetimi"},{"command":"sistem","description":"Sistem ve router"},{"command":"kzm","description":"KZM yonetimi"},{"command":"help","description":"Yardim"}]'
-    curl -fsSL -X POST "https://api.telegram.org/bot${_token}/setMyCommands" \
+    local _sc_result
+    _sc_result="$(curl -fsSL -X POST "https://api.telegram.org/bot${_token}/setMyCommands" \
         -H "Content-Type: application/json" \
-        -d "{"commands":${_cmds}}" >/dev/null 2>&1
+        -d "{\"commands\":${_cmds}}" 2>&1)"
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | setMyCommands: ${_sc_result}" >> "$TG_BOT_LOG_FILE"
 }
 
 # Main bot polling loop
@@ -8748,6 +8938,8 @@ telegram_bot_daemon() {
     local cb_id cb_data cb_chat cb_msg_id msg_chat msg_text
 
     printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | started" >> "$TG_BOT_LOG_FILE"
+    # Eski pending dosyalarini temizle
+    rm -f /tmp/tgbot_pending_* 2>/dev/null
     tgbot_set_commands "$TG_BOT_TOKEN"
 
     while true; do
@@ -8800,6 +8992,73 @@ telegram_bot_daemon() {
                 msg_text="$(printf '%s' "$blk" | grep -o '"text":"[^"]*"' | head -1 | cut -d'"' -f4)"
                 printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | msg text=$msg_text chat=$msg_chat" >> "$TG_BOT_LOG_FILE"
                 if [ -n "$msg_chat" ] && [ "$msg_chat" = "$TG_CHAT_ID" ]; then
+                    # Bekleyen islem var mi kontrol et (ornegin isim degistirme)
+                    local _pending_file="/tmp/tgbot_pending_${msg_chat}"
+                    if [ -f "$_pending_file" ]; then
+                        local _pending
+                        _pending="$(cat "$_pending_file" 2>/dev/null)"
+                        rm -f "$_pending_file" 2>/dev/null
+                        case "$_pending" in
+                            rename:*)
+                                local _rn_mac="${_pending#rename:}"
+                                if [ "$msg_text" = "/iptal" ] || [ "$msg_text" = "/cancel" ]; then
+                                    tgbot_send "$msg_chat" "$(T TXT_TGBOT_CLIENT_RENAME_CANCEL)" ""
+                                else
+                                    local _rn_name="$msg_text"
+                                    # Telegram JSON unicode escape (\u0131 gibi) UTF-8'e donustur
+                                    _rn_name="$(printf '%s' "$_rn_name" | awk '{
+                                        s = $0
+                                        result = ""
+                                        while (match(s, /\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]/)) {
+                                            result = result substr(s, 1, RSTART-1)
+                                            hex = substr(s, RSTART+2, 4)
+                                            code = 0
+                                            for (i=1; i<=4; i++) {
+                                                c = substr(hex, i, 1)
+                                                if (c >= "0" && c <= "9") v = c - "0"
+                                                else if (c >= "a" && c <= "f") v = 10 + index("abcdef", c) - 1
+                                                else if (c >= "A" && c <= "F") v = 10 + index("ABCDEF", c) - 1
+                                                code = code * 16 + v
+                                            }
+                                            if (code < 128) {
+                                                result = result sprintf("%c", code)
+                                            } else if (code < 2048) {
+                                                b1 = 192 + int(code/64)
+                                                b2 = 128 + (code % 64)
+                                                result = result sprintf("%c%c", b1, b2)
+                                            } else {
+                                                b1 = 224 + int(code/4096)
+                                                b2 = 128 + int((code%4096)/64)
+                                                b3 = 128 + (code % 64)
+                                                result = result sprintf("%c%c%c", b1, b2, b3)
+                                            }
+                                            s = substr(s, RSTART+6)
+                                        }
+                                        print result s
+                                    }')"
+                                    # Bos kaldiysa hata ver
+                                    if [ -z "$_rn_name" ]; then
+                                        tgbot_send "$msg_chat" "$(T _ 'Gecersiz isim.' 'Invalid name.')" ""
+                                        continue
+                                    fi
+                                    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | rename mac=$_rn_mac name=$_rn_name" >> "$TG_BOT_LOG_FILE"
+                                    local _rn_out
+                                    _rn_out="$(LD_LIBRARY_PATH= ndmc -c "known host \"${_rn_name}\" ${_rn_mac}" 2>&1)"
+                                    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | rename ndmc: $_rn_out" >> "$TG_BOT_LOG_FILE"
+                                    LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
+                                    local _rn_info _rn_access
+                                    _rn_info="$(_tgbot_parse_client "$_rn_mac")"
+                                    _rn_access="$(printf '%s\n' "$_rn_info" | grep '^access=' | cut -d= -f2-)"
+                                    [ -z "$_rn_access" ] && _rn_access="permit"
+                                    tgbot_send "$msg_chat" \
+                                        "$(T TXT_TGBOT_CLIENT_RENAME_DONE)
+$(tgbot_client_detail_text "$_rn_mac")" \
+                                        "$(tgbot_kb_client "$_rn_mac" "$_rn_access")"
+                                fi
+                                ;;
+                        esac
+                        continue
+                    fi
                     case "$msg_text" in
                         /start|/menu)
                             tgbot_send "$msg_chat" \
@@ -8830,7 +9089,7 @@ telegram_bot_daemon() {
                             tgbot_send "$msg_chat" \
                                 "$(T _ '📖 KZM Yardim
 
-📊 /durum — Sistemin anlık durumu
+📊 /durum — Sistemin anlik durumu
   Zapret, HealthMon, WAN, IP bilgilerini gosterir.
 
 🔧 /zapret — Zapret yonetimi
@@ -8949,14 +9208,14 @@ telegram_bot_menu() {
         echo
         telegram_load_config 2>/dev/null
         if [ -f "$TG_BOT_PID_FILE" ] && kill -0 "$(cat "$TG_BOT_PID_FILE" 2>/dev/null)" 2>/dev/null; then
-            printf " %-14s: %b%s%b\n" "$(T TXT_TGBOT_BOT_ENABLE)" \
+            printf " %-26s: %b%s%b\n" "$(T TXT_TGBOT_BOT_ENABLE)" \
                 "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_TGBOT_BOT_STATUS_ACTIVE)" "${CLR_RESET}"
         else
-            printf " %-14s: %b%s%b\n" "$(T TXT_TGBOT_BOT_ENABLE)" \
+            printf " %-26s: %b%s%b\n" "$(T TXT_TGBOT_BOT_ENABLE)" \
                 "${CLR_ORANGE}${CLR_BOLD}" "$(T TXT_TGBOT_BOT_STATUS_INACTIVE)" "${CLR_RESET}"
         fi
-        printf " %-14s: %s\n" "$(T TXT_TGBOT_POLL_SEC)" "${TG_BOT_POLL_SEC:-5}"
-        printf " %-14s: %s\n" "$(T TXT_TGBOT_ROUTER_ID_LABEL)" "${TG_ROUTER_ID}"
+        printf " %-26s: %s\n" "$(T TXT_TGBOT_POLL_SEC)" "${TG_BOT_POLL_SEC:-5}"
+        printf " %-26s: %s\n" "$(T TXT_TGBOT_ROUTER_ID_LABEL)" "${TG_ROUTER_ID}"
         echo
         print_line "-"
         echo " 1) $(T TXT_TGBOT_ENABLE_BOT)"
@@ -10455,7 +10714,7 @@ healthmon_status() {
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_WD)" "$HM_ZAPRET_WATCHDOG"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_CD)" "${HM_ZAPRET_COOLDOWN_SEC}s"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_AR)" "$HM_ZAPRET_AUTORESTART"
-    hm_kv "NFQUEUE qlen watchdog" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}"
+    hm_kv "$(T _ 'NFQUEUE kuyruk denetimi' 'NFQUEUE qlen watchdog')" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}"
     hm_kv "KeenDNS curl interval" "${HM_KEENDNS_CURL_SEC}s"
 
     echo
@@ -10567,7 +10826,7 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "9" "$_w" "$(T TXT_HM_CFG_ITEM9)" "$HM_COOLDOWN_SEC"
         printf " %2s) %-*s : %s\n" "10" "$_w" "$(T TXT_HM_CFG_ITEM10)" "$HM_HEARTBEAT_SEC"
         printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (conf=${HM_WANMON_IFACE:-auto} ndm=$(healthmon_detect_wan_iface_ndm))"
-        printf " %2s) %-*s : %s\n" "12" "$_w" "NFQUEUE qlen watchdog" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} keendns_curl=${HM_KEENDNS_CURL_SEC}s"
+        printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} keendns_curl=${HM_KEENDNS_CURL_SEC}s"
 echo
         printf " %2s) %s\n" "0" "$(T _ 'Kaydet ve geri' 'Save & back')"
         echo
@@ -10647,7 +10906,7 @@ esac
                 print_status INFO "$(T _ \'NDM WAN: \' \'NDM WAN: \')$(healthmon_detect_wan_iface_ndm)"
                 ;;
             12)
-                hm_ask_01  "$(T _ 'NFQUEUE qlen watchdog (0=kapat 1=ac)' 'NFQUEUE qlen watchdog (0=off 1=on)')" HM_QLEN_WATCHDOG
+                hm_ask_01  "$(T _ 'NFQUEUE kuyruk denetimi (0=kapat 1=ac)' 'NFQUEUE qlen watchdog (0=off 1=on)')" HM_QLEN_WATCHDOG
                 hm_ask_num "$(T _ 'qlen esigi (paket sayisi)' 'qlen threshold (packet count)')" HM_QLEN_WARN_TH
                 hm_ask_num "$(T _ 'Ardisik yuksek tur sayisi -> restart' 'Consecutive high turns -> restart')" HM_QLEN_CRIT_TURNS
                 hm_ask_num "$(T _ 'KeenDNS curl araligi (sn, 0=her tur)' 'KeenDNS curl interval (sec, 0=every loop)')" HM_KEENDNS_CURL_SEC
@@ -10961,15 +11220,24 @@ health_monitor_menu() {
 " "${CLR_BOLD}${CLR_RED}$(T TXT_HM_STATUS) ${run_label} ($(T TXT_HM_ENABLE_LABEL)=${HM_ENABLE})${CLR_RESET}"
         fi
         print_line "-"
-        echo "CPU WARN %${HM_CPU_WARN}/${HM_CPU_WARN_DUR}s  |  CPU CRIT %${HM_CPU_CRIT}/${HM_CPU_CRIT_DUR}s"
-        echo "$(tpl_render "$(T TXT_HM_MENU_LINE2)" DISK "$HM_DISK_WARN" RAM "$HM_RAM_WARN_MB")"
-        echo "$(tpl_render "$(T TXT_HM_MENU_LINE3)" WD "$HM_ZAPRET_WATCHDOG" INT "$HM_INTERVAL")"
+        printf "%-22s| %s\n" \
+            "CPU WARN %${HM_CPU_WARN}/${HM_CPU_WARN_DUR}s" \
+            "CPU CRIT %${HM_CPU_CRIT}/${HM_CPU_CRIT_DUR}s"
+        printf "%-22s| %-21s| %s\n" \
+            "Disk(/opt) >= ${HM_DISK_WARN}%" \
+            "RAM <= ${HM_RAM_WARN_MB} MB" \
+            "$(T _ 'Load (uptime)' 'Load via uptime')"
+        printf "%-22s| %s\n" \
+            "$(T _ "Zapret denetimi: ${HM_ZAPRET_WATCHDOG}" "Zapret watchdog: ${HM_ZAPRET_WATCHDOG}")" \
+            "$(T _ "Aralik: ${HM_INTERVAL}s" "Interval: ${HM_INTERVAL}s")"
         # Telegram Bot durumu
         if [ "$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')" = "1" ]; then
             if [ -f "/tmp/zkm_telegram_bot.pid" ] && kill -0 "$(cat "/tmp/zkm_telegram_bot.pid" 2>/dev/null)" 2>/dev/null; then
-                printf "%b\n" "${CLR_GREEN}Telegram Bot : $(T TXT_TGBOT_BANNER_ACTIVE) (PID: $(cat /tmp/zkm_telegram_bot.pid 2>/dev/null))${CLR_RESET}"
+                printf "%-22s| %b%s%b\n" "Telegram Bot" \
+                    "${CLR_GREEN}" "$(T TXT_TGBOT_BANNER_ACTIVE) (PID: $(cat /tmp/zkm_telegram_bot.pid 2>/dev/null))" "${CLR_RESET}"
             else
-                printf "%b\n" "${CLR_RED}Telegram Bot : $(T TXT_TGBOT_BANNER_INACTIVE)${CLR_RESET}"
+                printf "%-22s| %b%s%b\n" "Telegram Bot" \
+                    "${CLR_RED}" "$(T TXT_TGBOT_BANNER_INACTIVE)" "${CLR_RESET}"
             fi
         fi
         echo
