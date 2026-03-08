@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.8"
+SCRIPT_VERSION="v26.3.8.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1765,6 +1765,18 @@ TXT_TGBOT_BOT_STOPPED_TR="Bot durduruldu."
 TXT_TGBOT_BOT_STOPPED_EN="Bot stopped."
 TXT_TGBOT_BOT_NOT_CONFIG_TR="Bot yapilandirilmamis. Once Telegram token ve chat ID girin."
 TXT_TGBOT_BOT_NOT_CONFIG_EN="Bot not configured. Enter Telegram token and chat ID first."
+TXT_TGBOT_BTN_WAN_RESET_TR="WAN Sureli Kapatma"
+TXT_TGBOT_BTN_WAN_RESET_EN="Timed WAN Shutdown"
+TXT_TGBOT_BTN_CONFIRM_TR="Onayla"
+TXT_TGBOT_BTN_CONFIRM_EN="Confirm"
+TXT_TGBOT_WAN_RESET_SELECT_TR="WAN kac dakika kapatilsin?"
+TXT_TGBOT_WAN_RESET_SELECT_EN="How long to disable WAN?"
+TXT_TGBOT_WAN_RESET_CONFIRM_TR="WAN %MIN% dk kapatilacak. Onayliyor musun?"
+TXT_TGBOT_WAN_RESET_CONFIRM_EN="WAN will be off for %MIN% min. Confirm?"
+TXT_TGBOT_WAN_RESET_STARTED_TR="WAN kapatildi. %MIN% dk sonra yeniden baglanacak."
+TXT_TGBOT_WAN_RESET_STARTED_EN="WAN disabled. Will reconnect in %MIN% min."
+TXT_TGBOT_WAN_NO_IF_TR="WAN arayuzu bulunamadi."
+TXT_TGBOT_WAN_NO_IF_EN="WAN interface not found."
 
 TXT_TGBOT_ROUTER_ID_LABEL_TR="Router Kimlik"
 TXT_TGBOT_ROUTER_ID_LABEL_EN="Router ID"
@@ -8302,13 +8314,34 @@ tgbot_kb_reboot_confirm() {
     printf '[[{"text":"✅ %s","callback_data":"%s:sys_reboot_do"},{"text":"❌ %s","callback_data":"%s:sys_device_detail"}]]'         "$(T TXT_TGBOT_BTN_REBOOT_CONFIRM)" "$rid"         "$(T TXT_TGBOT_BTN_CANCEL)" "$rid"
 }
 
+tgbot_kb_wan_reset_time() {
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"5 dk","callback_data":"%s:wan_rc_5"},{"text":"10 dk","callback_data":"%s:wan_rc_10"},{"text":"15 dk","callback_data":"%s:wan_rc_15"}],[{"text":"20 dk","callback_data":"%s:wan_rc_20"},{"text":"25 dk","callback_data":"%s:wan_rc_25"},{"text":"30 dk","callback_data":"%s:wan_rc_30"}],[{"text":"⬅️ %s","callback_data":"%s:menu_sistem"}]]' \
+        "$rid" "$rid" "$rid" \
+        "$rid" "$rid" "$rid" \
+        "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+}
+
+tgbot_kb_wan_reset_confirm() {
+    local min="$1"
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"✅ %s","callback_data":"%s:wan_rd_%s"},{"text":"❌ %s","callback_data":"%s:sys_wan_reset"}]]' \
+        "$(T TXT_TGBOT_BTN_CONFIRM)" "$rid" "$min" \
+        "$(T TXT_TGBOT_BTN_CANCEL)" "$rid"
+}
+
 tgbot_kb_sistem() {
     local rid="${TG_ROUTER_ID:-default}"
     # Router buton etiketi: "🟢 SweetHome (KN-1812)" formatinda
     local _dev_label
     _dev_label="${TG_DEVICE_NAME:-Router}"
     [ -n "$TG_DEVICE_MODEL" ] && _dev_label="${_dev_label} (${TG_DEVICE_MODEL})"
-    printf '[[{"text":"📡 %s","callback_data":"%s:sys_net_devices"},{"text":"📶 %s","callback_data":"%s:sys_wifi"}],[{"text":"🟢 %s","callback_data":"%s:sys_device_detail"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]'         "$(T TXT_TGBOT_BTN_NET_DEVICES)" "$rid"         "$(T TXT_TGBOT_BTN_WIFI)" "$rid"         "$_dev_label" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+    printf '[[{"text":"📡 %s","callback_data":"%s:sys_net_devices"},{"text":"📶 %s","callback_data":"%s:sys_wifi"}],[{"text":"🌐 %s","callback_data":"%s:sys_wan_reset"}],[{"text":"🟢 %s","callback_data":"%s:sys_device_detail"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
+        "$(T TXT_TGBOT_BTN_NET_DEVICES)" "$rid" \
+        "$(T TXT_TGBOT_BTN_WIFI)" "$rid" \
+        "$(T TXT_TGBOT_BTN_WAN_RESET)" "$rid" \
+        "$_dev_label" "$rid" \
+        "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
 
 # Cihaz detay klavyesi: Reboot / KZM Log + Sistem Log / Selftest / Geri
@@ -8973,6 +9006,44 @@ tgbot_handle_callback() {
             tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_REBOOT_SENT)" ""
             sleep 2
             LD_LIBRARY_PATH= ndmc -c "system reboot" >/dev/null 2>&1 || true
+            ;;
+        sys_wan_reset)
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_WAN_RESET_SELECT)" "$(tgbot_kb_wan_reset_time)"
+            ;;
+        wan_rc_*)
+            local _wr_min
+            _wr_min="${cb_action#wan_rc_}"
+            tgbot_edit "$chat_id" "$msg_id" \
+                "$(tpl_render "$(T TXT_TGBOT_WAN_RESET_CONFIRM)" MIN "$_wr_min")" \
+                "$(tgbot_kb_wan_reset_confirm "$_wr_min")"
+            ;;
+        wan_rd_*)
+            local _wd_min _wd_ndm _wd_sec
+            _wd_min="${cb_action#wan_rd_}"
+            _wd_ndm="$(LD_LIBRARY_PATH= ndmc -c 'show interface' 2>/dev/null | awk '
+                BEGIN{RS="Interface, name = "; FS="\n"}
+                NR>1{
+                    id=""; role=""
+                    for(i=1;i<=NF;i++){
+                        if($i ~ /^[[:space:]]*id:/){v=$i; sub(/.*id:[[:space:]]*/,"",v); gsub(/[[:space:]]/,"",v); id=v}
+                        if($i ~ /^[[:space:]]*role:[[:space:]]*inet/){role="inet"}
+                    }
+                    if(role=="inet" && id!=""){print id; exit}
+                }
+            ')"
+            if [ -z "$_wd_ndm" ]; then
+                tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_WAN_NO_IF)" "$(tgbot_kb_wan_reset_time)"
+            else
+                tgbot_edit "$chat_id" "$msg_id" \
+                    "$(tpl_render "$(T TXT_TGBOT_WAN_RESET_STARTED)" MIN "$_wd_min")" ""
+                _wd_sec=$(( _wd_min * 60 ))
+                ( LD_LIBRARY_PATH= ndmc -c "interface ${_wd_ndm} down" >/dev/null 2>&1
+                  sleep "$_wd_sec"
+                  LD_LIBRARY_PATH= ndmc -c "interface ${_wd_ndm} up" >/dev/null 2>&1
+                ) &
+            fi
             ;;
     esac
 }
