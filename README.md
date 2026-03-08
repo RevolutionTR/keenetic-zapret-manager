@@ -16,6 +16,7 @@
 
 <br>
 <br>
+
 <img src="docs/images/KZM_Main_Menu.png" width="800">
 
 <img src="docs/images/zapret_menu2.png" width="800">
@@ -24,6 +25,13 @@
 
 <img src="docs/images/zapret_menu5.png" width="800">
 
+## 🚀 KZM WEB UI
+
+<img src="docs/images/KZM_GUI1.jpg" width="800">
+
+<img src="docs/images/KZM_GUI2.jpg" width="800">
+
+<img src="docs/images/KZM_GUI3.jpg" width="800">
 
 
 ## ✅ Test Edilen Keenetic OS Sürümleri
