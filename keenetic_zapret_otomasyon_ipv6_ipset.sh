@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.8.2"
+SCRIPT_VERSION="v26.3.8.3"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -195,9 +195,27 @@ if [ "$ZKM_SKIP_LOCK" != "1" ]; then
     if ! mkdir "$ZKM_LOCKDIR" 2>/dev/null; then
 
         if [ -f "$ZKM_LOCKDIR/pid" ] && kill -0 "$(cat "$ZKM_LOCKDIR/pid" 2>/dev/null)" 2>/dev/null; then
-            echo "UYARI: Betik zaten calisiyor (PID: $(cat "$ZKM_LOCKDIR/pid" 2>/dev/null))."
-            echo "Lutfen mevcut oturumu kapatin veya once calisan betigi sonlandirin."
-            exit 0
+            _lock_pid="$(cat "$ZKM_LOCKDIR/pid" 2>/dev/null)"
+            _lock_lang="$(cat /opt/zapret/lang 2>/dev/null)"
+            if [ "$_lock_lang" = "en" ]; then
+                printf 'WARNING: Script is already running (PID: %s).\n' "$_lock_pid"
+                printf 'Terminate the current session and continue? (y/n): '
+            else
+                printf 'UYARI: Betik zaten calisiyor (PID: %s).\n' "$_lock_pid"
+                printf 'Mevcut oturumu sonlandirip devam etmek ister misiniz? (e/h): '
+            fi
+            read -r _lock_ans </dev/tty
+            case "$_lock_ans" in
+                e|E|y|Y)
+                    kill "$_lock_pid" 2>/dev/null || true
+                    sleep 1
+                    rm -rf "$ZKM_LOCKDIR" 2>/dev/null
+                    mkdir "$ZKM_LOCKDIR" 2>/dev/null || exit 1
+                    ;;
+                *)
+                    exit 0
+                    ;;
+            esac
         fi
         # Stale lock
         rm -rf "$ZKM_LOCKDIR" 2>/dev/null
