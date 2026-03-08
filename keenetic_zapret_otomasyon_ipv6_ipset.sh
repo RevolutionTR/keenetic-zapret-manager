@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.8.1"
+SCRIPT_VERSION="v26.3.8.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -7847,7 +7847,16 @@ TG_DEVICE_MODEL=""
 
 telegram_device_info_init() {
     # Cache device identity once per run
-    [ -n "$TG_DEVICE_NAME" ] && [ -n "$TG_DEVICE_LAN_IP" ] && [ -n "$TG_DEVICE_WAN_IP" ] && [ -n "$TG_DEVICE_MODEL" ] && return 0
+    [ -n "$TG_DEVICE_NAME" ] && [ -n "$TG_DEVICE_LAN_IP" ] && [ -n "$TG_DEVICE_MODEL" ] && {
+        # Diger alanlar cache'lendi, sadece WAN IP'yi taze oku
+        TG_DEVICE_WAN_IP=""
+        local _wan_if_live=""
+        _wan_if_live="$(ip -4 addr show ppp0 2>/dev/null | awk '/inet /{print "ppp0"; exit}')"
+        [ -z "$_wan_if_live" ] && _wan_if_live="$(ip -4 route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+        [ -n "$_wan_if_live" ] && TG_DEVICE_WAN_IP="$(ip -4 addr show "$_wan_if_live" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+        [ -z "$TG_DEVICE_WAN_IP" ] && TG_DEVICE_WAN_IP="unknown"
+        return 0
+    }
 
     # Hostname (Keenetic "System Name")
     TG_DEVICE_NAME="$(hostname 2>/dev/null)"
