@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.8.3"
+SCRIPT_VERSION="v26.3.10"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1851,6 +1851,35 @@ TXT_HEALTH_RAM_EN="RAM status (MemAvailable)"
 
 TXT_HEALTH_LOAD_TR="Sistem yuk (load avg)"
 TXT_HEALTH_LOAD_EN="System load (load avg)"
+
+TXT_MENU14_TITLE_TR="Ag Tanilama ve Sistem Kontrolu"
+TXT_MENU14_TITLE_EN="Network Diagnostics & System Check"
+TXT_MENU14_OPT1_TR="1. Kontrol Calistir"
+TXT_MENU14_OPT1_EN="1. Run Diagnostics"
+TXT_MENU14_OPT2_TR="2. OPKG Listesini Yenile"
+TXT_MENU14_OPT2_EN="2. Refresh OPKG Package List"
+TXT_OPKG_UPDATING_TR="OPKG paket listesi yenileniyor..."
+TXT_OPKG_UPDATING_EN="Refreshing OPKG package list..."
+TXT_OPKG_UPDATED_TR="OPKG paket listesi yenilendi."
+TXT_OPKG_UPDATED_EN="OPKG package list refreshed."
+TXT_OPKG_UPDATE_FAIL_TR="OPKG listesi yenilenemedi."
+TXT_OPKG_UPDATE_FAIL_EN="Failed to refresh OPKG list."
+TXT_OPKG_ALL_CURRENT_TR="Tum paketler guncel. Yukseltilecek paket yok."
+TXT_OPKG_ALL_CURRENT_EN="All packages up to date. Nothing to upgrade."
+TXT_OPKG_UPGRADABLE_TR="yukseltilecek paket bulundu:"
+TXT_OPKG_UPGRADABLE_EN="upgradable package(s) found:"
+TXT_OPKG_UPGRADE_WARN_TR="UYARI: opkg upgrade tum paketleri gunceller."
+TXT_OPKG_UPGRADE_WARN_EN="WARNING: opkg upgrade will update ALL packages."
+TXT_OPKG_UPGRADE_WARN2_TR="Keenetic'te bagimlilik cakismasi veya sistem bozulmasi yasanabilir."
+TXT_OPKG_UPGRADE_WARN2_EN="Dependency conflicts or system breakage may occur on Keenetic."
+TXT_OPKG_UPGRADE_CONFIRM_TR="Devam etmek ister misiniz? (e/h): "
+TXT_OPKG_UPGRADE_CONFIRM_EN="Do you want to continue? (y/n): "
+TXT_OPKG_UPGRADING_TR="Paketler yukseltiliyor, lutfen bekleyin..."
+TXT_OPKG_UPGRADING_EN="Upgrading packages, please wait..."
+TXT_OPKG_UPGRADED_TR="opkg upgrade tamamlandi."
+TXT_OPKG_UPGRADED_EN="opkg upgrade completed."
+TXT_OPKG_UPGRADE_FAIL_TR="opkg upgrade basarisiz oldu."
+TXT_OPKG_UPGRADE_FAIL_EN="opkg upgrade failed."
 
 TXT_ROLLBACK_TITLE_TR="Betik: Yedekten Geri Don (Rollback)"
 TXT_ROLLBACK_TITLE_EN="Script: Roll Back from Backup"
@@ -6582,6 +6611,77 @@ display_menu() {
     printf "$(T TXT_PROMPT_MAIN)"
 }
 
+
+# --- OPKG GUNCELLEME ---
+run_opkg_update() {
+    print_line "-"
+    print_status INFO "$(T TXT_OPKG_UPDATING)"
+    if opkg update 2>/dev/null; then
+        print_status PASS "$(T TXT_OPKG_UPDATED)"
+    else
+        print_status WARN "$(T TXT_OPKG_UPDATE_FAIL)"
+        press_enter_to_continue
+        return 1
+    fi
+
+    local _upgradable
+    _upgradable="$(opkg list-upgradable 2>/dev/null)"
+    if [ -z "$_upgradable" ]; then
+        print_status INFO "$(T TXT_OPKG_ALL_CURRENT)"
+        press_enter_to_continue
+        return 0
+    fi
+
+    local _count
+    _count="$(printf '%s\n' "$_upgradable" | grep -c .)"
+    print_status INFO "${_count} $(T TXT_OPKG_UPGRADABLE)"
+    echo
+    printf '%s\n' "$_upgradable"
+    echo
+    print_line "-"
+    printf '%b%s%b\n' "${CLR_ORANGE}${CLR_BOLD}" "$(T TXT_OPKG_UPGRADE_WARN)" "${CLR_RESET}"
+    printf '%b%s%b\n' "${CLR_ORANGE}" "$(T TXT_OPKG_UPGRADE_WARN2)" "${CLR_RESET}"
+    echo
+    printf '%s' "$(T TXT_OPKG_UPGRADE_CONFIRM)"
+    local _ans
+    read -r _ans </dev/tty
+    case "$_ans" in
+        e|E|y|Y)
+            print_status INFO "$(T TXT_OPKG_UPGRADING)"
+            if opkg upgrade 2>&1; then
+                print_status PASS "$(T TXT_OPKG_UPGRADED)"
+            else
+                print_status WARN "$(T TXT_OPKG_UPGRADE_FAIL)"
+            fi
+            ;;
+        *)
+            print_status INFO "$(T TXT_CANCELLED)"
+            ;;
+    esac
+    press_enter_to_continue
+}
+
+# --- AG TANILAMA ALT MENUSU ---
+network_diag_menu() {
+    while true; do
+        clear
+        print_line "="
+        echo "$(T TXT_MENU14_TITLE)"
+        print_line "="
+        echo " $(T TXT_MENU14_OPT1)"
+        echo " $(T TXT_MENU14_OPT2)"
+        echo " 0. $(T TXT_BACK)"
+        print_line "="
+        printf '%s' "$(T TXT_CHOICE) "
+        read -r _c || return 0
+        case "$_c" in
+            1) run_health_check ;;
+            2) clear; run_opkg_update ;;
+            0) return 0 ;;
+            *) print_status WARN "$(T TXT_INVALID_CHOICE)"; sleep 1 ;;
+        esac
+    done
+}
 
 # --- SAGLIK KONTROLU (HEALTH CHECK) ---
 run_health_check() {
@@ -12436,6 +12536,21 @@ case "$ACTION" in
         ok "Geri yuklendi (kapsam:$_scope)" ;;
     status_refresh)
         refresh; ok "Durum guncellendi" ;;
+    opkg_update)
+        if opkg update >/dev/null 2>&1; then
+            _upgradable="$(opkg list-upgradable 2>/dev/null)"
+            _count=0
+            [ -n "$_upgradable" ] && _count="$(printf '%s\n' "$_upgradable" | grep -c .)"
+            printf '{"ok":1,"count":%s}' "$_count"
+        else
+            fail "opkg update basarisiz"
+        fi ;;
+    opkg_upgrade)
+        if opkg upgrade >/dev/null 2>&1; then
+            ok "opkg upgrade tamamlandi"
+        else
+            fail "opkg upgrade basarisiz"
+        fi ;;
     *)
         fail "Bilinmeyen action: $ACTION" ;;
 esac
@@ -12495,6 +12610,7 @@ kzm_gui_write_html() {
 <html lang="tr">
 <head>
 <meta charset="utf-8"/>
+<meta name="kzm-version" content="__KZM_VER__"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
@@ -12795,6 +12911,107 @@ function pct(u,t){return t?Math.round(u/t*100):0;}
 function ir(l,v){return '<div class="info-row"><div class="lbl">'+l+'</div><div class="val">'+v+'</div></div>';}
 function nd(){return '<div class="empty">Y&#252;kleniyor...</div>';}
 function fmtKeenDns(a){var m={'direct':'<span style="color:var(--good)">&#9679; Direct</span>','cloud':'<span style="color:var(--warn)">&#9679; Cloud</span>'};return m[a]||'<span style="color:var(--bad)">&#9679; Unknown</span>';}
+var opkgState={status:null,count:0,upgraded:false};
+
+function fmtOpkgCard(){
+  var statusHtml='Paket listesini yenilemek i&#231;in butona basin.';
+  var upgradeShow='none';
+  if(opkgState.status==='ok_current'){
+    statusHtml='<span style="color:var(--good)">&#10003; Liste yenilendi. Tum paketler guncel.</span>';
+  } else if(opkgState.status==='ok_upgradable'){
+    statusHtml='<span style="color:var(--warn)">&#9888; Liste yenilendi. <b>'+opkgState.count+'</b> paket yukseltilmeyi bekliyor.</span>';
+    upgradeShow='';
+  } else if(opkgState.status==='upgraded'){
+    statusHtml='<span style="color:var(--good)">&#10003; opkg upgrade tamamlandi.</span>';
+  } else if(opkgState.status==='err'){
+    statusHtml='<span style="color:var(--bad)">&#10007; Hata olustu.</span>';
+  }
+  return '<div class="card" id="opkgCard">'+
+    '<h3>OPKG Paketleri</h3>'+
+    '<div id="opkgStatus" style="font-size:12.5px;color:var(--muted);margin:8px 0 10px">'+statusHtml+'</div>'+
+    '<div class="btns">'+
+      '<button id="opkgUpdateBtn" onclick="opkgUpdate(this)">&#8635; Listeyi Yenile</button>'+
+      '<button id="opkgUpgradeBtn" class="danger" style="display:'+upgradeShow+'" onclick="opkgUpgrade(this)">&#8679; Yukselt</button>'+
+    '</div>'+
+    '<div id="opkgWarn" style="display:none;margin-top:10px;padding:8px 10px;background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:7px;font-size:11.5px;color:var(--bad)">'+
+      '&#9888; opkg upgrade Keenetic\'te sistem bozulmasina yol acabilir.<br>'+
+      'Devam etmek istediginizden emin misiniz?<br>'+
+      '<div class="btns" style="margin-top:8px">'+
+        '<button class="danger" onclick="opkgUpgradeConfirm(this)">Evet, Yukselt</button>'+
+        '<button class="ghost" onclick="document.getElementById(\'opkgWarn\').style.display=\'none\'">Iptal</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function opkgUpdate(btn){
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Yenileniyor...';
+  document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> opkg update calistiriliyor...';
+  document.getElementById('opkgUpgradeBtn').style.display='none';
+  document.getElementById('opkgWarn').style.display='none';
+  fetch('/cgi-bin/action.sh',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'action=opkg_update'})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    btn.disabled=false;btn.innerHTML='&#8635; Listeyi Yenile';
+    if(d.ok){
+      var cnt=parseInt(d.count)||0;
+      if(cnt===0){
+        opkgState={status:'ok_current',count:0,upgraded:false};
+        document.getElementById('opkgStatus').innerHTML=
+          '<span style="color:var(--good)">&#10003; Liste yenilendi. Tum paketler guncel.</span>';
+      } else {
+        opkgState={status:'ok_upgradable',count:cnt,upgraded:false};
+        document.getElementById('opkgStatus').innerHTML=
+          '<span style="color:var(--warn)">&#9888; Liste yenilendi. <b>'+cnt+'</b> paket yukseltilmeyi bekliyor.</span>';
+        document.getElementById('opkgUpgradeBtn').style.display='';
+      }
+    } else {
+      opkgState={status:'err',count:0,upgraded:false};
+      document.getElementById('opkgStatus').innerHTML=
+        '<span style="color:var(--bad)">&#10007; '+(d.msg||'Hata')+'</span>';
+    }
+  })
+  .catch(function(){
+    btn.disabled=false;btn.innerHTML='&#8635; Listeyi Yenile';
+    opkgState={status:'err',count:0,upgraded:false};
+    document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; Baglanti hatasi</span>';
+  });
+}
+
+function opkgUpgrade(btn){
+  btn.style.display='none';
+  document.getElementById('opkgWarn').style.display='';
+}
+
+function opkgUpgradeConfirm(btn){
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Yukseltiliyor...';
+  document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> opkg upgrade calistiriliyor, lutfen bekleyin...';
+  fetch('/cgi-bin/action.sh',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'action=opkg_upgrade'})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    document.getElementById('opkgWarn').style.display='none';
+    if(d.ok){
+      opkgState={status:'upgraded',count:0,upgraded:true};
+      document.getElementById('opkgStatus').innerHTML=
+        '<span style="color:var(--good)">&#10003; opkg upgrade tamamlandi.</span>';
+      document.getElementById('opkgUpgradeBtn').style.display='none';
+    } else {
+      opkgState={status:'err',count:0,upgraded:false};
+      document.getElementById('opkgStatus').innerHTML=
+        '<span style="color:var(--bad)">&#10007; '+(d.msg||'Hata')+'</span>';
+    }
+  })
+  .catch(function(){
+    document.getElementById('opkgWarn').style.display='none';
+    opkgState={status:'err',count:0,upgraded:false};
+    document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; Baglanti hatasi</span>';
+  });
+}
+
 function fmtBcCard(S){
   var profileNames={
     'tt_default':'Turk Telekom Fiber (TTL2 fake)',
@@ -12867,6 +13084,7 @@ var V={
         '<div class="row" style="margin-top:6px">'+bdgO(S.telegram_enabled&&S.telegram_running,'Telegram AKT&#304;F','Telegram KAPALI')+'</div>'+
       '</div>'+
       fmtBcCard(S)+
+      fmtOpkgCard()+
       '<div class="card wide"><h3>Sistem Bilgisi</h3><div class="info-grid">'+
         ir('Model',S.model||'—')+ir('Firmware',S.firmware||'—')+
         ir('WAN',(S.wan_dev||'—')+' | '+(S.wan_ip||'—'))+
@@ -13455,6 +13673,7 @@ fetch('/cgi-bin/action.sh',{method:'POST',
 </html>
 HTMLEOF
     sed -i "s/__KZM_PORT__/${KZM_GUI_PORT}/g" "$KZM_GUI_HTML" 2>/dev/null
+    sed -i "s/__KZM_VER__/${SCRIPT_VERSION}/g" "$KZM_GUI_HTML" 2>/dev/null
 }
 
 # ---------------------------------------------------------------------------
@@ -13855,7 +14074,7 @@ main_menu_loop() {
 			11) manage_hostlist_menu ;;
             12) manage_ipset_clients ;;
 			13) script_rollback_menu ;;
-			14) run_health_check ;;
+			14) network_diag_menu ;;
 			15) telegram_notifications_menu ;;
 			16) health_monitor_menu ;;
 			17) kzm_gui_menu ;;
@@ -13907,6 +14126,15 @@ if [ "$1" != "--healthmon-daemon" ] && [ "$1" != "--telegram-daemon" ] && [ "$1"
         else
             printf '%b\n' "$(T _ 'WARN: opkg bulunamadi, curl yuklenemiyor.' 'WARN: opkg not found, cannot install curl.')"
         fi
+    fi
+fi
+
+# Web GUI versiyon kontrolu: kurulu ise KZM surumuyle eslesmiyorsa sessizce guncelle
+if [ -f "$KZM_GUI_HTML" ]; then
+    _gui_ver="$(grep -o 'kzm-version" content="[^"]*"' "$KZM_GUI_HTML" 2>/dev/null | sed 's/.*content="//;s/"//')"
+    if [ "$_gui_ver" != "$SCRIPT_VERSION" ]; then
+        kzm_gui_write_html
+        kzm_gui_write_cgi
     fi
 fi
 
