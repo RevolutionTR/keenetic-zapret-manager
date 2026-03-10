@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.10.1"
+SCRIPT_VERSION="v26.3.10.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -3639,6 +3639,8 @@ check_keenetic_components() {
     local missing_critical=0
     local missing_optional=0
     local all_components=""
+    # PATH genislet: Entware ve sistem araclari her zaman erisilebilir olsun
+    export PATH="/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
     
     echo ""
     echo "$(T TXT_COMP_CHECK_TITLE)"
