@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.10"
+SCRIPT_VERSION="v26.3.10.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -2298,6 +2298,14 @@ TXT_HL_BAD_EN="Invalid choice."
 
 TXT_HL_NEED_TR="Gerekli: "
 TXT_HL_NEED_EN="Required: "
+TXT_HL_LIST_USER_TR="User Hostlist          "
+TXT_HL_LIST_USER_EN="User Hostlist          "
+TXT_HL_LIST_EXCLUDE_DOM_TR="Exclude (Domain)       "
+TXT_HL_LIST_EXCLUDE_DOM_EN="Exclude (Domain)       "
+TXT_HL_LIST_EXCLUDE_IP_TR="Exclude (IP/Subnet)    "
+TXT_HL_LIST_EXCLUDE_IP_EN="Exclude (IP/Subnet)    "
+TXT_HL_LIST_AUTO_TR="Auto Hostlist          "
+TXT_HL_LIST_AUTO_EN="Auto Hostlist          "
 
 TXT_HL_DOMAIN_ADD_TR="Domain eklendi: "
 TXT_HL_DOMAIN_ADD_EN="Domain added: "
@@ -5701,19 +5709,54 @@ hostlist_stats() {
 }
 
 show_hostlist_tail() {
-    # $1 file $2 title
-    f="$1"; t="$2"
+    # $1=file $2=title_key (TXT_HL_LIST_*)
+    [ "$ZKM_PAGE_ABORT" = "1" ] && return
+    local f="$1" tk="$2"
+    local c
     c="$(hostlist_stats "$f")"
-    print_line "-"
-    echo "$t (count: $c)"
-    print_line "-"
+    print_line "-"; zkm_page_line
+    printf '%b%-25s:%b ' "${CLR_ORANGE}${CLR_BOLD}" "$(T "$tk")" "${CLR_RESET}"
     if [ "$c" -eq 0 ]; then
-        echo "(empty)"
+        printf '%b%s%b\n' "${CLR_RED}" "$(T TXT_EMPTY)" "${CLR_RESET}"
+        zkm_page_line
     else
-        awk 'NF && $0 !~ /^[[:space:]]*#/' "$f" 2>/dev/null | tail -n 30
-        if [ "$c" -gt 30 ]; then
-            echo "..."
-        fi
+        printf '%b%d %s%b\n' "${CLR_GREEN}" "$c" "$(T _ 'domain' 'domains')" "${CLR_RESET}"
+        zkm_page_line
+        [ "$ZKM_PAGE_ABORT" = "1" ] && return
+        echo ""; zkm_page_line
+        while IFS= read -r _hl_line; do
+            [ "$ZKM_PAGE_ABORT" = "1" ] && return
+            printf '%s\n' "$_hl_line"
+            zkm_page_line
+        done << HLEOF
+$(awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
+    NF && $0 !~ /^[[:space:]]*#/ {
+        printf "  %s%2d.%s %s\n", cyan, NR, reset, $0
+    }' "$f" 2>/dev/null)
+HLEOF
+    fi
+}
+
+# ZKM_PAGE_LINES: show_hostlist_tail tarafindan kullanilan global sayac
+# zkm_page_check: her satir basilinca cagrilir, sayfa dolunca duraklar
+ZKM_PAGE_LINES=0
+ZKM_PAGE_ROWS=0
+ZKM_PAGE_ABORT=0
+zkm_page_init() {
+    ZKM_PAGE_ABORT=0
+    ZKM_PAGE_LINES=0
+    ZKM_PAGE_ROWS="$(stty size 2>/dev/null | awk '{print $1}')"
+    { [ -z "$ZKM_PAGE_ROWS" ] || [ "$ZKM_PAGE_ROWS" -lt 5 ]; } && ZKM_PAGE_ROWS=24
+    ZKM_PAGE_ROWS=$(( ZKM_PAGE_ROWS - 3 ))
+}
+zkm_page_line() {
+    [ "$ZKM_PAGE_ABORT" = "1" ] && return
+    ZKM_PAGE_LINES=$(( ZKM_PAGE_LINES + 1 ))
+    if [ "$ZKM_PAGE_LINES" -ge "$ZKM_PAGE_ROWS" ]; then
+        printf '\033[7m-- Devam: ENTER | Cik: q --\033[0m '
+        read -r _pans </dev/tty
+        case "$_pans" in q|Q) ZKM_PAGE_ABORT=1; printf '\n'; return ;; esac
+        ZKM_PAGE_LINES=0
     fi
 }
 
@@ -5852,18 +5895,12 @@ manage_hostlist_menu() {
         read -r sel || return 0
         case "$sel" in
             1)
-                show_hostlist_tail "$HOSTLIST_USER"    "/opt/zapret/ipset/zapret-hosts-user.txt"
-                echo ""
-                show_hostlist_tail "$HOSTLIST_EXCLUDE_DOM" "/opt/zapret/ipset/zapret-hosts-user-exclude.txt"
-                echo ""
-                show_hostlist_tail "$HOSTLIST_EXCLUDE_IP"  "/opt/zapret/ipset/zapret-hosts-localnets.txt"
-                echo ""
-                show_hostlist_tail "$HOSTLIST_AUTO"    "/opt/zapret/ipset/zapret-hosts-auto.txt"
-                if type press_enter_to_continue >/dev/null 2>&1; then
-                    press_enter_to_continue
-                else
-                    press_enter_to_continue
-                fi
+                zkm_page_init
+                show_hostlist_tail "$HOSTLIST_USER"         TXT_HL_LIST_USER
+                show_hostlist_tail "$HOSTLIST_EXCLUDE_DOM"   TXT_HL_LIST_EXCLUDE_DOM
+                show_hostlist_tail "$HOSTLIST_EXCLUDE_IP"    TXT_HL_LIST_EXCLUDE_IP
+                show_hostlist_tail "$HOSTLIST_AUTO"         TXT_HL_LIST_AUTO
+                [ "$ZKM_PAGE_ABORT" != "1" ] && { print_line "-"; press_enter_to_continue; }
                 clear
                 ;;
             2)
