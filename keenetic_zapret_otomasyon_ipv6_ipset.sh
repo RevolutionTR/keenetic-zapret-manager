@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.10.2"
+SCRIPT_VERSION="v26.3.11"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1406,6 +1406,9 @@ TXT_HM_RUN_ON_EN="ON"
 
 TXT_HM_RUN_OFF_TR="KAPALI"
 TXT_HM_RUN_OFF_EN="OFF"
+
+TXT_HM_BANNER_WARN_TR="Otomatik guncelleme ve watchdog devre disi. Aktif etmek icin Menu 16."
+TXT_HM_BANNER_WARN_EN="Auto-update and watchdog disabled. Enable via Menu 16."
 
 TXT_HM_ENABLE_LABEL_TR="etkin"
 TXT_HM_ENABLE_LABEL_EN="enable"
@@ -5288,6 +5291,16 @@ install_zapret() {
     sync_zapret_iface_wan_config
     restart_zapret
     cleanup_nfqueue_rules_except_selected_wan
+
+    # HealthMon henuz aktif degilse kurulumda otomatik etkinlestir
+    healthmon_load_config 2>/dev/null
+    if [ "${HM_ENABLE:-0}" != "1" ]; then
+        HM_ENABLE="1"
+        healthmon_write_config 2>/dev/null
+        healthmon_autostart_install 2>/dev/null
+        healthmon_start 2>/dev/null
+    fi
+
     press_enter_to_continue
 	clear 
     return 0 
@@ -6547,6 +6560,8 @@ display_menu() {
     else
         printf "  %b%-*s%b : %b%s%b\n"  "${CLR_BOLD}" "$_lw" "$(T TXT_HM_BANNER_LABEL)" \
             "${CLR_RESET}" "${CLR_RED}"    "$(T TXT_HM_RUN_OFF)" "${CLR_RESET}"
+        printf "  %-*s   %b%s%b\n"  "$_lw" "" \
+            "${CLR_ORANGE}" "$(T TXT_HM_BANNER_WARN)" "${CLR_RESET}"
     fi
     # Telegram Bot - sadece TG_BOT_ENABLE=1 ise goster
     if [ "$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')" = "1" ]; then
@@ -11088,11 +11103,7 @@ healthmon_start() {
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             return 0
         fi
-        # If our controlling TTY is gone, don't keep looping
-        if ! [ -t 0 ] && ! [ -e /dev/tty ]; then
-            return 0
-        fi
-        sleep 1 || return 0
+        sleep 1
     done
 
     # Failed to start: cleanup any stale state
@@ -11111,12 +11122,15 @@ healthmon_stop() {
     # Stop daemon by PID file if present
     if [ -f "$HM_PID_FILE" ]; then
         kill "$(cat "$HM_PID_FILE" 2>/dev/null)" 2>/dev/null
+        sleep 1
+        kill -9 "$(cat "$HM_PID_FILE" 2>/dev/null)" 2>/dev/null
         rm -f "$HM_PID_FILE" 2>/dev/null
     fi
 
     # Fallback: stop any stray daemon instances (e.g., PID file missing)
     ps 2>/dev/null | awk -v n="$SCRIPT_NAME" 'index($0,"--healthmon-daemon")>0 && index($0,n)>0 {print $1}' | while read -r p; do
         [ -n "$p" ] && kill "$p" 2>/dev/null
+        [ -n "$p" ] && sleep 1 && kill -9 "$p" 2>/dev/null
     done
 
     # Clear volatile state to avoid stale counters after reboot/power loss
@@ -12200,6 +12214,7 @@ kzm_gui_write_cgi() {
     mkdir -p "$KZM_GUI_CGI_DIR" 2>/dev/null
     cat > "$KZM_GUI_CGI" << 'CGIEOF'
 #!/bin/sh
+# kzm-cgi-version: __KZM_VER__
 export PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 printf 'Content-Type: application/json\r\n\r\n'
 
@@ -12255,11 +12270,31 @@ case "$ACTION" in
         sh /opt/etc/init.d/S90-zapret restart >/dev/null 2>&1
         wait_zapret down; wait_zapret up; refresh; ok "Zapret yeniden baslatildi" ;;
     healthmon_start)
-        sh /opt/etc/init.d/S99zkm_healthmon start >/dev/null 2>&1
-        sleep 1; refresh; ok "Health Monitor baslatildi" ;;
+        CONF=/opt/etc/healthmon.conf
+        SCRIPT="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+        if [ -f "$CONF" ]; then
+            sed -i 's/^HM_ENABLE=.*/HM_ENABLE="1"/' "$CONF" 2>/dev/null
+        else
+            printf 'HM_ENABLE="1"\n' > "$CONF"
+        fi
+        # Zaten calisiyor mu kontrol et
+        _hmpid="$(cat /tmp/healthmon.pid 2>/dev/null)"
+        if [ -n "$_hmpid" ] && kill -0 "$_hmpid" 2>/dev/null; then
+            refresh; ok "Health Monitor zaten calisiyor"
+        else
+            rm -f /tmp/healthmon.pid 2>/dev/null
+            rm -rf /tmp/healthmon.lock 2>/dev/null
+            # trap+double-fork: lighttpd CGI kapaninca SIGHUP/SIGTERM gonderir
+            # Subshell icinde sinyalleri engelleyip arka plana alinca init'e baglanir
+            (ZKM_SKIP_LOCK=1 sh "$SCRIPT" --healthmon-daemon </dev/null >/tmp/healthmon.log 2>&1 &)
+            sleep 2; refresh; ok "Health Monitor baslatildi"
+        fi ;;
     healthmon_stop)
-        sh /opt/etc/init.d/S99zkm_healthmon stop >/dev/null 2>&1
-        sleep 1; refresh; ok "Health Monitor durduruldu" ;;
+        CONF=/opt/etc/healthmon.conf
+        [ -f "$CONF" ] && sed -i 's/^HM_ENABLE=.*/HM_ENABLE="0"/' "$CONF" 2>/dev/null
+        _hmpid="$(cat /tmp/healthmon.pid 2>/dev/null)"
+        [ -n "$_hmpid" ] && kill "$_hmpid" 2>/dev/null
+        sleep 1; rm -f /tmp/healthmon.pid 2>/dev/null; refresh; ok "Health Monitor durduruldu" ;;
     hm_get)
         CONF=/opt/etc/healthmon.conf
         [ -f "$CONF" ] || { fail "Config bulunamadi"; exit 0; }
@@ -12594,6 +12629,7 @@ case "$ACTION" in
         fail "Bilinmeyen action: $ACTION" ;;
 esac
 CGIEOF
+    sed -i "s/__KZM_VER__/${SCRIPT_VERSION}/g" "$KZM_GUI_CGI" 2>/dev/null
     chmod +x "$KZM_GUI_CGI"
 }
 
@@ -12877,7 +12913,7 @@ function fetchS(){
   return fetch('/run/kzm_status.json?t='+Date.now())
     .then(function(r){return r.json();})
     .then(function(d){
-      S=d;updHdr();if(curV==='dash')render(curV);
+      S=d;updHdr();if(curV==='dash'||curV==='healthmon'||curV==='telegram'||curV==='zapret')render(curV);
       var dt=new Date(d.ts*1000);
       document.getElementById('tsLbl').textContent=dt.toLocaleTimeString('tr-TR');
     })
@@ -12907,8 +12943,13 @@ function act(action,btn,msg){
     toast(res.msg||msg,!!res.ok);
     if(btn){btn.disabled=false;btn.innerHTML=btn._o;}
     clearInterval(aTimer);
-    fetchS();
-    quickPoll(5,2000);
+    // status_refresh action JSON dosyasini gunceller, bittikten sonra fetchS
+    fetch('/cgi-bin/action.sh',{method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'action=status_refresh'})
+    .then(function(){return fetchS();})
+    .then(function(){quickPoll(5,2000);})
+    .catch(function(){fetchS();quickPoll(5,2000);});
   })
   .catch(function(){toast('Ba&#287;lant&#305; hatas&#305;',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
@@ -12951,6 +12992,7 @@ function ir(l,v){return '<div class="info-row"><div class="lbl">'+l+'</div><div 
 function nd(){return '<div class="empty">Y&#252;kleniyor...</div>';}
 function fmtKeenDns(a){var m={'direct':'<span style="color:var(--good)">&#9679; Direct</span>','cloud':'<span style="color:var(--warn)">&#9679; Cloud</span>'};return m[a]||'<span style="color:var(--bad)">&#9679; Unknown</span>';}
 var opkgState={status:null,count:0,upgraded:false};
+var hmConfCache=null;
 
 function fmtOpkgCard(){
   var statusHtml='Paket listesini yenilemek i&#231;in butona basin.';
@@ -13227,31 +13269,33 @@ var V={
   healthmon:{title:'Sistem Izleme',sub:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
-    var h='<div class="grid">'+
-      '<div class="card"><h3>CPU Load</h3><div class="big">'+S.load1+'</div>'+
-        '<div class="sub">5dk: '+S.load5+' &nbsp; 15dk: '+S.load15+'</div></div>'+
-      '<div class="card"><h3>RAM</h3><div class="big">'+rp+'%</div>'+
-        '<div class="sub">'+S.ram_used_mb+' / '+S.ram_total_mb+' MB</div>'+brr(rp)+'</div>'+
-      '<div class="card"><h3>Disk /opt</h3><div class="big">'+S.disk_used_pct+'%</div>'+
-        '<div class="sub">Toplam: '+Math.round(S.disk_total_mb/1024)+' GB</div>'+brr(S.disk_used_pct)+'</div>'+
+    var h='<div class="grid">'  /* uyari hmUpdate tarafindan yonetilir */+
+      '<div class="card"><h3>CPU Load</h3><div class="big" id="hmLoad1">'+S.load1+'</div>'+
+        '<div class="sub" id="hmLoad515">5dk: '+S.load5+' &nbsp; 15dk: '+S.load15+'</div></div>'+
+      '<div class="card"><h3>RAM</h3><div class="big" id="hmRamPct">'+rp+'%</div>'+
+        '<div class="sub" id="hmRamSub">'+S.ram_used_mb+' / '+S.ram_total_mb+' MB</div>'+
+        '<div id="hmRamBar">'+brr(rp)+'</div></div>'+
+      '<div class="card"><h3>Disk /opt</h3><div class="big" id="hmDiskPct">'+S.disk_used_pct+'%</div>'+
+        '<div class="sub">Toplam: '+Math.round(S.disk_total_mb/1024)+' GB</div>'+
+        '<div id="hmDiskBar">'+brr(S.disk_used_pct)+'</div></div>'+
       '<div class="card"><h3>Zapret &amp; HealthMon</h3>'+
-        '<div class="row">'+bdg(S.zapret_running,'Zapret OK','Zapret PAS&#304;F')+'</div>'+
-        '<div class="row" style="margin-top:6px">'+bdg(S.healthmon_running,'HealthMon OK','HealthMon PAS&#304;F')+'</div>'+
-        '<div class="btns" style="margin-top:10px">';
+        '<div class="row" id="hmZapBdg">'+bdg(S.zapret_running,'Zapret OK','Zapret PAS&#304;F')+'</div>'+
+        '<div class="row" style="margin-top:6px" id="hmHmBdg">'+bdg(S.healthmon_running,'HealthMon OK','HealthMon PAS&#304;F')+'</div>'+
+        '<div class="btns" style="margin-top:10px" id="hmBtn">';
     h+=S.healthmon_running
-      ?'<button class="danger" onclick="act(\'healthmon_stop\',this,\'HM durduruldu\')">&#9632; Durdur</button>'
-      :'<button class="ok" onclick="act(\'healthmon_start\',this,\'HM baslatildi\')">&#9654; Ba&#351;lat</button>';
+      ?'<button class="danger" onclick="act(\'healthmon_stop\',this,\'HM durduruldu\')">&#9632; HM Durdur</button>'
+      :'<button class="ok" onclick="act(\'healthmon_start\',this,\'HM baslatildi\')">&#9654; HM Ba&#351;lat</button>';
     h+='<button class="ghost" onclick="act(\'status_refresh\',this,\'Guncellendi\')">&#8635; Yenile</button>'+
       '</div></div>'+
-      '<div class="card wide" id="hmC"><h3>Konfig&#252;rasyon</h3><div class="sub">Y&#252;kleniyor...</div></div>'+
+      '<div class="card wide" id="hmC"><h3>Konfig&#252;rasyon</h3>'+(hmConfCache||'<div class="sub">Y&#252;kleniyor...</div>')+'</div>'+
     '</div>';
-    setTimeout(function(){
+    if(!hmConfCache){
       getD('hm_get',function(r){
+        hmConfCache=r.ok?'<div class="info-grid">'+r.data+'</div>':'<div class="sub">Okunamad&#305;</div>';
         var el=document.getElementById('hmC');
-        if(!el)return;
-        el.innerHTML='<h3>Konfig&#252;rasyon</h3>'+(r.ok?'<div class="info-grid">'+r.data+'</div>':'<div class="sub">Okunamad&#305;</div>');
+        if(el)el.innerHTML='<h3>Konfig&#252;rasyon</h3>'+hmConfCache;
       });
-    },100);
+    }
     return h;
   }},
 
@@ -14168,10 +14212,11 @@ if [ "$1" != "--healthmon-daemon" ] && [ "$1" != "--telegram-daemon" ] && [ "$1"
     fi
 fi
 
-# Web GUI versiyon kontrolu: kurulu ise KZM surumuyle eslesmiyorsa sessizce guncelle
+# Web GUI versiyon kontrolu: HTML veya CGI surumu eslesmiyor ise sessizce guncelle
 if [ -f "$KZM_GUI_HTML" ]; then
     _gui_ver="$(grep -o 'kzm-version" content="[^"]*"' "$KZM_GUI_HTML" 2>/dev/null | sed 's/.*content="//;s/"//')"
-    if [ "$_gui_ver" != "$SCRIPT_VERSION" ]; then
+    _cgi_ver="$(grep -o 'kzm-cgi-version: [^[:space:]]*' "$KZM_GUI_CGI" 2>/dev/null | sed 's/.*kzm-cgi-version: //')"
+    if [ "$_gui_ver" != "$SCRIPT_VERSION" ] || [ "$_cgi_ver" != "$SCRIPT_VERSION" ]; then
         kzm_gui_write_html
         kzm_gui_write_cgi
     fi
