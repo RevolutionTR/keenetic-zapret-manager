@@ -47,7 +47,7 @@ Telegram'dan router'a komut gönderme:
 
 ## 2️⃣ Chat ID Öğrenme
 
-1. Oluşturduğunuz bot'a Telegram'dan **en az bir mesaj gönderin**
+1. Oluşturduğunuz bot'a Telegram'dan **en az bir mesaj gönderin** Aksi halde chatid görünmez !
 2. Tarayıcıda şu adresi açın:
 
    `https://api.telegram.org/bot<BOT_TOKEN>/getUpdates`
