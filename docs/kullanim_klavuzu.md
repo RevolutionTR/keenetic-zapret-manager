@@ -77,7 +77,7 @@ Zapret’i sistemden güvenli şekilde kaldırır.
 
 ### Kaldırılmayanlar:
 
-✔ Manager (ZKM)  
+✔ Manager (KZM)  
 ✔ Health Monitor  
 ✔ Telegram ayarları  
 
@@ -359,7 +359,7 @@ Arayüz dilini Türkçe / İngilizce arasında değiştirir.
 
 ⚠️ Geri alınamaz işlemdir.
 
-Router’ı ZKM kurulum öncesi hale getirir.
+Router’ı KZM kurulum öncesi hale getirir.
 
 ---
 
