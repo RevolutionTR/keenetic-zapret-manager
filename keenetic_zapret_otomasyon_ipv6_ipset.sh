@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.11"
+SCRIPT_VERSION="v26.3.13"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -332,7 +332,7 @@ zkm_full_uninstall() {
 
     echo ""
     print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_STEP1)"
-    uninstall_zapret
+    uninstall_zapret 1
 
     echo ""
     print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_STEP2)"
@@ -5071,7 +5071,7 @@ cleanup_zapret_firewall_leftovers() {
 
     # ipset kalintilari
     if command -v ipset >/dev/null 2>&1; then
-        for s in zapret_clients nozapret ipban; do
+        for s in zapret zapret_clients nozapret ipban; do
             ipset list "$s" >/dev/null 2>&1 && ipset flush "$s" >/dev/null 2>&1
             ipset list "$s" >/dev/null 2>&1 && ipset destroy "$s" >/dev/null 2>&1
         done
@@ -5122,14 +5122,42 @@ cleanup_files_after_uninstall() {
 }
 
 
+# Uninstall sonrasi sistem temiz mi kontrol eder
+# Donus: 0 = temiz, 1 = kalinti var
+verify_zapret_clean() {
+    local _dirty=0
+
+    # nfqws hala calisiyor mu? (herhangi bir yolda)
+    if pgrep -f "nfqws" >/dev/null 2>&1; then
+        _dirty=1
+    fi
+
+    # NFQUEUE kurali kaldi mi?
+    if command -v iptables >/dev/null 2>&1 && iptables-save 2>/dev/null | grep -q "NFQUEUE"; then
+        _dirty=1
+    fi
+
+    # ipset kalintisi?
+    if command -v ipset >/dev/null 2>&1; then
+        for _s in zapret zapret_clients nozapret ipban; do
+            ipset list "$_s" >/dev/null 2>&1 && { _dirty=1; break; }
+        done
+    fi
+
+    # /opt/zapret hala var mi?
+    [ -d /opt/zapret ] && _dirty=1
+
+    return $_dirty
+}
+
 # Zapret kurulu olmasa bile (kaldirmadan sonra) NFQUEUE/IPSET kalintilarini temizler
 cleanup_only_leftovers() {
     print_line "-"
     echo " Kalinti Temizligi (Zapret olmasa da calisir)"
     print_line "-"
     echo "Bu islem, NFQUEUE (qnum 200) iptables kurallarini ve zapret'e ait ipset/netfilter kalintilarini temizler."
-    printf '%s' "Devam edilsin mi? (e/h): "; read -r _c
-    echo "$_c" | grep -qi '^e' || { echo "Iptal edildi."; return 0; }
+    printf '%s' "$(T _ 'Devam edilsin mi? (e/h): ' 'Continue? (y/n): ')"; read -r _c
+    echo "$_c" | grep -qi '^[ey]' || { echo "$(T _ 'Iptal edildi.' 'Cancelled.')"; return 0; }
 
     cleanup_zapret_firewall_leftovers
     remove_nfqueue_rules_200
@@ -5145,30 +5173,43 @@ cleanup_only_leftovers() {
 
 
 # Zapret'i kaldirir
+# _silent=1 ise onay sorulmaz, press_enter/clear yapilmaz (zkm_full_uninstall icin)
 uninstall_zapret() {
+    local _silent="${1:-0}"
 
 if ! is_zapret_installed; then
         echo "$(T TXT_UNINSTALL_NOT_INSTALLED)"
         echo ""
+        if verify_zapret_clean; then
+            echo "$(T _ 'Sistem temiz, kalinti bulunamadi.' 'System is clean, no leftovers found.')"
+            [ "$_silent" = "1" ] || press_enter_to_continue
+            [ "$_silent" = "1" ] || clear
+            return 0
+        fi
         echo "$(T _ 'Ama NFQUEUE/IPSET gibi kalintilar kalmis olabilir.' 'But NFQUEUE/IPSET leftovers may still exist.')"
         printf "%s" "$(T _ 'Kalintilari temizlemek ister misiniz? (e/h): ' 'Clean up leftovers? (y/n): ')"; read -r _cc
         if echo "$_cc" | grep -qi '^[ey]'; then
+            killall nfqws >/dev/null 2>&1
+            killall -9 nfqws >/dev/null 2>&1
             cleanup_zapret_firewall_leftovers
             remove_nfqueue_rules_200
+            rm -rf /opt/zapret /opt/bin/nfqws /opt/sbin/nfqws 2>/dev/null
             echo "$(T _ 'Kalintilar temizlendi.' 'Leftovers cleaned.')"
         else
             echo "$(T _ 'Iptal edildi.' 'Cancelled.')"
         fi
-        press_enter_to_continue
-        clear
+        [ "$_silent" = "1" ] || press_enter_to_continue
+        [ "$_silent" = "1" ] || clear
         return 0
     fi
 
-    printf "%s" "$(T _ 'Zapret kaldirilsin mi? (e/h): ' 'Remove Zapret? (y/n): ')"; read -r uninstall_confirmation
-    case "$uninstall_confirmation" in
-        e|E|y|Y) ;;
-        *) echo "$(T _ 'Iptal edildi.' 'Cancelled.')"; return 0 ;;
-    esac
+    if [ "$_silent" != "1" ]; then
+        printf "%s" "$(T _ 'Zapret kaldirilsin mi? (e/h): ' 'Remove Zapret? (y/n): ')"; read -r uninstall_confirmation
+        case "$uninstall_confirmation" in
+            e|E|y|Y) ;;
+            *) echo "$(T _ 'Iptal edildi.' 'Cancelled.')"; return 0 ;;
+        esac
+    fi
 
     is_zapret_running && stop_zapret
 
@@ -5177,23 +5218,35 @@ if ! is_zapret_installed; then
     echo "$(T TXT_UNINSTALL_REMOVING)"
 
     if ! echo "y" | /opt/zapret/uninstall_easy.sh >/dev/null 2>&1; then
-        printf "%s" "$(T _ 'Zapret kaldirma betigi bulunamadi. Kendi aracimizla kaldirilsin mi? (e/h): ' 'Zapret uninstall script not found. Use built-in cleanup? (y/n): ')"; read -r manual_cleanup_confirmation
-        
-        if echo "$manual_cleanup_confirmation" | grep -qi '^[ey]'; then
+        if [ "$_silent" = "1" ]; then
             echo "$(T _ 'Kendi kaldirma aracimiz calistiriliyor...' 'Running built-in cleanup...')"
             cleanup_files_after_uninstall
-            return 0 
         else
-            echo "$(T _ 'Iptal edildi.' 'Cancelled.')"
-            return 1 
+            printf "%s" "$(T _ 'Zapret kaldirma betigi bulunamadi. Kendi aracimizla kaldirilsin mi? (e/h): ' 'Zapret uninstall script not found. Use built-in cleanup? (y/n): ')"; read -r manual_cleanup_confirmation
+            if echo "$manual_cleanup_confirmation" | grep -qi '^[ey]'; then
+                echo "$(T _ 'Kendi kaldirma aracimiz calistiriliyor...' 'Running built-in cleanup...')"
+                cleanup_files_after_uninstall
+                return 0
+            else
+                echo "$(T _ 'Iptal edildi.' 'Cancelled.')"
+                return 1
+            fi
         fi
     fi
 
     cleanup_files_after_uninstall
 
+    # Verification: hala kalinti var mi? Varsa sessiz ikinci pass.
+    if ! verify_zapret_clean; then
+        killall -9 nfqws >/dev/null 2>&1
+        flush_all_nfqueue_rules
+        cleanup_zapret_firewall_leftovers
+        rm -rf /opt/zapret /opt/bin/nfqws /opt/sbin/nfqws 2>/dev/null
+    fi
+
     echo "$(T TXT_UNINSTALL_OK)"
-	press_enter_to_continue
-	clear 
+    [ "$_silent" = "1" ] || press_enter_to_continue
+    [ "$_silent" = "1" ] || clear
     return 0
 }
 
