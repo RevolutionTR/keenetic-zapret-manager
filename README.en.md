@@ -7,7 +7,7 @@
 <br>
 <br>
 [![Full Setup Guide](https://img.shields.io/badge/Full%20Setup-Guide-success?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/sifirdan_kurulum_anlatimi.md)
-[![User Guide](https://img.shields.io/badge/Usage-Menu_Guide-blue?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/kullanim_klavuzu.md)
+[![User Guide](https://img.shields.io/badge/Usage-Menu_Guide-blue?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/user_guide_en.md)
 [![Telegram](https://img.shields.io/badge/Telegram-Setup-2CA5E0?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/blob/main/docs/telegram.md)
 [![Platform](https://img.shields.io/badge/Platform-Keenetic-1f6feb?style=for-the-badge)](https://keenetic.com.tr)
 <br>
