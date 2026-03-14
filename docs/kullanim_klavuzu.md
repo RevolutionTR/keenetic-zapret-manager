@@ -11,6 +11,14 @@ Keenetic Zapret Manager, DPI engellerini minimum yapılandırma ile aşmanızı 
 
 Kurulum düşündüğünüzden çok daha kolaydır. SSH ile router’a bağlanın ve betiği aşağıdaki komut ile indirin:
 
+```bash
+wget -O /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh \
+  https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/main/keenetic_zapret_otomasyon_ipv6_ipset.sh
+chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
+/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
+```
+
+Veya
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/main/keenetic_zapret_otomasyon_ipv6_ipset.sh \
