@@ -50,8 +50,10 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 | 14 | Tanılama Araçları |
 | 15 | Telegram Bildirimleri |
 | 16 | Sağlık Monitörü |
+| 17 | Web Panel (GUI) |
 | B | Blockcheck |
 | L | Dil Değiştir (TR/EN) |
+| R | Zamanlı Yeniden Başlat (Cron) |
 | U | Tam Temiz Kaldırma |
 
 ---
@@ -82,6 +84,7 @@ Zapret’i sistemden güvenli şekilde kaldırır.
 ✔ Firewall kuralları  
 ✔ NFQWS  
 ✔ Zapret servisleri  
+✔ NFQUEUE / ipset kalıntıları  
 
 ### Kaldırılmayanlar:
 
@@ -92,6 +95,15 @@ Zapret’i sistemden güvenli şekilde kaldırır.
 👉 Zapret’i yeniden kurmak isteyen kullanıcılar için idealdir.
 
 **Tam temiz kaldırma değildir.**
+
+### Nasıl Çalışır?
+
+Kaldırma tamamlandıktan sonra sistem otomatik olarak doğrulanır. NFQWS süreci, NFQUEUE kuralları, ipset setleri ve Zapret dizini kontrol edilir. Kalıntı tespit edilirse kullanıcıya sormadan ikinci bir temizlik geçişi otomatik çalışır.
+
+Eğer Zapret zaten kurulu değilse sistem kalıntı açısından taranır:
+
+- Kalıntı varsa → temizlemek isteyip istemediğiniz sorulur  
+- Kalıntı yoksa → "Sistem temiz, kalıntı bulunamadı." mesajı gösterilir
 
 ---
 
@@ -288,17 +300,39 @@ Script güncellemesi sonrası sorun yaşarsanız önceki sürüme dönüş yapma
 
 ---
 
-# 🔹 Menü 14 — Tanılama Araçları
+# 🔹 Menü 14 — Ağ Tanılama ve Sistem Kontrolü
 
-Sistem sağlığını analiz eder.
+Sistem ve ağ sağlığını kapsamlı şekilde analiz eder.
+
+### Alt Menü:
+
+✔ Kontrol Çalıştır  
+✔ OPKG Listesini Yenile  
 
 ### Kontroller:
 
-✔ DPI Health Score  
+**Ağ & DNS**  
+✔ WAN bağlantı durumu ve IP adresi (IPv4/IPv6, CGNAT/NAT/Public)  
+✔ DNS modu (DoH / DoT / Plain) ve güvenlik seviyesi  
+✔ Aktif DNS sağlayıcıları  
+✔ Yerel DNS çözümlemesi  
+✔ Dış DNS (8.8.8.8) erişimi  
 ✔ DNS tutarlılığı  
-✔ TLS erişimi  
-✔ UDP 443 kontrolü  
 ✔ Varsayılan rota  
+
+**Sistem**  
+✔ Script konumu doğrulaması  
+✔ İnternet erişimi (ping)  
+✔ RAM kullanımı  
+✔ CPU yük ortalaması  
+✔ Disk doluluk oranı (/opt)  
+✔ Saat / NTP senkronizasyonu  
+
+**Servisler**  
+✔ GitHub erişimi  
+✔ OPKG paket durumu  
+✔ Zapret çalışma durumu  
+✔ KeenDNS durumu ve erişilebilirlik  
 
 👉 Bir şey çalışmıyorsa ilk buraya bak.
 
@@ -310,11 +344,35 @@ Sistem sağlığını analiz eder.
 
 Telegram bot entegrasyonunu ve bildirim ayarlarını yönetir.
 
-Ne işe yarar?
+### Alt Menü:
 
-- Servis restart / recovery bildirimleri
-- Health Monitor uyarıları (CPU/RAM/Disk/WAN vb.)
-- Güncelleme bilgilendirmeleri
+✔ Token / Chat ID Kaydet-Güncelle  
+✔ Test Mesajı Gönder  
+✔ Ayar Dosyasını Sil (Reset)  
+✔ Telegram Bot Yönetimi  
+
+### Tek Yönlü Bildirimler:
+
+- Servis restart / recovery bildirimleri  
+- Health Monitor uyarıları (CPU/RAM/Disk/WAN vb.)  
+- Güncelleme bilgilendirmeleri  
+
+### İki Yönlü Bot (Telegram Bot Yönetimi):
+
+Telegram üzerinden router'a komut gönderilebilir.
+
+**Bot alt menüsü:**  
+✔ Botu Etkinleştir / Ayarla (polling aralığı yapılandırılır)  
+✔ Botu Devre Dışı Bırak  
+✔ Botu Yeniden Başlat  
+
+**Bot butonları ile yapılabilecekler:**  
+✔ Durum — Zapret ve sistem durumunu gösterir  
+✔ Zapret — Başlat / Durdur / Yeniden Başlat / Güncelle  
+✔ Sistem — KZM Güncelle / Router Reboot  
+✔ Loglar — KZM Log / Sistem Log  
+
+👉 Bot aktifken "AKTIF - 2 yönlü haberleşme çalışıyor" olarak görünür.
 
 ⚠️ Bot Token ve Chat ID doğru girilmelidir.
 
@@ -342,6 +400,53 @@ Arka planda çalışan otomasyon motorudur.
 👉 Açık tutulması **şiddetle önerilir.**
 
 ---
+
+---
+
+# 🔹 Menü 17 — Web Panel (GUI)
+
+Tarayıcı üzerinden erişilebilen görsel yönetim paneli.
+
+Varsayılan port: **8088** → `http://<router-ip>:8088`
+
+### Alt Menü:
+
+✔ Web Panel Kur  
+✔ Web Panel Kaldır  
+✔ Web Panel Güncelle  
+✔ Web Panel Durumu  
+✔ Web Panel Aç/Kapat  
+
+### Özellikler:
+
+- Zapret durumu ve kontrolleri  
+- DPI profil değiştirme  
+- Hostlist yönetimi  
+- IPSet yönetimi  
+- Health Monitor izleme  
+- Telegram ayarları  
+- OPKG güncelleme  
+
+👉 Router'a SSH bağlantısı olmadan temel yönetim yapılabilir.
+
+⚠️ lighttpd paketi gerektirir. Kurulum sırasında otomatik yüklenir.
+
+---
+
+# 🔹 R — Zamanlı Yeniden Başlat (Cron)
+
+Router'ı belirli saat veya günde otomatik yeniden başlatır.
+
+### Alt Menü:
+
+✔ Mevcut zamanlamayı göster  
+✔ Günlük yeniden başlatma ekle/güncelle (her gün HH:MM)  
+✔ Haftalık yeniden başlatma ekle/güncelle (belirli gün + HH:MM)  
+✔ Zamanlamayı sil  
+
+👉 Uzun süre açık kalan routerlarda bellek temizliği için önerilir.
+
+⚠️ crond servisinin çalışıyor olması gerekir. Çalışmıyorsa uyarı gösterilir.
 
 ---
 
@@ -374,7 +479,7 @@ Router’ı KZM kurulum öncesi hale getirir.
 ## İşlem Aşamaları
 
 ### ✔ 1. Zapret kaldırılır  
-(Mevcut güvenli kaldırma rutini çalışır)
+(Doğrulama ve otomatik ikinci temizlik geçişi dahil tam kaldırma rutini çalışır)
 
 ### ✔ 2. Manager kalıntıları temizlenir
 
