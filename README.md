@@ -212,7 +212,7 @@ Sadece bu betiğe ait yedekler temizlenir:
 ### 1️⃣ Entware Kurulmuş Olmalı
 
 
-### 2️⃣ OPKG Kurulmu Olmalı
+### 2️⃣ OPKG Kurulmuş Olmalı
 
 ---
 ## 🧩 İlk Kurulumda Ne Olur?
