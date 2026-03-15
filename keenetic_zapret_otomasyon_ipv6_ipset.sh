@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.13"
+SCRIPT_VERSION="v26.3.15"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -3644,6 +3644,11 @@ check_keenetic_components() {
     local all_components=""
     # PATH genislet: Entware ve sistem araclari her zaman erisilebilir olsun
     export PATH="/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
+
+    # opkg update tek seferlik - eksik paketler kurulmadan once liste guncellenmeli
+    if command -v opkg >/dev/null 2>&1; then
+        opkg update >/dev/null 2>&1
+    fi
     
     echo ""
     echo "$(T TXT_COMP_CHECK_TITLE)"
@@ -3662,18 +3667,32 @@ check_keenetic_components() {
     if command -v ip6tables >/dev/null 2>&1 && ip6tables --version >/dev/null 2>&1; then
         print_status PASS "$(T TXT_COMP_IPV6)"
     else
-        print_status FAIL "$(T TXT_COMP_IPV6_REQ)"
-        missing_critical=1
-        all_components="${all_components}  - $(T TXT_COMP_IPV6_SHORT)\n"
+        # opkg ile otomatik kurulum dene
+        print_status INFO "$(T _ 'ip6tables bulunamadi, opkg ile kuruluyor...' 'ip6tables not found, installing via opkg...')"
+        opkg install iptables >/dev/null 2>&1
+        if command -v ip6tables >/dev/null 2>&1 && ip6tables --version >/dev/null 2>&1; then
+            print_status PASS "$(T TXT_COMP_IPV6)"
+        else
+            print_status FAIL "$(T TXT_COMP_IPV6_REQ)"
+            missing_critical=1
+            all_components="${all_components}  - $(T TXT_COMP_IPV6_SHORT)\n"
+        fi
     fi
     
     # 3. iptables - CRITICAL
     if command -v iptables >/dev/null 2>&1 && iptables --version >/dev/null 2>&1; then
         print_status PASS "$(T TXT_COMP_IPTABLES)"
     else
-        print_status FAIL "$(T TXT_COMP_IPTABLES_REQ)"
-        missing_critical=1
-        all_components="${all_components}  - iptables\n"
+        # opkg ile otomatik kurulum dene (ip6tables kontrolunden once gelmesi halinde)
+        print_status INFO "$(T _ 'iptables bulunamadi, opkg ile kuruluyor...' 'iptables not found, installing via opkg...')"
+        opkg install iptables >/dev/null 2>&1
+        if command -v iptables >/dev/null 2>&1 && iptables --version >/dev/null 2>&1; then
+            print_status PASS "$(T TXT_COMP_IPTABLES)"
+        else
+            print_status FAIL "$(T TXT_COMP_IPTABLES_REQ)"
+            missing_critical=1
+            all_components="${all_components}  - iptables\n"
+        fi
     fi
     
     # 4. Netfilter kernel modules - CRITICAL
@@ -3701,18 +3720,32 @@ check_keenetic_components() {
     elif command -v wget >/dev/null 2>&1; then
         print_status PASS "$(T TXT_COMP_WGET)"
     else
-        print_status FAIL "$(T TXT_COMP_CURL_REQ)"
-        missing_critical=1
-        all_components="${all_components}  - curl $(T TXT_COMP_OR) wget\n"
+        print_status INFO "$(T _ 'curl/wget bulunamadi, opkg ile kuruluyor...' 'curl/wget not found, installing via opkg...')"
+        opkg install curl >/dev/null 2>&1
+        if command -v curl >/dev/null 2>&1; then
+            print_status PASS "$(T TXT_COMP_CURL)"
+        elif command -v wget >/dev/null 2>&1; then
+            print_status PASS "$(T TXT_COMP_WGET)"
+        else
+            print_status FAIL "$(T TXT_COMP_CURL_REQ)"
+            missing_critical=1
+            all_components="${all_components}  - curl $(T TXT_COMP_OR) wget\n"
+        fi
     fi
     
     # 6. ipset - CRITICAL
     if command -v ipset >/dev/null 2>&1 && ipset --version >/dev/null 2>&1; then
         print_status PASS "$(T TXT_COMP_IPSET)"
     else
-        print_status FAIL "$(T TXT_COMP_IPSET_REQ)"
-        missing_critical=1
-        all_components="${all_components}  - ipset\n"
+        print_status INFO "$(T _ 'ipset bulunamadi, opkg ile kuruluyor...' 'ipset not found, installing via opkg...')"
+        opkg install ipset >/dev/null 2>&1
+        if command -v ipset >/dev/null 2>&1 && ipset --version >/dev/null 2>&1; then
+            print_status PASS "$(T TXT_COMP_IPSET)"
+        else
+            print_status FAIL "$(T TXT_COMP_IPSET_REQ)"
+            missing_critical=1
+            all_components="${all_components}  - ipset\n"
+        fi
     fi
     
     # 7. Xtables-addons - CRITICAL (Keenetic OPKG bileseni)
