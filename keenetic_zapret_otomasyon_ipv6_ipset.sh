@@ -32,7 +32,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.15"
+SCRIPT_VERSION="v26.3.15.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1238,8 +1238,8 @@ TXT_HM_MENU_LINE3_EN="Zapret watchdog: %WD%  |  Interval: %INT%s"
 TXT_HM_CFG_TITLE_TR="Saglik Ayarlari"
 TXT_HM_CFG_TITLE_EN="Health Settings"
 
-TXT_HM_CFG_ITEM5_TR="Zapret (denetim)"
-TXT_HM_CFG_ITEM5_EN="Zapret (watchdog)"
+TXT_HM_CFG_ITEM5_TR="Zapret denetimi"
+TXT_HM_CFG_ITEM5_EN="Zapret watchdog"
 
 TXT_HM_CFG_ITEM6_TR="Guncelleme kontrolu"
 TXT_HM_CFG_ITEM6_EN="Update check"
@@ -11272,7 +11272,7 @@ healthmon_status() {
         upd_word="$(T TXT_HM_WORD_OFF)"
     fi
 
-    local _w=22
+    local _w=24
     local _lbl
 
     hm_kv() {
@@ -11319,6 +11319,7 @@ healthmon_status() {
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_CD)" "${HM_ZAPRET_COOLDOWN_SEC}s"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_AR)" "$HM_ZAPRET_AUTORESTART"
     hm_kv "$(T _ 'NFQUEUE kuyruk denetimi' 'NFQUEUE qlen watchdog')" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}"
+    hm_kv "$(T _ 'WAN izleme' 'WAN monitoring')" "en=${HM_WANMON_ENABLE:-0} fail=${HM_WANMON_FAIL_TH:-3} ok=${HM_WANMON_OK_TH:-2} (${HM_WANMON_IFACE:-auto})"
     hm_kv "KeenDNS curl interval" "${HM_KEENDNS_CURL_SEC}s"
 
     echo
@@ -12431,6 +12432,7 @@ case "$ACTION" in
         _rows="${_rows}$(_r "WD Cooldown" "${HM_ZAPRET_COOLDOWN_SEC}s")"
         _rows="${_rows}$(_r "Oto Restart" "${HM_ZAPRET_AUTORESTART}")"
         _rows="${_rows}$(_r "NFQUEUE qlen" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}")"
+        _rows="${_rows}$(_r "WAN izleme" "en=${HM_WANMON_ENABLE:-0} fail=${HM_WANMON_FAIL_TH:-3} ok=${HM_WANMON_OK_TH:-2} (${HM_WANMON_IFACE:-auto})")"
         _rows="${_rows}$(_r "KeenDNS interval" "${HM_KEENDNS_CURL_SEC}s")"
         _rows="${_rows}$(_s "Anlik Durum")"
         _rows="${_rows}$(_r "Load" "${_load}")"
