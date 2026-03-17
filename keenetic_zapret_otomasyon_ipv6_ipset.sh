@@ -1,28 +1,35 @@
 #!/bin/sh
-#
-# keenetic_zapret_otomasyon_ipv6_ipset.sh
-#
-# Author: RevolutionTR
-# GitHub: https://github.com/RevolutionTR
-#
-# Copyright (C) 2027 RevolutionTR
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# -------------------------------------------------------------------
+# ============================================================
+#  Keenetic Zapret Manager (KZM)
+#  keenetic_zapret_otomasyon_ipv6_ipset.sh
+# ============================================================
+#
+#  Zapret DPI bypass engine installation, management and
+#  automation script for Keenetic routers (Entware/OpenWrt).
+#
+#  Author  : RevolutionTR
+#  GitHub  : https://github.com/RevolutionTR/keenetic-zapret-manager
+#  License : GNU General Public License v3.0 or later
+#
+#  Copyright (C) 2026 RevolutionTR
+#  All rights reserved.
+#
+#  This program is free software: you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License as
+#  published by the Free Software Foundation, either version 3 of
+#  the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program. If not, see <https://www.gnu.org/licenses/>.
+#
+# ============================================================
 
 # BETIK BILGILENDIRME                                 
 # Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
@@ -32,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.15.1"
+SCRIPT_VERSION="v26.3.17"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -6649,6 +6656,17 @@ display_menu() {
         printf "  %-*s   %b%s%b\n"  "$_lw" "" \
             "${CLR_ORANGE}" "$(T TXT_HM_BANNER_WARN)" "${CLR_RESET}"
     fi
+    # HealthMon aktif ama AutoRes veya WAN izleme kapali ise uyar
+    if healthmon_is_running 2>/dev/null; then
+        if [ "${HM_ZAPRET_AUTORESTART:-0}" != "1" ]; then
+            printf "  %-*s   %b%s%b\n" "$_lw" "" \
+                "${CLR_ORANGE}" "$(T _ 'Zapret oto-restart KAPALI (Menu 16 > 4 > 5)' 'Zapret auto-restart DISABLED (Menu 16 > 4 > 5)')" "${CLR_RESET}"
+        fi
+        if [ "${HM_WANMON_ENABLE:-0}" != "1" ]; then
+            printf "  %-*s   %b%s%b\n" "$_lw" "" \
+                "${CLR_ORANGE}" "$(T _ 'WAN izleme KAPALI (Menu 16 > 4 > 11)' 'WAN monitoring DISABLED (Menu 16 > 4 > 11)')" "${CLR_RESET}"
+        fi
+    fi
     # Telegram Bot - sadece TG_BOT_ENABLE=1 ise goster
     if [ "$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')" = "1" ]; then
         if [ -f "/tmp/zkm_telegram_bot.pid" ] && kill -0 "$(cat "/tmp/zkm_telegram_bot.pid" 2>/dev/null)" 2>/dev/null; then
@@ -9661,7 +9679,7 @@ HM_RAM_WARN_MB="40"        # free+buffers+cached approximation in MB
 HM_ZAPRET_WATCHDOG="1"
 HM_TGBOT_WATCHDOG="1"
 HM_ZAPRET_COOLDOWN_SEC="120"
-HM_ZAPRET_AUTORESTART="0"
+HM_ZAPRET_AUTORESTART="1"
 HM_HEARTBEAT_SEC="300"
 HM_UPDATECHECK_ENABLE="1"
 HM_UPDATECHECK_SEC="21600"
@@ -9710,7 +9728,7 @@ healthmon_load_config() {
     HM_UPDATECHECK_REPO_ZAPRET="bol-van/zapret"
     HM_AUTOUPDATE_MODE="2"
 
-    HM_WANMON_ENABLE="0"
+    HM_WANMON_ENABLE="1"
     HM_WANMON_FAIL_TH="3"
     HM_WANMON_OK_TH="2"
     HM_WANMON_IFACE=""
@@ -9718,6 +9736,7 @@ healthmon_load_config() {
     HM_QLEN_WARN_TH="50"
     HM_QLEN_CRIT_TURNS="3"
     HM_KEENDNS_CURL_SEC="120"
+    HM_ZAPRET_AUTORESTART="1"
 
     [ -f "$HM_CONF_FILE" ] && . "$HM_CONF_FILE" 2>/dev/null
 }
@@ -11421,7 +11440,7 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "2" "$_w" "CPU CRIT % / sure"  "$HM_CPU_CRIT / $HM_CPU_CRIT_DUR"
         printf " %2s) %-*s : %s\n" "3" "$_w" "Disk(/opt) esigi %" "$HM_DISK_WARN"
         printf " %2s) %-*s : %s\n" "4" "$_w" "RAM esigi (MB)"     "$HM_RAM_WARN_MB"
-        printf " %2s) %-*s : %s\n" "5" "$_w" "$(T TXT_HM_CFG_ITEM5)" "wd=$HM_ZAPRET_WATCHDOG cd=$HM_ZAPRET_COOLDOWN_SEC ar=$HM_ZAPRET_AUTORESTART"
+        printf " %2s) %-*s : %s\n" "5" "$_w" "$(T TXT_HM_CFG_ITEM5)" "denetim=$HM_ZAPRET_WATCHDOG | bekleme=${HM_ZAPRET_COOLDOWN_SEC}s | oto-restart=$HM_ZAPRET_AUTORESTART"
         local _en_lbl _ev_lbl
         _en_lbl="$(T TXT_HM_FLAG_ENABLED)"
         _ev_lbl="$(T TXT_HM_FLAG_EVERY)"
@@ -11430,10 +11449,11 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "8" "$_w" "$(T TXT_HM_CFG_ITEM8)" "$HM_INTERVAL"
         printf " %2s) %-*s : %s\n" "9" "$_w" "$(T TXT_HM_CFG_ITEM9)" "$HM_COOLDOWN_SEC"
         printf " %2s) %-*s : %s\n" "10" "$_w" "$(T TXT_HM_CFG_ITEM10)" "$HM_HEARTBEAT_SEC"
-        printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (conf=${HM_WANMON_IFACE:-auto} ndm=$(healthmon_detect_wan_iface_ndm))"
-        printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} keendns_curl=${HM_KEENDNS_CURL_SEC}s"
+        printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (${HM_WANMON_IFACE:-auto})"
+        printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} | keendns=${HM_KEENDNS_CURL_SEC}s"
 echo
-        printf " %2s) %s\n" "0" "$(T _ 'Kaydet ve geri' 'Save & back')"
+        printf "  %s) %s\n" "S" "$(T _ 'Kaydet ve uygula' 'Save & apply')"
+        printf "  %s) %s\n" "0" "$(T _ 'Geri (kaydetmeden)' 'Back (without saving)')"
         echo
         printf '%s' "$(T _ 'Secim: ' 'Choice: ')"; read -r _c || return 0
 
@@ -11516,13 +11536,16 @@ esac
                 hm_ask_num "$(T _ 'Ardisik yuksek tur sayisi -> restart' 'Consecutive high turns -> restart')" HM_QLEN_CRIT_TURNS
                 hm_ask_num "$(T _ 'KeenDNS curl araligi (sn, 0=her tur)' 'KeenDNS curl interval (sec, 0=every loop)')" HM_KEENDNS_CURL_SEC
                 ;;
-            0)
+            s|S)
                 healthmon_write_config
                 if healthmon_is_running; then
-                    healthmon_stop
+                    healthmon_stop 2>/dev/null
                     healthmon_start
                 fi
                 print_status PASS "$(T _ 'Ayarlar kaydedildi.' 'Settings saved.')"
+                return 0
+                ;;
+            0)
                 return 0
                 ;;
             *)
