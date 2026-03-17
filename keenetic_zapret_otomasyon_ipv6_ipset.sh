@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.17"
+SCRIPT_VERSION="v26.3.17.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -6196,6 +6196,7 @@ clear
                     e|E|y|Y)
                         : > "$HOSTLIST_AUTO"
                         echo "$(T TXT_HL_CLEARED)"
+                        restart_zapret
                         ;;
                     *)
                         echo "$(T cancelled 'Islem iptal edildi.' 'Cancelled.')"
@@ -12561,23 +12562,32 @@ case "$ACTION" in
     hl_add)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         grep -qxF "$_d" "$HL_USER" 2>/dev/null || printf '%s\n' "$_d" >> "$HL_USER"
+        { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Eklendi: $_d" ;;
     hl_del)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         sed -i "/^$(printf '%s' "$_d" | sed 's/[.[\*^$]/\\&/g')$/d" "$HL_USER" 2>/dev/null
+        { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_d" ;;
     ex_get)
         ok_data "$(json_arr "$HL_EXCL")" ;;
     ex_add)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         grep -qxF "$_d" "$HL_EXCL" 2>/dev/null || printf '%s\n' "$_d" >> "$HL_EXCL"
+        { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Eklendi: $_d" ;;
     ex_del)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         sed -i "/^$(printf '%s' "$_d" | sed 's/[.[\*^$]/\\&/g')$/d" "$HL_EXCL" 2>/dev/null
+        { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_d" ;;
     auto_get)
         ok_data "$(json_arr "/opt/zapret/ipset/zapret-hosts-auto.txt")" ;;
+    auto_del)
+        _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
+        sed -i "/^$(printf '%s' "$_d" | sed 's/[.[\\*^$]/\\&/g')$/d" "/opt/zapret/ipset/zapret-hosts-auto.txt" 2>/dev/null
+        { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
+        ok "Silindi: $_d" ;;
     nozapret_get)
         ok_data "$(json_arr "/opt/zapret/ipset/nozapret.txt")" ;;
     ipset_active_get)
@@ -12593,10 +12603,12 @@ case "$ACTION" in
     ip_add)
         _ip=$(get_param ip); [ -z "$_ip" ] && { fail "IP bos"; exit 0; }
         grep -qxF "$_ip" "$IPSET_FILE" 2>/dev/null || printf '%s\n' "$_ip" >> "$IPSET_FILE"
+        { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Eklendi: $_ip" ;;
     ip_del)
         _ip=$(get_param ip); [ -z "$_ip" ] && { fail "IP bos"; exit 0; }
         sed -i "/^$(printf '%s' "$_ip" | sed 's/[.[\*^$]/\\&/g')$/d" "$IPSET_FILE" 2>/dev/null
+        { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_ip" ;;
     sched_get)
         _line=$(crontab -l 2>/dev/null | grep "$SCHED_TAG" 2>/dev/null)
@@ -13608,7 +13620,8 @@ function hlLoad(){
     var el=document.getElementById('autoL'),ec=document.getElementById('autoCnt');if(!el)return;
     if(!r.ok||!r.data||!r.data.length){el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;}
     if(ec)ec.textContent=r.data.length;
-    el.innerHTML=r.data.map(function(d){return '<div class="li"><span>'+d+'</span></div>';}).join('');
+    el.innerHTML=r.data.map(function(d){return '<div class="li"><span>'+d+'</span>'+
+      '<button class="danger" style="padding:3px 8px;font-size:11px" onclick="autoDel(\''+d+'\',this)">Sil</button></div>';}).join('');
   });
   getD('ex_get',function(r){
     var el=document.getElementById('exL');if(!el)return;
@@ -13621,6 +13634,7 @@ function hlAdd(){var v=(document.getElementById('hlIn').value||'').trim();if(!v)
 function hlDel(d,b){actD('hl_del','domain='+encodeURIComponent(d),b,'Silindi');setTimeout(hlLoad,1800);}
 function exAdd(){var v=(document.getElementById('exIn').value||'').trim();if(!v)return;actD('ex_add','domain='+encodeURIComponent(v),null,'Eklendi');document.getElementById('exIn').value='';setTimeout(hlLoad,1800);}
 function exDel(d,b){actD('ex_del','domain='+encodeURIComponent(d),b,'Silindi');setTimeout(hlLoad,1800);}
+function autoDel(d,b){actD('auto_del','domain='+encodeURIComponent(d),b,'Silindi');setTimeout(hlLoad,1800);}
 function ipLoad(){
   getD('ip_get',function(r){
     var el=document.getElementById('ipL'),ec=document.getElementById('ipCnt');if(!el)return;
