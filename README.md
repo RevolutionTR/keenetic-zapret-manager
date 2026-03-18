@@ -303,3 +303,14 @@ Kullanım tamamen **kullanıcının sorumluluğundadır**.
 
 📌 **GitHub Repo:**  
 https://github.com/RevolutionTR/keenetic-zapret-manager
+
+---
+## 🔔 Türev Projeler Hakkında
+
+Bu projenin UI tasarımından, menü mimarisinden veya genel yapısından ilham alan projelerin
+kaynak belirtmesi beklenmektedir:
+
+**Kaynak:** [Keenetic Zapret Manager (KZM)](https://github.com/RevolutionTR/keenetic-zapret-manager) by RevolutionTR
+
+GPL-3.0 lisansı kapsamında kullanım serbesttir ancak türev çalışmalarda kaynak göstermek
+etik bir zorunluluktur.
