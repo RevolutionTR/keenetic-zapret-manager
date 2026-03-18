@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.17.1"
+SCRIPT_VERSION="v26.3.18"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -661,7 +661,7 @@ check_ntp() {
 
 check_github() {
     local code
-    code="$(curl -I -m 8 -s -o /dev/null -w '%{http_code}' https://api.github.com/ 2>/dev/null)"
+    code="$(curl -I -m 5 -s -o /dev/null -w '%{http_code}' https://api.github.com/ 2>/dev/null)"
     case "$code" in
         2*|3*) return 0 ;;
         *) return 1 ;;
@@ -1808,7 +1808,7 @@ TXT_TGBOT_WAN_NO_IF_EN="WAN interface not found."
 
 TXT_TGBOT_ROUTER_ID_LABEL_TR="Router Kimlik"
 TXT_TGBOT_ROUTER_ID_LABEL_EN="Router ID"
-TXT_HEALTH_DNS_LOCAL_TR="DNS (Yerel resolver 127.0.0.1)"
+TXT_HEALTH_DNS_LOCAL_TR="DNS (Yerel cozucu 127.0.0.1)"
 TXT_HEALTH_DNS_LOCAL_EN="DNS (Local resolver 127.0.0.1)"
 
 TXT_HEALTH_SCRIPT_PATH_TR="Betik Konumu (Dogru yerde mi?)"
@@ -4411,20 +4411,20 @@ echo "$(tpl_render "$(T TXT_IPV6_WIZARD_START)" VAL "$IPV6_ANSWER")"
     # install_easy.sh interaktif bir sihirbazdir. Burada mevcut otomasyon akisini koruyup
     # sadece "enable ipv6 support" sorusunu secilebilir hale getiriyoruz.
     (
-        echo "y"    # Sistem uyumluluk uyarisi, dokumani okuyun uyarisi: (evet)
-        echo "1"    # Guvenlik duvari tipi secimi: 1=iptables 2=nftables
-        echo "$IPV6_ANSWER"    # IPv6 destegi (hayir)
-        echo "1"    # Filtreleme tipi secimi: 1=none 2=ipset 3=hostlist 4=autohostlist
-        echo "n"    # TPWS socks modu etkinlestirilsin mi? (hayir)
-        echo "n"    # TPWS transparent etkinlestirilsin mi? (hayir)
-        echo "y"    # NFQWS etkinlestirilsin mi? (evet)
-        echo "n"    # Yapilandirma duzenlensin mi? (hayir)
+        echo "y"              # install_easy.sh uyumluluk uyarisi: onayliyoruz
+        echo "1"              # Guvenlik duvari secimi: iptables kullan (nftables degil)
+        echo "$IPV6_ANSWER"   # IPv6 destegi: kullanicinin Menu 7 seciminden geliyor (y/n)
+        echo "1"              # Filtreleme modu: none - KZM kendi hostlist/ipset yapilandirmasini sonradan uygular
+        echo "n"              # TPWS socks proxy: kullanmiyoruz
+        echo "n"              # TPWS transparent proxy: kullanmiyoruz
+        echo "y"              # NFQWS: aktif et - Zapret'in temel DPI bypass motoru
+        echo "n"              # Yapilandirmayi duzenle: hayir - KZM sonradan kendi ayarlarini uygular
         WAN_IFINDEX="$(get_ifindex_by_iface "$(get_wan_if)")"
         [ -z "$WAN_IFINDEX" ] && WAN_IFINDEX="1"
         printf "\033[1;32m[INFO] WAN IFINDEX selected: %s\033[0m\n" "$WAN_IFINDEX" >&2
         echo "WAN_IFINDEX: $WAN_IFINDEX" >&2
-        echo "1"    # LAN arayuzu secimi (1 = none)
-        echo "${WAN_IFINDEX:-1}"    # WAN arayuzu secimi (1 = none)
+        echo "1"              # LAN arayuzu: none (1) - Keenetic'te LAN ayri yonetiliyor
+        echo "${WAN_IFINDEX:-1}"  # WAN arayuzu ifindex: otomatik tespit edildi, bulunamazsa 1
     ) | /opt/zapret/install_easy.sh >/dev/null 2>&1 || {
         echo "$(T TXT_IPV6_CFG_FAIL)"
         press_enter_to_continue
@@ -5353,20 +5353,20 @@ install_zapret() {
     # WAN arayuzunu belirle (WireGuard sorunlarini azaltmak icin)
     select_wan_if
     (
-        echo "y"    # Sistem uyumluluk uyarisi, dokumani okuyun uyarisi: (evet)
-        echo "1"    # Guvenlik duvari tipi secimi: 1=iptables 2=nftables
-        echo "$IPV6_ANSWER"    # IPv6 destegi (hayir)
-        echo "1"    # Filtreleme tipi secimi: 1=none 2=ipset 3=hostlist 4=autohostlist
-        echo "n"    # TPWS socks modu etkinlestirilsin mi? (hayir)
-        echo "n"    # TPWS transparent etkinlestirilsin mi? (hayir)
-        echo "y"    # NFQWS etkinlestirilsin mi? (evet)
-        echo "n"    # Yapilandirma duzenlensin mi? (hayir)
+        echo "y"              # install_easy.sh uyumluluk uyarisi: onayliyoruz
+        echo "1"              # Guvenlik duvari secimi: iptables kullan (nftables degil)
+        echo "$IPV6_ANSWER"   # IPv6 destegi: kullanicinin Menu 7 seciminden geliyor (y/n)
+        echo "1"              # Filtreleme modu: none - KZM kendi hostlist/ipset yapilandirmasini sonradan uygular
+        echo "n"              # TPWS socks proxy: kullanmiyoruz
+        echo "n"              # TPWS transparent proxy: kullanmiyoruz
+        echo "y"              # NFQWS: aktif et - Zapret'in temel DPI bypass motoru
+        echo "n"              # Yapilandirmayi duzenle: hayir - KZM sonradan kendi ayarlarini uygular
         WAN_IFINDEX="$(get_ifindex_by_iface "$(get_wan_if)")"
         [ -z "$WAN_IFINDEX" ] && WAN_IFINDEX="1"
         printf "\033[1;32m[INFO] WAN IFINDEX selected: %s\033[0m\n" "$WAN_IFINDEX" >&2
         echo "WAN_IFINDEX: $WAN_IFINDEX" >&2
-        echo "1"    # LAN arayuzu secimi (1 = none)
-        echo "${WAN_IFINDEX:-1}"    # WAN arayuzu secimi (1 = none)   
+        echo "1"              # LAN arayuzu: none (1) - Keenetic'te LAN ayri yonetiliyor
+        echo "${WAN_IFINDEX:-1}"  # WAN arayuzu ifindex: otomatik tespit edildi, bulunamazsa 1
     ) | /opt/zapret/install_easy.sh >/dev/null 2>&1 || \
     { echo "$(T TXT_INSTALL_CFG_FAIL)"; return 1; }
     
@@ -12272,7 +12272,12 @@ _zver="$(cat /opt/zapret/version 2>/dev/null | head -n1 | tr -d '\n')"
 _kzmver="$(grep '^SCRIPT_VERSION=' /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh 2>/dev/null | head -n1 | cut -d= -f2 | tr -d '"')"
 [ -z "$_kzmver" ] && _kzmver="unknown"
 
-_model="$(cat /opt/var/run/kzm_hw_model 2>/dev/null | tr -d '\n')"; [ -z "$_model" ] && _model="Keenetic"
+_model="$(cat /opt/var/run/kzm_hw_model 2>/dev/null | tr -d '\n')"
+if [ -z "$_model" ] || [ "$_model" = "Keenetic" ]; then
+    _model="$(. /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh 2>/dev/null; zkm_banner_get_system 2>/dev/null)"
+    [ -n "$_model" ] && printf '%s' "$_model" > /opt/var/run/kzm_hw_model 2>/dev/null
+fi
+[ -z "$_model" ] && _model="Keenetic"
 _fw="$(cat /opt/var/run/kzm_hw_firmware 2>/dev/null | tr -d '\n')"; [ -z "$_fw" ] && _fw="unknown"
 _ts="$(date +%s 2>/dev/null)"; [ -z "$_ts" ] && _ts=0
 
@@ -12432,36 +12437,40 @@ case "$ACTION" in
         _load=$(awk '{print $1}' /proc/loadavg 2>/dev/null || echo "?")
         _ram_free=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null || echo "?")
         _disk=$(df /opt 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%' || echo "?")
-        pgrep -x nfqws >/dev/null 2>&1 && _zst="UP" || _zst="DOWN"
+        pgrep -f "/opt/zapret/nfq/nfqws" >/dev/null 2>&1 && _zst="AKT&#304;F" || _zst="PAS&#304;F"
         case "$HM_AUTOUPDATE_MODE" in
-            2) _mode="Oto Kur" ;; 1) _mode="Bildir" ;; *) _mode="Kapali" ;;
+            2) _mode="Oto Kur" ;; 1) _mode="Bildir" ;; *) _mode="Kapal&#305;" ;;
         esac
-        [ "$HM_UPDATECHECK_ENABLE" = "1" ] && _upd="Acik" || _upd="Kapali"
+        [ "$HM_UPDATECHECK_ENABLE" = "1" ] && _upd="A&#231;&#305;k" || _upd="Kapal&#305;"
         _r() { printf "<div class='info-row'><div class='lbl'>%s</div><div class='val'>%s</div></div>" "$1" "$2"; }
         _s() { printf "<div class='info-sec'>%s</div>" "$1"; }
+        [ "${HM_ZAPRET_WATCHDOG}" = "1" ] && _zwd="A&#231;&#305;k" || _zwd="Kapal&#305;"
+        [ "${HM_ZAPRET_AUTORESTART}" = "1" ] && _zar="A&#231;&#305;k" || _zar="Kapal&#305;"
+        [ "${HM_QLEN_WATCHDOG}" = "1" ] && _qwd="A&#231;&#305;k" || _qwd="Kapal&#305;"
+        [ "${HM_WANMON_ENABLE:-0}" = "1" ] && _wmen="A&#231;&#305;k" || _wmen="Kapal&#305;"
         _rows=""
-        _rows="${_rows}$(_s "Ayarlar")"
-        _rows="${_rows}$(_r "Interval" "${HM_INTERVAL}s")"
+        _rows="${_rows}$(_s "Konfig&#252;rasyon")"
+        _rows="${_rows}$(_r "Kontrol Aral&#305;&#287;&#305;" "${HM_INTERVAL}s")"
         _rows="${_rows}$(_r "Heartbeat" "${HM_HEARTBEAT_SEC}s")"
-        _rows="${_rows}$(_r "Cooldown" "${HM_COOLDOWN_SEC}s")"
-        _rows="${_rows}$(_r "Guncelleme" "${_upd} / ${HM_UPDATECHECK_SEC}s")"
-        _rows="${_rows}$(_r "Oto Guncelleme" "${_mode} (${HM_AUTOUPDATE_MODE})")"
-        _rows="${_rows}$(_s "Esikler")"
-        _rows="${_rows}$(_r "CPU Uyari" "${HM_CPU_WARN}% / ${HM_CPU_WARN_DUR}s")"
+        _rows="${_rows}$(_r "Bildirim Bekleme" "${HM_COOLDOWN_SEC}s")"
+        _rows="${_rows}$(_r "G&#252;ncelleme Kontrol&#252;" "${_upd} / her ${HM_UPDATECHECK_SEC}s")"
+        _rows="${_rows}$(_r "Oto G&#252;ncelleme" "${_mode} (mod ${HM_AUTOUPDATE_MODE})")"
+        _rows="${_rows}$(_s "E&#351;ikler")"
+        _rows="${_rows}$(_r "CPU Uyar&#305;" "${HM_CPU_WARN}% / ${HM_CPU_WARN_DUR}s")"
         _rows="${_rows}$(_r "CPU Kritik" "${HM_CPU_CRIT}% / ${HM_CPU_CRIT_DUR}s")"
-        _rows="${_rows}$(_r "Disk /opt" "${HM_DISK_WARN}%")"
-        _rows="${_rows}$(_r "RAM Uyari" "<= ${HM_RAM_WARN_MB} MB")"
+        _rows="${_rows}$(_r "Disk /opt Uyar&#305;" "%${HM_DISK_WARN} dolulukta")"
+        _rows="${_rows}$(_r "RAM Uyar&#305;" "${HM_RAM_WARN_MB} MB alt&#305;nda")"
         _rows="${_rows}$(_s "Zapret")"
-        _rows="${_rows}$(_r "Watchdog" "${HM_ZAPRET_WATCHDOG}")"
-        _rows="${_rows}$(_r "WD Cooldown" "${HM_ZAPRET_COOLDOWN_SEC}s")"
-        _rows="${_rows}$(_r "Oto Restart" "${HM_ZAPRET_AUTORESTART}")"
-        _rows="${_rows}$(_r "NFQUEUE qlen" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}")"
-        _rows="${_rows}$(_r "WAN izleme" "en=${HM_WANMON_ENABLE:-0} fail=${HM_WANMON_FAIL_TH:-3} ok=${HM_WANMON_OK_TH:-2} (${HM_WANMON_IFACE:-auto})")"
-        _rows="${_rows}$(_r "KeenDNS interval" "${HM_KEENDNS_CURL_SEC}s")"
-        _rows="${_rows}$(_s "Anlik Durum")"
-        _rows="${_rows}$(_r "Load" "${_load}")"
-        _rows="${_rows}$(_r "RAM Bos" "${_ram_free} MB")"
-        _rows="${_rows}$(_r "Disk /opt" "${_disk}%")"
+        _rows="${_rows}$(_r "Zapret Denetimi" "${_zwd}")"
+        _rows="${_rows}$(_r "Denetim Bekleme" "${HM_ZAPRET_COOLDOWN_SEC}s")"
+        _rows="${_rows}$(_r "Oto Yeniden Ba&#351;lat" "${_zar}")"
+        _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | E&#351;ik: <b>${HM_QLEN_WARN_TH}</b> Paket | Ard&#305;&#351;&#305;k: <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
+        _rows="${_rows}$(_r "WAN &#304;zleme" "${_wmen} | <span style='color:var(--muted)'>Kesinti E&#351;i&#287;i:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Ba&#351;ar&#305;s&#305;z Ping | <span style='color:var(--muted)'>Toparlanma E&#351;i&#287;i:</span> <b>${HM_WANMON_OK_TH:-2}</b> Ba&#351;ar&#305;l&#305; Ping | <span style='color:var(--muted)'>Aray&#252;z:</span> ${HM_WANMON_IFACE:-auto}")"
+        _rows="${_rows}$(_r "KeenDNS Kontrol Aral&#305;&#287;&#305;" "${HM_KEENDNS_CURL_SEC}s")"
+        _rows="${_rows}$(_s "Anl&#305;k Durum")"
+        _rows="${_rows}$(_r "CPU Y&#252;k&#252;" "${_load}")"
+        _rows="${_rows}$(_r "Bo&#351; RAM" "${_ram_free} MB")"
+        _rows="${_rows}$(_r "Disk /opt" "%${_disk} dolu")"
         _rows="${_rows}$(_r "Zapret" "${_zst}")"
         printf '{"ok":1,"data":"%s"}' "$(printf '%s' "$_rows" | sed 's/"/\\"/g')" ;;
     tg_test)
@@ -12975,7 +12984,7 @@ select option{background:#111f3d}
   <div class="sec">SERV&#304;SLER</div>
   <nav>
     <div class="item" data-view="healthmon"><span class="item-icon">&#9829;</span><span class="item-label">Sistem &#304;zleme</span><span class="pill">16</span><span class="tip">Sistem &#304;zleme</span></div>
-    <div class="item" data-view="healthcheck"><span class="item-icon">&#9906;</span><span class="item-label">Ag Tanilama</span><span class="pill">14</span><span class="tip">Ag Tanilama</span></div>
+    <div class="item" data-view="healthcheck"><span class="item-icon">&#9906;</span><span class="item-label">Ağ Tanılama</span><span class="pill">14</span><span class="tip">Ağ Tanılama</span></div>
     <div class="item" data-view="telegram"><span class="item-icon">&#9992;</span><span class="item-label">Telegram</span><span class="pill">15</span><span class="tip">Telegram</span></div>
   </nav>
   <div class="sec">D&#304;&#286;ER</div>
@@ -12991,7 +13000,7 @@ select option{background:#111f3d}
     <div class="title"><h2 id="pTitle">Dashboard</h2><small id="pSub">Canl&#305; sistem &#246;zeti.</small></div>
     <div class="meta">
       <span>WAN: <b id="hWan">&#8212;</b></span>
-      <span>Load: <b id="hLoad">&#8212;</b></span>
+      <span>CPU Y&#252;k&#252;: <b id="hLoad">&#8212;</b></span>
       <span>KZM: <b id="hVer">&#8212;</b></span>
       <span>Zapret: <b id="hZap">&#8212;</b></span>
       <button class="rbtn" onclick="act('status_refresh',null,'');setTimeout(fetchS,800);">&#8635; Yenile</button>
@@ -13066,7 +13075,7 @@ function act(action,btn,msg){
     toast(res.msg||msg,!!res.ok);
     if(btn){btn.disabled=false;btn.innerHTML=btn._o;}
     clearInterval(aTimer);
-    // status_refresh action JSON dosyasini gunceller, bittikten sonra fetchS
+    // status_refresh action JSON dosyasını günceller, bittikten sonra fetchS
     fetch('/cgi-bin/action.sh',{method:'POST',
       headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:'action=status_refresh'})
@@ -13118,12 +13127,12 @@ var opkgState={status:null,count:0,upgraded:false};
 var hmConfCache=null;
 
 function fmtOpkgCard(){
-  var statusHtml='Paket listesini yenilemek i&#231;in butona basin.';
+  var statusHtml='Paket listesini yenilemek i&#231;in butona basın.';
   var upgradeShow='none';
   if(opkgState.status==='ok_current'){
-    statusHtml='<span style="color:var(--good)">&#10003; Liste yenilendi. Tum paketler guncel.</span>';
+    statusHtml='<span style="color:var(--good)">&#10003; Liste yenilendi. Tüm paketler güncel.</span>';
   } else if(opkgState.status==='ok_upgradable'){
-    statusHtml='<span style="color:var(--warn)">&#9888; Liste yenilendi. <b>'+opkgState.count+'</b> paket yukseltilmeyi bekliyor.</span>';
+    statusHtml='<span style="color:var(--warn)">&#9888; Liste yenilendi. <b>'+opkgState.count+'</b> paket yükseltilmeyi bekliyor.</span>';
     upgradeShow='';
   } else if(opkgState.status==='upgraded'){
     statusHtml='<span style="color:var(--good)">&#10003; opkg upgrade tamamlandi.</span>';
@@ -13135,13 +13144,13 @@ function fmtOpkgCard(){
     '<div id="opkgStatus" style="font-size:12.5px;color:var(--muted);margin:8px 0 10px">'+statusHtml+'</div>'+
     '<div class="btns">'+
       '<button id="opkgUpdateBtn" onclick="opkgUpdate(this)">&#8635; Listeyi Yenile</button>'+
-      '<button id="opkgUpgradeBtn" class="danger" style="display:'+upgradeShow+'" onclick="opkgUpgrade(this)">&#8679; Yukselt</button>'+
+      '<button id="opkgUpgradeBtn" class="danger" style="display:'+upgradeShow+'" onclick="opkgUpgrade(this)">&#8679; Y&#252;kselt</button>'+
     '</div>'+
     '<div id="opkgWarn" style="display:none;margin-top:10px;padding:8px 10px;background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:7px;font-size:11.5px;color:var(--bad)">'+
       '&#9888; opkg upgrade Keenetic\'te sistem bozulmasina yol acabilir.<br>'+
       'Devam etmek istediginizden emin misiniz?<br>'+
       '<div class="btns" style="margin-top:8px">'+
-        '<button class="danger" onclick="opkgUpgradeConfirm(this)">Evet, Yukselt</button>'+
+        '<button class="danger" onclick="opkgUpgradeConfirm(this)">Evet, Yükselt</button>'+
         '<button class="ghost" onclick="document.getElementById(\'opkgWarn\').style.display=\'none\'">Iptal</button>'+
       '</div>'+
     '</div>'+
@@ -13150,7 +13159,7 @@ function fmtOpkgCard(){
 
 function opkgUpdate(btn){
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Yenileniyor...';
-  document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> opkg update calistiriliyor...';
+  document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> opkg update çalıştırılıyor...';
   document.getElementById('opkgUpgradeBtn').style.display='none';
   document.getElementById('opkgWarn').style.display='none';
   fetch('/cgi-bin/action.sh',{method:'POST',
@@ -13164,11 +13173,11 @@ function opkgUpdate(btn){
       if(cnt===0){
         opkgState={status:'ok_current',count:0,upgraded:false};
         document.getElementById('opkgStatus').innerHTML=
-          '<span style="color:var(--good)">&#10003; Liste yenilendi. Tum paketler guncel.</span>';
+          '<span style="color:var(--good)">&#10003; Liste yenilendi. Tüm paketler güncel.</span>';
       } else {
         opkgState={status:'ok_upgradable',count:cnt,upgraded:false};
         document.getElementById('opkgStatus').innerHTML=
-          '<span style="color:var(--warn)">&#9888; Liste yenilendi. <b>'+cnt+'</b> paket yukseltilmeyi bekliyor.</span>';
+          '<span style="color:var(--warn)">&#9888; Liste yenilendi. <b>'+cnt+'</b> paket yükseltilmeyi bekliyor.</span>';
         document.getElementById('opkgUpgradeBtn').style.display='';
       }
     } else {
@@ -13180,7 +13189,7 @@ function opkgUpdate(btn){
   .catch(function(){
     btn.disabled=false;btn.innerHTML='&#8635; Listeyi Yenile';
     opkgState={status:'err',count:0,upgraded:false};
-    document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; Baglanti hatasi</span>';
+    document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; Bağlantı hatası</span>';
   });
 }
 
@@ -13190,8 +13199,8 @@ function opkgUpgrade(btn){
 }
 
 function opkgUpgradeConfirm(btn){
-  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Yukseltiliyor...';
-  document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> opkg upgrade calistiriliyor, lutfen bekleyin...';
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Yükseltiliyor...';
+  document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> opkg upgrade çalıştırılıyor, lütfen bekleyin...';
   fetch('/cgi-bin/action.sh',{method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body:'action=opkg_upgrade'})
@@ -13212,7 +13221,7 @@ function opkgUpgradeConfirm(btn){
   .catch(function(){
     document.getElementById('opkgWarn').style.display='none';
     opkgState={status:'err',count:0,upgraded:false};
-    document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; Baglanti hatasi</span>';
+    document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; Bağlantı hatası</span>';
   });
 }
 
@@ -13230,7 +13239,7 @@ function fmtBcCard(S){
   };
   var profLabel=profileNames[S.dpi_profile]||S.dpi_profile||'—';
   if(!S.bc_ts){
-    return '<div class="card"><h3>DPI Health Score</h3>'+
+    return '<div class="card"><h3>DPI Sa&#287;l&#305;k Skoru</h3>'+
       '<div style="color:var(--muted);font-size:13px;margin:10px 0 6px">Blockcheck hen&#252;z &#231;al&#305;&#351;t&#305;r&#305;lmad&#305;.</div>'+
       '<div style="font-size:12px;color:var(--muted)">Aktif Profil: <span style="color:var(--text)">'+profLabel+'</span></div>'+
       '<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">Score g&#246;rmek i&#231;in SSH ile ba&#287;lan&#305;p<br><span style="color:var(--accent);font-family:monospace">kzm</span> &rarr; Men&#252; <b>B</b> (Blockcheck) &#231;al&#305;&#351;t&#305;r&#305;n.</div>'+
@@ -13246,7 +13255,7 @@ function fmtBcCard(S){
   if(!S.bc_dns_ok) warns+='<span class="badge bad" style="font-size:10px">DNS: WARN</span> ';
   if(!S.bc_tls12_ok) warns+='<span class="badge bad" style="font-size:10px">TLS12: WARN</span> ';
   if(S.bc_udp_weak) warns+='<span class="badge warn" style="font-size:10px">UDP 443: WARN</span>';
-  return '<div class="card"><h3>DPI Health Score</h3>'+
+  return '<div class="card"><h3>DPI Sa&#287;l&#305;k Skoru</h3>'+
     '<div style="display:flex;align-items:flex-end;gap:8px;margin:8px 0 4px">'+
       '<span style="font-size:2.4em;font-weight:800;color:'+clr+'">'+sc+'</span>'+
       '<span style="color:var(--muted);font-size:13px;padding-bottom:6px">/ 10 ('+rat+')</span>'+
@@ -13268,16 +13277,16 @@ var V={
       '<div class="card"><h3>KZM S&#252;r&#252;m</h3><div class="big">'+(S.kzm_version||'—')+'</div>'+
         '<div class="sub">Zapret: '+(S.zapret_version||'—')+'</div></div>'+
       '<div class="card"><h3>Zapret Durumu</h3>'+
-        '<div class="row">'+bdg(S.zapret_running,'RUNNING','STOPPED')+
+        '<div class="row">'+bdg(S.zapret_running,'AKT&#304;F','PAS&#304;F')+
           ' <span class="pill">'+(S.wan_dev||'—')+'</span>'+
           ' <span class="pill">'+(S.wan_ip||'—')+'</span></div>'+
         '<div class="btns">'+
-          '<button class="danger" onclick="zapretAct(\'zapret_restart\',this,\'Restart OK\')">&#8635; Restart</button>'+
-          '<button class="ghost" onclick="zapretAct(\'zapret_stop\',this,\'Stop OK\')">&#9646;&#9646; Stop</button>'+
-          '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Start OK\')">&#9654; Start</button>'+
+          '<button class="danger" onclick="zapretAct(\'zapret_restart\',this,\'Restart OK\')">&#8635; Yeniden Ba&#351;lat</button>'+
+          '<button class="ghost" onclick="zapretAct(\'zapret_stop\',this,\'Stop OK\')">&#9646;&#9646; Durdur</button>'+
+          '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Start OK\')">&#9654; Ba&#351;lat</button>'+
         '</div></div>'+
       '<div class="card"><h3>CPU / RAM / Disk</h3>'+
-        '<div class="row"><span class="pill">Load: '+S.load1+'</span>'+
+        '<div class="row"><span class="pill">CPU Y&#252;k&#252;: '+S.load1+'</span>'+
           '<span class="pill">RAM: '+S.ram_used_mb+'/'+S.ram_total_mb+' MB</span>'+
           '<span class="pill">/opt: '+S.disk_used_pct+'%</span></div>'+
         '<div style="margin-top:8px"><div class="sub" style="margin-bottom:3px">RAM '+rp+'%</div>'+brr(rp)+'</div>'+
@@ -13290,10 +13299,10 @@ var V={
       fmtBcCard(S)+
       fmtOpkgCard()+
       '<div class="card wide"><h3>Sistem Bilgisi</h3><div class="info-grid">'+
-        ir('Model',S.model||'—')+ir('Firmware',S.firmware||'—')+
+        ir('Model',S.model||'—')+ir('Firmware',fixTR(S.firmware||'—'))+
         ir('WAN',(S.wan_dev||'—')+' | '+(S.wan_ip||'—'))+
         (S.keendns_fqdn ? ir('KeenDNS',S.keendns_fqdn+' | '+fmtKeenDns(S.keendns_access)) : '')+
-        ir('Zapret',bdg(S.zapret_running,'&#199;ALI&#350;IYOR','DURDURULDU'))+
+        ir('Zapret',bdg(S.zapret_running,'AKT&#304;F','PAS&#304;F'))+
         ir('Health Monitor',bdg(S.healthmon_running,'AKT&#304;F','PAS&#304;F'))+
         ir('Telegram Bot',bdgO(S.telegram_enabled&&S.telegram_running,'AKT&#304;F','KAPALI'))+
         ir('KZM S&#252;r&#252;m',S.kzm_version||'—')+ir('Zapret S&#252;r&#252;m',S.zapret_version||'—')+
@@ -13305,14 +13314,14 @@ var V={
     if(!S)return nd();
     return '<div class="grid" style="grid-template-columns:1fr 1fr">'+
       '<div class="card"><h3>Durum</h3>'+
-        '<div class="row">'+bdg(S.zapret_running,'RUNNING','STOPPED')+
+        '<div class="row">'+bdg(S.zapret_running,'AKT&#304;F','PAS&#304;F')+
           ' <span class="pill">WAN: '+(S.wan_dev||'—')+'</span>'+
           ' <span class="pill">'+(S.zapret_version||'—')+'</span></div></div>'+
       '<div class="card"><h3>Kontrol</h3>'+
         '<div class="btns">'+
           '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Baslatildi\')">&#9654; Ba&#351;lat</button>'+
           '<button class="danger" onclick="zapretAct(\'zapret_stop\',this,\'Durduruldu\')">&#9646;&#9646; Durdur</button>'+
-          '<button class="ghost" onclick="zapretAct(\'zapret_restart\',this,\'Yeniden baslatildi\')">&#8635; Yeniden Ba&#351;lat</button>'+
+          '<button class="ghost" onclick="zapretAct(\'zapret_restart\',this,\'Yeniden başlatıldı\')">&#8635; Yeniden Ba&#351;lat</button>'+
         '</div>'+
         '<div class="hint" style="margin-top:8px">HealthMon AUTORESTART=1 ise durdurma kal&#305;c&#305; olmaz.</div>'+
       '</div></div>';
@@ -13393,7 +13402,7 @@ var V={
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
     var h='<div class="grid">'  /* uyari hmUpdate tarafindan yonetilir */+
-      '<div class="card"><h3>CPU Load</h3><div class="big" id="hmLoad1">'+S.load1+'</div>'+
+      '<div class="card"><h3>CPU Y&#252;k&#252;</h3><div class="big" id="hmLoad1">'+S.load1+'</div>'+
         '<div class="sub" id="hmLoad515">5dk: '+S.load5+' &nbsp; 15dk: '+S.load15+'</div></div>'+
       '<div class="card"><h3>RAM</h3><div class="big" id="hmRamPct">'+rp+'%</div>'+
         '<div class="sub" id="hmRamSub">'+S.ram_used_mb+' / '+S.ram_total_mb+' MB</div>'+
@@ -13407,8 +13416,8 @@ var V={
         '<div class="btns" style="margin-top:10px" id="hmBtn">';
     h+=S.healthmon_running
       ?'<button class="danger" onclick="act(\'healthmon_stop\',this,\'HM durduruldu\')">&#9632; HM Durdur</button>'
-      :'<button class="ok" onclick="act(\'healthmon_start\',this,\'HM baslatildi\')">&#9654; HM Ba&#351;lat</button>';
-    h+='<button class="ghost" onclick="act(\'status_refresh\',this,\'Guncellendi\')">&#8635; Yenile</button>'+
+      :'<button class="ok" onclick="act(\'healthmon_start\',this,\'HM başlatıldı\')">&#9654; HM Ba&#351;lat</button>';
+    h+='<button class="ghost" onclick="act(\'status_refresh\',this,\'Güncellendi\')">&#8635; Yenile</button>'+
       '</div></div>'+
       '<div class="card wide" id="hmC"><h3>Konfig&#252;rasyon</h3>'+(hmConfCache||'<div class="sub">Y&#252;kleniyor...</div>')+'</div>'+
     '</div>';
@@ -13422,10 +13431,10 @@ var V={
     return h;
   }},
 
-  healthcheck:{title:'Ag Tanilama',sub:'DNS/NTP/GitHub/OPKG/Disk/Zapret kontrolu (Menu 14).',html:function(){
+  healthcheck:{title:'Ağ Tanılama',sub:'DNS/NTP/GitHub/OPKG/Disk/Zapret kontrolü (Menu 14).',html:function(){
     if(!S)return nd();
     setTimeout(function(){hcRun();},50);
-    return '<div id="hcResult"><div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><span class="spinner"></span> Kontrol yapiliyor, lutfen bekleyin...</div></div>';
+    return '<div id="hcResult"><div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><span class="spinner"></span> Kontrol yapılıyor, lütfen bekleyin...</div></div>';
   }},
 
   telegram:{title:'Telegram',sub:'Bildirim ve interaktif bot.',html:function(){
@@ -13434,35 +13443,35 @@ var V={
     var run=!!S.telegram_running;
     var en=!!S.telegram_enabled;
     var dis=cfg?'':'disabled';
-    var notCfg='<div style="background:rgba(255,180,0,0.12);border:1px solid var(--warn);border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:0.88em;color:var(--warn)">&#9888; Yapilandirilmamis &mdash; SSH &gt; Menu 15</div>';
+    var notCfg='<div style="background:rgba(255,180,0,0.12);border:1px solid var(--warn);border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:0.88em;color:var(--warn)">&#9888; Yapılandırılmamış &mdash; SSH &gt; Menu 15</div>';
     var startBtn=run
       ?'<button class="danger" onclick="tgStop(this)">&#9632; Durdur</button>'
-      :'<button '+dis+' onclick="tgStart(this)">&#9654; Baslat</button>';
+      :'<button '+dis+' onclick="tgStart(this)">&#9654; Ba&#351;lat</button>';
     var h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
       // Kart 1: Tek yonlu bildirim
       '<div class="card">'+
         '<h3>&#128276; Bildirim <span style="font-size:0.7em;font-weight:normal;color:var(--muted)">(Tek Yon)</span></h3>'+
         (cfg?'':''+notCfg)+
-        '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">HealthMon uyarilari, Zapret durum bildirimleri</div>'+
-        '<div class="row">'+bdgO(cfg,'Yapilandirilmis','Kurulmamis')+'</div>'+
-        '<div class="row" style="margin-top:6px">'+bdgO(en,'Etkin','Devre Disi')+'</div>'+
+        '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">HealthMon uyar&#305;lar&#305;, Zapret durum bildirimleri</div>'+
+        '<div class="row">'+bdgO(cfg,'Yapılandırılmış','Kurulmamış')+'</div>'+
+        '<div class="row" style="margin-top:6px">'+bdgO(en,'Etkin','Devre Dışı')+'</div>'+
         '<div class="btns" style="margin-top:12px">'+
           '<button '+dis+' onclick="act(\'tg_test\',this,\'Test gonderildi\')">&#128172; Test Gonder</button>'+
         '</div>'+
       '</div>'+
-      // Kart 2: Cift yonlu interaktif bot
+      // Kart 2: Çift yönlü interaktif bot
       '<div class="card">'+
-        '<h3>&#129302; Interaktif Bot <span style="font-size:0.7em;font-weight:normal;color:var(--muted)">(Cift Yon)</span></h3>'+
+        '<h3>&#129302; İnteraktif Bot <span style="font-size:0.7em;font-weight:normal;color:var(--muted)">(Çift Yön)</span></h3>'+
         (cfg?'':''+notCfg)+
-        '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">Telegram\'dan komut gonder, router\'i yonet</div>'+
-        '<div class="row">'+bdgO(run,'Calisiyor','Durdu')+'</div>'+
+        '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">Telegram\'dan komut g&#246;nder, router\'&#305; y&#246;net</div>'+
+        '<div class="row">'+bdgO(run,'Çalışıyor','Durdu')+'</div>'+
         '<div class="btns" style="margin-top:12px">'+startBtn+'</div>'+
       '</div>'+
     '</div>'+
     // Alt satir: Bot bilgileri
     '<div style="margin-top:16px">'+
-      '<div class="card" id="tgInfoCard"><h3>&#128272; Baglanti Bilgileri</h3>'+
-        '<div style="color:var(--muted);font-size:0.9em">Yukleniyor...</div>'+
+      '<div class="card" id="tgInfoCard"><h3>&#128272; Bağlantı Bilgileri</h3>'+
+        '<div style="color:var(--muted);font-size:0.9em">Yükleniyor...</div>'+
       '</div>'+
     '</div>';
     setTimeout(function(){
@@ -13470,7 +13479,7 @@ var V={
         var el=document.getElementById('tgInfoCard');
         if(!el)return;
         if(r.ok&&(r.token||r.chat)){
-          el.innerHTML='<h3>&#128272; Baglanti Bilgileri</h3>'+
+          el.innerHTML='<h3>&#128272; Bağlantı Bilgileri</h3>'+
             '<table style="width:100%;border-collapse:collapse;font-size:0.9em">'+
             '<tr><td style="color:var(--muted);padding:5px 0;width:80px">Token</td>'+
             '<td style="font-family:monospace;letter-spacing:0.03em">'+r.token+'</td></tr>'+
@@ -13478,8 +13487,8 @@ var V={
             '<td style="font-family:monospace">'+r.chat+'</td></tr>'+
             '</table>';
         } else {
-          el.innerHTML='<h3>&#128272; Baglanti Bilgileri</h3>'+
-            '<div style="color:var(--muted);font-size:0.9em">Yapilandirilmamis &mdash; SSH ile Menu 15\'i kullanin.</div>';
+          el.innerHTML='<h3>&#128272; Bağlantı Bilgileri</h3>'+
+            '<div style="color:var(--muted);font-size:0.9em">Yapılandırılmamış &mdash; SSH ile Menu 15\'i kullanin.</div>';
         }
       });
     },100);
@@ -13490,7 +13499,7 @@ var V={
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
     return '<div class="grid">'+
-      '<div class="card"><h3>CPU Load</h3><div class="big">'+S.load1+'</div>'+
+      '<div class="card"><h3>CPU Y&#252;k&#252;</h3><div class="big">'+S.load1+'</div>'+
         '<div class="sub">5dk: '+S.load5+' &nbsp; 15dk: '+S.load15+'</div></div>'+
       '<div class="card"><h3>RAM</h3><div class="big">'+rp+'%</div>'+
         '<div class="sub">'+S.ram_used_mb+' / '+S.ram_total_mb+' MB</div>'+brr(rp)+'</div>'+
@@ -13500,7 +13509,7 @@ var V={
         '<div class="row">'+bdg(S.zapret_running,'Zapret OK','Zapret PAS&#304;F')+'</div>'+
         '<div class="row" style="margin-top:6px">'+bdg(S.healthmon_running,'HealthMon OK','HealthMon PAS&#304;F')+'</div>'+
         '<div class="btns" style="margin-top:10px">'+
-          '<button class="ghost" onclick="act(\'status_refresh\',this,\'Guncellendi\')">&#8635; G&#252;ncelle</button>'+
+          '<button class="ghost" onclick="act(\'status_refresh\',this,\'Güncellendi\')">&#8635; G&#252;ncelle</button>'+
         '</div></div>'+
       '</div>';
   }},
@@ -13674,13 +13683,13 @@ var _hcAttempts=0;
 var _hcMaxAttempts=60;
 function hcRun(btn){
   var el=document.getElementById('hcResult');
-  if(el)el.innerHTML='<div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><span class="spinner"></span> Kontrol yapiliyor, lutfen bekleyin...</div>';
+  if(el)el.innerHTML='<div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><span class="spinner"></span> Kontrol yapılıyor, lütfen bekleyin...</div>';
   if(btn){btn.disabled=true;}
   _hcAttempts=0;
   fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=health_run'})
   .then(function(r){return r.json();})
   .then(function(){clearInterval(_hcTimer);_hcTimer=setInterval(function(){hcPoll(btn);},2000);})
-  .catch(function(){if(el)el.innerHTML='<div style="color:var(--bad)">Baglanti hatasi</div>';if(btn)btn.disabled=false;});
+  .catch(function(){if(el)el.innerHTML='<div style="color:var(--bad)">Bağlantı hatası</div>';if(btn)btn.disabled=false;});
 }
 function hcPoll(btn){
   _hcAttempts++;
@@ -13700,13 +13709,46 @@ function hcPoll(btn){
     hcRender(d);
   }).catch(function(){clearInterval(_hcTimer);if(btn)btn.disabled=false;});
 }
+// ASCII Türkçe → UTF-8 dönüşümü (JSON/shell çıktısı için global helper)
+function fixTR(s){if(!s)return s;
+  return s.replace(/Calisiyor/g,'Çalışıyor').replace(/Calismiyor/g,'Çalışmıyor')
+          .replace(/Durdurulmus/g,'Durdurulmuş').replace(/durduruldu/g,'durduruldu')
+          .replace(/Dogrulandi/g,'Doğrulandı').replace(/Farkli/g,'Farklı')
+          .replace(/Varsayilan/g,'Varsayılan').replace(/butunlugu/g,'bütünlüğü')
+          .replace(/Butunlugu/g,'Bütünlüğü').replace(/Surum durumu/g,'Sürüm durumu')
+          .replace(/surum/g,'sürüm').replace(/Acik/g,'Açık').replace(/Kapali/g,'Kapalı')
+          .replace(/Guncelleme/g,'Güncelleme').replace(/Guncel/g,'Güncel')
+          .replace(/Saglik/g,'Sağlık').replace(/Tanilama/g,'Tanılama')
+          .replace(/Anlik/g,'Anlık').replace(/Esik/g,'Eşik').replace(/esigi/g,'eşiği')
+          .replace(/Ardisik/g,'Ardışık').replace(/Arayuz/g,'Arayüz')
+          .replace(/Baglanti/g,'Bağlantı').replace(/baglanti/g,'bağlantı')
+          .replace(/Baslatildi/g,'Başlatıldı').replace(/baslatildi/g,'başlatıldı')
+          .replace(/Kaldirildi/g,'Kaldırıldı').replace(/kaldirildi/g,'kaldırıldı')
+          .replace(/Yeniden baslatildi/g,'Yeniden başlatıldı')
+          .replace(/Zapret baslatildi/g,'Zapret başlatıldı')
+          .replace(/Profil.*ayarlandi/g,function(m){return m.replace(/ayarlandi/,'ayarlandı');})
+          .replace(/kontrolu/g,'kontrolü').replace(/tutarliligi/g,'tutarlılığı')
+          .replace(/erisimi/g,'erişimi').replace(/Yuk\b/g,'Yük').replace(/yuk\b/g,'yük')
+          .replace(/Bos\b/g,'Boş').replace(/bos\b/g,'boş').replace(/MB bos/g,'MB boş')
+          .replace(/Onizleme/g,'Önizleme').replace(/onizleme/g,'önizleme')
+          .replace(/Yerel cozucu/g,'Yerel DNS Çözücü').replace(/resolver/g,'DNS Çözücü')
+          .replace(/unknown/g,'bilinmiyor')
+          .replace(/Dogrulandi/g,'Doğrulandı').replace(/Eslesmiyor/g,'Eşleşmiyor')
+          .replace(/Dogrulanmamis/g,'Doğrulanmamış').replace(/Dogrudan Erisim/g,'Doğrudan Erişim')
+          .replace(/Dogrudan erisim/g,'Doğrudan erişim').replace(/butunlugu/g,'bütünlüğü')
+          .replace(/Butunlugu/g,'Bütünlüğü').replace(/surum durumu/g,'sürüm durumu')
+          .replace(/Henuz/g,'Henüz').replace(/henuz/g,'henüz')
+          .replace(/uyarilari/g,'uyarıları').replace(/bildirimleri/g,'bildirimleri')
+          .replace(/gonder/g,'gönder').replace(/yonet/g,'yönet')
+          .replace(/Erisim/g,'Erişim').replace(/erisim/g,'erişim');
+}
 function hcRender(d){
   var el=document.getElementById('hcResult');
   if(!el)return;
   if(!d||!d.ok){el.innerHTML='<div style="color:var(--bad)">'+(d&&d.msg?d.msg:'Hata')+'</div>';return;}
   var sc=parseFloat(d.score||0);
   var scClr=sc>=9.5?'var(--good)':sc>=8.5?'var(--good)':sc>=7?'var(--warn)':sc>=5?'#e8a020':'var(--bad)';
-  var scLbl=sc>=9.5?'MUKEMMEL':sc>=8.5?'COK IYI':sc>=7?'IYI':sc>=5?'ORTA':'KOTU';
+  var scLbl=sc>=9.5?'MÜKEMMEL':sc>=8.5?'ÇOK İYİ':sc>=7?'İYİ':sc>=5?'ORTA':'ZAYIF';
   var h='<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
       '<span style="font-weight:600">Sistem Skoru</span>'+
@@ -13723,7 +13765,7 @@ function hcRender(d){
       (d.dns_mode?'<span style="margin-left:auto">DNS: <b>'+d.dns_mode+'</b>'+(d.dns_providers?' \u2022 '+d.dns_providers:'')+'</span>':'')+
     '</div>'+
   '</div>';
-  var secs={net:'\u{1F310} Ag & DNS',sys:'\u{1F4BB} Sistem',svc:'\u2699 Servisler'};
+  var secs={net:'\u{1F310} Ağ & DNS',sys:'\u{1F4BB} Sistem',svc:'\u2699 Servisler'};
   var secOrder=['net','sys','svc'];
   var byS={net:[],sys:[],svc:[]};
   (d.items||[]).forEach(function(it){if(byS[it.sec])byS[it.sec].push(it);});
@@ -13736,8 +13778,8 @@ function hcRender(d){
       var stClr=it.st==='PASS'?'var(--good)':it.st==='FAIL'?'var(--bad)':it.st==='WARN'?'var(--warn)':'var(--muted)';
       var stIco=it.st==='PASS'?'&#10003;':it.st==='FAIL'?'&#10007;':it.st==='WARN'?'&#9888;':'&#8226;';
       h+='<tr style="border-top:'+(i?'1px solid var(--border)':'none')+'">'+
-        '<td style="padding:7px 16px;color:var(--muted);width:45%">'+it.lbl+'</td>'+
-        '<td style="padding:7px 8px;color:var(--fg)">'+it.val+'</td>'+
+        '<td style="padding:7px 16px;color:var(--muted);width:45%">'+fixTR(it.lbl)+'</td>'+
+        '<td style="padding:7px 8px;color:var(--fg)">'+fixTR(it.val)+'</td>'+
         '<td style="padding:7px 16px;text-align:right;color:'+stClr+';font-weight:600;white-space:nowrap">'+stIco+' '+it.st+'</td>'+
       '</tr>';
     });
@@ -13755,20 +13797,20 @@ function zapretAct(action,btn,msg){
     fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=status_refresh'})
     .then(function(){return fetchS();})
     .then(function(){render(curV);});
-  }).catch(function(){toast('Baglanti hatasi',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
+  }).catch(function(){toast('Bağlantı hatası',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
 function tgStart(btn){
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
   fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=tg_start'})
   .then(function(r){return r.json();})
   .then(function(res){
-    toast(res.msg||'Bot baslatildi',!!res.ok);
+    toast(res.msg||'Bot başlatıldı',!!res.ok);
     if(btn){btn.disabled=false;btn.innerHTML=btn._o;}
     // status_refresh -> fetchS -> render
     fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=status_refresh'})
     .then(function(){return fetchS();})
     .then(function(){render('telegram');});
-  }).catch(function(){toast('Baglanti hatasi',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
+  }).catch(function(){toast('Bağlantı hatası',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
 function tgStop(btn){
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
@@ -13781,7 +13823,7 @@ function tgStop(btn){
     fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=status_refresh'})
     .then(function(){return fetchS();})
     .then(function(){render('telegram');});
-  }).catch(function(){toast('Baglanti hatasi',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
+  }).catch(function(){toast('Bağlantı hatası',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
 
 function bkLoad(){bkSettingsList(null);bkIpsetList(null);}
@@ -13903,7 +13945,7 @@ kzm_gui_add_cron() {
 # ---------------------------------------------------------------------------
 kzm_gui_save_hw_info() {
     mkdir -p /opt/var/run 2>/dev/null
-    zkm_banner_get_model  2>/dev/null > /opt/var/run/kzm_hw_model  || true
+    zkm_banner_get_system  2>/dev/null > /opt/var/run/kzm_hw_model  || true
     zkm_banner_get_firmware 2>/dev/null > /opt/var/run/kzm_hw_firmware || true
 }
 
