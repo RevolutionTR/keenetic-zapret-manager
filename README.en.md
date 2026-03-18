@@ -306,3 +306,14 @@ Use is entirely **at the user's own risk**.
 
 📌 **GitHub Repo:**  
 https://github.com/RevolutionTR/keenetic-zapret-manager
+
+---
+## 🔔 About Derivative Projects
+
+Projects inspired by this project's UI design, menu architecture, or overall structure
+are expected to provide proper attribution:
+
+**Source:** [Keenetic Zapret Manager (KZM)](https://github.com/RevolutionTR/keenetic-zapret-manager) by RevolutionTR
+
+Usage is free under the GPL-3.0 license, however providing attribution in derivative
+works is an ethical requirement.
