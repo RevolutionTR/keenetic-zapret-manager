@@ -317,3 +317,8 @@ are expected to provide proper attribution:
 
 Usage is free under the GPL-3.0 license, however providing attribution in derivative
 works is an ethical requirement.
+<br>
+## Legal Notice
+Keenetic and the Keenetic logo are registered trademarks of Keenetic Ltd.
+This project has no official affiliation, partnership, or sponsorship with Keenetic Ltd.
+The Keenetic logo is used solely to indicate that this tool is designed for Keenetic devices.
