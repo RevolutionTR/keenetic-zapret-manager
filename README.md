@@ -314,3 +314,8 @@ kaynak belirtmesi beklenmektedir:
 
 GPL-3.0 lisansı kapsamında kullanım serbesttir ancak türev çalışmalarda kaynak göstermek
 etik bir zorunluluktur.
+<br>
+## Yasal Bildirim
+Keenetic ve Keenetic logosu, Keenetic Ltd. şirketinin tescilli markasıdır.
+Bu proje Keenetic Ltd. ile herhangi bir resmi bağlantı, ortaklık veya sponsorluk ilişkisi içermemektedir.
+Keenetic logosu yalnızca bu aracın Keenetic cihazlar için tasarlandığını belirtmek amacıyla kullanılmıştır.
