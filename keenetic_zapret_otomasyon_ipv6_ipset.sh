@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.18"
+SCRIPT_VERSION="v26.3.19"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1868,6 +1868,26 @@ TXT_MENU14_OPT1_TR="1. Kontrol Calistir"
 TXT_MENU14_OPT1_EN="1. Run Diagnostics"
 TXT_MENU14_OPT2_TR="2. OPKG Listesini Yenile"
 TXT_MENU14_OPT2_EN="2. Refresh OPKG Package List"
+TXT_MENU14_OPT3_TR="3. DoT/DoH DNS Yapilandir (Guvenli DNS)"
+TXT_MENU14_OPT3_EN="3. Configure DoT/DoH DNS (Secure DNS)"
+TXT_MENU14_DNS_TITLE_TR="Guvenli DNS Yapilandirmasi (DoT/DoH)"
+TXT_MENU14_DNS_TITLE_EN="Secure DNS Configuration (DoT/DoH)"
+TXT_MENU14_DNS_CONFIRM_TR="Bu islem eksik olan ve en cok tercih edilen DoT/DoH DNS sunucularini ekleyecek. Devam? (e/h):"
+TXT_MENU14_DNS_CONFIRM_EN="This will add missing and most preferred DoT/DoH DNS servers. Continue? (y/n):"
+TXT_MENU14_DNS_VPN_WARN_TR="VPN kullaniyorsaniz DNS sizintisini onlemek icin VPN arayuzunuze ozel DNS atayiniz."
+TXT_MENU14_DNS_VPN_WARN_EN="If you use VPN, assign a dedicated DNS to your VPN interface to prevent DNS leaks."
+TXT_MENU14_DNS_FILTER_WARN_TR="UYARI: Internet Filtresi aktif. Bazi DNS sunuculari eklenemeyebilir."
+TXT_MENU14_DNS_FILTER_WARN_EN="WARNING: Internet Filter is active. Some DNS servers may not be added."
+TXT_MENU14_DNS_ALREADY_TR="Tum DNS sunuculari zaten yapilandirilmis."
+TXT_MENU14_DNS_ALREADY_EN="All DNS servers are already configured."
+TXT_MENU14_DNS_ADDED_TR="Eklendi"
+TXT_MENU14_DNS_ADDED_EN="Added"
+TXT_MENU14_DNS_EXISTS_TR="Zaten mevcut, atlaniyor"
+TXT_MENU14_DNS_EXISTS_EN="Already exists, skipping"
+TXT_MENU14_DNS_SAVED_TR="DNS yapilandirmasi kaydedildi."
+TXT_MENU14_DNS_SAVED_EN="DNS configuration saved."
+TXT_MENU14_DNS_REBIND_TR="Rebind korumasi"
+TXT_MENU14_DNS_REBIND_EN="Rebind protection"
 TXT_OPKG_UPDATING_TR="OPKG paket listesi yenileniyor..."
 TXT_OPKG_UPDATING_EN="Refreshing OPKG package list..."
 TXT_OPKG_UPDATED_TR="OPKG paket listesi yenilendi."
@@ -6772,6 +6792,137 @@ display_menu() {
 
 
 # --- OPKG GUNCELLEME ---
+configure_secure_dns() {
+    clear
+    print_line "="
+    printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_MENU14_DNS_TITLE)" "${CLR_RESET}"
+    print_line "="
+
+    # Mevcut durumu al
+    local _raw _rc
+    _raw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
+    _rc="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
+
+    # Internet Filtresi aktif mi kontrol et
+    local _filter_active=0
+    if echo "$_raw" | grep -qiE "filter.engine|filter.assign"; then
+        _filter_active=1
+    fi
+    if [ "$_filter_active" -eq 1 ]; then
+        print_status WARN "$(T TXT_MENU14_DNS_FILTER_WARN)"
+    fi
+
+    print_line "-"
+
+    # Oncelikle mevcut durumu goster
+    local _need_add=0
+
+    # rebind-protect
+    if echo "$_raw" | grep -q "norebind_ctl = on" || echo "$_rc" | grep -q "rebind-protect"; then
+        printf " %-45s %b%-5s%b: %b%s%b\n" "$(T TXT_MENU14_DNS_REBIND)" \
+            "${CLR_CYAN}" "[---]" "${CLR_RESET}" \
+            "${CLR_DIM}" "$(T TXT_MENU14_DNS_EXISTS)" "${CLR_RESET}"
+    else
+        printf " %-45s %b%-5s%b: %b%s%b\n" "$(T TXT_MENU14_DNS_REBIND)" \
+            "${CLR_CYAN}" "[---]" "${CLR_RESET}" \
+            "${CLR_ORANGE}" "$(T _ 'Eksik' 'Missing')" "${CLR_RESET}"
+        _need_add=1
+    fi
+
+    local _entry _key _type
+    for _entry in \
+        "8.8.8.8@dns.google|DoT|dns-proxy tls upstream 8.8.8.8 sni dns.google" \
+        "8.8.4.4@dns.google|DoT|dns-proxy tls upstream 8.8.4.4 sni dns.google" \
+        "1.1.1.1|DoT|dns-proxy tls upstream 1.1.1.1" \
+        "1.0.0.1@cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.1 sni cloudflare-dns.com" \
+        "cloudflare-dns.com/dns-query@dnsm|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm" \
+        "dns.comss.one/dns-query@dnsm|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm" \
+        "dns.google/dns-query@dnsm|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm"
+    do
+        _key="${_entry%%|*}"
+        _type="$(echo "$_entry" | cut -d'|' -f2)"
+        if echo "$_raw" | grep -qF "$_key"; then
+            printf " %-45s %b%-5s%b: %b%s%b\n" "$_key" \
+                "${CLR_CYAN}" "[$_type]" "${CLR_RESET}" \
+                "${CLR_DIM}" "$(T TXT_MENU14_DNS_EXISTS)" "${CLR_RESET}"
+        else
+            printf " %-45s %b%-5s%b: %b%s%b\n" "$_key" \
+                "${CLR_CYAN}" "[$_type]" "${CLR_RESET}" \
+                "${CLR_ORANGE}" "$(T _ 'Eksik' 'Missing')" "${CLR_RESET}"
+            _need_add=1
+        fi
+    done
+
+    print_line "-"
+
+    # Hepsi mevcutsa bitir
+    if [ "$_need_add" -eq 0 ]; then
+        print_status INFO "$(T TXT_MENU14_DNS_ALREADY)"
+        press_enter_to_continue
+        return 0
+    fi
+
+    # VPN DNS leak uyarisi
+    echo ""
+    printf " %b%s%b\n" "${CLR_ORANGE}" "$(T TXT_MENU14_DNS_VPN_WARN)" "${CLR_RESET}"
+    echo ""
+
+    # Onay al
+    printf '%s ' "$(T TXT_MENU14_DNS_CONFIRM)"
+    read -r _ans
+    if ! echo "$_ans" | grep -qi "^[ey]"; then
+        echo "$(T _ 'Iptal edildi.' 'Cancelled.')"
+        press_enter_to_continue
+        return 0
+    fi
+
+    print_line "-"
+    local _changed=0
+
+    # rebind-protect ekle
+    if ! echo "$_raw" | grep -q "norebind_ctl = on" && ! echo "$_rc" | grep -q "rebind-protect"; then
+        LD_LIBRARY_PATH= ndmc -c "dns-proxy rebind-protect auto" >/dev/null 2>&1
+        printf " %-45s %b%-5s%b: %b%s%b\n" "$(T TXT_MENU14_DNS_REBIND)" \
+            "${CLR_CYAN}" "[---]" "${CLR_RESET}" \
+            "${CLR_GREEN}" "$(T TXT_MENU14_DNS_ADDED)" "${CLR_RESET}"
+        _changed=1
+    fi
+
+    # Upstream'leri ekle
+    local _cmd
+    for _entry in \
+        "8.8.8.8@dns.google|DoT|dns-proxy tls upstream 8.8.8.8 sni dns.google" \
+        "8.8.4.4@dns.google|DoT|dns-proxy tls upstream 8.8.4.4 sni dns.google" \
+        "1.1.1.1|DoT|dns-proxy tls upstream 1.1.1.1" \
+        "1.0.0.1@cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.1 sni cloudflare-dns.com" \
+        "cloudflare-dns.com/dns-query@dnsm|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm" \
+        "dns.comss.one/dns-query@dnsm|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm" \
+        "dns.google/dns-query@dnsm|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm"
+    do
+        _key="${_entry%%|*}"
+        _type="$(echo "$_entry" | cut -d'|' -f2)"
+        _cmd="$(echo "$_entry" | cut -d'|' -f3-)"
+        if ! echo "$_raw" | grep -qF "$_key"; then
+            LD_LIBRARY_PATH= ndmc -c "$_cmd" >/dev/null 2>&1
+            printf " %-45s %b%-5s%b: %b%s%b\n" "$_key" \
+                "${CLR_CYAN}" "[$_type]" "${CLR_RESET}" \
+                "${CLR_GREEN}" "$(T TXT_MENU14_DNS_ADDED)" "${CLR_RESET}"
+            _changed=1
+        fi
+    done
+
+    print_line "-"
+
+    if [ "$_changed" -eq 1 ]; then
+        LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
+        print_status PASS "$(T TXT_MENU14_DNS_SAVED)"
+    else
+        print_status INFO "$(T TXT_MENU14_DNS_ALREADY)"
+    fi
+
+    press_enter_to_continue
+}
+
 run_opkg_update() {
     print_line "-"
     print_status INFO "$(T TXT_OPKG_UPDATING)"
@@ -6829,6 +6980,7 @@ network_diag_menu() {
         print_line "="
         echo " $(T TXT_MENU14_OPT1)"
         echo " $(T TXT_MENU14_OPT2)"
+        echo " $(T TXT_MENU14_OPT3)"
         echo " 0. $(T TXT_BACK)"
         print_line "="
         printf '%s' "$(T TXT_CHOICE) "
@@ -6836,6 +6988,7 @@ network_diag_menu() {
         case "$_c" in
             1) run_health_check ;;
             2) clear; run_opkg_update ;;
+            3) configure_secure_dns ;;
             0) return 0 ;;
             *) print_status WARN "$(T TXT_INVALID_CHOICE)"; sleep 1 ;;
         esac
