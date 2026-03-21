@@ -11340,6 +11340,22 @@ if [ "$1" = "--cgi-action" ]; then
             _dt_total_str="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%.1fMB", $2/1024}')"
             _add "sys" "$(T TXT_HEALTH_DISK_TMP)" "${_dt_used_mb}MB / ${_dt_total_str} (${_dt_pct}%)" "INFO"
 
+            # SoC sicakligi
+            _hc_temp=""
+            for _tf in /sys/class/thermal/thermal_zone*/temp; do
+                [ -f "$_tf" ] || continue
+                _tv="$(cat "$_tf" 2>/dev/null)"
+                if [ -n "$_tv" ]; then
+                    _hc_temp="$(awk -v t="$_tv" 'BEGIN{printf "%.0f", t/1000}')"
+                    break
+                fi
+            done
+            [ -n "$_hc_temp" ] && _add "sys" "$(T TXT_HEALTH_TEMP)" "$_hc_temp $(T _ 'Santigrat Derece' 'Degrees Celsius')" "INFO"
+            # LAN IP
+            _hc_lan="$(ip -4 addr show br0 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
+            [ -z "$_hc_lan" ] && _hc_lan="$(ip -4 addr show eth0 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
+            [ -n "$_hc_lan" ] && _add "net" "$(T TXT_HEALTH_LAN_IP)" "$_hc_lan" "INFO"
+
             if check_ntp; then _add "sys" "$(T TXT_HEALTH_TIME)" "$(date '+%Y-%m-%d %H:%M')" "PASS"
             else _add "sys" "$(T TXT_HEALTH_TIME)" "$(date '+%Y-%m-%d %H:%M')" "WARN"; fi
 
@@ -11349,6 +11365,27 @@ if [ "$1" = "--cgi-action" ]; then
             else _add "sys" "$(T TXT_HEALTH_SCRIPT_PATH)" "$_kzm_real" "WARN"; fi
 
             # --- Services ---
+            # Entware
+            if [ -f /opt/bin/opkg ] || [ -d /opt/etc ]; then _add "svc" "$(T TXT_HEALTH_ENTWARE)" "$(T _ 'Kurulu' 'Installed') (/opt)" "PASS"
+            else _add "svc" "$(T TXT_HEALTH_ENTWARE)" "$(T _ 'Bulunamadi' 'Not found')" "FAIL"; fi
+            # curl
+            if command -v curl >/dev/null 2>&1; then _add "svc" "$(T TXT_HEALTH_CURL)" "$(T _ 'Kurulu' 'Installed') ($(command -v curl))" "PASS"
+            else _add "svc" "$(T TXT_HEALTH_CURL)" "$(T _ 'Bulunamadi' 'Not found')" "WARN"; fi
+            # lighttpd
+            if pgrep lighttpd >/dev/null 2>&1; then _add "svc" "$(T TXT_HEALTH_LIGHTTPD)" "$(T _ 'Calisiyor' 'Running') ($(pgrep lighttpd | head -1))" "PASS"
+            elif command -v lighttpd >/dev/null 2>&1; then _add "svc" "$(T TXT_HEALTH_LIGHTTPD)" "$(T _ 'Kurulu ama calısmiyor' 'Installed but not running')" "WARN"
+            else _add "svc" "$(T TXT_HEALTH_LIGHTTPD)" "$(T _ 'Kurulu degil' 'Not installed')" "INFO"; fi
+            # HealthMon
+            if healthmon_is_running 2>/dev/null; then _add "svc" "$(T TXT_HEALTH_HEALTHMON)" "$(T _ 'Calisiyor' 'Running') (PID: $(cat /tmp/healthmon.pid 2>/dev/null))" "PASS"
+            elif [ "${HM_ENABLE:-0}" = "1" ]; then _add "svc" "$(T TXT_HEALTH_HEALTHMON)" "$(T _ 'Acik ama calısmiyor' 'Enabled but not running')" "WARN"
+            else _add "svc" "$(T TXT_HEALTH_HEALTHMON)" "$(T _ 'Kapali' 'Disabled')" "INFO"; fi
+            # Telegram Bot
+            _hc_tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
+            if [ -f /tmp/zkm_telegram_bot.pid ] && kill -0 "$(cat /tmp/zkm_telegram_bot.pid 2>/dev/null)" 2>/dev/null; then
+                _add "svc" "$(T TXT_HEALTH_TGBOT)" "$(T _ 'Calisiyor' 'Running') (PID: $(cat /tmp/zkm_telegram_bot.pid 2>/dev/null))" "PASS"
+            elif [ "$_hc_tg_en" = "1" ]; then _add "svc" "$(T TXT_HEALTH_TGBOT)" "$(T _ 'Acik ama calısmiyor' 'Enabled but not running')" "WARN"
+            else _add "svc" "$(T TXT_HEALTH_TGBOT)" "$(T _ 'Kapali / Yapilandirilmamis' 'Disabled / Not configured')" "INFO"; fi
+
             if check_github; then _add "svc" "$(T TXT_HEALTH_GITHUB)" "" "PASS"
             else _add "svc" "$(T TXT_HEALTH_GITHUB)" "" "WARN"; fi
 
