@@ -1874,8 +1874,8 @@ TXT_HEALTH_RAM_BUFFER_EN="RAM Buffer/Cache"
 TXT_HEALTH_SWAP_TR="Swap (kullanilan/toplam)"
 TXT_HEALTH_SWAP_EN="Swap (used/total)"
 
-TXT_HEALTH_TEMP_TR="CPU Sicakligi"
-TXT_HEALTH_TEMP_EN="CPU Temperature"
+TXT_HEALTH_TEMP_TR="SoC Sicakligi"
+TXT_HEALTH_TEMP_EN="SoC Temperature"
 
 TXT_HEALTH_DISK_TMP_TR="Disk doluluk (/tmp)"
 TXT_HEALTH_DISK_TMP_EN="Disk usage (/tmp)"
@@ -11767,7 +11767,7 @@ healthmon_status() {
     done
     if [ -n "$_temp_simdi" ]; then
         printf "  %-24s : %s
-" "$(T _ 'CPU Sicakligi' 'CPU Temperature')"             "$_temp_simdi $(T _ 'Santigrat Derece' 'Degrees Celsius')"
+" "$(T _ 'SoC Sicakligi' 'SoC Temperature')"             "$_temp_simdi $(T _ 'Santigrat Derece' 'Degrees Celsius')"
     fi
 
     # RAM / Swap / Buffer / Disk detay
@@ -13816,7 +13816,7 @@ var V={
         '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px">'+
           '<tr><td style="color:var(--muted);padding:3px 0;width:38%">'+(L?'CPU Load (1/5/15min)':'CPU Y&#252;k&#252; (1/5/15dk)')+'</td>'+
               '<td style="padding:3px 0"><b>'+S.load1+'</b> / '+S.load5+' / '+S.load15+'</td>'+
-              (S.cpu_temp>0?'<td style="padding:3px 0;text-align:right;color:var(--muted)">'+(L?'Temp':'S&#305;cakl&#305;k')+': <b>'+S.cpu_temp+'&#176;C</b></td>':'<td></td>')+
+              (S.cpu_temp>0?'<td style="padding:3px 0;text-align:right;color:var(--muted)">'+(L?'SoC Temp':'SoC S&#305;cakl&#305;k')+': <b>'+S.cpu_temp+'&#176;C</b></td>':'<td></td>')+
           '</tr>'+
           '<tr><td style="color:var(--muted);padding:3px 0">RAM</td>'+
               '<td colspan="2" style="padding:3px 0">'+
