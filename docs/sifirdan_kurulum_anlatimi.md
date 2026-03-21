@@ -38,7 +38,7 @@ Router’ınızın web arayüzüne, AĞ KURALLARI / İnternet Güvenliği / DNS 
 <img src="/docs/images/KZM2.png" width="800">
 
 DNS kontrollerinizi aşağıdaki adreslerden yapabilirsiniz:  
-DNS leak test , Browser leaks
+[DNS Leak Test](https://www.dnsleaktest.com/) , [Browser Leaks - DNS](https://browserleaks.com/dns)
   
 ## === ISP’den gelen DNS’leri yoksayın === 
 Router’ınızın web arayüzünde, internet hizmeti aldığınız bağlantıya göre İNTERNET / Ethernet Kablosu (veya DSL) girin. İSS Kimlik Doğrulama (PPPoE / PPTP / L2TP) / Gelişmiş PPPoE ayarlarını göster’de  
@@ -50,7 +50,7 @@ Router’ınızın web arayüzünde, internet hizmeti aldığınız bağlantıya
   
 Sonraki ön hazırlık adımları yazıyı uzatacağı ve Zapret kurulumuyla ilgisi dolaylı olduğu için detaya girmeyerek anlatımı cihazlarımızın çevrimiçi Kullanım Kılavuzu’na havale ediyorum. Kullanım Kılavuzu’na Keenetic Destek web sayfasında; ilgili alana ürününüzün adı veya model numarasını girerek ulaşabilirsiniz: Keenetic Destek
   
-Ön hazırlık aşamaları web linki ile ulaşacağınız Kullanım Kılavuzu / Yönetim / OPKG yolunda detaylı bir şekilde anlatılmaktadır. Aralarda örnek olması adına Titan (KN-1812)’dan linkler vereceğim, sizler kendi cihazlarınıza göre takip edebilirsiniz: Titan (KN-1812) – çevrimiçi Kullanım Kılavuzu / Yönetim / OPKG
+Ön hazırlık aşamaları web linki ile ulaşacağınız Kullanım Kılavuzu / Yönetim / OPKG yolunda detaylı bir şekilde anlatılmaktadır. Aralarda örnek olması adına Titan (KN-1812)’dan linkler vereceğim, sizler kendi cihazlarınıza göre takip edebilirsiniz: [Titan (KN-1812) – çevrimiçi Kullanım Kılavuzu / Yönetim / OPKG](https://destek.keenetic.com.tr/titan/kn-1812/tr/18481-opkg.html)
   
 OPKG paketlerini dahili bellek veya harici USB sürücü birimlerine kurabilirsiniz. Hariciye kurmak için router'a bağlayacağınız USB sürücüsü EXT4 dosya sistemiyle biçimlendirilmelidir. Sürücülerin EXT4 ile çalışması için Keenetic router'ınızda “Ext Dosya Sistemi” bileşeninin kurulu olması gerekir. Bunu, Genel Sistem Ayarları sayfasında KeeneticOS Güncelleme ve Bileşen Seçenekleri altındaki Bileşen Seçenekleri'ne tıklayarak kontrol edip kurulu değilse kurabilirsiniz.
   
@@ -60,11 +60,11 @@ Kullanacağınız depolamayı önce OPKG Entware paket yöneticisini kurarak haz
   
 ## === Dahili Bellek kullanılacaksa ===
 Kullanım Kılavuzu / Yönetim / OPKG / OPKG Entware'i Router'ın Dahili Belleğine Kurma  
-Titan (KN-1812)’dan örnek link.
+Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/18482-installing-opkg-entware-in-the-router-s-internal-memory.html/).
   
 ## === USB Sürücüsü (harici depolama) kullanılacaksa ===
 Kullanım Kılavuzu / Yönetim / OPKG / USB Sürücüye Entware Deposunu Kurma  
-Titan (KN-1812)’dan örnek link.  
+Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/20980-installing-the-entware-repository-on-a-usb-drive.html/).  
   
 Bu aşamada dikkat etmeniz gereken nokta kurulum yapılacak cihazın işlemci mimarisine göre OPKG Entware paket yöneticisi kurmanızdır. İşlemleri, önerdiğim gibi cihazınızın online kullanım kılavuzundan bakarak yapıyorsanız orada cihazın işlemci mimarisine uygun paketin linki olacaktır. Ben yine de üç işlemci mimarisi için linkleri aşağıya yazayım (cihazınızın işlemci mimarisini kullanım kılavuzundan öğrenebilirsiniz):
   
@@ -78,18 +78,18 @@ Ayrıca arayıp bulamayan, nerde bu diyenler SSH bağlı iken 'show version' yaz
   
 OPKG ile ilgili daha detaylı bilgi almak için online kullanım kılavuzlarınızda, altta yolu tarif edilmiş yazıyı okuyabilirsiniz.  
 Kullanım Kılavuzu / Yönetim / OPKG / OPKG bileşen açıklaması  
-Titan (KN-1812)’dan örnek link
+Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/42407-opkg-component-description.html/).
   
 
 # BETİK KURULUMU
   
 Kurulum için PC veya mobilde SSH/telnet aracı programa ihtiyacınız olacak. PC için PuTTY, mobil için Termius tavsiye edilir.
   
-- PC için PuTTY indir:  
+- PC için [PuTTY indir:](https://putty.org/index.html/).
   
-- Mobil için Termius indir:  
-Android için  
-iOS için
+- Mobil için Termius indir:
+- [Android için](https://play.google.com/store/apps/details?id=com.server.auditor.ssh.client/)
+- [iOS için](https://apps.apple.com/us/app/termius-modern-ssh-client/id549039908/)
   
 ## === PuTTY / Termius aracılığıyla ile SSH üzerinden yapılacak işlemler ===
   
