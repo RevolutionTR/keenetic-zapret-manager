@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.19"
+SCRIPT_VERSION="v26.3.21"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1233,6 +1233,12 @@ TXT_TGBOT_BANNER_ACTIVE_TR="AKTIF"
 TXT_TGBOT_BANNER_ACTIVE_EN="ACTIVE"
 TXT_TGBOT_BANNER_INACTIVE_TR="KAPALI"
 TXT_TGBOT_BANNER_INACTIVE_EN="INACTIVE"
+TXT_GUI_BANNER_LABEL_TR="Web Panel"
+TXT_GUI_BANNER_LABEL_EN="Web Panel"
+TXT_GUI_BANNER_ACTIVE_TR="AKTIF"
+TXT_GUI_BANNER_ACTIVE_EN="ACTIVE"
+TXT_GUI_BANNER_INACTIVE_TR="KAPALI"
+TXT_GUI_BANNER_INACTIVE_EN="INACTIVE"
 TXT_SCHED_BANNER_LABEL_TR="Tekrar Baslat"
 TXT_SCHED_BANNER_LABEL_EN="Sched.Reboot"
 
@@ -1858,6 +1864,39 @@ TXT_HEALTH_PING_EN="Internet connect (ping 1.1.1.1)"
 
 TXT_HEALTH_RAM_TR="RAM durumu (MemAvailable)"
 TXT_HEALTH_RAM_EN="RAM status (MemAvailable)"
+
+TXT_HEALTH_RAM_DETAIL_TR="RAM (kullanilan/bos/toplam)"
+TXT_HEALTH_RAM_DETAIL_EN="RAM (used/free/total)"
+
+TXT_HEALTH_RAM_BUFFER_TR="RAM Buffer/Cache"
+TXT_HEALTH_RAM_BUFFER_EN="RAM Buffer/Cache"
+
+TXT_HEALTH_SWAP_TR="Swap (kullanilan/toplam)"
+TXT_HEALTH_SWAP_EN="Swap (used/total)"
+
+TXT_HEALTH_TEMP_TR="CPU Sicakligi"
+TXT_HEALTH_TEMP_EN="CPU Temperature"
+
+TXT_HEALTH_DISK_TMP_TR="Disk doluluk (/tmp)"
+TXT_HEALTH_DISK_TMP_EN="Disk usage (/tmp)"
+
+TXT_HEALTH_LAN_IP_TR="LAN IP"
+TXT_HEALTH_LAN_IP_EN="LAN IP"
+
+TXT_HEALTH_ENTWARE_TR="Entware (/opt)"
+TXT_HEALTH_ENTWARE_EN="Entware (/opt)"
+
+TXT_HEALTH_CURL_TR="curl"
+TXT_HEALTH_CURL_EN="curl"
+
+TXT_HEALTH_LIGHTTPD_TR="Web Panel (lighttpd)"
+TXT_HEALTH_LIGHTTPD_EN="Web Panel (lighttpd)"
+
+TXT_HEALTH_HEALTHMON_TR="HealthMon daemon"
+TXT_HEALTH_HEALTHMON_EN="HealthMon daemon"
+
+TXT_HEALTH_TGBOT_TR="Telegram Bot"
+TXT_HEALTH_TGBOT_EN="Telegram Bot"
 
 TXT_HEALTH_LOAD_TR="Sistem yuk (load avg)"
 TXT_HEALTH_LOAD_EN="System load (load avg)"
@@ -6698,6 +6737,19 @@ display_menu() {
                 "${CLR_RESET}" "${CLR_RED}"   "$(T TXT_TGBOT_BANNER_INACTIVE)" "${CLR_RESET}"
         fi
     fi
+    # Web Panel - sadece GUI kuruluysa goster
+    if kzm_gui_is_running 2>/dev/null; then
+        kzm_gui_load_config 2>/dev/null
+        local _gui_lan_ip
+        _gui_lan_ip="$(kzm_gui_get_lan_ip 2>/dev/null)"
+        [ -z "$_gui_lan_ip" ] && _gui_lan_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+        printf "  %b%-*s%b : %b%s%b %b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T TXT_GUI_BANNER_LABEL)" \
+            "${CLR_RESET}" "${CLR_GREEN}" "$(T TXT_GUI_BANNER_ACTIVE)" "${CLR_RESET}" \
+            "${CLR_DIM}" "(http://${_gui_lan_ip}:${KZM_GUI_PORT})" "${CLR_RESET}"
+    elif [ -f "/opt/etc/lighttpd/lighttpd.conf" ]; then
+        printf "  %b%-*s%b : %b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T TXT_GUI_BANNER_LABEL)" \
+            "${CLR_RESET}" "${CLR_RED}" "$(T TXT_GUI_BANNER_INACTIVE)" "${CLR_RESET}"
+    fi
     local _kzm_sha_state _zap_sha_state _clr_kzm _clr_zap
     _kzm_sha_state="$(cat /opt/etc/zkm_sha256_kzm.state 2>/dev/null)"
     _zap_sha_state="$(cat /opt/etc/zkm_sha256_zapret.state 2>/dev/null)"
@@ -7189,11 +7241,45 @@ run_health_check() {
     fi
 
     local load_ok="PASS"
-    local load_val="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
-    local load_msg="($load_val)"
-    if awk -v l="$load_val" 'BEGIN{exit (l>2.0)?0:1}'; then
+    local load_val load_val5 load_val15
+    read -r load_val load_val5 load_val15 _ < /proc/loadavg 2>/dev/null
+    local load_nproc="$(grep -c '^processor' /proc/cpuinfo 2>/dev/null)"
+    [ -z "$load_nproc" ] || [ "$load_nproc" -eq 0 ] 2>/dev/null && load_nproc=1
+    if awk -v l="$load_val" -v n="$load_nproc" 'BEGIN{exit (l>=n)?0:1}'; then
+        load_ok="WARN"
+    elif awk -v l="$load_val" -v n="$load_nproc" 'BEGIN{exit (l>=n*0.7)?0:1}'; then
         load_ok="WARN"
     fi
+    # nproc bazli renk
+    _lv_color() {
+        local _v="$1" _n="$load_nproc" _c
+        local _warn_t
+        _warn_t="$(awk -v n="$_n" 'BEGIN{printf "%.2f", n*0.7}')"
+        if awk -v v="$_v" -v n="$_n" 'BEGIN{exit (v+0>=n+0)?0:1}'; then
+            _c="${CLR_RED}"
+        elif awk -v v="$_v" -v t="$_warn_t" 'BEGIN{exit (v+0>=t+0)?0:1}'; then
+            _c="${CLR_YELLOW}"
+        else
+            _c="${CLR_GREEN}"
+        fi
+        printf "%b%s%b" "$_c" "$_v" "${CLR_RESET}"
+    }
+    local _lv1 _lv5 _lv15
+    _lv1="$(_lv_color "$load_val")"
+    _lv5="$(_lv_color "$load_val5")"
+    _lv15="$(_lv_color "$load_val15")"
+    local load_msg="$_lv1  $(T _ 'Yuk 5dk' 'Load 5min'): $_lv5  $(T _ 'Yuk 15dk' 'Load 15min'): $_lv15  ($(T _ 'Esik' 'Threshold'): ${CLR_CYAN}${load_nproc}${CLR_RESET} CPU $(T _ 'OS gorunen' 'OS visible'))"
+    # CPU sicakligi
+    local temp_ok="INFO" temp_val="" temp_msg="—"
+    for _tf in /sys/class/thermal/thermal_zone*/temp; do
+        [ -f "$_tf" ] || continue
+        _tv="$(cat "$_tf" 2>/dev/null)"
+        if [ -n "$_tv" ]; then
+            temp_val="$(awk -v t="$_tv" 'BEGIN{printf "%.0f", t/1000}')"
+            break
+        fi
+    done
+    [ -n "$temp_val" ] && temp_msg="$temp_val $(T _ 'Santigrat Derece' 'Degrees Celsius')"
 
     local ntp_ok="PASS"
     local ntp_msg="($(date '+%Y-%m-%d %H:%M:%S'))"
@@ -7212,12 +7298,122 @@ run_health_check() {
     if ! check_opkg; then opkg_ok="WARN"; fi
 
     local disk_ok="PASS"
-    local disk_pct="$(df /opt 2>/dev/null | awk 'NR==2 {gsub("%","",$5); print $5}')"
+    local disk_pct="$(healthmon_disk_used_pct /opt)"
     local disk_free="$(df -k /opt 2>/dev/null | awk 'NR==2 {print $4}')"
     local disk_free_mb="$((disk_free/1024))"
-    local disk_msg="(${disk_pct}%, free ~${disk_free_mb}MB)"
-    if [ -n "$disk_pct" ] && [ "$disk_pct" -gt 90 ]; then
+    local _dopt_used _dopt_total_kb _dopt_total
+    _dopt_used="$(df -k /opt 2>/dev/null | awk 'NR==2 {printf "%d", $3/1024}')"
+    _dopt_total_kb="$(df -k /opt 2>/dev/null | awk 'NR==2 {print $2}')"
+    if [ "${_dopt_total_kb:-0}" -ge 1048576 ] 2>/dev/null; then
+        _dopt_total="$(awk -v v="$_dopt_total_kb" 'BEGIN{printf "%.1fGB", v/1048576}')"
+    else
+        _dopt_total="$(awk -v v="$_dopt_total_kb" 'BEGIN{printf "%.1fMB", v/1024}')"
+    fi
+    local disk_msg="${_dopt_used}MB / ${_dopt_total} (${disk_pct}%)"
+    if [ "$disk_pct" != "<1" ] && [ -n "$disk_pct" ] && [ "$disk_pct" -gt 90 ] 2>/dev/null; then
         disk_ok="WARN"
+    fi
+
+    # RAM detay
+    local ram_total_kb ram_free_kb ram_used_kb ram_buf_kb
+    ram_total_kb="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    ram_free_kb="$(grep '^MemFree:' /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    ram_buf_kb="$(grep '^Buffers:' /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    local ram_cached_kb
+    ram_cached_kb="$(grep '^Cached:' /proc/meminfo 2>/dev/null | awk '{print $2}' | head -1)"
+    ram_used_kb=$(( ram_total_kb - ram_avail_kb ))
+    local ram_total_mb=$(( ram_total_kb / 1024 ))
+    local ram_used_mb2=$(( ram_used_kb / 1024 ))
+    local ram_buf_mb=$(( (ram_buf_kb + ram_cached_kb) / 1024 ))
+    local ram_detail_msg="${ram_used_mb2}MB / ${ram_avail_mb}MB $(T _ 'bos' 'free') / ${ram_total_mb}MB $(T _ 'toplam' 'total')"
+
+    # Swap
+    local swap_total_kb swap_free_kb swap_used_kb swap_msg swap_ok="PASS"
+    swap_total_kb="$(grep SwapTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    swap_free_kb="$(grep SwapFree /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    swap_used_kb=$(( swap_total_kb - swap_free_kb ))
+    local swap_total_mb=$(( swap_total_kb / 1024 ))
+    local swap_used_mb=$(( swap_used_kb / 1024 ))
+    swap_msg="${swap_used_mb}MB / ${swap_total_mb}MB"
+
+    # Disk /tmp
+
+    local disk_tmp_pct disk_tmp_free disk_tmp_free_mb disk_tmp_ok="PASS"
+    disk_tmp_pct="$(df -k /tmp 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
+    disk_tmp_free="$(df -k /tmp 2>/dev/null | awk 'NR==2 {print $4}')"
+    disk_tmp_free_mb=$(( ${disk_tmp_free:-0} / 1024 ))
+    [ -n "$disk_tmp_pct" ] && [ "$disk_tmp_pct" -gt 90 ] 2>/dev/null && disk_tmp_ok="WARN"
+    local _dt_used _dt_total_kb _dt_total
+    _dt_used="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%d", $3/1024}')"
+    _dt_total_kb="$(df -k /tmp 2>/dev/null | awk 'NR==2 {print $2}')"
+    if [ "${_dt_total_kb:-0}" -ge 1048576 ] 2>/dev/null; then
+        _dt_total="$(awk -v v="$_dt_total_kb" 'BEGIN{printf "%.1fGB", v/1048576}')"
+    else
+        _dt_total="$(awk -v v="$_dt_total_kb" 'BEGIN{printf "%.1fMB", v/1024}')"
+    fi
+    local disk_tmp_msg="${_dt_used}MB / ${_dt_total} (${disk_tmp_pct:-?}%)"
+
+    # LAN IP
+    local lan_ip lan_ip_msg="—"
+    lan_ip="$(ip -4 addr show br0 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+    [ -z "$lan_ip" ] && lan_ip="$(ip -4 addr show eth0 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+    [ -n "$lan_ip" ] && lan_ip_msg="$lan_ip"
+
+    # Entware /opt
+    local entware_ok="PASS" entware_msg
+    if [ -f /opt/bin/opkg ] || [ -d /opt/etc ]; then
+        entware_msg="$(T _ 'Kurulu' 'Installed') (/opt)"
+    else
+        entware_ok="FAIL"
+        entware_msg="$(T _ 'Bulunamadi' 'Not found')"
+    fi
+
+    # curl
+    local curl_ok="PASS" curl_msg
+    if command -v curl >/dev/null 2>&1; then
+        curl_msg="$(T _ 'Kurulu' 'Installed') ($(command -v curl))"
+    else
+        curl_ok="WARN"
+        curl_msg="$(T _ 'Bulunamadi' 'Not found')"
+    fi
+
+    # lighttpd / Web Panel
+    local lighttpd_ok="INFO" lighttpd_msg
+    if pgrep lighttpd >/dev/null 2>&1; then
+        lighttpd_ok="PASS"
+        lighttpd_msg="$(T _ 'Calisiyor' 'Running') ($(pgrep lighttpd | head -1))"
+    elif command -v lighttpd >/dev/null 2>&1; then
+        lighttpd_ok="WARN"
+        lighttpd_msg="$(T _ 'Kurulu ama calısmiyor' 'Installed but not running')"
+    else
+        lighttpd_msg="$(T _ 'Kurulu degil' 'Not installed')"
+    fi
+
+    # HealthMon
+    local hm_ok="INFO" hm_msg
+    healthmon_load_config 2>/dev/null
+    if healthmon_is_running 2>/dev/null; then
+        hm_ok="PASS"
+        hm_msg="$(T _ 'Calisiyor' 'Running') (PID: $(cat /tmp/healthmon.pid 2>/dev/null))"
+    elif [ "${HM_ENABLE:-0}" = "1" ]; then
+        hm_ok="WARN"
+        hm_msg="$(T _ 'Acik ama calısmiyor' 'Enabled but not running')"
+    else
+        hm_msg="$(T _ 'Kapali' 'Disabled')"
+    fi
+
+    # Telegram Bot
+    local tgbot_ok="INFO" tgbot_msg
+    local _tg_en
+    _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
+    if [ -f /tmp/zkm_telegram_bot.pid ] && kill -0 "$(cat /tmp/zkm_telegram_bot.pid 2>/dev/null)" 2>/dev/null; then
+        tgbot_ok="PASS"
+        tgbot_msg="$(T _ 'Calisiyor' 'Running') (PID: $(cat /tmp/zkm_telegram_bot.pid 2>/dev/null))"
+    elif [ "$_tg_en" = "1" ]; then
+        tgbot_ok="WARN"
+        tgbot_msg="$(T _ 'Acik ama calısmiyor' 'Enabled but not running')"
+    else
+        tgbot_msg="$(T _ 'Kapali / Yapilandirilmamis' 'Disabled / Not configured')"
     fi
 
     local zap_ok="PASS"
@@ -7235,6 +7431,7 @@ run_health_check() {
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_PUBLIC)" "" "$dns_8888_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_MATCH)" " $dns_cons_msg" "$dns_cons_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_ROUTE)" " $route_msg" "$route_ok"
+    add_line "$HC_NET" "$(T TXT_HEALTH_LAN_IP)" " $lan_ip_msg" "INFO"
 
     # ----------------------------
     # SECTION: System
@@ -7242,13 +7439,23 @@ run_health_check() {
     add_line "$HC_SYS" "$(T TXT_HEALTH_SCRIPT_PATH)" " $script_msg" "$script_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_PING)" " $ping_msg" "$ping_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_RAM)" " $ram_msg" "$ram_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_RAM_DETAIL)" " $ram_detail_msg" "INFO"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_RAM_BUFFER)" " ${ram_buf_mb}MB" "INFO"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_SWAP)" " $swap_msg" "$swap_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_LOAD)" " $load_msg" "$load_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_TEMP)" " $temp_msg" "$temp_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_DISK)" " $disk_msg" "$disk_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_DISK_TMP)" " $disk_tmp_msg" "$disk_tmp_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_TIME)" " $ntp_msg" "$ntp_ok"
 
     # ----------------------------
     # SECTION: Services
     # ----------------------------
+    add_line "$HC_SVC" "$(T TXT_HEALTH_ENTWARE)" " $entware_msg" "$entware_ok"
+    add_line "$HC_SVC" "$(T TXT_HEALTH_CURL)" " $curl_msg" "$curl_ok"
+    add_line "$HC_SVC" "$(T TXT_HEALTH_LIGHTTPD)" " $lighttpd_msg" "$lighttpd_ok"
+    add_line "$HC_SVC" "$(T TXT_HEALTH_HEALTHMON)" " $hm_msg" "$hm_ok"
+    add_line "$HC_SVC" "$(T TXT_HEALTH_TGBOT)" " $tgbot_msg" "$tgbot_ok"
     add_line "$HC_SVC" "$(T TXT_HEALTH_GITHUB)" " $gh_msg" "$gh_ok"
     add_line "$HC_SVC" "$(T TXT_HEALTH_OPKG)" "" "$opkg_ok"
     add_line "$HC_SVC" "$(T TXT_HEALTH_ZAPRET)" "" "$zap_ok"
@@ -9930,20 +10137,18 @@ EOF
 }
 
 healthmon_cpu_pct() {
-    # busybox-safe CPU usage from /proc/stat
-    # prints integer 0-100
-    local a b c idle rest
-    read cpu a b c idle rest < /proc/stat
-    local t1=$((a+b+c+idle))
-    local i1=$idle
-    sleep 1
-    read cpu a b c idle rest < /proc/stat
-    local t2=$((a+b+c+idle))
-    local i2=$idle
-    local dt=$((t2-t1))
-    local di=$((i2-i1))
-    [ "$dt" -le 0 ] && { echo 0; return; }
-    echo $(( (100*(dt-di))/dt ))
+    # /proc/stat delta - 0.3s aralikli iki olcum, float sonuc
+    local _c1 _c2
+    _c1="$(awk '/^cpu /{print $2,$3,$4,$5,$6,$7,$8}' /proc/stat 2>/dev/null)"
+    sleep 0.3 2>/dev/null || sleep 1
+    _c2="$(awk '/^cpu /{print $2,$3,$4,$5,$6,$7,$8}' /proc/stat 2>/dev/null)"
+    printf '%s %s
+' "$_c1" "$_c2" | awk '{
+        u1=$1+$2+$3; i1=$4; s1=$5+$6+$7; t1=u1+i1+s1
+        u2=$8+$9+$10; i2=$11; s2=$12+$13+$14; t2=u2+i2+s2
+        dt=t2-t1; di=i2-i1
+        if(dt>0) printf "%.1f", (dt-di)*100/dt; else print "0.0"
+    }'
 }
 
 healthmon_loadavg() {
@@ -9953,7 +10158,18 @@ healthmon_loadavg() {
 
 healthmon_disk_used_pct() {
     # $1 mountpoint
-    df -P "$1" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}'
+    # df -P Use% sutunu 0 dondururse (buyuk disk, az kullanim), MB bazli kontrol yap
+    local _pct _used _total
+    _pct="$(df -P "$1" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
+    if [ "${_pct:-0}" -eq 0 ]; then
+        # Kullanilan alan var mi kontrol et
+        _used="$(df -P "$1" 2>/dev/null | awk 'NR==2 {print $3}')"
+        if [ "${_used:-0}" -gt 0 ]; then
+            printf '<1\n'
+            return
+        fi
+    fi
+    printf '%s\n' "${_pct:-0}"
 }
 
 healthmon_mem_free_mb() {
@@ -11086,14 +11302,43 @@ if [ "$1" = "--cgi-action" ]; then
             if [ "$_ram_mb" -lt 100 ]; then _add "sys" "$(T TXT_HEALTH_RAM)" "${_ram_mb}MB" "WARN"
             else _add "sys" "$(T TXT_HEALTH_RAM)" "${_ram_mb}MB" "PASS"; fi
 
-            _load="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
-            if awk -v l="$_load" 'BEGIN{exit (l>2.0)?0:1}'; then _add "sys" "$(T TXT_HEALTH_LOAD)" "$_load" "WARN"
-            else _add "sys" "$(T TXT_HEALTH_LOAD)" "$_load" "PASS"; fi
+            # RAM detay
+            _ram_total_kb="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
+            _ram_used_kb=$(( _ram_total_kb - _ram_kb ))
+            _ram_total_mb=$(( _ram_total_kb / 1024 ))
+            _ram_used_mb=$(( _ram_used_kb / 1024 ))
+            _ram_buf_kb="$(grep '^Buffers:' /proc/meminfo 2>/dev/null | awk '{print $2}')"
+            _ram_cached_kb="$(grep '^Cached:' /proc/meminfo 2>/dev/null | awk '{print $2}' | head -1)"
+            _ram_buf_mb=$(( (_ram_buf_kb + _ram_cached_kb) / 1024 ))
+            _swap_total_kb="$(grep SwapTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
+            _swap_free_kb="$(grep SwapFree /proc/meminfo 2>/dev/null | awk '{print $2}')"
+            _swap_used_mb=$(( (_swap_total_kb - _swap_free_kb) / 1024 ))
+            _swap_total_mb=$(( _swap_total_kb / 1024 ))
+            _add "sys" "$(T TXT_HEALTH_RAM_DETAIL)" "${_ram_used_mb}MB / ${_ram_mb}MB $(T _ 'bos' 'free') / ${_ram_total_mb}MB $(T _ 'toplam' 'total')" "INFO"
+            _add "sys" "$(T TXT_HEALTH_RAM_BUFFER)" "${_ram_buf_mb}MB" "INFO"
+            _add "sys" "$(T TXT_HEALTH_SWAP)" "${_swap_used_mb}MB / ${_swap_total_mb}MB" "INFO"
 
-            _disk_pct="$(df /opt 2>/dev/null | awk 'NR==2 {gsub("%","",$5); print $5}')"
+            _load="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
+            _load5="$(awk '{print $2}' /proc/loadavg 2>/dev/null)"
+            _load15="$(awk '{print $3}' /proc/loadavg 2>/dev/null)"
+            _nproc_hc="$(grep -c '^processor' /proc/cpuinfo 2>/dev/null)"; [ -z "$_nproc_hc" ] || [ "$_nproc_hc" -eq 0 ] 2>/dev/null && _nproc_hc=1
+            _load_status="PASS"
+            awk -v l="$_load" -v n="$_nproc_hc" 'BEGIN{exit (l>=n)?0:1}' && _load_status="WARN"
+            _add "sys" "$(T TXT_HEALTH_LOAD)" "$_load  $(T _ 'Yuk 5dk' 'Load 5min'): $_load5  $(T _ 'Yuk 15dk' 'Load 15min'): $_load15  ($(T _ 'Esik' 'Threshold'): ${_nproc_hc} CPU)" "$_load_status"
+
+            _disk_pct="$(healthmon_disk_used_pct /opt)"
             _disk_free_mb="$(df -k /opt 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
-            if [ -n "$_disk_pct" ] && [ "$_disk_pct" -gt 90 ]; then _add "sys" "$(T TXT_HEALTH_DISK)" "${_disk_pct}% (${_disk_free_mb}MB $(T _ 'bos' 'free'))" "WARN"
+            if [ "$_disk_pct" != "<1" ] && [ -n "$_disk_pct" ] && [ "$_disk_pct" -gt 90 ] 2>/dev/null; then _add "sys" "$(T TXT_HEALTH_DISK)" "${_disk_pct}% (${_disk_free_mb}MB $(T _ 'bos' 'free'))" "WARN"
             else _add "sys" "$(T TXT_HEALTH_DISK)" "${_disk_pct}% (${_disk_free_mb}MB $(T _ 'bos' 'free'))" "PASS"; fi
+            # Disk / ve /tmp
+            _dr_pct="$(df -k / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
+            _dr_free_mb="$(df -k / 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
+            # / genellikle Keenetic flash/overlay - her zaman dolu gorunur, INFO
+            _dt_pct="$(df -k /tmp 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
+            _dt_free_mb="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
+            _dt_used_mb="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%d", $3/1024}')"
+            _dt_total_str="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%.1fMB", $2/1024}')"
+            _add "sys" "$(T TXT_HEALTH_DISK_TMP)" "${_dt_used_mb}MB / ${_dt_total_str} (${_dt_pct}%)" "INFO"
 
             if check_ntp; then _add "sys" "$(T TXT_HEALTH_TIME)" "$(date '+%Y-%m-%d %H:%M')" "PASS"
             else _add "sys" "$(T TXT_HEALTH_TIME)" "$(date '+%Y-%m-%d %H:%M')" "WARN"; fi
@@ -11499,15 +11744,56 @@ healthmon_status() {
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_NOW)" "${CLR_RESET}"
     print_line "-"
 
-    printf "  %s %s%% | %s %s
-" \
-        "$(T TXT_HM_STATUS_CPU)" "$cpu" \
-        "$(T TXT_HM_STATUS_LOAD)" "$load"
-    printf "  %s %s MB | %s %s%% | %s %s
-" \
-        "$(T TXT_HM_STATUS_RAM_FREE)" "$ram" \
-        "$(T TXT_HM_STATUS_DISK_OPT)" "$disk" \
-        "$(T TXT_HM_STATUS_ZAPRET)" "$zst"
+    local _load5 _load15 _nproc
+    _load5="$(awk '{print $2}' /proc/loadavg 2>/dev/null)"
+    _load15="$(awk '{print $3}' /proc/loadavg 2>/dev/null)"
+    _nproc="$(grep -c '^processor' /proc/cpuinfo 2>/dev/null)"
+    [ -z "$_nproc" ] || [ "$_nproc" -eq 0 ] 2>/dev/null && _nproc=1
+    printf "  %-24s : %s%%
+" "$(T _ 'CPU Kullanimi' 'CPU Usage')" "$cpu"
+    printf "  %-24s : %s  $(T _ 'Yuk 5dk' 'Load 5min'): %s  $(T _ 'Yuk 15dk' 'Load 15min'): %s
+"         "$(T _ 'Yuk 1dk' 'Load 1min')" "$load" "$_load5" "$_load15"
+    printf "  %-24s : %s MB | %s %s%% | %s %s
+"         "$(T TXT_HM_STATUS_RAM_FREE)" "$ram"         "$(T TXT_HM_STATUS_DISK_OPT)" "$disk"         "$(T TXT_HM_STATUS_ZAPRET)" "$zst"
+    # CPU sicakligi
+    local _temp_simdi=""
+    for _tf in /sys/class/thermal/thermal_zone*/temp; do
+        [ -f "$_tf" ] || continue
+        _tv="$(cat "$_tf" 2>/dev/null)"
+        if [ -n "$_tv" ]; then
+            _temp_simdi="$(awk -v t="$_tv" 'BEGIN{printf "%.0f", t/1000}')"
+            break
+        fi
+    done
+    if [ -n "$_temp_simdi" ]; then
+        printf "  %-24s : %s
+" "$(T _ 'CPU Sicakligi' 'CPU Temperature')"             "$_temp_simdi $(T _ 'Santigrat Derece' 'Degrees Celsius')"
+    fi
+
+    # RAM / Swap / Buffer / Disk detay
+    local _st_total_kb _st_used_kb _st_buf_kb _st_cached_kb _st_swap_total _st_swap_free _st_ram_total
+    _st_total_kb="$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    _st_ram_total="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    _st_used_kb=$(( _st_ram_total - _st_total_kb ))
+    _st_buf_kb="$(grep '^Buffers:' /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    _st_cached_kb="$(grep '^Cached:' /proc/meminfo 2>/dev/null | awk '{print $2}' | head -1)"
+    _st_swap_total="$(grep SwapTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    _st_swap_free="$(grep SwapFree /proc/meminfo 2>/dev/null | awk '{print $2}')"
+    local _w2=24
+    printf "  %-*s : %s/%s MB
+" "$_w2" "$(T _ 'RAM Kullanilan' 'RAM Used')" "$(( _st_used_kb/1024 ))" "$(( _st_ram_total/1024 ))"
+    printf "  %-*s : %s MB
+"    "$_w2" "$(T _ 'RAM Bos (Available)' 'RAM Free (Available)')" "$(( _st_total_kb/1024 ))"
+    printf "  %-*s : %s MB
+"    "$_w2" "$(T _ 'Buffer/Cache' 'Buffer/Cache')" "$(( (_st_buf_kb+_st_cached_kb)/1024 ))"
+    printf "  %-*s : %s/%s MB
+" "$_w2" "$(T _ 'Swap Kullanilan' 'Swap Used')" "$(( (_st_swap_total-_st_swap_free)/1024 ))" "$(( _st_swap_total/1024 ))"
+    local _dt_pct _dt_used2 _dt_total2
+    _dt_pct="$(df -k /tmp 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
+    _dt_used2="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%d", $3/1024}')"
+    _dt_total2="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%.1fMB", $2/1024}')"
+    printf "  %-*s : %sMB / %s (%s%%)
+" "$_w2" "$(T _ 'Disk /tmp' 'Disk /tmp')" "${_dt_used2}" "${_dt_total2}" "${_dt_pct:-?}"
 
     echo
 }
@@ -12256,15 +12542,19 @@ kzm_gui_gen_status() {
     _ram_used_mb=$(( (_ram_total - _ram_free) / 1024 ))
 
     # Disk /opt
-    local _disk_used_pct=0 _disk_total_mb=0
+    local _disk_used_pct=0 _disk_total_mb=0 _disk_used_mb=0
     if [ -d /opt ]; then
         local _df_line
         _df_line="$(df /opt 2>/dev/null | awk 'NR==2{print $2,$3,$5}')"
         _disk_total_mb="$(printf '%s' "$_df_line" | awk '{printf "%.0f", $1/1024}')"
-        _disk_used_pct="$(printf '%s' "$_df_line" | awk '{gsub(/%/,"",$3); print $3}')"
+        _disk_used_pct="$(healthmon_disk_used_pct /opt)"
+        _disk_used_mb="$(printf '%s' "$_df_line" | awk '{printf "%.0f", $2/1024}')"
     fi
+    # <1 string degerini JSON icin 0 olarak yaz ama web UI disk_used_mb ile gercek degerle gosterir
+    [ "$_disk_used_pct" = "<1" ] && _disk_used_pct=0
     [ -z "$_disk_used_pct" ] && _disk_used_pct=0
     [ -z "$_disk_total_mb" ] && _disk_total_mb=0
+    [ -z "$_disk_used_mb" ] && _disk_used_mb=0
 
     # Zapret version
     local _zap_ver="unknown"
@@ -12334,6 +12624,7 @@ kzm_gui_gen_status() {
     cat > "$_dir/kzm_status.json" << EOF
 {
   "ts": $_ts,
+  "lang": "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)",
   "kzm_version": "$SCRIPT_VERSION",
   "model": "$_model",
   "firmware": "$_firmware",
@@ -12354,6 +12645,7 @@ kzm_gui_gen_status() {
   "ram_used_mb": $_ram_used_mb,
   "ram_total_mb": $_ram_total_mb,
   "disk_used_pct": $_disk_used_pct,
+  "disk_used_mb": $_disk_used_mb,
   "disk_total_mb": $_disk_total_mb,
   "dpi_profile": "$_dpi_profile",
   "dpi_origin": "$_dpi_origin",
@@ -12405,13 +12697,50 @@ _rfree="$(awk '/^MemAvailable:/{print $2}' /proc/meminfo 2>/dev/null)"; [ -z "$_
 _rtmb=$(( _rtotal / 1024 ))
 _rumb=$(( (_rtotal - _rfree) / 1024 ))
 
-_dpct=0; _dtmb=0
+_dpct=0; _dtmb=0; _dumb=0
 if [ -d /opt ]; then
-    _dpct="$(df /opt 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5);print $5}')"
-    _dtmb="$(df /opt 2>/dev/null | awk 'NR==2{printf "%.0f",$2/1024}')"
+    _dpct="$(healthmon_disk_used_pct /opt)"
+    [ "$_dpct" = "<1" ] && _dpct=0
     [ -z "$_dpct" ] && _dpct=0
+    _dtmb="$(df /opt 2>/dev/null | awk 'NR==2{printf "%.0f",$2/1024}')"
+    _dumb="$(df /opt 2>/dev/null | awk 'NR==2{printf "%.0f",$3/1024}')"
     [ -z "$_dtmb" ] && _dtmb=0
+    [ -z "$_dumb" ] && _dumb=0
 fi
+
+# RAM detay
+_rbuf="$(awk '/^Buffers:/{print $2}' /proc/meminfo 2>/dev/null)"; [ -z "$_rbuf" ] && _rbuf=0
+_rcached="$(awk '/^Cached:/{print $2}' /proc/meminfo 2>/dev/null | head -1)"; [ -z "$_rcached" ] && _rcached=0
+_rfree_mb=$(( _rfree / 1024 ))
+_rbuf_mb=$(( (_rbuf + _rcached) / 1024 ))
+# Swap
+_swap_total="$(awk '/^SwapTotal:/{print $2}' /proc/meminfo 2>/dev/null)"; [ -z "$_swap_total" ] && _swap_total=0
+_swap_free="$(awk '/^SwapFree:/{print $2}' /proc/meminfo 2>/dev/null)"; [ -z "$_swap_free" ] && _swap_free=0
+_swap_used_mb=$(( (_swap_total - _swap_free) / 1024 ))
+_swap_total_mb=$(( _swap_total / 1024 ))
+# Disk /tmp
+_tmp_pct="$(df /tmp 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5);print $5}')"; [ -z "$_tmp_pct" ] && _tmp_pct=0
+_tmp_used_mb="$(df /tmp 2>/dev/null | awk 'NR==2{printf "%.0f",$3/1024}')"; [ -z "$_tmp_used_mb" ] && _tmp_used_mb=0
+_tmp_total_mb="$(df /tmp 2>/dev/null | awk 'NR==2{printf "%.0f",$2/1024}')"; [ -z "$_tmp_total_mb" ] && _tmp_total_mb=0
+# CPU sicaklik
+_cpu_temp=""
+for _tf in /sys/class/thermal/thermal_zone*/temp; do
+    [ -f "$_tf" ] || continue
+    _tv="$(cat "$_tf" 2>/dev/null)"
+    if [ -n "$_tv" ]; then
+        _cpu_temp="$(awk -v t="$_tv" 'BEGIN{printf "%.0f", t/1000}')"
+        break
+    fi
+done
+[ -z "$_cpu_temp" ] && _cpu_temp=0
+# LAN IP
+_lan_ip="$(ip -4 addr show br0 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
+[ -z "$_lan_ip" ] && _lan_ip="$(ip -4 addr show eth0 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
+[ -z "$_lan_ip" ] && _lan_ip=""
+# lighttpd
+_lighttpd=0; pgrep lighttpd >/dev/null 2>&1 && _lighttpd=1
+# curl
+_curl_ok=0; command -v curl >/dev/null 2>&1 && _curl_ok=1
 
 _wan="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '\n')"
 [ -z "$_wan" ] && _wan="$(ip -4 route show default 2>/dev/null | awk '/^default/{print $5;exit}')"
@@ -12463,12 +12792,15 @@ if [ -f /opt/zapret/blockcheck_result.json ]; then
     [ -z "$_bc_ts"       ] && _bc_ts=0
 fi
 
-printf '{\n  "ts": %s,\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_total_mb": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s\n}\n' \
-    "$_ts" "$_kzmver" "$_model" "$_fw" "$_wan" "$_wip" \
+printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s\n}\n' \
+    "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$_kzmver" "$_model" "$_fw" "$_wan" "$_wip" "$_lan_ip" \
     "$_kdns_fqdn" "$_kdns_access" \
     "$_zap" "$_zver" "$_hm" "$_hm_en" "$_tg_en" "$_tg" "$_tg_configured" \
+    "$_lighttpd" "$_curl_ok" \
     "$_load1" "$_load5" "$_load15" \
-    "$_rumb" "$_rtmb" "$_dpct" "$_dtmb" \
+    "$_rumb" "$_rfree_mb" "$_rtmb" "$_rbuf_mb" "$_swap_used_mb" "$_swap_total_mb" \
+    "$_dpct" "$_dumb" "$_dtmb" \
+    "$_tmp_pct" "$_tmp_used_mb" "$_tmp_total_mb" "$_cpu_temp" \
     "$_dpi_profile" "$_dpi_origin" \
     "$_bc_score" "$_bc_dns_ok" "$_bc_tls12_ok" "$_bc_udp_weak" "$_bc_ts" \
     > /opt/var/run/kzm_status.json
@@ -12589,42 +12921,86 @@ case "$ACTION" in
         HM_KEENDNS_CURL_SEC="${HM_KEENDNS_CURL_SEC:-120}"
         _load=$(awk '{print $1}' /proc/loadavg 2>/dev/null || echo "?")
         _ram_free=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null || echo "?")
-        _disk=$(df /opt 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%' || echo "?")
+        _disk_raw=$(df /opt 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5);print $5}')
+        _disk_used=$(df /opt 2>/dev/null | awk 'NR==2{printf "%.0f",$3/1024}')
+        if [ "${_disk_raw:-0}" -eq 0 ] && [ "${_disk_used:-0}" -gt 0 ] 2>/dev/null; then
+            _disk="<1"
+        else
+            _disk="${_disk_raw:-0}"
+        fi
         pgrep -f "/opt/zapret/nfq/nfqws" >/dev/null 2>&1 && _zst="AKT&#304;F" || _zst="PAS&#304;F"
+        _cgi_lang="$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)"
+        [ "$_cgi_lang" = "en" ] && _zst="$(pgrep -f '/opt/zapret/nfq/nfqws' >/dev/null 2>&1 && echo 'ACTIVE' || echo 'INACTIVE')"
         case "$HM_AUTOUPDATE_MODE" in
-            2) _mode="Oto Kur" ;; 1) _mode="Bildir" ;; *) _mode="Kapal&#305;" ;;
+            2) _mode="$([ "$_cgi_lang" = "en" ] && echo 'Auto Install' || echo 'Oto Kur')" ;;
+            1) _mode="$([ "$_cgi_lang" = "en" ] && echo 'Notify' || echo 'Bildir')" ;;
+            *) _mode="$([ "$_cgi_lang" = "en" ] && echo 'Off' || echo 'Kapal&#305;')" ;;
         esac
-        [ "$HM_UPDATECHECK_ENABLE" = "1" ] && _upd="A&#231;&#305;k" || _upd="Kapal&#305;"
+        if [ "$_cgi_lang" = "en" ]; then
+            [ "$HM_UPDATECHECK_ENABLE" = "1" ] && _upd="On" || _upd="Off"
+            [ "${HM_ZAPRET_WATCHDOG}" = "1" ] && _zwd="On" || _zwd="Off"
+            [ "${HM_ZAPRET_AUTORESTART}" = "1" ] && _zar="On" || _zar="Off"
+            [ "${HM_QLEN_WATCHDOG}" = "1" ] && _qwd="On" || _qwd="Off"
+            [ "${HM_WANMON_ENABLE:-0}" = "1" ] && _wmen="On" || _wmen="Off"
+        else
+            [ "$HM_UPDATECHECK_ENABLE" = "1" ] && _upd="A&#231;&#305;k" || _upd="Kapal&#305;"
+            [ "${HM_ZAPRET_WATCHDOG}" = "1" ] && _zwd="A&#231;&#305;k" || _zwd="Kapal&#305;"
+            [ "${HM_ZAPRET_AUTORESTART}" = "1" ] && _zar="A&#231;&#305;k" || _zar="Kapal&#305;"
+            [ "${HM_QLEN_WATCHDOG}" = "1" ] && _qwd="A&#231;&#305;k" || _qwd="Kapal&#305;"
+            [ "${HM_WANMON_ENABLE:-0}" = "1" ] && _wmen="A&#231;&#305;k" || _wmen="Kapal&#305;"
+        fi
         _r() { printf "<div class='info-row'><div class='lbl'>%s</div><div class='val'>%s</div></div>" "$1" "$2"; }
         _s() { printf "<div class='info-sec'>%s</div>" "$1"; }
-        [ "${HM_ZAPRET_WATCHDOG}" = "1" ] && _zwd="A&#231;&#305;k" || _zwd="Kapal&#305;"
-        [ "${HM_ZAPRET_AUTORESTART}" = "1" ] && _zar="A&#231;&#305;k" || _zar="Kapal&#305;"
-        [ "${HM_QLEN_WATCHDOG}" = "1" ] && _qwd="A&#231;&#305;k" || _qwd="Kapal&#305;"
-        [ "${HM_WANMON_ENABLE:-0}" = "1" ] && _wmen="A&#231;&#305;k" || _wmen="Kapal&#305;"
         _rows=""
-        _rows="${_rows}$(_s "Konfig&#252;rasyon")"
+        if [ "$_cgi_lang" = "en" ]; then
+        _rows="${_rows}$(_s "CONFIGURATION")"
+        _rows="${_rows}$(_r "Check Interval" "${HM_INTERVAL}s")"
+        _rows="${_rows}$(_r "Heartbeat" "${HM_HEARTBEAT_SEC}s")"
+        _rows="${_rows}$(_r "Notification Cooldown" "${HM_COOLDOWN_SEC}s")"
+        _rows="${_rows}$(_r "Update Check" "${_upd} / every ${HM_UPDATECHECK_SEC}s")"
+        _rows="${_rows}$(_r "Auto Update" "${_mode} (mode ${HM_AUTOUPDATE_MODE})")"
+        _rows="${_rows}$(_s "THRESHOLDS")"
+        _rows="${_rows}$(_r "CPU Warning" "${HM_CPU_WARN}% / ${HM_CPU_WARN_DUR}s")"
+        _rows="${_rows}$(_r "CPU Critical" "${HM_CPU_CRIT}% / ${HM_CPU_CRIT_DUR}s")"
+        _rows="${_rows}$(_r "Disk /opt Warning" "at ${HM_DISK_WARN}% full")"
+        _rows="${_rows}$(_r "RAM Warning" "below ${HM_RAM_WARN_MB} MB")"
+        _rows="${_rows}$(_s "ZAPRET")"
+        _rows="${_rows}$(_r "Zapret Watchdog" "${_zwd}")"
+        _rows="${_rows}$(_r "Watchdog Cooldown" "${HM_ZAPRET_COOLDOWN_SEC}s")"
+        _rows="${_rows}$(_r "Auto Restart" "${_zar}")"
+        _rows="${_rows}$(_r "NFQUEUE Queue Watchdog" "${_qwd} | Threshold: <b>${HM_QLEN_WARN_TH}</b> Packets | Consecutive: <b>${HM_QLEN_CRIT_TURNS}</b> Turns")"
+        _rows="${_rows}$(_r "WAN Monitoring" "${_wmen} | <span style='color:var(--muted)'>Failure Threshold:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Failed Pings | <span style='color:var(--muted)'>Recovery Threshold:</span> <b>${HM_WANMON_OK_TH:-2}</b> Successful Pings | <span style='color:var(--muted)'>Interface:</span> ${HM_WANMON_IFACE:-auto}")"
+        _rows="${_rows}$(_r "KeenDNS Check Interval" "${HM_KEENDNS_CURL_SEC}s")"
+        _rows="${_rows}$(_s "CURRENT STATUS")"
+        _rows="${_rows}$(_r "CPU Load" "${_load}")"
+        _rows="${_rows}$(_r "Free RAM" "${_ram_free} MB")"
+        _rows="${_rows}$(_r "Disk /opt" "${_disk}% used")"
+        _rows="${_rows}$(_r "Zapret" "${_zst}")"
+        else
+        _rows="${_rows}$(_s "KONFIGURASYON")"
         _rows="${_rows}$(_r "Kontrol Aral&#305;&#287;&#305;" "${HM_INTERVAL}s")"
         _rows="${_rows}$(_r "Heartbeat" "${HM_HEARTBEAT_SEC}s")"
         _rows="${_rows}$(_r "Bildirim Bekleme" "${HM_COOLDOWN_SEC}s")"
-        _rows="${_rows}$(_r "G&#252;ncelleme Kontrol&#252;" "${_upd} / her ${HM_UPDATECHECK_SEC}s")"
-        _rows="${_rows}$(_r "Oto G&#252;ncelleme" "${_mode} (mod ${HM_AUTOUPDATE_MODE})")"
-        _rows="${_rows}$(_s "E&#351;ikler")"
+        _rows="${_rows}$(_r "Guncelleme Kontrolu" "${_upd} / her ${HM_UPDATECHECK_SEC}s")"
+        _rows="${_rows}$(_r "Oto Guncelleme" "${_mode} (mod ${HM_AUTOUPDATE_MODE})")"
+        _rows="${_rows}$(_s "ESIKLER")"
         _rows="${_rows}$(_r "CPU Uyar&#305;" "${HM_CPU_WARN}% / ${HM_CPU_WARN_DUR}s")"
         _rows="${_rows}$(_r "CPU Kritik" "${HM_CPU_CRIT}% / ${HM_CPU_CRIT_DUR}s")"
         _rows="${_rows}$(_r "Disk /opt Uyar&#305;" "%${HM_DISK_WARN} dolulukta")"
-        _rows="${_rows}$(_r "RAM Uyar&#305;" "${HM_RAM_WARN_MB} MB alt&#305;nda")"
-        _rows="${_rows}$(_s "Zapret")"
+        _rows="${_rows}$(_r "RAM Uyar&#305;" "${HM_RAM_WARN_MB} MB altinda")"
+        _rows="${_rows}$(_s "ZAPRET")"
         _rows="${_rows}$(_r "Zapret Denetimi" "${_zwd}")"
         _rows="${_rows}$(_r "Denetim Bekleme" "${HM_ZAPRET_COOLDOWN_SEC}s")"
-        _rows="${_rows}$(_r "Oto Yeniden Ba&#351;lat" "${_zar}")"
-        _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | E&#351;ik: <b>${HM_QLEN_WARN_TH}</b> Paket | Ard&#305;&#351;&#305;k: <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
-        _rows="${_rows}$(_r "WAN &#304;zleme" "${_wmen} | <span style='color:var(--muted)'>Kesinti E&#351;i&#287;i:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Ba&#351;ar&#305;s&#305;z Ping | <span style='color:var(--muted)'>Toparlanma E&#351;i&#287;i:</span> <b>${HM_WANMON_OK_TH:-2}</b> Ba&#351;ar&#305;l&#305; Ping | <span style='color:var(--muted)'>Aray&#252;z:</span> ${HM_WANMON_IFACE:-auto}")"
+        _rows="${_rows}$(_r "Oto Yeniden Baslat" "${_zar}")"
+        _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | Esik: <b>${HM_QLEN_WARN_TH}</b> Paket | Ardisik: <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
+        _rows="${_rows}$(_r "WAN Izleme" "${_wmen} | <span style='color:var(--muted)'>Kesinti Esigi:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Basarisiz Ping | <span style='color:var(--muted)'>Toparlanma Esigi:</span> <b>${HM_WANMON_OK_TH:-2}</b> Basarili Ping | <span style='color:var(--muted)'>Arayuz:</span> ${HM_WANMON_IFACE:-auto}")"
         _rows="${_rows}$(_r "KeenDNS Kontrol Aral&#305;&#287;&#305;" "${HM_KEENDNS_CURL_SEC}s")"
-        _rows="${_rows}$(_s "Anl&#305;k Durum")"
-        _rows="${_rows}$(_r "CPU Y&#252;k&#252;" "${_load}")"
-        _rows="${_rows}$(_r "Bo&#351; RAM" "${_ram_free} MB")"
-        _rows="${_rows}$(_r "Disk /opt" "%${_disk} dolu")"
+        _rows="${_rows}$(_s "ANLIK DURUM")"
+        _rows="${_rows}$(_r "CPU Yuku" "${_load}")"
+        _rows="${_rows}$(_r "Bos RAM" "${_ram_free} MB")"
+        _rows="${_rows}$(_r "Disk /opt" "${_disk}% dolu")"
         _rows="${_rows}$(_r "Zapret" "${_zst}")"
+        fi
         printf '{"ok":1,"data":"%s"}' "$(printf '%s' "$_rows" | sed 's/"/\\"/g')" ;;
     tg_test)
         _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
@@ -12975,8 +13351,8 @@ kzm_gui_write_html() {
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<title>KZM Control Panel</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMzMzRlYWMiLz48dGV4dCB4PSIzMiIgeT0iNDYiIGZvbnQtZmFtaWx5PSJBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjM4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPks8L3RleHQ+PC9zdmc+"/>
+ <title>KZM Control Panel</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cGF0aCBkPSJNMCAwIEM2NiAwIDEzMiAwIDIwMCAwIEMyMDAgNjYgMjAwIDEzMiAyMDAgMjAwIEMxMzQgMjAwIDY4IDIwMCAwIDIwMCBDMCAxMzQgMCA2OCAwIDAgWiIgZmlsbD0iIzAwOTdEQyIvPjxwYXRoIGQ9Ik0wIDAgQzcuMjYgMCAxNC41MiAwIDIyIDAgQzIyIDEyLjU0IDIyIDI1LjA4IDIyIDM4IEMzOC40NTgzMjk0MSA0MC4zMzc5MjI1OCAzOC40NTgzMjk0MSA0MC4zMzc5MjI1OCA1My4wOTQyMzgyOCAzNC4xMjEwOTM3NSBDNjAuMTkzMzIzMjMgMjguMDg5NTIyMTEgNjYuNDExNDU5OTYgMjEuMTQ3MTU5MjMgNzIuNjA1NDY4NzUgMTQuMjEwOTM3NSBDNzMuNDcyNDc0MDYgMTMuMjQwNjg4ODYgNzMuNDcyNDc0MDYgMTMuMjQwNjg4ODYgNzQuMzU2OTk0NjMgMTIuMjUwODM5MjMgQzc2LjYzMDM4NzgxIDkuNjk2MzUzMiA3OC44ODA0MjE5NiA3LjE0NzEyOTk5IDgxLjAzNzU5NzY2IDQuNDkyOTE5OTIgQzg0LjYwNzg0MDkxIDAuNTkxOTUyMTEgODcuNDk0MjI2MTUgLTAuMzM1MzIyMzkgOTIuODA0MTIyOTIgLTAuNjM3MjA3MDMgQzk2LjU0MzI3MDE1IC0wLjcxNjE5NDUgMTAwLjI2NDA4NTY4IC0wLjU4NDc5MjY5IDEwNCAtMC40Mzc1IEMxMDUuNTUzMzE1MDEgLTAuNDAyMzM3MzMgMTA3LjEwNjcwNjc0IC0wLjM3MDQwNzAzIDEwOC42NjAxNTYyNSAtMC4zNDE3OTY4OCBDMTEyLjQ0MjAxODQgLTAuMjY1MTYzMjcgMTE2LjIyMDE1Mzk5IC0wLjE0NDY2OTQxIDEyMCAwIEMxMTQuNjQyNjgyNjEgNi40OTM2MDIxMSAxMTQuNjQyNjgyNjEgNi40OTM2MDIxMSAxMTEuNjI1IDguOTM3NSBDMTA3LjM1MTUyODQgMTIuNTY5MTM4NDEgMTAzLjQ0MDYxODc0IDE2LjUxNjI5MDU3IDk5LjUgMjAuNSBDOTUuMDA1NzEwNTMgMjUuMDM5MDYxMDIgOTAuNTIyNTQzNSAyOS41MDg3NzQwNCA4NS42MTMyODEyNSAzMy42MDU0Njg3NSBDODMuNjQyMDA3MiAzNS4zMDk0NTE0MSA4MS44MjU4NzA0OSAzNy4xNDIzMDYwNiA4MCAzOSBDODEuMDI3MzgyODEgMzkuMzQwMzEyNSA4Mi4wNTQ3NjU2MyAzOS42ODA2MjUgODMuMTEzMjgxMjUgNDAuMDMxMjUgQzk4LjMzMjQ3ODkgNDUuMjY2OTkyODUgMTA4LjA4MDI2OTAyIDUyLjI1ODAyMDIzIDExNi4zNzg5MDYyNSA2Ni4zMzk4NDM3NSBDMTIwLjg1OTUyMjMgNzUuOTcyMzg3NjYgMTE5LjMxMzUzMjc4IDg3LjY0NDcwOTA4IDExOSA5OCBDMTEyLjA3IDk4IDEwNS4xNCA5OCA5OCA5OCBDOTcuOTM4MTI1IDk1LjIzNjI1IDk3Ljg3NjI1IDkyLjQ3MjUgOTcuODEyNSA4OS42MjUgQzk3LjQ0NDU5NTI1IDgxLjM4MDgyNDU1IDk2LjMxNzU0MTk3IDc0LjczMDQyMTY3IDkwLjU3MDMxMjUgNjguNDMzNTkzNzUgQzc4LjYwODU0MTMgNTguNDY1NDUxMDggNjAuNjQxODYzOTggNjAuMzM3NDcyNzUgNDYuMTg3NSA2MC4yNSBDNDMuODM3ODY5MDEgNjAuMjIxNzk4NTkgNDEuNDg4MjU4MTQgNjAuMTkxODY1NDUgMzkuMTM4NjcxODggNjAuMTYwMTU2MjUgQzMzLjQyNTU4NzkzIDYwLjA4MzU3ODc2IDI3LjcxMzgzODYgNjAuMDQyNTkyOTEgMjIgNjAgQzIyIDcyLjU0IDIyIDg1LjA4IDIyIDk4IEMxNC43NCA5OCA3LjQ4IDk4IDAgOTggQzAgNjUuNjYgMCAzMy4zMiAwIDAgWiIgZmlsbD0iI0ZDRkRGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDIsNTEpIi8+PC9zdmc+"/>
 <style>
 :root{
   --bg:#0b1220;--panel:#0f1b33;--card:#111f3d;
@@ -13008,9 +13384,8 @@ aside{border-right:1px solid var(--line);
 .brand{display:flex;gap:10px;align-items:center;padding:6px 4px 12px;
   border-bottom:1px solid var(--line);margin-bottom:8px;overflow:hidden;}
 .logo{width:32px;height:32px;border-radius:9px;flex-shrink:0;
-  background:linear-gradient(135deg,rgba(75,125,255,.95),rgba(75,125,255,.3));
-  display:grid;place-items:center;font-weight:800;font-size:15px;
-  cursor:pointer;transition:opacity .15s;}
+  display:grid;place-items:center;
+  cursor:pointer;transition:opacity .15s;overflow:hidden;}
 .logo:hover{opacity:.75;}
 .brand-text{overflow:hidden;white-space:nowrap;transition:opacity var(--str),max-width var(--str);max-width:180px;}
 .app.sb-off aside .brand-text{opacity:0;max-width:0;}
@@ -13083,7 +13458,7 @@ button.ok:hover{background:rgba(46,204,113,.28)}
 .bar.good{background:var(--good)}.bar.warn{background:var(--warn)}.bar.bad{background:var(--bad)}
 .hint{font-size:11px;color:rgba(169,183,214,.55)}
 .info-grid{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.1)}
-.info-sec{padding:6px 11px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);background:rgba(255,255,255,.04);border-bottom:1px solid var(--line);text-transform:uppercase}
+.info-sec{padding:6px 11px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);background:rgba(255,255,255,.04);border-bottom:1px solid var(--line)}
 .info-row{display:grid;grid-template-columns:200px 1fr;border-bottom:1px solid var(--line)}
 .info-row:last-child{border-bottom:none}
 .info-row .lbl{padding:8px 11px;color:var(--muted);font-size:12.5px}
@@ -13120,32 +13495,32 @@ select option{background:#111f3d}
 <aside>
   <div class="sb-toggle" onclick="sbToggle()" title="Sidebar">&#8249;</div>
   <div class="brand">
-    <div class="logo" onclick="sbToggle()">K</div>
-    <div class="brand-text"><h1>KZM Control Panel</h1><small>Keenetic &bull; Entware &bull; __KZM_PORT__</small></div>
+    <div class="logo" onclick="sbToggle()"><svg viewBox="0 0 200 200" width="32" height="32" xmlns="http://www.w3.org/2000/svg"><path d="M0 0 C66 0 132 0 200 0 C200 66 200 132 200 200 C134 200 68 200 0 200 C0 134 0 68 0 0 Z" fill="#0097DC"/><path d="M0 0 C7.26 0 14.52 0 22 0 C22 12.54 22 25.08 22 38 C38.45832941 40.33792258 38.45832941 40.33792258 53.09423828 34.12109375 C60.19332323 28.08952211 66.41145996 21.14715923 72.60546875 14.2109375 C73.47247406 13.24068886 73.47247406 13.24068886 74.35699463 12.25083923 C76.63038781 9.6963532 78.88042196 7.14712999 81.03759766 4.49291992 C84.60784091 0.59195211 87.49422615 -0.33532239 92.80412292 -0.63720703 C96.54327015 -0.7161945 100.26408568 -0.58479269 104 -0.4375 C105.55331501 -0.40233733 107.10670674 -0.37040703 108.66015625 -0.34179688 C112.4420184 -0.26516327 116.22015399 -0.14466941 120 0 C114.64268261 6.49360211 114.64268261 6.49360211 111.625 8.9375 C107.3515284 12.56913841 103.44061874 16.51629057 99.5 20.5 C95.00571053 25.03906102 90.5225435 29.50877404 85.61328125 33.60546875 C83.6420072 35.30945141 81.82587049 37.14230606 80 39 C81.02738281 39.3403125 82.05476563 39.680625 83.11328125 40.03125 C98.3324789 45.26699285 108.08026902 52.25802023 116.37890625 66.33984375 C120.8595223 75.97238766 119.31353278 87.64470908 119 98 C112.07 98 105.14 98 98 98 C97.938125 95.23625 97.87625 92.4725 97.8125 89.625 C97.44459525 81.38082455 96.31754197 74.73042167 90.5703125 68.43359375 C78.6085413 58.46545108 60.64186398 60.33747275 46.1875 60.25 C43.83786901 60.22179859 41.48825814 60.19186545 39.13867188 60.16015625 C33.42558793 60.08357876 27.7138386 60.04259291 22 60 C22 72.54 22 85.08 22 98 C14.74 98 7.48 98 0 98 C0 65.66 0 33.32 0 0 Z" fill="#FCFDFE" transform="translate(42,51)"/></svg></div>
+    <div class="brand-text"><h1 id="brandTitle">KZM Kontrol Paneli</h1><small>Keenetic &bull; Entware &bull; __KZM_PORT__</small></div>
   </div>
   <div class="sec">GENEL</div>
   <nav>
-    <div class="item active" data-view="dash"><span class="item-icon">&#9783;</span><span class="item-label">Dashboard</span><span class="pill">Live</span><span class="tip">Dashboard</span></div>
+    <div class="item active" data-view="dash"><span class="item-icon">&#9783;</span><span class="item-label" data-tr="Dashboard" data-en="Dashboard">Dashboard</span><span class="pill" id="dashLivePill">Canl&#305;</span><span class="tip">Dashboard</span></div>
   </nav>
-  <div class="sec">ZAPRET Y&#214;NET&#304;M&#304;</div>
+  <div class="sec" data-tr="ZAPRET Y&#214;NET&#304;M&#304;" data-en="ZAPRET MANAGEMENT">ZAPRET Y&#214;NET&#304;M&#304;</div>
   <nav>
-    <div class="item" data-view="zapret"><span class="item-icon">&#8644;</span><span class="item-label">Zapret Kontrol</span><span class="pill">3-5</span><span class="tip">Zapret Kontrol</span></div>
-    <div class="item" data-view="dpi"><span class="item-icon">&#9889;</span><span class="item-label">DPI Profili</span><span class="pill">9</span><span class="tip">DPI Profili</span></div>
-    <div class="item" data-view="hostlist"><span class="item-icon">&#9776;</span><span class="item-label">Hostlist</span><span class="pill">11</span><span class="tip">Hostlist</span></div>
-    <div class="item" data-view="ipset"><span class="item-icon">&#9636;</span><span class="item-label">IPSET</span><span class="pill">12</span><span class="tip">IPSET</span></div>
+    <div class="item" data-view="zapret"><span class="item-icon">&#8644;</span><span class="item-label" data-tr="Zapret Kontrol" data-en="Zapret Control">Zapret Kontrol</span><span class="pill">3-5</span><span class="tip">Zapret Kontrol</span></div>
+    <div class="item" data-view="dpi"><span class="item-icon">&#9889;</span><span class="item-label" data-tr="DPI Profili" data-en="DPI Profile">DPI Profili</span><span class="pill">9</span><span class="tip">DPI Profili</span></div>
+    <div class="item" data-view="hostlist"><span class="item-icon">&#9776;</span><span class="item-label" data-tr="Hostlist" data-en="Hostlist">Hostlist</span><span class="pill">11</span><span class="tip">Hostlist</span></div>
+    <div class="item" data-view="ipset"><span class="item-icon">&#9636;</span><span class="item-label" data-tr="IPSET" data-en="IPSET">IPSET</span><span class="pill">12</span><span class="tip">IPSET</span></div>
   </nav>
-  <div class="sec">SERV&#304;SLER</div>
+  <div class="sec" data-tr="SERV&#304;SLER" data-en="SERVICES">SERV&#304;SLER</div>
   <nav>
-    <div class="item" data-view="healthmon"><span class="item-icon">&#9829;</span><span class="item-label">Sistem &#304;zleme</span><span class="pill">16</span><span class="tip">Sistem &#304;zleme</span></div>
-    <div class="item" data-view="healthcheck"><span class="item-icon">&#9906;</span><span class="item-label">Ağ Tanılama</span><span class="pill">14</span><span class="tip">Ağ Tanılama</span></div>
-    <div class="item" data-view="telegram"><span class="item-icon">&#9992;</span><span class="item-label">Telegram</span><span class="pill">15</span><span class="tip">Telegram</span></div>
+    <div class="item" data-view="healthmon"><span class="item-icon">&#9829;</span><span class="item-label" data-tr="Sistem &#304;zleme" data-en="System Monitor">Sistem &#304;zleme</span><span class="pill">16</span><span class="tip">Sistem &#304;zleme</span></div>
+    <div class="item" data-view="healthcheck"><span class="item-icon">&#9906;</span><span class="item-label" data-tr="Ağ Tanılama" data-en="Network Diagnostics">Ağ Tanılama</span><span class="pill">14</span><span class="tip">Ağ Tanılama</span></div>
+    <div class="item" data-view="telegram"><span class="item-icon">&#9992;</span><span class="item-label" data-tr="Telegram" data-en="Telegram">Telegram</span><span class="pill">15</span><span class="tip">Telegram</span></div>
   </nav>
-  <div class="sec">D&#304;&#286;ER</div>
+  <div class="sec" data-tr="D&#304;&#286;ER" data-en="OTHER">D&#304;&#286;ER</div>
   <nav>
-    <div class="item" data-view="sched"><span class="item-icon">&#9719;</span><span class="item-label">Zamanl&#305; Reboot</span><span class="pill">R</span><span class="tip">Zamanl&#305; Reboot</span></div>
-    <div class="item" data-view="backup"><span class="item-icon">&#128190;</span><span class="item-label">Yedekle</span><span class="pill">8</span><span class="tip">Yedekle</span></div>
+    <div class="item" data-view="sched"><span class="item-icon">&#9719;</span><span class="item-label" data-tr="Zamanl&#305; Reboot" data-en="Scheduled Reboot">Zamanl&#305; Reboot</span><span class="pill">R</span><span class="tip">Zamanl&#305; Reboot</span></div>
+    <div class="item" data-view="backup"><span class="item-icon">&#128190;</span><span class="item-label" data-tr="Yedekle" data-en="Backup">Yedekle</span><span class="pill">8</span><span class="tip">Yedekle</span></div>
   </nav>
-  <div class="fnote">KZM Web Panel<br/><small id="atick">Otomatik yenileme: 15s</small></div>
+  <div class="fnote">KZM Web Panel<br/><small id="atick"><span id="atickLabel">Otomatik yenileme</span>: 15s</small></div>
 </aside>
 
 <main>
@@ -13153,10 +13528,10 @@ select option{background:#111f3d}
     <div class="title"><h2 id="pTitle">Dashboard</h2><small id="pSub">Canl&#305; sistem &#246;zeti.</small></div>
     <div class="meta">
       <span>WAN: <b id="hWan">&#8212;</b></span>
-      <span>CPU Y&#252;k&#252;: <b id="hLoad">&#8212;</b></span>
+      <span><span id="hLoadLabel">CPU Y&#252;k&#252;: </span><b id="hLoad">&#8212;</b></span>
       <span>KZM: <b id="hVer">&#8212;</b></span>
       <span>Zapret: <b id="hZap">&#8212;</b></span>
-      <button class="rbtn" onclick="act('status_refresh',null,'');setTimeout(fetchS,800);">&#8635; Yenile</button>
+      <button class="rbtn" onclick="act('status_refresh',null,'');setTimeout(fetchS,800);">&#8635; <span id="refreshBtnLabel">Yenile</span></button>
       <span class="ts" id="tsLbl"></span>
     </div>
   </header>
@@ -13198,7 +13573,7 @@ function fetchS(){
   return fetch('/run/kzm_status.json?t='+Date.now())
     .then(function(r){return r.json();})
     .then(function(d){
-      S=d;updHdr();if(curV==='dash'||curV==='healthmon'||curV==='telegram'||curV==='zapret')render(curV);
+      S=d;syncLang();updHdr();if(curV==='dash'||curV==='healthmon'||curV==='telegram'||curV==='zapret')render(curV);
       var dt=new Date(d.ts*1000);
       document.getElementById('tsLbl').textContent=dt.toLocaleTimeString('tr-TR');
     })
@@ -13266,7 +13641,7 @@ function updHdr(){
   document.getElementById('hLoad').textContent=S.load1||'—';
   document.getElementById('hVer').textContent=S.kzm_version||'—';
   var z=document.getElementById('hZap');
-  z.innerHTML=S.zapret_running?'<span class="good">AKT&#304;F</span>':'<span class="bad">PAS&#304;F</span>';
+  z.innerHTML=S.zapret_running?'<span class="good">'+(L?'ACTIVE':'AKT&#304;F')+'</span>':'<span class="bad">'+(L?'INACTIVE':'PAS&#304;F')+'</span>';
 }
 
 function bdg(on,a,b){return on?'<span class="badge good">'+(a||'AKT&#304;F')+'</span>':'<span class="badge bad">'+(b||'PAS&#304;F')+'</span>';}
@@ -13280,39 +13655,38 @@ var opkgState={status:null,count:0,upgraded:false};
 var hmConfCache=null;
 
 function fmtOpkgCard(){
-  var statusHtml='Paket listesini yenilemek i&#231;in butona basın.';
+  var statusHtml=L?'Press the button to refresh the package list.':'Paket listesini yenilemek i&#231;in butona bas&#305;n.';
   var upgradeShow='none';
   if(opkgState.status==='ok_current'){
-    statusHtml='<span style="color:var(--good)">&#10003; Liste yenilendi. Tüm paketler güncel.</span>';
+    statusHtml='<span style="color:var(--good)">&#10003; '+(L?'List refreshed. All packages up to date.':'Liste yenilendi. T&#252;m paketler g&#252;ncel.')+'</span>';
   } else if(opkgState.status==='ok_upgradable'){
-    statusHtml='<span style="color:var(--warn)">&#9888; Liste yenilendi. <b>'+opkgState.count+'</b> paket yükseltilmeyi bekliyor.</span>';
+    statusHtml='<span style="color:var(--warn)">&#9888; '+(L?'List refreshed. <b>'+opkgState.count+'</b> package(s) waiting for upgrade.':'Liste yenilendi. <b>'+opkgState.count+'</b> paket y&#252;kseltilmeyi bekliyor.')+'</span>';
     upgradeShow='';
   } else if(opkgState.status==='upgraded'){
-    statusHtml='<span style="color:var(--good)">&#10003; opkg upgrade tamamlandi.</span>';
+    statusHtml='<span style="color:var(--good)">&#10003; '+(L?'opkg upgrade completed.':'opkg upgrade tamamlandi.')+'</span>';
   } else if(opkgState.status==='err'){
-    statusHtml='<span style="color:var(--bad)">&#10007; Hata olustu.</span>';
+    statusHtml='<span style="color:var(--bad)">&#10007; '+(L?'Error occurred.':'Hata olustu.')+'</span>';
   }
   return '<div class="card" id="opkgCard">'+
-    '<h3>OPKG Paketleri</h3>'+
+    '<h3>'+(L?'OPKG Packages':'OPKG Paketleri')+'</h3>'+
     '<div id="opkgStatus" style="font-size:12.5px;color:var(--muted);margin:8px 0 10px">'+statusHtml+'</div>'+
     '<div class="btns">'+
-      '<button id="opkgUpdateBtn" onclick="opkgUpdate(this)">&#8635; Listeyi Yenile</button>'+
-      '<button id="opkgUpgradeBtn" class="danger" style="display:'+upgradeShow+'" onclick="opkgUpgrade(this)">&#8679; Y&#252;kselt</button>'+
+      '<button id="opkgUpdateBtn" onclick="opkgUpdate(this)">&#8635; '+(L?'Refresh List':'Listeyi Yenile')+'</button>'+
+      '<button id="opkgUpgradeBtn" class="danger" style="display:'+upgradeShow+'" onclick="opkgUpgrade(this)">&#8679; '+(L?'Upgrade':'Y&#252;kselt')+'</button>'+
     '</div>'+
     '<div id="opkgWarn" style="display:none;margin-top:10px;padding:8px 10px;background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:7px;font-size:11.5px;color:var(--bad)">'+
-      '&#9888; opkg upgrade Keenetic\'te sistem bozulmasina yol acabilir.<br>'+
-      'Devam etmek istediginizden emin misiniz?<br>'+
+      '&#9888; '+(L?'opkg upgrade may break the system on Keenetic.<br>Are you sure you want to continue?':'opkg upgrade Keenetic\'te sistem bozulmasina yol acabilir.<br>Devam etmek istediginizden emin misiniz?')+'<br>'+
       '<div class="btns" style="margin-top:8px">'+
-        '<button class="danger" onclick="opkgUpgradeConfirm(this)">Evet, Yükselt</button>'+
-        '<button class="ghost" onclick="document.getElementById(\'opkgWarn\').style.display=\'none\'">Iptal</button>'+
+        '<button class="danger" onclick="opkgUpgradeConfirm(this)">'+(L?'Yes, Upgrade':'Evet, Y&#252;kselt')+'</button>'+
+        '<button class="ghost" onclick="document.getElementById(\'opkgWarn\').style.display=\'none\'">'+(L?'Cancel':'Iptal')+'</button>'+
       '</div>'+
     '</div>'+
   '</div>';
 }
 
 function opkgUpdate(btn){
-  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Yenileniyor...';
-  document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> opkg update çalıştırılıyor...';
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> '+(L?'Refreshing...':'Yenileniyor...');
+  document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> '+(L?'Running opkg update...':'opkg update &#231;al&#305;&#351;t&#305;r&#305;l&#305;yor...');
   document.getElementById('opkgUpgradeBtn').style.display='none';
   document.getElementById('opkgWarn').style.display='none';
   fetch('/cgi-bin/action.sh',{method:'POST',
@@ -13320,17 +13694,17 @@ function opkgUpdate(btn){
     body:'action=opkg_update'})
   .then(function(r){return r.json();})
   .then(function(d){
-    btn.disabled=false;btn.innerHTML='&#8635; Listeyi Yenile';
+    btn.disabled=false;btn.innerHTML='&#8635; '+(L?'Refresh List':'Listeyi Yenile');
     if(d.ok){
       var cnt=parseInt(d.count)||0;
       if(cnt===0){
         opkgState={status:'ok_current',count:0,upgraded:false};
         document.getElementById('opkgStatus').innerHTML=
-          '<span style="color:var(--good)">&#10003; Liste yenilendi. Tüm paketler güncel.</span>';
+          '<span style="color:var(--good)">&#10003; '+(L?'List refreshed. All packages up to date.':'Liste yenilendi. T&#252;m paketler g&#252;ncel.')+'</span>';
       } else {
         opkgState={status:'ok_upgradable',count:cnt,upgraded:false};
         document.getElementById('opkgStatus').innerHTML=
-          '<span style="color:var(--warn)">&#9888; Liste yenilendi. <b>'+cnt+'</b> paket yükseltilmeyi bekliyor.</span>';
+          '<span style="color:var(--warn)">&#9888; '+(L?'List refreshed. <b>'+cnt+'</b> package(s) waiting for upgrade.':'Liste yenilendi. <b>'+cnt+'</b> paket y&#252;kseltilmeyi bekliyor.')+'</span>';
         document.getElementById('opkgUpgradeBtn').style.display='';
       }
     } else {
@@ -13340,9 +13714,9 @@ function opkgUpdate(btn){
     }
   })
   .catch(function(){
-    btn.disabled=false;btn.innerHTML='&#8635; Listeyi Yenile';
+    btn.disabled=false;btn.innerHTML='&#8635; '+(L?'Refresh List':'Listeyi Yenile');
     opkgState={status:'err',count:0,upgraded:false};
-    document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; Bağlantı hatası</span>';
+    document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; '+(L?'Connection error':'Ba&#287;lant&#305; hatas&#305;')+'</span>';
   });
 }
 
@@ -13392,15 +13766,15 @@ function fmtBcCard(S){
   };
   var profLabel=profileNames[S.dpi_profile]||S.dpi_profile||'—';
   if(!S.bc_ts){
-    return '<div class="card"><h3>DPI Sa&#287;l&#305;k Skoru</h3>'+
-      '<div style="color:var(--muted);font-size:13px;margin:10px 0 6px">Blockcheck hen&#252;z &#231;al&#305;&#351;t&#305;r&#305;lmad&#305;.</div>'+
-      '<div style="font-size:12px;color:var(--muted)">Aktif Profil: <span style="color:var(--text)">'+profLabel+'</span></div>'+
-      '<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">Score g&#246;rmek i&#231;in SSH ile ba&#287;lan&#305;p<br><span style="color:var(--accent);font-family:monospace">kzm</span> &rarr; Men&#252; <b>B</b> (Blockcheck) &#231;al&#305;&#351;t&#305;r&#305;n.</div>'+
+    return '<div class="card"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
+      '<div style="color:var(--muted);font-size:13px;margin:10px 0 6px">'+(L?'Blockcheck has not been run yet.':'Blockcheck hen&#252;z &#231;al&#305;&#351;t&#305;r&#305;lmad&#305;.')+'</div>'+
+      '<div style="font-size:12px;color:var(--muted)">'+(L?'Active Profile: ':'Aktif Profil: ')+'<span style="color:var(--text)">'+profLabel+'</span></div>'+
+      '<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">'+(L?'Run SSH &rarr; Menu <b>B</b> (Blockcheck) to see score.':'Score g&#246;rmek i&#231;in SSH ile ba&#287;lan&#305;p<br><span style="color:var(--accent);font-family:monospace">kzm</span> &rarr; Men&#252; <b>B</b> (Blockcheck) &#231;al&#305;&#351;t&#305;r&#305;n.')+'</div>'+
     '</div>';
   }
   var sc=S.bc_score||0;
   var clr=sc>=9?'var(--good)':sc>=7?'#4b9fff':sc>=5?'var(--warn)':'var(--bad)';
-  var rat=sc>=9.5?'M&#252;kemmel':sc>=8.5?'&#199;ok &#304;yi':sc>=7?'&#304;yi':sc>=5?'Orta':'K&#246;t&#252;';
+  var rat=sc>=9.5?(L?'Excellent':'M&#252;kemmel'):sc>=8.5?(L?'Very Good':'&#199;ok &#304;yi'):sc>=7?(L?'Good':'&#304;yi'):sc>=5?(L?'Fair':'Orta'):(L?'Poor':'K&#246;t&#252;');
   var pct=Math.round(sc*10);
   var dt=new Date(S.bc_ts*1000);
   var dtStr=dt.toLocaleDateString('tr-TR')+' '+dt.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
@@ -13408,7 +13782,7 @@ function fmtBcCard(S){
   if(!S.bc_dns_ok) warns+='<span class="badge bad" style="font-size:10px">DNS: WARN</span> ';
   if(!S.bc_tls12_ok) warns+='<span class="badge bad" style="font-size:10px">TLS12: WARN</span> ';
   if(S.bc_udp_weak) warns+='<span class="badge warn" style="font-size:10px">UDP 443: WARN</span>';
-  return '<div class="card"><h3>DPI Sa&#287;l&#305;k Skoru</h3>'+
+  return '<div class="card"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
     '<div style="display:flex;align-items:flex-end;gap:8px;margin:8px 0 4px">'+
       '<span style="font-size:2.4em;font-weight:800;color:'+clr+'">'+sc+'</span>'+
       '<span style="color:var(--muted);font-size:13px;padding-bottom:6px">/ 10 ('+rat+')</span>'+
@@ -13417,74 +13791,89 @@ function fmtBcCard(S){
     '<div style="background:rgba(255,255,255,.07);border-radius:6px;height:8px;overflow:hidden;margin-bottom:8px">'+
       '<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+clr+',#4b7dff);border-radius:6px"></div>'+
     '</div>'+
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Aktif Profil: <span style="color:var(--text)">'+profLabel+'</span></div>'+
-    '<div style="color:var(--muted);font-size:11px">Son blockcheck: '+dtStr+'</div>'+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">'+(L?'Active Profile: ':'Aktif Profil: ')+'<span style="color:var(--text)">'+profLabel+'</span></div>'+
+    '<div style="color:var(--muted);font-size:11px">'+(L?'Last blockcheck: ':'Son blockcheck: ')+dtStr+'</div>'+
   '</div>';
 }
 
 var V={
-  dash:{title:'Dashboard',sub:'Canl&#305; sistem &#246;zeti.',html:function(){
+  dash:{title:'Dashboard',titleEn:'Dashboard',sub:'Canl&#305; sistem &#246;zeti.',subEn:'Live system overview.',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
     return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
-      '<div class="card"><h3>KZM S&#252;r&#252;m</h3><div class="big">'+(S.kzm_version||'—')+'</div>'+
+      '<div class="card"><h3>'+(L?'KZM Version':'KZM S&#252;r&#252;m')+'</h3><div class="big">'+(S.kzm_version||'—')+'</div>'+
         '<div class="sub">Zapret: '+(S.zapret_version||'—')+'</div></div>'+
-      '<div class="card"><h3>Zapret Durumu</h3>'+
-        '<div class="row">'+bdg(S.zapret_running,'AKT&#304;F','PAS&#304;F')+
+      '<div class="card"><h3>'+(L?'Zapret Status':'Zapret Durumu')+'</h3>'+
+        '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
           ' <span class="pill">'+(S.wan_dev||'—')+'</span>'+
           ' <span class="pill">'+(S.wan_ip||'—')+'</span></div>'+
         '<div class="btns">'+
-          '<button class="danger" onclick="zapretAct(\'zapret_restart\',this,\'Restart OK\')">&#8635; Yeniden Ba&#351;lat</button>'+
-          '<button class="ghost" onclick="zapretAct(\'zapret_stop\',this,\'Stop OK\')">&#9646;&#9646; Durdur</button>'+
-          '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Start OK\')">&#9654; Ba&#351;lat</button>'+
+          '<button class="danger" onclick="zapretAct(\'zapret_restart\',this,\'Restart OK\')">&#8635; '+(L?'Restart':'Yeniden Ba&#351;lat')+'</button>'+
+          '<button class="ghost" onclick="zapretAct(\'zapret_stop\',this,\'Stop OK\')">&#9646;&#9646; '+(L?'Stop':'Durdur')+'</button>'+
+          '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Start OK\')">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>'+
         '</div></div>'+
       '<div class="card"><h3>CPU / RAM / Disk</h3>'+
-        '<div class="row"><span class="pill">CPU Y&#252;k&#252;: '+S.load1+'</span>'+
-          '<span class="pill">RAM: '+S.ram_used_mb+'/'+S.ram_total_mb+' MB</span>'+
-          '<span class="pill">/opt: '+S.disk_used_pct+'%</span></div>'+
-        '<div style="margin-top:8px"><div class="sub" style="margin-bottom:3px">RAM '+rp+'%</div>'+brr(rp)+'</div>'+
-        '<div style="margin-top:6px"><div class="sub" style="margin-bottom:3px">Disk '+S.disk_used_pct+'%</div>'+brr(S.disk_used_pct)+'</div>'+
+        '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px">'+
+          '<tr><td style="color:var(--muted);padding:3px 0;width:38%">'+(L?'CPU Load (1/5/15min)':'CPU Y&#252;k&#252; (1/5/15dk)')+'</td>'+
+              '<td style="padding:3px 0"><b>'+S.load1+'</b> / '+S.load5+' / '+S.load15+'</td>'+
+              (S.cpu_temp>0?'<td style="padding:3px 0;text-align:right;color:var(--muted)">'+(L?'Temp':'S&#305;cakl&#305;k')+': <b>'+S.cpu_temp+'&#176;C</b></td>':'<td></td>')+
+          '</tr>'+
+          '<tr><td style="color:var(--muted);padding:3px 0">RAM</td>'+
+              '<td colspan="2" style="padding:3px 0">'+
+                '<b>'+S.ram_used_mb+'</b> / '+S.ram_total_mb+' MB &nbsp;'+
+                '<span style="color:var(--muted);font-size:11px">'+(L?'Free':'Bo&#351;')+': '+S.ram_free_mb+' MB &nbsp; Buf/Cache: '+(S.ram_buffer_mb||0)+' MB &nbsp; Swap: '+(S.swap_used_mb||0)+'/'+(S.swap_total_mb||0)+' MB</span>'+
+              '</td>'+
+          '</tr>'+
+          '<tr><td colspan="3" style="padding:4px 0 2px">'+brr(rp)+'</td></tr>'+
+          '<tr><td style="color:var(--muted);padding:3px 0">Disk /opt</td>'+
+              '<td style="padding:3px 0"><b>'+(S.disk_used_pct>0?S.disk_used_pct+'%':'&lt;1%')+'</b> &nbsp;<span style="color:var(--muted);font-size:11px">'+(S.disk_used_mb||0)+' / '+Math.round((S.disk_total_mb||0)/1024)+' GB</span></td>'+
+              '<td style="padding:3px 0;text-align:right;color:var(--muted);font-size:11px">/tmp: '+(S.disk_tmp_pct>0?S.disk_tmp_pct+'%':'0%')+' ('+(S.disk_tmp_used_mb||0)+'/'+(S.disk_tmp_total_mb||0)+' MB)</td>'+
+          '</tr>'+
+        '</table>'+
       '</div>'+
-      '<div class="card"><h3>Servisler</h3>'+
-        '<div class="row">'+bdg(S.healthmon_running,'Health Mon OK','Health Mon PAS&#304;F')+'</div>'+
-        '<div class="row" style="margin-top:6px">'+bdgO(S.telegram_enabled&&S.telegram_running,'Telegram AKT&#304;F','Telegram KAPALI')+'</div>'+
+      '<div class="card"><h3>'+(L?'Services':'Servisler')+'</h3>'+
+        '<div class="row">'+bdg(S.healthmon_running,'Health Mon OK',L?'Health Mon INACTIVE':'Health Mon PAS&#304;F')+'</div>'+
+        '<div class="row" style="margin-top:6px">'+bdgO(S.telegram_enabled&&S.telegram_running,L?'Telegram ACTIVE':'Telegram AKT&#304;F',L?'Telegram OFF':'Telegram KAPALI')+'</div>'+
       '</div>'+
       fmtBcCard(S)+
       fmtOpkgCard()+
-      '<div class="card wide"><h3>Sistem Bilgisi</h3><div class="info-grid">'+
-        ir('Model',S.model||'—')+ir('Firmware',fixTR(S.firmware||'—'))+
+      '<div class="card wide"><h3>'+(L?'System Info':'Sistem Bilgisi')+'</h3><div class="info-grid">'+
+        ir('Model',S.model||'—')+ir('Firmware',(L?fixTR(S.firmware||'—').replace('Önizleme','Preview').replace('&#214;nizleme','Preview'):fixTR(S.firmware||'—')))+
         ir('WAN',(S.wan_dev||'—')+' | '+(S.wan_ip||'—'))+
+        ir('LAN IP',(S.lan_ip||'—'))+
         (S.keendns_fqdn ? ir('KeenDNS',S.keendns_fqdn+' | '+fmtKeenDns(S.keendns_access)) : '')+
-        ir('Zapret',bdg(S.zapret_running,'AKT&#304;F','PAS&#304;F'))+
-        ir('Health Monitor',bdg(S.healthmon_running,'AKT&#304;F','PAS&#304;F'))+
-        ir('Telegram Bot',bdgO(S.telegram_enabled&&S.telegram_running,'AKT&#304;F','KAPALI'))+
-        ir('KZM S&#252;r&#252;m',S.kzm_version||'—')+ir('Zapret S&#252;r&#252;m',S.zapret_version||'—')+
+        ir('Zapret',bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
+        ir('Health Monitor',bdg(S.healthmon_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
+        ir('Telegram Bot',bdgO(S.telegram_enabled&&S.telegram_running,L?'ACTIVE':'AKT&#304;F',L?'OFF':'KAPALI'))+
+        ir(L?'Web Panel (lighttpd)':'Web Panel (lighttpd)',bdg(S.lighttpd_running,L?'Running':'Calisiyor',L?'Stopped':'Durdu'))+
+        ir('curl',S.curl_ok?'<span class="badge good">'+(L?'Installed':'Kurulu')+'</span>':'<span class="badge bad">'+(L?'Not found':'Bulunamadi')+'</span>')+
+        ir(L?'KZM Version':'KZM S&#252;r&#252;m',S.kzm_version||'—')+ir(L?'Zapret Version':'Zapret S&#252;r&#252;m',S.zapret_version||'—')+
         ir('GitHub','<a href="https://github.com/RevolutionTR/keenetic-zapret-manager" target="_blank" style="color:var(--accent)">github.com/RevolutionTR/keenetic-zapret-manager</a>')+
       '</div></div></div>';
   }},
 
-  zapret:{title:'Zapret Kontrol',sub:'Zapret servisini y&#246;net.',html:function(){
+  zapret:{title:'Zapret Kontrol',titleEn:'Zapret Control',sub:'Zapret servisini y&#246;net.',subEn:'Manage Zapret service.',html:function(){
     if(!S)return nd();
     return '<div class="grid" style="grid-template-columns:1fr 1fr">'+
-      '<div class="card"><h3>Durum</h3>'+
-        '<div class="row">'+bdg(S.zapret_running,'AKT&#304;F','PAS&#304;F')+
+      '<div class="card"><h3>'+(L?'Status':'Durum')+'</h3>'+
+        '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
           ' <span class="pill">WAN: '+(S.wan_dev||'—')+'</span>'+
           ' <span class="pill">'+(S.zapret_version||'—')+'</span></div></div>'+
-      '<div class="card"><h3>Kontrol</h3>'+
+      '<div class="card"><h3>'+(L?'Control':'Kontrol')+'</h3>'+
         '<div class="btns">'+
-          '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Baslatildi\')">&#9654; Ba&#351;lat</button>'+
-          '<button class="danger" onclick="zapretAct(\'zapret_stop\',this,\'Durduruldu\')">&#9646;&#9646; Durdur</button>'+
-          '<button class="ghost" onclick="zapretAct(\'zapret_restart\',this,\'Yeniden başlatıldı\')">&#8635; Yeniden Ba&#351;lat</button>'+
+          '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Baslatildi\')">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>'+
+          '<button class="danger" onclick="zapretAct(\'zapret_stop\',this,\'Durduruldu\')">&#9646;&#9646; '+(L?'Stop':'Durdur')+'</button>'+
+          '<button class="ghost" onclick="zapretAct(\'zapret_restart\',this,\'Yeniden ba&#351;lat&#305;ld&#305;\')">&#8635; '+(L?'Restart':'Yeniden Ba&#351;lat')+'</button>'+
         '</div>'+
-        '<div class="hint" style="margin-top:8px">HealthMon AUTORESTART=1 ise durdurma kal&#305;c&#305; olmaz.</div>'+
+        '<div class="hint" style="margin-top:8px">'+(L?'If HealthMon AUTORESTART=1, stop is not permanent.':'HealthMon AUTORESTART=1 ise durdurma kal&#305;c&#305; olmaz.')+'</div>'+
       '</div></div>';
   }},
 
-  dpi:{title:'DPI Profili',sub:'Mevcut DPI profilini g&#246;r&#252;nt&#252;le ve de&#287;i&#351;tir.',html:function(){
+  dpi:{title:'DPI Profili',titleEn:'DPI Profile',sub:'Mevcut DPI profilini g&#246;r&#252;nt&#252;le ve de&#287;i&#351;tir.',subEn:'View and change current DPI profile.',html:function(){
     var h='<div class="grid" style="grid-template-columns:1fr 1fr">'+
-      '<div class="card"><h3>Mevcut Profil</h3>'+
+      '<div class="card"><h3>'+(L?'Current Profile':'Mevcut Profil')+'</h3>'+
         '<div class="big" id="dpiVal">...</div></div>'+
-      '<div class="card"><h3>Profil Se&#231;</h3>'+
+      '<div class="card"><h3>'+(L?'Select Profile':'Profil Se&#231;')+'</h3>'+
         '<div class="irow">'+
           '<select id="dpiSel" style="flex:1">'+
             '<option value="tt_default">Turk Telekom Fiber (TTL2 fake)</option>'+
@@ -13497,9 +13886,9 @@ var V={
             '<option value="vodafone_mob">Vodafone Mobil (multisplit)</option>'+
             '<option value="blockcheck_auto">Blockcheck Otomatik (Auto)</option>'+
           '</select>'+
-          '<button onclick="(function(b){var v=document.getElementById(\'dpiSel\').value;actD(\'dpi_set\',\'profile=\'+v,b,\'Profil ayarlandi\')})(this)">Uygula</button>'+
+          '<button onclick="(function(b){var v=document.getElementById(\'dpiSel\').value;actD(\'dpi_set\',\'profile=\'+v,b,'+(L?'\'Profile set\'':'\'Profil ayarlandi\'')+')})(this)">'+(L?'Apply':'Uygula')+'</button>'+
         '</div>'+
-        '<div class="hint" style="margin-top:8px">De&#287;i&#351;iklik sonras&#305; Zapret yeniden ba&#351;lar.</div>'+
+        '<div class="hint" style="margin-top:8px">'+(L?'Zapret restarts after change.':'De&#287;i&#351;iklik sonras&#305; Zapret yeniden ba&#351;lar.')+'</div>'+
       '</div></div>';
     setTimeout(function(){
       getD('dpi_get',function(r){
@@ -13512,119 +13901,116 @@ var V={
     return h;
   }},
 
-  hostlist:{title:'Hostlist Y&#246;netimi',sub:'Domain ekle, sil, listele.',html:function(){
+  hostlist:{title:'Hostlist Y&#246;netimi',titleEn:'Hostlist Management',sub:'Domain ekle, sil, listele.',subEn:'Add, remove, list domains.',html:function(){
     var h='<div class="grid">'+
-      '<div class="card"><h3>Domain Ekle</h3>'+
+      '<div class="card"><h3>'+(L?'Add Domain':'Domain Ekle')+'</h3>'+
         '<div class="irow">'+
           '<input type="text" id="hlIn" placeholder="example.com" style="flex:1"/>'+
-          '<button onclick="hlAdd()">Ekle</button></div></div>'+
+          '<button onclick="hlAdd()">'+(L?'Add':'Ekle')+'</button></div></div>'+
       '<div class="card wide"><h3>User Hostlist <span id="hlCnt" class="tag">0</span></h3>'+
-        '<div class="lw" id="hlL"><div class="empty">Y&#252;kleniyor...</div></div></div>'+
+        '<div class="lw" id="hlL"><div class="empty">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div></div>'+
       '<div class="card wide"><h3>Auto Hostlist <span id="autoCnt" class="tag">0</span></h3>'+
-        '<div class="hint" style="margin-bottom:6px">Otomatik olu&#351;turulan liste (salt okunur)</div>'+
-        '<div class="lw" id="autoL"><div class="empty">Y&#252;kleniyor...</div></div></div>'+
-      '<div class="card"><h3>Exclude Listesi</h3>'+
+        '<div class="hint" style="margin-bottom:6px">'+(L?'Auto-generated list (read-only)':'Otomatik olu&#351;turulan liste (salt okunur)')+'</div>'+
+        '<div class="lw" id="autoL"><div class="empty">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div></div>'+
+      '<div class="card"><h3>'+(L?'Exclude List':'Exclude Listesi')+'</h3>'+
         '<div class="irow">'+
           '<input type="text" id="exIn" placeholder="example.com" style="flex:1"/>'+
-          '<button onclick="exAdd()">Ekle</button></div>'+
-        '<div class="lw" style="margin-top:8px" id="exL"><div class="empty">Y&#252;kleniyor...</div></div>'+
+          '<button onclick="exAdd()">'+(L?'Add':'Ekle')+'</button></div>'+
+        '<div class="lw" style="margin-top:8px" id="exL"><div class="empty">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div>'+
       '</div></div>';
     setTimeout(hlLoad,100);return h;
   }},
 
-  ipset:{title:'IPSET Y&#246;netimi',sub:'Statik IP tabanl&#305; filtreleme.',html:function(){
+  ipset:{title:'IPSET Y&#246;netimi',titleEn:'IPSET Management',sub:'Statik IP tabanl&#305; filtreleme.',subEn:'Static IP-based filtering.',html:function(){
     var h='<div class="grid">'+
-      '<div class="card"><h3>IP Ekle</h3>'+
+      '<div class="card"><h3>'+(L?'Add IP':'IP Ekle')+'</h3>'+
         '<div class="irow">'+
           '<input type="text" id="ipIn" placeholder="192.168.1.100" style="flex:1"/>'+
-          '<button onclick="ipAdd()">Ekle</button></div>'+
-        '<div class="hint" style="margin-top:6px">DHCP desteklenmez, statik IP girin.</div></div>'+
-      '<div class="card wide"><h3>IP Listesi <span id="ipCnt" class="tag">0</span></h3>'+
-        '<div class="lw" id="ipL"><div class="empty">Y&#252;kleniyor...</div></div></div>'+
-      '<div class="card wide"><h3>IPSET Aktif &#220;yeler <span id="ipaCnt" class="tag">0</span></h3>'+
-        '<div class="hint" style="margin-bottom:6px">Kernel ipset\'teki aktif &#252;yeler (salt okunur)</div>'+
-        '<div class="lw" id="ipaL"><div class="empty">Y&#252;kleniyor...</div></div></div>'+
-      '<div class="card wide"><h3>No Zapret (Muafiyet) <span id="nzCnt" class="tag">0</span></h3>'+
-        '<div class="hint" style="margin-bottom:6px">Zapret i&#351;leminden muaf IP&#39;ler</div>'+
-        '<div class="lw" id="nzL"><div class="empty">Y&#252;kleniyor...</div></div></div>'+
+          '<button onclick="ipAdd()">'+(L?'Add':'Ekle')+'</button></div>'+
+        '<div class="hint" style="margin-top:6px">'+(L?'DHCP not supported, enter static IP.':'DHCP desteklenmez, statik IP girin.')+'</div></div>'+
+      '<div class="card wide"><h3>'+(L?'IP List':'IP Listesi')+' <span id="ipCnt" class="tag">0</span></h3>'+
+        '<div class="lw" id="ipL"><div class="empty">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div></div>'+
+      '<div class="card wide"><h3>'+(L?'IPSET Active Members':'IPSET Aktif &#220;yeler')+' <span id="ipaCnt" class="tag">0</span></h3>'+
+        '<div class="hint" style="margin-bottom:6px">'+(L?'Active members in kernel ipset (read-only)':'Kernel ipset\'teki aktif &#252;yeler (salt okunur)')+'</div>'+
+        '<div class="lw" id="ipaL"><div class="empty">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div></div>'+
+      '<div class="card wide"><h3>No Zapret <span id="nzCnt" class="tag">0</span></h3>'+
+        '<div class="hint" style="margin-bottom:6px">'+(L?'IPs exempt from Zapret processing':'Zapret i&#351;leminden muaf IP&#39;ler')+'</div>'+
+        '<div class="lw" id="nzL"><div class="empty">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div></div>'+
       '</div>';
     setTimeout(ipLoad,100);return h;
   }},
 
-  healthmon:{title:'Sistem Izleme',sub:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',html:function(){
+  healthmon:{title:'Sistem Izleme',titleEn:'System Monitor',sub:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',subEn:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
     var h='<div class="grid">'  /* uyari hmUpdate tarafindan yonetilir */+
-      '<div class="card"><h3>CPU Y&#252;k&#252;</h3><div class="big" id="hmLoad1">'+S.load1+'</div>'+
-        '<div class="sub" id="hmLoad515">5dk: '+S.load5+' &nbsp; 15dk: '+S.load15+'</div></div>'+
+      '<div class="card"><h3>'+(L?'CPU Load':'CPU Y&#252;k&#252;')+'</h3><div class="big" id="hmLoad1">'+S.load1+'</div>'+
+        '<div class="sub" id="hmLoad515">'+(L?'5min':'5dk')+': '+S.load5+' &nbsp; '+(L?'15min':'15dk')+': '+S.load15+'</div></div>'+
       '<div class="card"><h3>RAM</h3><div class="big" id="hmRamPct">'+rp+'%</div>'+
         '<div class="sub" id="hmRamSub">'+S.ram_used_mb+' / '+S.ram_total_mb+' MB</div>'+
         '<div id="hmRamBar">'+brr(rp)+'</div></div>'+
-      '<div class="card"><h3>Disk /opt</h3><div class="big" id="hmDiskPct">'+S.disk_used_pct+'%</div>'+
-        '<div class="sub">Toplam: '+Math.round(S.disk_total_mb/1024)+' GB</div>'+
+      '<div class="card"><h3>Disk /opt</h3><div class="big" id="hmDiskPct">'+(S.disk_used_pct>0?S.disk_used_pct+'%':'<1%')+'</div>'+
+        '<div class="sub" id="hmDiskSub">'+(S.disk_used_mb||0)+' MB / '+Math.round(S.disk_total_mb/1024)+' GB</div>'+
         '<div id="hmDiskBar">'+brr(S.disk_used_pct)+'</div></div>'+
       '<div class="card"><h3>Zapret &amp; HealthMon</h3>'+
-        '<div class="row" id="hmZapBdg">'+bdg(S.zapret_running,'Zapret OK','Zapret PAS&#304;F')+'</div>'+
-        '<div class="row" style="margin-top:6px" id="hmHmBdg">'+bdg(S.healthmon_running,'HealthMon OK','HealthMon PAS&#304;F')+'</div>'+
+        '<div class="row" id="hmZapBdg">'+bdg(S.zapret_running,'Zapret OK',L?'Zapret INACTIVE':'Zapret PAS&#304;F')+'</div>'+
+        '<div class="row" style="margin-top:6px" id="hmHmBdg">'+bdg(S.healthmon_running,'HealthMon OK',L?'HealthMon INACTIVE':'HealthMon PAS&#304;F')+'</div>'+
         '<div class="btns" style="margin-top:10px" id="hmBtn">';
     h+=S.healthmon_running
-      ?'<button class="danger" onclick="act(\'healthmon_stop\',this,\'HM durduruldu\')">&#9632; HM Durdur</button>'
-      :'<button class="ok" onclick="act(\'healthmon_start\',this,\'HM başlatıldı\')">&#9654; HM Ba&#351;lat</button>';
-    h+='<button class="ghost" onclick="act(\'status_refresh\',this,\'Güncellendi\')">&#8635; Yenile</button>'+
+      ?'<button class="danger" onclick="act(\'healthmon_stop\',this,'+(L?'\'HM stopped\'':'\'HM durduruldu\'')+')">'+'&#9632; '+(L?'Stop HM':'HM Durdur')+'</button>'
+      :'<button class="ok" onclick="act(\'healthmon_start\',this,'+(L?'\'HM started\'':'\'HM ba&#351;lat&#305;ld&#305;\'')+')">'+'&#9654; '+(L?'Start HM':'HM Ba&#351;lat')+'</button>';
+    h+='<button class="ghost" onclick="act(\'status_refresh\',this,'+(L?'\'Updated\'':'\'G&#252;ncellendi\'')+')">'+'&#8635; '+(L?'Refresh':'Yenile')+'</button>'+
       '</div></div>'+
-      '<div class="card wide" id="hmC"><h3>Konfig&#252;rasyon</h3>'+(hmConfCache||'<div class="sub">Y&#252;kleniyor...</div>')+'</div>'+
+      '<div class="card wide" id="hmC">'+(hmConfCache||'<div class="sub">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div>')+'</div>'+
     '</div>';
     if(!hmConfCache){
       getD('hm_get',function(r){
         hmConfCache=r.ok?'<div class="info-grid">'+r.data+'</div>':'<div class="sub">Okunamad&#305;</div>';
         var el=document.getElementById('hmC');
-        if(el)el.innerHTML='<h3>Konfig&#252;rasyon</h3>'+hmConfCache;
+        if(el)el.innerHTML=hmConfCache;
       });
     }
     return h;
   }},
 
-  healthcheck:{title:'Ağ Tanılama',sub:'DNS/NTP/GitHub/OPKG/Disk/Zapret kontrolü (Menu 14).',html:function(){
+  healthcheck:{title:'Ağ Tanılama',titleEn:'Network Diagnostics',sub:'DNS/NTP/GitHub/OPKG/Disk/Zapret kontrolü (Menu 14).',subEn:'DNS/NTP/GitHub/OPKG/Disk/Zapret check (Menu 14).',html:function(){
     if(!S)return nd();
     setTimeout(function(){hcRun();},50);
-    return '<div id="hcResult"><div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><span class="spinner"></span> Kontrol yapılıyor, lütfen bekleyin...</div></div>';
+    return '<div id="hcResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><span class="spinner" style="width:36px;height:36px;border-width:4px"></span><div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div><div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait':'L&#252;tfen bekleyin')+'</div></div></div>';
   }},
 
-  telegram:{title:'Telegram',sub:'Bildirim ve interaktif bot.',html:function(){
+  telegram:{title:'Telegram',titleEn:'Telegram',sub:'Bildirim ve interaktif bot.',subEn:'Notifications and interactive bot.',html:function(){
     if(!S)return nd();
     var cfg=!!S.telegram_configured;
     var run=!!S.telegram_running;
     var en=!!S.telegram_enabled;
     var dis=cfg?'':'disabled';
-    var notCfg='<div style="background:rgba(255,180,0,0.12);border:1px solid var(--warn);border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:0.88em;color:var(--warn)">&#9888; Yapılandırılmamış &mdash; SSH &gt; Menu 15</div>';
+    var notCfg='<div style="background:rgba(255,180,0,0.12);border:1px solid var(--warn);border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:0.88em;color:var(--warn)">&#9888; '+(L?'Not configured &mdash; SSH &gt; Menu 15':'Yap&#305;land&#305;r&#305;lmam&#305;&#351; &mdash; SSH &gt; Menu 15')+'</div>';
     var startBtn=run
-      ?'<button class="danger" onclick="tgStop(this)">&#9632; Durdur</button>'
-      :'<button '+dis+' onclick="tgStart(this)">&#9654; Ba&#351;lat</button>';
+      ?'<button class="danger" onclick="tgStop(this)">&#9632; '+(L?'Stop':'Durdur')+'</button>'
+      :'<button '+dis+' onclick="tgStart(this)">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>';
     var h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
-      // Kart 1: Tek yonlu bildirim
       '<div class="card">'+
-        '<h3>&#128276; Bildirim <span style="font-size:0.7em;font-weight:normal;color:var(--muted)">(Tek Yon)</span></h3>'+
+        '<h3>&#128276; '+(L?'Notifications':'Bildirim')+' <span style="font-size:0.7em;font-weight:normal;color:var(--muted)">'+(L?'(One-Way)':'(Tek Yon)')+'</span></h3>'+
         (cfg?'':''+notCfg)+
-        '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">HealthMon uyar&#305;lar&#305;, Zapret durum bildirimleri</div>'+
-        '<div class="row">'+bdgO(cfg,'Yapılandırılmış','Kurulmamış')+'</div>'+
-        '<div class="row" style="margin-top:6px">'+bdgO(en,'Etkin','Devre Dışı')+'</div>'+
+        '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">'+(L?'HealthMon alerts, Zapret status notifications':'HealthMon uyar&#305;lar&#305;, Zapret durum bildirimleri')+'</div>'+
+        '<div class="row">'+bdgO(cfg,L?'Configured':'Yap&#305;land&#305;r&#305;lm&#305;&#351;',L?'Not Set Up':'Kurulmam&#305;&#351;')+'</div>'+
+        '<div class="row" style="margin-top:6px">'+bdgO(en,L?'Enabled':'Etkin',L?'Disabled':'Devre D&#305;&#351;&#305;')+'</div>'+
         '<div class="btns" style="margin-top:12px">'+
-          '<button '+dis+' onclick="act(\'tg_test\',this,\'Test gonderildi\')">&#128172; Test Gonder</button>'+
+          '<button '+dis+' onclick="act(\'tg_test\',this,'+(L?'\'Test sent\'':'\'Test gonderildi\'')+')">'+'&#128172; '+(L?'Send Test':'Test Gonder')+'</button>'+
         '</div>'+
       '</div>'+
-      // Kart 2: Çift yönlü interaktif bot
       '<div class="card">'+
-        '<h3>&#129302; İnteraktif Bot <span style="font-size:0.7em;font-weight:normal;color:var(--muted)">(Çift Yön)</span></h3>'+
+        '<h3>&#129302; '+(L?'Interactive Bot':'&#304;nteraktif Bot')+' <span style="font-size:0.7em;font-weight:normal;color:var(--muted)">'+(L?'(Two-Way)':'(&#199;ift Y&#246;n)')+'</span></h3>'+
         (cfg?'':''+notCfg)+
-        '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">Telegram\'dan komut g&#246;nder, router\'&#305; y&#246;net</div>'+
-        '<div class="row">'+bdgO(run,'Çalışıyor','Durdu')+'</div>'+
+        '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">'+(L?'Send commands from Telegram, manage router':'Telegram\'dan komut g&#246;nder, router\'&#305; y&#246;net')+'</div>'+
+        '<div class="row">'+bdgO(run,L?'Running':'&#199;al&#305;&#351;&#305;yor',L?'Stopped':'Durdu')+'</div>'+
         '<div class="btns" style="margin-top:12px">'+startBtn+'</div>'+
       '</div>'+
     '</div>'+
-    // Alt satir: Bot bilgileri
     '<div style="margin-top:16px">'+
-      '<div class="card" id="tgInfoCard"><h3>&#128272; Bağlantı Bilgileri</h3>'+
-        '<div style="color:var(--muted);font-size:0.9em">Yükleniyor...</div>'+
+      '<div class="card" id="tgInfoCard"><h3>&#128272; '+(L?'Connection Info':'Ba&#287;lant&#305; Bilgileri')+'</h3>'+
+        '<div style="color:var(--muted);font-size:0.9em">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div>'+
       '</div>'+
     '</div>';
     setTimeout(function(){
@@ -13632,7 +14018,7 @@ var V={
         var el=document.getElementById('tgInfoCard');
         if(!el)return;
         if(r.ok&&(r.token||r.chat)){
-          el.innerHTML='<h3>&#128272; Bağlantı Bilgileri</h3>'+
+          el.innerHTML='<h3>&#128272; '+(L?'Connection Info':'Ba&#287;lant&#305; Bilgileri')+'</h3>'+
             '<table style="width:100%;border-collapse:collapse;font-size:0.9em">'+
             '<tr><td style="color:var(--muted);padding:5px 0;width:80px">Token</td>'+
             '<td style="font-family:monospace;letter-spacing:0.03em">'+r.token+'</td></tr>'+
@@ -13640,71 +14026,70 @@ var V={
             '<td style="font-family:monospace">'+r.chat+'</td></tr>'+
             '</table>';
         } else {
-          el.innerHTML='<h3>&#128272; Bağlantı Bilgileri</h3>'+
-            '<div style="color:var(--muted);font-size:0.9em">Yapılandırılmamış &mdash; SSH ile Menu 15\'i kullanin.</div>';
+          el.innerHTML='<h3>&#128272; '+(L?'Connection Info':'Ba&#287;lant&#305; Bilgileri')+'</h3>'+
+            '<div style="color:var(--muted);font-size:0.9em">'+(L?'Not configured &mdash; use Menu 15 via SSH.':'Yap&#305;land&#305;r&#305;lmam&#305;&#351; &mdash; SSH ile Menu 15\'i kullanin.')+'</div>';
         }
       });
     },100);
     return h;
   }},
 
-  mon:{title:'Sistem &#304;zleme',sub:'Canl&#305; kaynak kullan&#305;m&#305;.',html:function(){
+  mon:{title:'Sistem &#304;zleme',titleEn:'System Monitor',sub:'Canl&#305; kaynak kullan&#305;m&#305;.',subEn:'Live resource usage.',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
     return '<div class="grid">'+
-      '<div class="card"><h3>CPU Y&#252;k&#252;</h3><div class="big">'+S.load1+'</div>'+
-        '<div class="sub">5dk: '+S.load5+' &nbsp; 15dk: '+S.load15+'</div></div>'+
+      '<div class="card"><h3>'+(L?'CPU Load':'CPU Y&#252;k&#252;')+'</h3><div class="big">'+S.load1+'</div>'+
+        '<div class="sub">'+(L?'5min':'5dk')+': '+S.load5+' &nbsp; '+(L?'15min':'15dk')+': '+S.load15+'</div></div>'+
       '<div class="card"><h3>RAM</h3><div class="big">'+rp+'%</div>'+
         '<div class="sub">'+S.ram_used_mb+' / '+S.ram_total_mb+' MB</div>'+brr(rp)+'</div>'+
-      '<div class="card"><h3>Disk /opt</h3><div class="big">'+S.disk_used_pct+'%</div>'+
-        '<div class="sub">Toplam: '+Math.round(S.disk_total_mb/1024)+' GB</div>'+brr(S.disk_used_pct)+'</div>'+
-      '<div class="card"><h3>Servisler</h3>'+
-        '<div class="row">'+bdg(S.zapret_running,'Zapret OK','Zapret PAS&#304;F')+'</div>'+
-        '<div class="row" style="margin-top:6px">'+bdg(S.healthmon_running,'HealthMon OK','HealthMon PAS&#304;F')+'</div>'+
+      '<div class="card"><h3>Disk /opt</h3><div class="big">'+(S.disk_used_pct>0?S.disk_used_pct+'%':'<1%')+'</div>'+
+        '<div class="sub">'+(S.disk_used_mb||0)+' MB / '+Math.round(S.disk_total_mb/1024)+' GB</div>'+brr(S.disk_used_pct)+'</div>'+
+      '<div class="card"><h3>'+(L?'Services':'Servisler')+'</h3>'+
+        '<div class="row">'+bdg(S.zapret_running,'Zapret OK',L?'Zapret INACTIVE':'Zapret PAS&#304;F')+'</div>'+
+        '<div class="row" style="margin-top:6px">'+bdg(S.healthmon_running,'HealthMon OK',L?'HealthMon INACTIVE':'HealthMon PAS&#304;F')+'</div>'+
         '<div class="btns" style="margin-top:10px">'+
-          '<button class="ghost" onclick="act(\'status_refresh\',this,\'Güncellendi\')">&#8635; G&#252;ncelle</button>'+
+          '<button class="ghost" onclick="act(\'status_refresh\',this,'+(L?'\'Updated\'':'\'G&#252;ncellendi\'')+')">'+'&#8635; '+(L?'Refresh':'G&#252;ncelle')+'</button>'+
         '</div></div>'+
       '</div>';
   }},
 
-  sched:{title:'Zamanl&#305; Reboot',sub:'Cron tabanl&#305; yeniden ba&#351;latma.',html:function(){
+  sched:{title:'Zamanl&#305; Reboot',titleEn:'Scheduled Reboot',sub:'Cron tabanl&#305; yeniden ba&#351;latma.',subEn:'Cron-based scheduled restart.',html:function(){
     var h='<div class="grid">'+
-      '<div class="card" id="schedC"><h3>Mevcut Zamanlama</h3><div class="sub">Y&#252;kleniyor...</div></div>'+
-      '<div class="card"><h3>Zamanlama Ayarla</h3>'+
+      '<div class="card" id="schedC"><h3>'+(L?'Current Schedule':'Mevcut Zamanlama')+'</h3><div class="sub">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div>'+
+      '<div class="card"><h3>'+(L?'Set Schedule':'Zamanlama Ayarla')+'</h3>'+
         '<div class="irow" style="margin-bottom:8px">'+
           '<select id="schedMode" style="flex:1" onchange="schedModeChange()">'+
-            '<option value="daily">G&#252;nl&#252;k</option>'+
-            '<option value="weekly">Haftal&#305;k</option>'+
+            '<option value="daily">'+(L?'Daily':'G&#252;nl&#252;k')+'</option>'+
+            '<option value="weekly">'+(L?'Weekly':'Haftal&#305;k')+'</option>'+
           '</select>'+
         '</div>'+
         '<div id="schedDowRow" style="display:none;margin-bottom:8px">'+
           '<select id="schedDow" style="width:100%">'+
-            '<option value="1">Pazartesi</option>'+
-            '<option value="2">Sal&#305;</option>'+
-            '<option value="3">&#199;ar&#351;amba</option>'+
-            '<option value="4">Per&#351;embe</option>'+
-            '<option value="5">Cuma</option>'+
-            '<option value="6">Cumartesi</option>'+
-            '<option value="0">Pazar</option>'+
+            '<option value="1">'+(L?'Monday':'Pazartesi')+'</option>'+
+            '<option value="2">'+(L?'Tuesday':'Sal&#305;')+'</option>'+
+            '<option value="3">'+(L?'Wednesday':'&#199;ar&#351;amba')+'</option>'+
+            '<option value="4">'+(L?'Thursday':'Per&#351;embe')+'</option>'+
+            '<option value="5">'+(L?'Friday':'Cuma')+'</option>'+
+            '<option value="6">'+(L?'Saturday':'Cumartesi')+'</option>'+
+            '<option value="0">'+(L?'Sunday':'Pazar')+'</option>'+
           '</select>'+
         '</div>'+
         '<div class="irow">'+
           '<input type="text" id="schedT" placeholder="02:00" style="width:90px"/>'+
-          '<button onclick="schedSet()">Ayarla</button>'+
-          '<button class="danger" onclick="schedDel(this)">Kald&#305;r</button>'+
+          '<button onclick="schedSet()">'+(L?'Set':'Ayarla')+'</button>'+
+          '<button class="danger" onclick="schedDel(this)">'+(L?'Remove':'Kald&#305;r')+'</button>'+
         '</div>'+
-        '<div class="hint" style="margin-top:6px">Format: SS:DD &mdash; &#246;rn. 03:30</div>'+
+        '<div class="hint" style="margin-top:6px">'+(L?'Format: HH:MM &mdash; e.g. 03:30':'Format: SS:DD &mdash; &#246;rn. 03:30')+'</div>'+
       '</div></div>';
     setTimeout(function(){
       getD('sched_get',function(r){
         var el=document.getElementById('schedC');
         if(!el)return;
-        var dowNames=['Pazar','Pazartesi','Sali','Carsamba','Persembe','Cuma','Cumartesi'];
+        var dowNames=L?['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']:['Pazar','Pazartesi','Sali','Carsamba','Persembe','Cuma','Cumartesi'];
         if(r.ok&&r.data){
           var dow=r.dow||'*';
-          var sub=dow==='*'?'Her g&#252;n bu saatte reboot':'Her hafta <b>'+(dowNames[parseInt(dow)]||dow)+'</b> g&#252;n&#252; bu saatte reboot';
-          el.innerHTML='<h3>Mevcut Zamanlama</h3><div class="big">'+r.data+'</div><div class="sub">'+sub+'</div>';
-          // Formu mevcut ayara gore doldur
+          var sub=dow==='*'?(L?'Every day at this time':'Her g&#252;n bu saatte reboot'):(L?'Every week on <b>'+(dowNames[parseInt(dow)]||dow)+'</b> at this time':'Her hafta <b>'+(dowNames[parseInt(dow)]||dow)+'</b> g&#252;n&#252; bu saatte reboot');
+          el.innerHTML='<h3>'+(L?'Current Schedule':'Mevcut Zamanlama')+'</h3><div class="big">'+r.data+'</div><div class="sub">'+sub+'</div>';
           if(dow!=='*'){
             var modeEl=document.getElementById('schedMode');
             var dowEl=document.getElementById('schedDow');
@@ -13716,53 +14101,53 @@ var V={
           var tEl=document.getElementById('schedT');
           if(tEl)tEl.value=r.data;
         } else {
-          el.innerHTML='<h3>Mevcut Zamanlama</h3><div class="sub">Zamanlama yok</div>';
+          el.innerHTML='<h3>'+(L?'Current Schedule':'Mevcut Zamanlama')+'</h3><div class="sub">'+(L?'No schedule':'Zamanlama yok')+'</div>';
         }
       });
     },100);
     return h;
   }},
 
-  backup:{title:'Yedekle / Geri Y&#252;kle',sub:'Zapret ayarlar&#305; yedekleme ve geri y&#252;kleme.',html:function(){
+  backup:{title:'Yedekle / Geri Y&#252;kle',titleEn:'Backup / Restore',sub:'Zapret ayarlar&#305; yedekleme ve geri y&#252;kleme.',subEn:'Zapret settings backup and restore.',html:function(){
     setTimeout(function(){bkLoad();},100);
-    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+ 
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
 
-      '<div class="card"><h3>&#128190; Zapret Ayarlar&#305; Yedekle</h3>'+
-        '<div class="sub">config, hostlist, IPSET, DPI profili, healthmon, telegram ayarlar&#305; tar.gz olarak yedekler.</div>'+
+      '<div class="card"><h3>&#128190; '+(L?'Backup Zapret Settings':'Zapret Ayarlar&#305; Yedekle')+'</h3>'+
+        '<div class="sub">'+(L?'Backs up config, hostlist, IPSET, DPI profile, healthmon, telegram as tar.gz.':'config, hostlist, IPSET, DPI profili, healthmon, telegram ayarlar&#305; tar.gz olarak yedekler.')+'</div>'+
         '<div class="btns" style="margin-top:8px">'+
-          '<button onclick="act(\'backup_settings\',this,\'Yedeklendi\')">&#128190; Yedekle</button>'+
-          '<button onclick="bkSettingsList(this)" style="background:#444">&#128220; Yedekleri G&#246;r</button>'+
+          '<button onclick="act(\'backup_settings\',this,'+(L?'\'Backed up\'':'\'Yedeklendi\'')+')">'+'&#128190; '+(L?'Backup':'Yedekle')+'</button>'+
+          '<button onclick="bkSettingsList(this)" style="background:#444">&#128220; '+(L?'View Backups':'Yedekleri G&#246;r')+'</button>'+
         '</div>'+
-        '<div class="hint" style="margin-top:8px">Konum: /opt/zapret_backups/zapret_settings/</div>'+
+        '<div class="hint" style="margin-top:8px">'+(L?'Location:':'Konum:')+' /opt/zapret_backups/zapret_settings/</div>'+
         '<div id="bkSetList" style="margin-top:8px"></div>'+
       '</div>'+
 
-      '<div class="card"><h3>&#9850; Zapret Ayarlar&#305; Geri Y&#252;kle</h3>'+
-        '<div class="sub">Kapsam se&#231;erek yedekten geri y&#252;kle. Zapret otomatik yeniden ba&#351;lar.</div>'+
+      '<div class="card"><h3>&#9850; '+(L?'Restore Zapret Settings':'Zapret Ayarlar&#305; Geri Y&#252;kle')+'</h3>'+
+        '<div class="sub">'+(L?'Restore from backup by scope. Zapret restarts automatically.':'Kapsam se&#231;erek yedekten geri y&#252;kle. Zapret otomatik yeniden ba&#351;lar.')+'</div>'+
         '<div style="margin-top:8px">'+
           '<select id="bkScope" style="width:100%;padding:6px;background:#1e1e2e;color:#cdd6f4;border:1px solid #444;border-radius:6px;margin-bottom:8px">'+
-            '<option value="1">Tam Geri Y&#252;kleme</option>'+
-            '<option value="2">Sadece DPI Ayarlar&#305;</option>'+
-            '<option value="3">Sadece Hostlist</option>'+
-            '<option value="4">Sadece IPSET</option>'+
+            '<option value="1">'+(L?'Full Restore':'Tam Geri Y&#252;kleme')+'</option>'+
+            '<option value="2">'+(L?'DPI Settings Only':'Sadece DPI Ayarlar&#305;')+'</option>'+
+            '<option value="3">'+(L?'Hostlist Only':'Sadece Hostlist')+'</option>'+
+            '<option value="4">'+(L?'IPSET Only':'Sadece IPSET')+'</option>'+
           '</select>'+
-          '<div id="bkSetRestore" style="margin-top:4px"><div class="sub">&#8593; Once Yedekleri G&#246;r\'e t&#305;klay&#305;n</div></div>'+
+          '<div id="bkSetRestore" style="margin-top:4px"><div class="sub">&#8593; '+(L?'Click View Backups first':'Once Yedekleri G&#246;r\'e t&#305;klay&#305;n')+'</div></div>'+
         '</div>'+
       '</div>'+
 
-      '<div class="card"><h3>&#128190; IPSET Yedekle</h3>'+
-        '<div class="sub">Mevcut IPSET .txt dosyalar&#305;n&#305; current + history klas&#246;rlerine kopyalar.</div>'+
+      '<div class="card"><h3>&#128190; '+(L?'Backup IPSET':'IPSET Yedekle')+'</h3>'+
+        '<div class="sub">'+(L?'Copies current IPSET .txt files to current + history folders.':'Mevcut IPSET .txt dosyalar&#305;n&#305; current + history klas&#246;rlerine kopyalar.')+'</div>'+
         '<div class="btns" style="margin-top:8px">'+
-          '<button onclick="act(\'ipset_backup\',this,\'IPSET Yedeklendi\')">&#128190; Yedekle</button>'+
-          '<button onclick="bkIpsetList(this)" style="background:#444">&#128220; Yedekleri G&#246;r</button>'+
+          '<button onclick="act(\'ipset_backup\',this,'+(L?'\'IPSET Backed up\'':'\'IPSET Yedeklendi\'')+')">'+'&#128190; '+(L?'Backup':'Yedekle')+'</button>'+
+          '<button onclick="bkIpsetList(this)" style="background:#444">&#128220; '+(L?'View Backups':'Yedekleri G&#246;r')+'</button>'+
         '</div>'+
-        '<div class="hint" style="margin-top:8px">Konum: /opt/zapret_backups/current/</div>'+
+        '<div class="hint" style="margin-top:8px">'+(L?'Location:':'Konum:')+' /opt/zapret_backups/current/</div>'+
         '<div id="bkIpList" style="margin-top:8px"></div>'+
       '</div>'+
 
-      '<div class="card"><h3>&#9850; IPSET Geri Y&#252;kle</h3>'+
-        '<div class="sub">Current klas&#246;r&#252;ndeki dosyalar&#305; se&#231;erek geri y&#252;kle.</div>'+
-        '<div id="bkIpRestore" style="margin-top:8px"><div class="sub">&#8593; Once Yedekleri G&#246;r\'e t&#305;klay&#305;n</div></div>'+
+      '<div class="card"><h3>&#9850; '+(L?'Restore IPSET':'IPSET Geri Y&#252;kle')+'</h3>'+
+        '<div class="sub">'+(L?'Select and restore files from the current folder.':'Current klas&#246;r&#252;ndeki dosyalar&#305; se&#231;erek geri y&#252;kle.')+'</div>'+
+        '<div id="bkIpRestore" style="margin-top:8px"><div class="sub">&#8593; '+(L?'Click View Backups first':'Once Yedekleri G&#246;r\'e t&#305;klay&#305;n')+'</div></div>'+
       '</div>'+
 
     '</div>';
@@ -13834,20 +14219,36 @@ function schedDel(btn){act('sched_del',btn,'Kaldirildi');setTimeout(function(){r
 var _hcTimer=null;
 var _hcAttempts=0;
 var _hcMaxAttempts=60;
+var _hcDotTimer=null;
 function hcRun(btn){
   var el=document.getElementById('hcResult');
-  if(el)el.innerHTML='<div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><span class="spinner"></span> Kontrol yapılıyor, lütfen bekleyin...</div>';
+  var _hcStart=Date.now();
+  if(_hcDotTimer){clearInterval(_hcDotTimer);_hcDotTimer=null;}
+  if(_hcTimer){clearInterval(_hcTimer);_hcTimer=null;}
+  function updateProgress(){
+    if(!document.getElementById('hcResult'))return;
+    var elapsed=Math.round((Date.now()-_hcStart)/1000);
+    var el2=document.getElementById('hcResult');
+    if(el2)el2.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px">'+
+      '<span class="spinner" style="width:36px;height:36px;border-width:4px"></span>'+
+      '<div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div>'+
+      '<div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait &mdash; ':'L&#252;tfen bekleyin &mdash; ')+elapsed+'s</div>'+
+      '</div>';
+  }
+  if(el)el.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><span class="spinner" style="width:36px;height:36px;border-width:4px"></span><div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div><div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait':'L&#252;tfen bekleyin')+'</div></div>';
   if(btn){btn.disabled=true;}
   _hcAttempts=0;
+  _hcDotTimer=setInterval(updateProgress,1000);
   fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=health_run'})
   .then(function(r){return r.json();})
   .then(function(){clearInterval(_hcTimer);_hcTimer=setInterval(function(){hcPoll(btn);},2000);})
-  .catch(function(){if(el)el.innerHTML='<div style="color:var(--bad)">Bağlantı hatası</div>';if(btn)btn.disabled=false;});
+  .catch(function(){clearInterval(_hcDotTimer);_hcDotTimer=null;if(el)el.innerHTML='<div style="color:var(--bad)">Bağlantı hatası</div>';if(btn)btn.disabled=false;});
 }
 function hcPoll(btn){
   _hcAttempts++;
   if(_hcAttempts>_hcMaxAttempts){
     clearInterval(_hcTimer);
+    clearInterval(_hcDotTimer);_hcDotTimer=null;
     if(btn)btn.disabled=false;
     var el=document.getElementById('hcResult');
     if(el)el.innerHTML='<div style="color:var(--bad)">Zaman asimi (120s). Kontrol tamamlanamadi.</div><div style="margin-top:12px"><button onclick="hcRun()">&#8635; Tekrar Dene</button></div>';
@@ -13858,11 +14259,37 @@ function hcPoll(btn){
   .then(function(d){
     if(d.running){return;}
     clearInterval(_hcTimer);
+    clearInterval(_hcDotTimer);_hcDotTimer=null;
     if(btn)btn.disabled=false;
     hcRender(d);
-  }).catch(function(){clearInterval(_hcTimer);if(btn)btn.disabled=false;});
+  }).catch(function(){clearInterval(_hcTimer);clearInterval(_hcDotTimer);_hcDotTimer=null;if(btn)btn.disabled=false;});
 }
 // ASCII Türkçe → UTF-8 dönüşümü (JSON/shell çıktısı için global helper)
+// Dil yardimcisi - S.lang'a gore TR veya EN doner
+var L=false; // S yuklendikten sonra guncellenir
+function t(tr,en){return L?(en||tr):(tr||en);}
+function syncLang(){
+  L=!!(S&&S.lang==='en');
+  var labels=document.querySelectorAll('.item-label[data-tr]');
+  for(var i=0;i<labels.length;i++){
+    labels[i].textContent=L?labels[i].getAttribute('data-en'):labels[i].getAttribute('data-tr');
+  }
+  var secs=document.querySelectorAll('.sec[data-tr]');
+  for(var j=0;j<secs.length;j++){
+    secs[j].textContent=L?secs[j].getAttribute('data-en'):secs[j].getAttribute('data-tr');
+  }
+  var cpuLbl=document.getElementById('hLoadLabel');
+  if(cpuLbl)cpuLbl.textContent=L?'CPU Load: ':'CPU Y\xfck\xfc: ';
+  var refreshLbl=document.getElementById('refreshBtnLabel');
+  if(refreshLbl)refreshLbl.textContent=L?'Refresh':'Yenile';
+  var atickLbl=document.getElementById('atickLabel');
+  if(atickLbl)atickLbl.textContent=L?'Auto refresh':'Otomatik yenileme';
+  var dashPill=document.getElementById('dashLivePill');
+  if(dashPill)dashPill.textContent=L?'Live':'Canl\u0131';
+  var brandTitle=document.getElementById('brandTitle');
+  if(brandTitle)brandTitle.textContent=L?'KZM Control Panel':'KZM Kontrol Paneli';
+  document.title=L?'KZM Control Panel':'KZM Kontrol Paneli';
+}
 function fixTR(s){if(!s)return s;
   return s.replace(/Calisiyor/g,'Çalışıyor').replace(/Calismiyor/g,'Çalışmıyor')
           .replace(/Durdurulmus/g,'Durdurulmuş').replace(/durduruldu/g,'durduruldu')
@@ -13898,13 +14325,13 @@ function fixTR(s){if(!s)return s;
 function hcRender(d){
   var el=document.getElementById('hcResult');
   if(!el)return;
-  if(!d||!d.ok){el.innerHTML='<div style="color:var(--bad)">'+(d&&d.msg?d.msg:'Hata')+'</div>';return;}
+  if(!d||!d.ok){el.innerHTML='<div style="color:var(--bad)">'+(d&&d.msg?d.msg:(L?'Error':'Hata'))+'</div>';return;}
   var sc=parseFloat(d.score||0);
   var scClr=sc>=9.5?'var(--good)':sc>=8.5?'var(--good)':sc>=7?'var(--warn)':sc>=5?'#e8a020':'var(--bad)';
-  var scLbl=sc>=9.5?'MÜKEMMEL':sc>=8.5?'ÇOK İYİ':sc>=7?'İYİ':sc>=5?'ORTA':'ZAYIF';
+  var scLbl=sc>=9.5?(L?'EXCELLENT':'MÜKEMMEL'):sc>=8.5?(L?'VERY GOOD':'ÇOK İYİ'):sc>=7?(L?'GOOD':'İYİ'):sc>=5?(L?'FAIR':'ORTA'):(L?'POOR':'ZAYIF');
   var h='<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
-      '<span style="font-weight:600">Sistem Skoru</span>'+
+      '<span style="font-weight:600">'+(L?'System Score':'Sistem Skoru')+'</span>'+
       '<span style="font-size:1.4em;font-weight:700;color:'+scClr+'">'+d.score+' / 10 <span style="font-size:0.65em">'+scLbl+'</span></span>'+
     '</div>'+
     '<div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">'+
@@ -13918,7 +14345,8 @@ function hcRender(d){
       (d.dns_mode?'<span style="margin-left:auto">DNS: <b>'+d.dns_mode+'</b>'+(d.dns_providers?' \u2022 '+d.dns_providers:'')+'</span>':'')+
     '</div>'+
   '</div>';
-  var secs={net:'\u{1F310} Ağ & DNS',sys:'\u{1F4BB} Sistem',svc:'\u2699 Servisler'};
+  var secs=L?{net:'\u{1F310} Network & DNS',sys:'\u{1F4BB} System',svc:'\u2699 Services'}
+             :{net:'\u{1F310} Ağ & DNS',sys:'\u{1F4BB} Sistem',svc:'\u2699 Servisler'};
   var secOrder=['net','sys','svc'];
   var byS={net:[],sys:[],svc:[]};
   (d.items||[]).forEach(function(it){if(byS[it.sec])byS[it.sec].push(it);});
@@ -13938,7 +14366,7 @@ function hcRender(d){
     });
     h+='</table></div>';
   });
-  el.innerHTML=h+'<div style="margin-top:12px"><button onclick="hcRun()">&#8635; Yenile</button></div>';
+  el.innerHTML=h+'<div style="margin-top:12px"><button onclick="hcRun()">&#8635; '+(L?'Refresh':'Yenile')+'</button></div>';
 }
 function zapretAct(action,btn,msg){
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
@@ -13987,16 +14415,16 @@ function bkSettingsList(btn){
     var el=document.getElementById('bkSetList'),er=document.getElementById('bkSetRestore');
     if(!el)return;
     if(!r.ok||!r.data||!r.data.length){
-      el.innerHTML='<div class="sub">Yedek bulunamadi</div>';
-      if(er)er.innerHTML='<div class="sub">Yedek bulunamadi</div>';
+      el.innerHTML='<div class="sub">'+(L?'No backup found':'Yedek bulunamadi')+'</div>';
+      if(er)er.innerHTML='<div class="sub">'+(L?'No backup found':'Yedek bulunamadi')+'</div>';
       return;
     }
-    var html='<div style="font-size:11px;color:#888;margin-bottom:4px">Son 10 yedek:</div>';
+    var html='<div style="font-size:11px;color:#888;margin-bottom:4px">'+(L?'Last 10 backups:':'Son 10 yedek:')+'</div>';
     var rhtml='';
     r.data.forEach(function(f){
       html+='<div class="li" style="font-size:11px"><span style="flex:1;word-break:break-all">'+f.name+'</span></div>';
       rhtml+='<div class="li" style="margin-bottom:4px"><span style="font-size:11px;flex:1;word-break:break-all">'+f.name+'</span>'+
-        '<button style="padding:3px 8px;font-size:11px" onclick="bkSetRestore(\''+f.path.replace(/\'/g,"\\'")+'\'  ,this)">&#9850; Geri Y&#252;kle</button></div>';
+        '<button style="padding:3px 8px;font-size:11px" onclick="bkSetRestore(\''+f.path.replace(/\'/g,"\\'")+'\',this)">&#9850; '+(L?'Restore':'Geri Y&#252;kle')+'</button></div>';
     });
     el.innerHTML=html;
     if(er)er.innerHTML=rhtml;
@@ -14005,7 +14433,7 @@ function bkSettingsList(btn){
 function bkSetRestore(path,btn){
   var scope=document.getElementById('bkScope');
   var s=scope?scope.value:'1';
-  if(!confirm('Geri yuklensin mi? (Kapsam:'+s+')'))return;
+  if(!confirm(L?'Restore backup? (Scope:'+s+')':'Geri yuklensin mi? (Kapsam:'+s+')'))return;
   if(btn)btn.disabled=true;
   actD('settings_restore','file='+encodeURIComponent(path)+'&scope='+s,btn,'Geri yuklendi');
 }
@@ -14016,28 +14444,28 @@ function bkIpsetList(btn){
     var el=document.getElementById('bkIpList'),er=document.getElementById('bkIpRestore');
     if(!el)return;
     if(!r.ok||!r.files){
-      el.innerHTML='<div class="sub">Yedek bulunamadi</div>';
-      if(er)er.innerHTML='<div class="sub">Yedek bulunamadi</div>';
+      el.innerHTML='<div class="sub">'+(L?'No backup found':'Yedek bulunamadi')+'</div>';
+      if(er)er.innerHTML='<div class="sub">'+(L?'No backup found':'Yedek bulunamadi')+'</div>';
       return;
     }
     var files=r.files?r.files.split('|').filter(function(x){return x;}):[]; 
     if(!files.length){
-      el.innerHTML='<div class="sub">Yedek bulunamadi</div>';
-      if(er)er.innerHTML='<div class="sub">Yedek bulunamadi</div>';
+      el.innerHTML='<div class="sub">'+(L?'No backup found':'Yedek bulunamadi')+'</div>';
+      if(er)er.innerHTML='<div class="sub">'+(L?'No backup found':'Yedek bulunamadi')+'</div>';
       return;
     }
-    var html='<div style="font-size:11px;color:#888;margin-bottom:4px">Current yedekler:</div>';
+    var html='<div style="font-size:11px;color:#888;margin-bottom:4px">'+(L?'Current backups:':'Mevcut Yedekler:')+'</div>';
     var rhtml='';
     files.forEach(function(f){
       var parts=f.split(':');var name=parts[0];var cnt=parts[1]||'?';
-      html+='<div class="li" style="font-size:11px"><span style="flex:1">'+name+'</span><span style="color:#888">'+cnt+' sat&#305;r</span></div>';
+      html+='<div class="li" style="font-size:11px"><span style="flex:1">'+name+'</span><span style="color:#888">'+cnt+' '+(L?'lines':'sat&#305;r')+'</span></div>';
       rhtml+='<div class="li" style="margin-bottom:4px"><span style="font-size:11px;flex:1">'+name+'</span>'+
-        '<button style="padding:3px 8px;font-size:11px" onclick="bkIpRestore(\''+name+'\',this)">&#9850; Geri Y&#252;kle</button></div>';
+        '<button style="padding:3px 8px;font-size:11px" onclick="bkIpRestore(\''+name+'\',this)">&#9850; '+(L?'Restore':'Geri Y&#252;kle')+'</button></div>';
     });
     if(r.history){
       var hist=r.history.split('|').filter(function(x){return x;});
       if(hist.length){
-        html+='<div style="font-size:11px;color:#888;margin-top:8px;margin-bottom:4px">History (son 5):</div>';
+        html+='<div style="font-size:11px;color:#888;margin-top:8px;margin-bottom:4px">'+(L?'History (last 5):':'Ge&#231;mi&#351; (son 5):')+'</div>';
         hist.forEach(function(h){html+='<div style="font-size:11px;color:#666;padding:2px 0">'+h+'</div>';});
       }
     }
@@ -14052,8 +14480,8 @@ function bkIpRestore(fname,btn){
 }
 function render(k){
   var v=V[k]||V.dash;
-  document.getElementById('pTitle').innerHTML=v.title||k;
-  document.getElementById('pSub').innerHTML=v.sub||'';
+  document.getElementById('pTitle').innerHTML=(L&&v.titleEn)?v.titleEn:(v.title||k);
+  document.getElementById('pSub').innerHTML=(L&&v.subEn)?v.subEn:(v.sub||'');
   document.getElementById('view').innerHTML=v.html?v.html():'<div class="empty">Yap&#305;m a&#351;amas&#305;nda...</div>';
 }
 
