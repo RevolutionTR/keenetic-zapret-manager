@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.22"
+SCRIPT_VERSION="v26.3.22.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -4152,6 +4152,9 @@ start_zapret() {
     zapret_resume
     install_zapret_pause_guard
 
+    # Hostlist dosya izinlerini duzelt (nfqws nobody user ile calisir)
+    chmod 644 /opt/zapret/ipset/*.txt 2>/dev/null || true
+
     if is_zapret_running; then
         echo "$(T TXT_START_ALREADY)"
         return 0
@@ -4165,8 +4168,14 @@ start_zapret() {
 	enforce_wan_if_nfqueue_rules >/dev/null 2>&1
 
     sleep 1
-    if is_zapret_running && iptables-save | grep -q "NFQUEUE"; then
+    if is_zapret_running; then
         echo "$(T TXT_START_OK)"
+        # Autohostlist bos ise NFQUEUE kurali olmayabilir, uyar
+        _hmode="$(cat /opt/zapret/hostlist_mode 2>/dev/null | tr -d '[:space:]')"
+        _hfile="/opt/zapret/ipset/zapret-hosts-auto.txt"
+        if [ "$_hmode" = "autohostlist" ] && [ ! -s "$_hfile" ]; then
+            print_status WARN "$(T _ 'Autohostlist bos: trafik henuz islenmeyecek, siteler kullanildikca liste dolacak.' 'Autohostlist empty: traffic will not be filtered yet, list will fill as sites are visited.')"
+        fi
         return 0
     fi
 
@@ -6265,6 +6274,11 @@ clear
 ' "${CLR_BOLD}${CLR_RED}$(T TXT_HL_WARN_AUTOCLEAR_1)${CLR_RESET}"
                 printf '%b
 ' "${CLR_BOLD}${CLR_RED}$(T TXT_HL_WARN_AUTOCLEAR_2)${CLR_RESET}"
+                # Autohostlist modunda ek uyari
+                _cur_hmode="$(cat /opt/zapret/hostlist_mode 2>/dev/null | tr -d '[:space:]')"
+                if [ "$_cur_hmode" = "autohostlist" ]; then
+                    print_status WARN "$(T _ 'Mod: autohostlist — liste temizlenince Zapret yeniden baslatilana kadar trafik filtrelenmez.' 'Mode: autohostlist — after clearing, traffic will not be filtered until list refills.')"
+                fi
                 print_line "-"
                 printf "%s" "$(T confirm_autolist_q 'Onayliyor musunuz? (e=Evet, h=Hayir, 0=Geri): ' 'Confirm? (y=Yes, n=No, 0=Back): ')"
                 read -r ans
@@ -11206,7 +11220,6 @@ healthmon_loop() {
 # --cgi-action: CGI tarafindan cagrilir, dogrudan fonksiyon calistirir
 # ---------------------------------------------------------------------------
 if [ "$1" = "--cgi-action" ]; then
-    trap \'\' HUP 2>/dev/null
     case "$2" in
         start_zapret)    start_zapret   2>/dev/null ;;
         stop_zapret)     stop_zapret    2>/dev/null ;;
@@ -13947,32 +13960,46 @@ var V={
   dpi:{title:'DPI Profili',titleEn:'DPI Profile',sub:'Mevcut DPI profilini g&#246;r&#252;nt&#252;le ve de&#287;i&#351;tir.',subEn:'View and change current DPI profile.',html:function(){
     var h='<div class="grid" style="grid-template-columns:1fr 1fr">'+
       '<div class="card"><h3>'+(L?'Current Profile':'Mevcut Profil')+'</h3>'+
-        '<div class="big" id="dpiVal">...</div></div>'+
+        '<div class="big" id="dpiVal">'+(function(){
+            var p=S.dpi_profile||'';
+            var names={
+              'tt_default':'Turk Telekom Fiber (TTL2 fake)',
+              'tt_fiber':'Turk Telekom Fiber (TTL4 fake)',
+              'tt_alt':'KabloNet (TTL3 fake)',
+              'sol':'Superonline (fake + m5sig)',
+              'sol_alt':'Superonline Alternatif (TTL3 fake)',
+              'sol_fiber':'Superonline Fiber (TTL5 fake + badsum)',
+              'turkcell_mob':'Turkcell Mobil (TTL1 + AutoTTL3)',
+              'vodafone_mob':'Vodafone Mobil (multisplit)',
+              'blockcheck_auto':'Blockcheck Otomatik (Auto)'
+            };
+            return names[p]||p||'—';
+          })()+'</div></div>'+
       '<div class="card"><h3>'+(L?'Select Profile':'Profil Se&#231;')+'</h3>'+
         '<div class="irow">'+
-          '<select id="dpiSel" style="flex:1">'+
-            '<option value="tt_default">Turk Telekom Fiber (TTL2 fake)</option>'+
-            '<option value="tt_fiber">Turk Telekom Fiber (TTL4 fake)</option>'+
-            '<option value="tt_alt">KabloNet (TTL3 fake)</option>'+
-            '<option value="sol">Superonline (fake + m5sig)</option>'+
-            '<option value="sol_alt">Superonline Alternatif (TTL3 fake)</option>'+
-            '<option value="sol_fiber">Superonline Fiber (TTL5 fake + badsum)</option>'+
-            '<option value="turkcell_mob">Turkcell Mobil (TTL1 + AutoTTL3)</option>'+
-            '<option value="vodafone_mob">Vodafone Mobil (multisplit)</option>'+
-            '<option value="blockcheck_auto">Blockcheck Otomatik (Auto)</option>'+
-          '</select>'+
+          (function(){
+            var cp=S.dpi_profile||'tt_default';
+            var opts=[
+              ['tt_default','Turk Telekom Fiber (TTL2 fake)'],
+              ['tt_fiber','Turk Telekom Fiber (TTL4 fake)'],
+              ['tt_alt','KabloNet (TTL3 fake)'],
+              ['sol','Superonline (fake + m5sig)'],
+              ['sol_alt','Superonline Alternatif (TTL3 fake)'],
+              ['sol_fiber','Superonline Fiber (TTL5 fake + badsum)'],
+              ['turkcell_mob','Turkcell Mobil (TTL1 + AutoTTL3)'],
+              ['vodafone_mob','Vodafone Mobil (multisplit)'],
+              ['blockcheck_auto','Blockcheck Otomatik (Auto)']
+            ];
+            var s='<select id="dpiSel" style="flex:1">';
+            for(var i=0;i<opts.length;i++){
+              s+='<option value="'+opts[i][0]+'"'+(opts[i][0]===cp?' selected':'')+'>'+opts[i][1]+'</option>';
+            }
+            return s+'</select>';
+          })()+
           '<button onclick="(function(b){var v=document.getElementById(\'dpiSel\').value;actD(\'dpi_set\',\'profile=\'+v,b,'+(L?'\'Profile set\'':'\'Profil ayarlandi\'')+')})(this)">'+(L?'Apply':'Uygula')+'</button>'+
         '</div>'+
         '<div class="hint" style="margin-top:8px">'+(L?'Zapret restarts after change.':'De&#287;i&#351;iklik sonras&#305; Zapret yeniden ba&#351;lar.')+'</div>'+
       '</div></div>';
-    setTimeout(function(){
-      getD('dpi_get',function(r){
-        var el=document.getElementById('dpiVal');
-        if(el)el.textContent=r.ok?(r.name||r.data):'?';
-        var sel=document.getElementById('dpiSel');
-        if(sel&&r.ok)sel.value=r.data;
-      });
-    },100);
     return h;
   }},
 
