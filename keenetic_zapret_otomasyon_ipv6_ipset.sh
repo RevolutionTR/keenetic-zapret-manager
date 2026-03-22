@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.21"
+SCRIPT_VERSION="v26.3.22"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1713,6 +1713,11 @@ TXT_TGBOT_UPDATE_FAIL_TR="Guncelleme basarisiz."
 TXT_TGBOT_UPDATE_FAIL_EN="Update failed."
 TXT_TGBOT_ALREADY_UPTODATE_TR="KZM zaten guncel."
 TXT_TGBOT_ALREADY_UPTODATE_EN="KZM is already up to date."
+
+TXT_TGBOT_ZAP_ALREADY_UPTODATE_TR="Zapret zaten guncel."
+TXT_TGBOT_ZAP_ALREADY_UPTODATE_EN="Zapret is already up to date."
+TXT_TGBOT_ZAP_NEWER_TR="UYARI: Kurulu surum GitHub'dakinden yeni (Surum geri cekilmis olabilir)."
+TXT_TGBOT_ZAP_NEWER_EN="WARNING: Installed version is newer than GitHub (version may have been rolled back)."
 TXT_TGBOT_NO_LOGS_TR="Log bulunamadi."
 TXT_TGBOT_NO_LOGS_EN="No logs found."
 TXT_TGBOT_MENU_ZAPRET_TITLE_TR="Zapret Yonetimi"
@@ -4242,6 +4247,19 @@ update_zapret() {
     api_raw="$(curl -fsS "$api" 2>/dev/null)"
     latest="$(printf '%s\n' "$api_raw" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
     [ -z "$latest" ] && { print_status FAIL "$(T TXT_GITHUB_FAIL)"; return 1; }
+
+    # Kurulu surum ile karsilastir
+    local _installed_ver
+    _installed_ver="$(cat /opt/zapret/version 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "$_installed_ver" ]; then
+        if [ "$_installed_ver" = "$latest" ]; then
+            print_status INFO "$(T _ 'Zapret zaten guncel' 'Zapret is already up to date') ($_installed_ver)"
+            return 2
+        elif ver_is_newer "$_installed_ver" "$latest" 2>/dev/null; then
+            print_status WARN "$(T _ 'Kurulu surum daha yeni, guncelleme atlandi' 'Installed version is newer, update skipped') ($_installed_ver > $latest)"
+            return 3
+        fi
+    fi
 
     tarball="zapret-${latest}.tar.gz"
     local url="https://github.com/${repo}/releases/download/${latest}/${tarball}"
@@ -8950,6 +8968,11 @@ tgbot_kb_zapret() {
     printf '[[{"text":"▶️ %s","callback_data":"%s:zap_start"},{"text":"⏹ %s","callback_data":"%s:zap_stop"}],[{"text":"🔄 %s","callback_data":"%s:zap_restart"}],[{"text":"⬆️ %s","callback_data":"%s:zap_update"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]'         "$(T TXT_TGBOT_BTN_START)" "$rid"         "$(T TXT_TGBOT_BTN_STOP)" "$rid"         "$(T TXT_TGBOT_BTN_RESTART)" "$rid"         "$(T TXT_TGBOT_BTN_ZAP_UPDATE)" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
 
+tgbot_kb_zapret_force() {
+    local rid="${TG_ROUTER_ID:-default}"
+    printf '[[{"text":"⚠️ %s","callback_data":"%s:zap_force_update"},{"text":"❌ %s","callback_data":"%s:menu_zapret"}]]'         "$(T _ 'Zorla Guncelle' 'Force Update')" "$rid"         "$(T TXT_TGBOT_BTN_CANCEL)" "$rid"
+}
+
 tgbot_kb_kzm() {
     local rid="${TG_ROUTER_ID:-default}"
     printf '[[{"text":"⬆️ %s","callback_data":"%s:sys_kzm_update"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]'         "$(T TXT_TGBOT_BTN_KZM_UPDATE)" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
@@ -9394,7 +9417,7 @@ tgbot_status_text() {
     [ -z "$kzm_ver" ] && kzm_ver="$SCRIPT_VERSION"
     zapret_ver="$(cat /opt/zapret/version 2>/dev/null)"
     [ -z "$zapret_ver" ] && zapret_ver="$(T TXT_TGBOT_STATUS_UNKNOWN)"
-    printf "Zapret: %s | %s\nWAN IP: %s\nLAN IP: %s\nCPU: %s%% | RAM: %s\nDisk: %s | Uptime: %s\nHealthMon: %s\nKZM: %s | Zapret: %s" \
+    printf "Zapret: %s\nDPI: %s\nWAN IP: %s\nLAN IP: %s\nCPU: %s%% | RAM: %s\nDisk: %s | Uptime: %s\nHealthMon: %s\nKZM: %s | Zapret: %s" \
         "$zapret_st" "$profile_name" "$wan_ip" "$lan_ip" \
         "$cpu_val" "$ram_val" "$disk_val" "$uptime_val" "$hm_st" \
         "$kzm_ver" "$zapret_ver"
@@ -9499,12 +9522,27 @@ tgbot_handle_callback() {
             ;;
         zap_update)
             tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_UPDATE_STARTED)" ""
+            update_zapret >/dev/null 2>&1
+            _zap_upd_rc=$?
+            case "$_zap_upd_rc" in
+                0) tgbot_edit "$chat_id" "$msg_id"                     "$(T TXT_TGBOT_UPDATE_DONE) ($(cat /opt/zapret/version 2>/dev/null | tr -d '[:space:]'))" "$(tgbot_kb_zapret)" ;;
+                2) tgbot_edit "$chat_id" "$msg_id"                     "$(T TXT_TGBOT_ZAP_ALREADY_UPTODATE) ($(cat /opt/zapret/version 2>/dev/null | tr -d '[:space:]'))" "$(tgbot_kb_zapret)" ;;
+                3) tgbot_edit "$chat_id" "$msg_id" \
+                    "$(T TXT_TGBOT_ZAP_NEWER) ($(cat /opt/zapret/version 2>/dev/null | tr -d '[:space:]'))" "$(tgbot_kb_zapret_force)" ;;
+                *) tgbot_edit "$chat_id" "$msg_id"                     "$(T TXT_TGBOT_UPDATE_FAIL)" "$(tgbot_kb_zapret)" ;;
+            esac
+            ;;
+        zap_force_update)
+            tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_UPDATE_STARTED)" ""
+            # Versiyon dosyasini gecici olarak sil ki update_zapret geri cekilmis surumu kursun
+            _zap_ver_bak="$(cat /opt/zapret/version 2>/dev/null)"
+            rm -f /opt/zapret/version 2>/dev/null
             if update_zapret >/dev/null 2>&1; then
-                tgbot_edit "$chat_id" "$msg_id" \
-                    "$(T TXT_TGBOT_UPDATE_DONE)" "$(tgbot_kb_zapret)"
+                tgbot_edit "$chat_id" "$msg_id"                     "$(T TXT_TGBOT_UPDATE_DONE) ($(cat /opt/zapret/version 2>/dev/null | tr -d '[:space:]'))" "$(tgbot_kb_zapret)"
             else
-                tgbot_edit "$chat_id" "$msg_id" \
-                    "$(T TXT_TGBOT_UPDATE_FAIL)" "$(tgbot_kb_zapret)"
+                # Geri yukle
+                [ -n "$_zap_ver_bak" ] && printf '%s\n' "$_zap_ver_bak" > /opt/zapret/version 2>/dev/null
+                tgbot_edit "$chat_id" "$msg_id"                     "$(T TXT_TGBOT_UPDATE_FAIL)" "$(tgbot_kb_zapret)"
             fi
             ;;
         sys_kzm_update)
@@ -9513,9 +9551,9 @@ tgbot_handle_callback() {
             _upd_rc=$?
             case "$_upd_rc" in
                 0) tgbot_edit "$chat_id" "$msg_id" \
-                    "$(T TXT_TGBOT_UPDATE_DONE)" "$(tgbot_kb_kzm)" ;;
+                    "$(T TXT_TGBOT_UPDATE_DONE) ($(zkm_get_installed_script_version 2>/dev/null || echo "$SCRIPT_VERSION"))" "$(tgbot_kb_kzm)" ;;
                 2) tgbot_edit "$chat_id" "$msg_id" \
-                    "$(T TXT_TGBOT_ALREADY_UPTODATE)" "$(tgbot_kb_kzm)" ;;
+                    "$(T TXT_TGBOT_ALREADY_UPTODATE) ($(zkm_get_installed_script_version 2>/dev/null || echo "$SCRIPT_VERSION"))" "$(tgbot_kb_kzm)" ;;
                 *) tgbot_edit "$chat_id" "$msg_id" \
                     "$(T TXT_TGBOT_UPDATE_FAIL)" "$(tgbot_kb_kzm)" ;;
             esac
