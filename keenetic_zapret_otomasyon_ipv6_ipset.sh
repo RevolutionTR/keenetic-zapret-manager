@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.23"
+SCRIPT_VERSION="v26.3.24"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -69,6 +69,7 @@ case "$1" in
     --telegram-daemon)  ZKM_SKIP_LOCK="1" ;;
     --self-test)        ZKM_SKIP_LOCK="1" ; ZKM_SELF_TEST="1" ;;
     --gui-status)      ZKM_SKIP_LOCK="1" ; ZKM_GUI_STATUS_GEN="1" ;;
+    --cgi-action)      ZKM_SKIP_LOCK="1" ;;
     --dev|--developer)  ZKM_DEV_CHECK="1" ;;
 esac
 
@@ -1914,6 +1915,8 @@ TXT_MENU14_OPT2_TR="2. OPKG Listesini Yenile"
 TXT_MENU14_OPT2_EN="2. Refresh OPKG Package List"
 TXT_MENU14_OPT3_TR="3. DoT/DoH DNS Yapilandir (Guvenli DNS)"
 TXT_MENU14_OPT3_EN="3. Configure DoT/DoH DNS (Secure DNS)"
+TXT_MENU14_OPT4_TR="4. Bilesen Kontrolu (OPKG/iptables/ipset/vs)"
+TXT_MENU14_OPT4_EN="4. Component Check (OPKG/iptables/ipset/etc)"
 TXT_MENU14_DNS_TITLE_TR="Guvenli DNS Yapilandirmasi (DoT/DoH)"
 TXT_MENU14_DNS_TITLE_EN="Secure DNS Configuration (DoT/DoH)"
 TXT_MENU14_DNS_CONFIRM_TR="Bu islem eksik olan ve en cok tercih edilen DoT/DoH DNS sunucularini ekleyecek. Devam? (e/h):"
@@ -3906,7 +3909,7 @@ check_keenetic_components() {
     elif find /lib/modules -name "sch_ingress.ko" -o -name "sch_htb.ko" \
          -o -name "sch_hfsc.ko" -o -name "cls_u32.ko" 2>/dev/null | grep -q .; then
         _tc_ok=1
-    elif lsmod 2>/dev/null | grep -qE "^sch_ingress|^sch_htb|^sch_hfsc|^cls_fw|^cls_u32"; then
+    elif lsmod 2>/dev/null | grep -qiE "^sch_|^cls_|^ntc"; then
         _tc_ok=1
     elif command -v tc >/dev/null 2>&1; then
         _tc_ok=1
@@ -3914,12 +3917,19 @@ check_keenetic_components() {
     if [ "$_tc_ok" -eq 1 ]; then
         print_status PASS "$(T TXT_COMP_TC)"
     else
-        print_status FAIL "$(T TXT_COMP_TC_WARN)"
-        missing_critical=1
-        all_components="${all_components}  - $(T TXT_COMP_TC)\n"
+        print_status WARN "$(T TXT_COMP_TC_WARN)"
     fi
 
-    # 9. Storage - OPTIONAL (for persistence)
+    # 9. nfqws binary - sadece Zapret kuruluysa kontrol et
+    if is_zapret_installed; then
+        if [ -x "/opt/zapret/nfq/nfqws" ]; then
+            print_status PASS "$(T _ 'nfqws binary' 'nfqws binary')"
+        else
+            print_status WARN "$(T _ 'nfqws binary bulunamadi - Zapret yeniden kurulumu onerilir' 'nfqws binary not found - Reinstalling Zapret is recommended')"
+        fi
+    fi
+
+    # 10. Storage - OPTIONAL (for persistence)
     # Adim 1: /proc/mounts'ta /opt icin ayri bir mount satiri ara
     local _opt_line=""
     _opt_line=$(awk '$2=="/opt"{print; exit}' /proc/mounts 2>/dev/null)
@@ -4192,11 +4202,6 @@ is_zapret_installed() {
 
 # Zapret servisini baslatir
 start_zapret() {
-    # Component check before starting
-    if ! check_keenetic_components; then
-        return 1
-    fi
-    
     if ! is_zapret_installed; then
         echo "$(T TXT_START_NOT_INSTALLED)"
         return 1
@@ -6938,7 +6943,24 @@ display_menu() {
 # Master liste: KEY|TYPE|ADD_CMD|DEL_CMD|PAKET
 _dns_master_list() {
     printf '%s
-'         "8.8.8.8@dns.google|DoT|dns-proxy tls upstream 8.8.8.8 sni dns.google|no dns-proxy tls upstream 8.8.8.8|Google"         "8.8.4.4@dns.google|DoT|dns-proxy tls upstream 8.8.4.4 sni dns.google|no dns-proxy tls upstream 8.8.4.4|Google"         "dns.google/dns-query|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm|no dns-proxy https upstream https://dns.google/dns-query|Google"         "1.1.1.1@one.one.one.one|DoT|dns-proxy tls upstream 1.1.1.1 sni one.one.one.one|no dns-proxy tls upstream 1.1.1.1|Cloudflare"         "1.0.0.1@one.one.one.one|DoT|dns-proxy tls upstream 1.0.0.1 sni one.one.one.one|no dns-proxy tls upstream 1.0.0.1|Cloudflare"         "cloudflare-dns.com/dns-query|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm|no dns-proxy https upstream https://cloudflare-dns.com/dns-query|Cloudflare"         "1.1.1.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.1.1.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.1.1.2|CF_Families"         "1.0.0.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.0.0.2|CF_Families"         "keenetic.dns.nextdns.io|DoH|dns-proxy https upstream https://keenetic.dns.nextdns.io/dns-query dnsm|no dns-proxy https upstream https://keenetic.dns.nextdns.io/dns-query|NextDNS"         "dns.comss.one/dns-query|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm|no dns-proxy https upstream https://dns.comss.one/dns-query|Comss"
+' \
+        "8.8.8.8@dns.google|DoT|dns-proxy tls upstream 8.8.8.8 sni dns.google|no dns-proxy tls upstream 8.8.8.8|Google" \
+        "8.8.4.4@dns.google|DoT|dns-proxy tls upstream 8.8.4.4 sni dns.google|no dns-proxy tls upstream 8.8.4.4|Google" \
+        "dns.google/dns-query|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm|no dns-proxy https upstream https://dns.google/dns-query|Google" \
+        "1.1.1.1@one.one.one.one|DoT|dns-proxy tls upstream 1.1.1.1 sni one.one.one.one|no dns-proxy tls upstream 1.1.1.1|Cloudflare" \
+        "1.0.0.1@one.one.one.one|DoT|dns-proxy tls upstream 1.0.0.1 sni one.one.one.one|no dns-proxy tls upstream 1.0.0.1|Cloudflare" \
+        "cloudflare-dns.com/dns-query|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm|no dns-proxy https upstream https://cloudflare-dns.com/dns-query|Cloudflare" \
+        "1.1.1.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.1.1.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.1.1.2|CF_Families" \
+        "1.0.0.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.0.0.2|CF_Families" \
+        "dns.comss.one/dns-query|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm|no dns-proxy https upstream https://dns.comss.one/dns-query|Comss" \
+        "9.9.9.9@dns.quad9.net|DoT|dns-proxy tls upstream 9.9.9.9 sni dns.quad9.net|no dns-proxy tls upstream 9.9.9.9|Quad9" \
+        "149.112.112.112@dns.quad9.net|DoT|dns-proxy tls upstream 149.112.112.112 sni dns.quad9.net|no dns-proxy tls upstream 149.112.112.112|Quad9" \
+        "94.140.14.14@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.14.14 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.14.14|AdGuard" \
+        "94.140.15.15@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.15.15 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.15.15|AdGuard" \
+        "dns.mullvad.net/dns-query|DoH|dns-proxy https upstream https://dns.mullvad.net/dns-query dnsm|no dns-proxy https upstream https://dns.mullvad.net/dns-query|Mullvad" \
+        "dns.dns0.eu/dns-query|DoH|dns-proxy https upstream https://dns.dns0.eu/dns-query dnsm|no dns-proxy https upstream https://dns.dns0.eu/dns-query|Dns0eu" \
+        "185.228.168.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.168.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.168.9|CleanBrowsing" \
+        "185.228.169.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.169.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.169.9|CleanBrowsing"
 }
 
 # Mevcut DNS sunucularini goster
@@ -6984,21 +7006,30 @@ dns_add_preset_menu() {
 " "${CLR_CYAN}" "$(T TXT_DNS_MGMT_PRESET_TITLE)" "${CLR_RESET}"
         dns_show_current "$_raw"
         echo ""
-        printf " %b 1.%b %-22s(DoT + DoH)\n" "${CLR_BOLD}" "${CLR_RESET}" "Google DNS"
-        printf " %b 2.%b %-22s(DoT + DoH)\n" "${CLR_BOLD}" "${CLR_RESET}" "Cloudflare"
-        printf " %b 3.%b %-22s(%s)\n" "${CLR_BOLD}" "${CLR_RESET}" "Cloudflare Families" "$(T _ 'malware engel, DoT' 'malware block, DoT')"
-        printf " %b 4.%b %-22s(DoH)\n" "${CLR_BOLD}" "${CLR_RESET}" "NextDNS"
-        printf " %b 5.%b %-22s(%s)\n" "${CLR_BOLD}" "${CLR_RESET}" "Comss" "$(T _ 'DoH, engel bypass' 'DoH, bypass')"
+        printf " %b 1.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Standart (Filtresiz)' 'Standard (No Filter)')" "Google + Cloudflare"
+        printf " %b 2.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Gizlilik Odakli' 'Privacy Focused')" "Quad9 + Mullvad + dns0.eu"
+        printf " %b 3.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Reklam Engelleyici' 'Ad Blocker')" "AdGuard DoT"
+        printf " %b 4.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Aile Filtresi' 'Family Filter')" "CF Families + CleanBrowsing"
+        printf " %b 5.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Turkiye Optimizeli' 'Turkey Optimized')" "Comss DoH"
         printf " %b 0.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Geri' 'Back')"
         echo ""
         printf '%s ' "$(T _ 'Secim:' 'Choice:')"
         read -r _ch </dev/tty
         case "$_ch" in
-            1) _dns_add_package "Google" "$_raw" ;;
-            2) _dns_add_package "Cloudflare" "$_raw" ;;
-            3) _dns_add_package "CF_Families" "$_raw" ;;
-            4) _dns_add_package "NextDNS" "$_raw" ;;
-            5) _dns_add_package "Comss" "$_raw" ;;
+            1) _dns_add_package "Google" "$_raw"
+               _dns_add_package "Cloudflare" "$_raw"
+               press_enter_to_continue ;;
+            2) _dns_add_package "Quad9" "$_raw"
+               _dns_add_package "Mullvad" "$_raw"
+               _dns_add_package "Dns0eu" "$_raw"
+               press_enter_to_continue ;;
+            3) _dns_add_package "AdGuard" "$_raw"
+               press_enter_to_continue ;;
+            4) _dns_add_package "CF_Families" "$_raw"
+               _dns_add_package "CleanBrowsing" "$_raw"
+               press_enter_to_continue ;;
+            5) _dns_add_package "Comss" "$_raw"
+               press_enter_to_continue ;;
             0) return 0 ;;
         esac
     done
@@ -7036,8 +7067,6 @@ MASTEREOF
         print_status PASS "$(T TXT_DNS_MGMT_SAVED)"
     fi
     print_line "-"
-    # press_enter_to_continue sadece interaktif modda
-    [ -t 0 ] && press_enter_to_continue
 }
 
 # Sunucu sil - aktif bilinen sunuculari listele, secim al
@@ -7249,6 +7278,8 @@ dns_management_menu() {
         printf " %b 5.%b $(T TXT_DNS_MGMT_OPT5) %b[%s]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "${CLR_DIM}" "$_rebind_st" "${CLR_RESET}"
         printf " %b 0.%b $(T _ 'Geri' 'Back')\n" "${CLR_BOLD}" "${CLR_RESET}"
         echo ""
+        printf " %b%s%b\n" "${CLR_ORANGE}" "$(T TXT_MENU14_DNS_VPN_WARN)" "${CLR_RESET}"
+        echo ""
         printf '%s ' "$(T _ 'Secim:' 'Choice:')"
         read -r _ch </dev/tty
         case "$_ch" in
@@ -7327,17 +7358,17 @@ configure_secure_dns() {
 
     print_line "-"
 
+    # VPN DNS leak uyarisi - her zaman goster
+    echo ""
+    printf " %b%s%b\n" "${CLR_ORANGE}" "$(T TXT_MENU14_DNS_VPN_WARN)" "${CLR_RESET}"
+    echo ""
+
     # Hepsi mevcutsa bitir
     if [ "$_need_add" -eq 0 ]; then
         print_status INFO "$(T TXT_MENU14_DNS_ALREADY)"
         press_enter_to_continue
         return 0
     fi
-
-    # VPN DNS leak uyarisi
-    echo ""
-    printf " %b%s%b\n" "${CLR_ORANGE}" "$(T TXT_MENU14_DNS_VPN_WARN)" "${CLR_RESET}"
-    echo ""
 
     # Onay al
     printf '%s ' "$(T TXT_MENU14_DNS_CONFIRM)"
@@ -7453,6 +7484,7 @@ network_diag_menu() {
         echo " $(T TXT_MENU14_OPT1)"
         echo " $(T TXT_MENU14_OPT2)"
         echo " $(T TXT_MENU14_OPT3)"
+        echo " $(T TXT_MENU14_OPT4)"
         echo " 0. $(T TXT_BACK)"
         print_line "="
         printf '%s' "$(T TXT_CHOICE) "
@@ -7461,6 +7493,7 @@ network_diag_menu() {
             1) run_health_check ;;
             2) clear; run_opkg_update ;;
             3) dns_management_menu ;;
+            4) clear; check_keenetic_components; press_enter_to_continue ;;
             0) return 0 ;;
             *) print_status WARN "$(T TXT_INVALID_CHOICE)"; sleep 1 ;;
         esac
@@ -8418,9 +8451,38 @@ print_line "="
                 ls -la "$CUR_DIR" 2>/dev/null | sed -n '1,200p'
                 echo
                 echo "[history - last 5]"
-                ls -1 "$HIST_DIR" 2>/dev/null | tail -n 5
+                _hcount="$(ls -1 "$HIST_DIR" 2>/dev/null | wc -l | tr -d ' ')"
+                if [ "${_hcount:-0}" -eq 0 ]; then
+                    printf "  %b%s%b\n" "${CLR_DIM}" "$(T _ 'Gecmis yedek yok.' 'No history backups.')" "${CLR_RESET}"
+                else
+                    ls -1 "$HIST_DIR" 2>/dev/null | tail -n 5
+                fi
                 print_line "-"
-                press_enter_to_continue
+                printf "  T) %s\n" "$(T _ 'Gecmis Yedeklerini Temizle' 'Clean History Backups')"
+                printf "  0) %s\n" "$(T TXT_BACK)"
+                print_line "-"
+                printf "%s " "$(T TXT_CHOICE)"
+                read -r _ch3 </dev/tty
+                case "$_ch3" in
+                    t|T)
+                        if [ "${_hcount:-0}" -eq 0 ]; then
+                            print_status INFO "$(T _ 'Gecmis yedek bulunamadi.' 'No history backups found.')"
+                        else
+                            printf "%s (%s). %s (e/h): " \
+                                "$(T _ 'Gecmis yedekleri silinecek' 'History backups will be deleted')" \
+                                "$_hcount" \
+                                "$(T _ 'Devam' 'Continue')"
+                            read -r _conf </dev/tty
+                            if echo "$_conf" | grep -qi "^[ey]"; then
+                                rm -rf "${HIST_DIR:?}"/* 2>/dev/null
+                                print_status PASS "$(T _ 'Gecmis yedekler temizlendi.' 'History cleaned.')"
+                            else
+                                print_status INFO "$(T _ 'Iptal edildi.' 'Cancelled.')"
+                            fi
+                        fi
+                        press_enter_to_continue
+                        ;;
+                esac
                 ;;
             4)
                 backup_zapret_settings "$BACKUP_BASE"
@@ -8632,19 +8694,44 @@ list_zapret_settings_backups() {
 show_zapret_settings_backups() {
     BACKUP_BASE="${1:-/opt/zapret_backups}"
     DIR="$BACKUP_BASE/zapret_settings"
-    if [ ! -d "$DIR" ] || ! ls "$DIR"/zapret_settings_*.tar.gz >/dev/null 2>&1; then
-        print_status WARN "$(T TXT_BACKUP_CFG_NO_BACKUPS)"
-        press_enter_to_continue
-        return 0
-    fi
+    local _scount=0
+    [ -d "$DIR" ] && _scount="$(ls -1 "$DIR"/zapret_settings_*.tar.gz 2>/dev/null | wc -l | tr -d ' ')"
     clear
 print_line "="
     echo "$(T TXT_BACKUP_MENU_TITLE)"
 print_line "="
     echo
-    ls -la "$DIR" 2>/dev/null | sed -n '1,200p'
+    if [ "${_scount:-0}" -eq 0 ]; then
+        printf "  %b%s%b\n" "${CLR_DIM}" "$(T _ 'Zapret ayar yedegi yok.' 'No settings backups.')" "${CLR_RESET}"
+    else
+        ls -la "$DIR" 2>/dev/null | sed -n '1,200p'
+    fi
     print_line "-"
-    press_enter_to_continue
+    printf "  T) %s\n" "$(T _ 'Zapret Ayar Yedeklerini Temizle' 'Clean Zapret Settings Backups')"
+    printf "  0) %s\n" "$(T TXT_BACK)"
+    print_line "-"
+    printf "%s " "$(T TXT_CHOICE)"
+    read -r _ch6 </dev/tty
+    case "$_ch6" in
+        t|T)
+            if [ "${_scount:-0}" -eq 0 ]; then
+                print_status INFO "$(T TXT_ZAPRET_SETTINGS_CLEAN_NONE)"
+            else
+                printf "%s (%s). %s (e/h): " \
+                    "$(T _ 'Zapret ayar yedekleri silinecek' 'Zapret settings backups will be deleted')" \
+                    "$_scount" \
+                    "$(T _ 'Devam' 'Continue')"
+                read -r _conf6 </dev/tty
+                if echo "$_conf6" | grep -qi "^[ey]"; then
+                    rm -f "$DIR"/zapret_settings_*.tar.gz 2>/dev/null
+                    print_status PASS "$(T TXT_ZAPRET_SETTINGS_CLEAN_DONE)"
+                else
+                    print_status INFO "$(T _ 'Iptal edildi.' 'Cancelled.')"
+                fi
+            fi
+            press_enter_to_continue
+            ;;
+    esac
     return 0
 }
 
@@ -8686,19 +8773,12 @@ restore_zapret_settings() {
         [ "$i" -ge 15 ] && break
     done
     printf "\n"
-    printf "  c) %s
-" "$(T TXT_ZAPRET_SETTINGS_CLEAN_MENU)"
     printf "  0) %s
 " "$(T TXT_BACK)"
     print_line "-"
     printf "%s" "$(T TXT_CHOICE)"
     read -r sel || return 0
     [ -z "$sel" ] && return 0
-    if echo "$sel" | grep -Eq "^[cC]$"; then
-        clean_zapret_settings_backups
-        restore_zapret_settings
-        return 0
-    fi
     if [ "$sel" = "0" ]; then
         return 0
     fi
@@ -11644,7 +11724,7 @@ if [ "$1" = "--cgi-action" ]; then
             _dnsrc="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
             _items=""
             _comma=""
-            for _dkey in                 "8.8.8.8@dns.google|DoT"                 "8.8.4.4@dns.google|DoT"                 "dns.google/dns-query|DoH"                 "1.1.1.1@one.one.one.one|DoT"                 "1.0.0.1@one.one.one.one|DoT"                 "cloudflare-dns.com/dns-query|DoH"                 "1.1.1.2@security.cloudflare-dns.com|DoT"                 "1.0.0.2@security.cloudflare-dns.com|DoT"                 "keenetic.dns.nextdns.io|DoH"                 "dns.comss.one/dns-query|DoH"
+            for _dkey in                 "8.8.8.8@dns.google|DoT"                 "8.8.4.4@dns.google|DoT"                 "dns.google/dns-query|DoH"                 "1.1.1.1@one.one.one.one|DoT"                 "1.0.0.1@one.one.one.one|DoT"                 "cloudflare-dns.com/dns-query|DoH"                 "1.1.1.2@security.cloudflare-dns.com|DoT"                 "1.0.0.2@security.cloudflare-dns.com|DoT"                 "dns.comss.one/dns-query|DoH"
             do
                 _dk="${_dkey%%|*}"
                 _dt="${_dkey##*|}"
@@ -11665,7 +11745,7 @@ if [ "$1" = "--cgi-action" ]; then
             # $3: paket adi — exit 0: eklendi, exit 2: zaten mevcut
             _cgi_pkg="$3"
             case "$_cgi_pkg" in
-                Google|Cloudflare|CF_Families|NextDNS|Comss)
+                Google|Cloudflare|CF_Families|Comss|Quad9|AdGuard|Mullvad|Dns0eu|CleanBrowsing)
                     _raw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
                     # Paketin tumu mevcut mu kontrol et
                     _all_exist=1
@@ -11689,11 +11769,7 @@ DEOF
             # $3: key (e.g. 8.8.8.8@dns.google)
             _cgi_dkey="$3"
             [ -z "$_cgi_dkey" ] && exit 0
-            _dnsmaster="$(
-                printf '%s
-'                     '8.8.8.8@dns.google|DoT|dns-proxy tls upstream 8.8.8.8 sni dns.google|no dns-proxy tls upstream 8.8.8.8'                     '8.8.4.4@dns.google|DoT|dns-proxy tls upstream 8.8.4.4 sni dns.google|no dns-proxy tls upstream 8.8.4.4'                     'dns.google/dns-query|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm|no dns-proxy https upstream https://dns.google/dns-query'                     '1.1.1.1@one.one.one.one|DoT|dns-proxy tls upstream 1.1.1.1 sni one.one.one.one|no dns-proxy tls upstream 1.1.1.1'                     '1.0.0.1@one.one.one.one|DoT|dns-proxy tls upstream 1.0.0.1 sni one.one.one.one|no dns-proxy tls upstream 1.0.0.1'                     'cloudflare-dns.com/dns-query|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm|no dns-proxy https upstream https://cloudflare-dns.com/dns-query'                     '1.1.1.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.1.1.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.1.1.2'                     '1.0.0.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.0.0.2'                     'keenetic.dns.nextdns.io|DoH|dns-proxy https upstream https://keenetic.dns.nextdns.io/dns-query dnsm|no dns-proxy https upstream https://keenetic.dns.nextdns.io/dns-query'                     'dns.comss.one/dns-query|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm|no dns-proxy https upstream https://dns.comss.one/dns-query'
-            )"
-            while IFS= read -r _de; do
+                        while IFS= read -r _de; do
                 _dk="${_de%%|*}"
                 if [ "$_dk" = "$_cgi_dkey" ]; then
                     _rest="${_de#*|}"; _rest2="${_rest#*|}"; _rest3="${_rest2#*|}"
@@ -11703,8 +11779,49 @@ DEOF
                     break
                 fi
             done << DEOF
-$_dnsmaster
+$(_dns_master_list)
 DEOF
+            ;;
+        component_check)
+            _cc=""
+            _ok() { _cc="${_cc}PASS $1|"; }
+            _fail() { _cc="${_cc}FAIL $1|"; }
+            _info() { _cc="${_cc}INFO $1|"; }
+            command -v opkg >/dev/null 2>&1 && _ok "OPKG (Entware)" || _fail "OPKG bulunamadi"
+            command -v iptables >/dev/null 2>&1 && _ok "iptables" || _fail "iptables bulunamadi"
+            command -v ip6tables >/dev/null 2>&1 && _ok "IPv6 destegi (ip6tables)" || _fail "IPv6 destegi (ip6tables) bulunamadi"
+            command -v ipset >/dev/null 2>&1 && _ok "ipset" || _fail "ipset bulunamadi"
+            command -v curl >/dev/null 2>&1 && _ok "curl (guncelleme icin)" || { command -v wget >/dev/null 2>&1 && _ok "wget (guncelleme icin)" || _fail "curl/wget bulunamadi"; }
+            lsmod 2>/dev/null | grep -qE "^xt_multiport" && _ok "Netfilter Queue modulleri" || { find /lib/modules -name "xt_multiport.ko" 2>/dev/null | grep -q . && _ok "Netfilter (xt_multiport)" || _fail "Netfilter Queue modulleri bulunamadi"; }
+            { opkg list-installed 2>/dev/null | grep -qE "^xtables-addons|^kmod-ipt-xtables" || lsmod 2>/dev/null | grep -qE "^xt_condition|^xt_fuzzy"; } && _ok "Netfilter Xtables-addons genisletme paketleri" || _fail "Netfilter Xtables-addons bulunamadi"
+            { lsmod 2>/dev/null | grep -qi "sch_\|ntc\|^cls_" || grep -qi "SCH_INGRESS\|SCH_HTB\|SCH_HFSC" /proc/net/psched 2>/dev/null || grep -rqi "sch_ingress\|sch_htb\|CONFIG_NET_SCH" /proc/config.gz 2>/dev/null || ls /sys/kernel/debug/tracing 2>/dev/null | grep -q . || find /lib/modules -name "sch_*.ko" 2>/dev/null | grep -q .; } && _ok "Trafik Kontrol (tc) kernel modulleri" || _info "Trafik Kontrol (tc) bulunamadi"
+            [ -x "/opt/zapret/nfq/nfqws" ] && _ok "nfqws binary" || _info "nfqws binary bulunamadi"
+            _opt_dev="$(awk '$2=="/opt"{print $1; exit}' /proc/mounts 2>/dev/null)"
+            if [ -n "$_opt_dev" ]; then
+                case "$_opt_dev" in
+                    /dev/sd*) _ok "Harici depolama - USB (/opt bagli)" ;;
+                    /dev/mmcblk*|/dev/nvme*) _info "Dahili depolama (/opt bagli - eMMC/NVMe)" ;;
+                    *) _ok "Depolama (/opt bagli)" ;;
+                esac
+            else
+                _opt_mp="$(df /opt 2>/dev/null | awk 'NR==2{print $NF}')"
+                if [ "$_opt_mp" = "/" ]; then
+                    _info "Dahili flash - USB surucusu onerilir"
+                else
+                    _ok "Depolama (/opt bagli)"
+                fi
+            fi
+            # Ozet satiri ekle
+            _fail_count=$(printf '%s' "$_cc" | tr '|' '\n' | grep -c '^FAIL')
+            _warn_count=$(printf '%s' "$_cc" | tr '|' '\n' | grep -c '^WARN')
+            if [ "$_fail_count" -gt 0 ]; then
+                _cc="${_cc}SEP|RESULT FAIL Kritik bilesenlerde sorun var!|"
+            elif [ "$_warn_count" -gt 0 ]; then
+                _cc="${_cc}SEP|RESULT WARN Zorunlu bilesenler tamam, opsiyonel eksikler var.|"
+            else
+                _cc="${_cc}SEP|RESULT PASS Tum gerekli bilesenler mevcut!|"
+            fi
+            printf '{"ok":1,"msg":"%s"}' "$_cc"
             ;;
         dns_rebind_toggle)
             _dnsraw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
@@ -11847,7 +11964,7 @@ DEOF
             _nproc_hc="$(grep -c '^processor' /proc/cpuinfo 2>/dev/null)"; [ -z "$_nproc_hc" ] || [ "$_nproc_hc" -eq 0 ] 2>/dev/null && _nproc_hc=1
             _load_status="PASS"
             awk -v l="$_load" -v n="$_nproc_hc" 'BEGIN{exit (l>=n)?0:1}' && _load_status="WARN"
-            _add "sys" "$(T TXT_HEALTH_LOAD)" "$_load  $(T _ 'Yuk 5dk' 'Load 5min'): $_load5  $(T _ 'Yuk 15dk' 'Load 15min'): $_load15  ($(T _ 'Esik' 'Threshold'): ${_nproc_hc} CPU)" "$_load_status"
+            _add "sys" "$(T TXT_HEALTH_LOAD)" "$(T _ '1dk' '1min'): <b>$_load</b> | $(T _ '5dk' '5min'): <b>$_load5</b> | $(T _ '15dk' '15min'): <b>$_load15</b>  ($(T _ 'Esik' 'Threshold'): <b style='color:var(--info)'>${_nproc_hc}</b> CPU)" "$_load_status"
 
             _disk_pct="$(healthmon_disk_used_pct /opt)"
             _disk_free_mb="$(df -k /opt 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
@@ -11916,7 +12033,7 @@ DEOF
             else _add "svc" "$(T TXT_HEALTH_OPKG)" "" "WARN"; fi
 
             if is_zapret_running; then _add "svc" "$(T TXT_HEALTH_ZAPRET)" "$(T _ 'Calisiyor' 'Running')" "PASS"
-            else _add "svc" "$(T TXT_HEALTH_ZAPRET)" "$(T _ 'durduruldu' 'stopped')" "FAIL"; fi
+            else _add "svc" "$(T TXT_HEALTH_ZAPRET)" "$(T _ 'Durduruldu' 'Stopped')" "FAIL"; fi
 
             # KeenDNS
             _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
@@ -13427,12 +13544,15 @@ wait_zapret() {
 
 case "$ACTION" in
     zapret_start)
+        rm -f /tmp/.zapret_paused 2>/dev/null
         sh /opt/etc/init.d/S90-zapret start >/dev/null 2>&1
         wait_zapret up; refresh; ok "Zapret baslatildi" ;;
     zapret_stop)
+        touch /tmp/.zapret_paused 2>/dev/null
         sh /opt/etc/init.d/S90-zapret stop >/dev/null 2>&1
         wait_zapret down; refresh; ok "Zapret durduruldu" ;;
     zapret_restart)
+        rm -f /tmp/.zapret_paused 2>/dev/null
         sh /opt/etc/init.d/S90-zapret restart >/dev/null 2>&1
         wait_zapret down; wait_zapret up; refresh; ok "Zapret yeniden baslatildi" ;;
     healthmon_start)
@@ -13846,6 +13966,28 @@ case "$ACTION" in
         _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
         ZKM_SKIP_LOCK=1 sh "$_kzm" --cgi-action zapret_restart >/dev/null 2>&1 &
         ok "Geri yuklendi (kapsam:$_scope)" ;;
+    settings_clean)
+        _dir="/opt/zapret_backups/zapret_settings"
+        if ! ls "$_dir"/*.tar.gz >/dev/null 2>&1; then
+            ok "Silinecek yedek yok"
+        else
+            _count=$(ls -1 "$_dir"/*.tar.gz 2>/dev/null | wc -l | tr -d ' ')
+            rm -f "$_dir"/*.tar.gz 2>/dev/null
+            ok "Temizlendi: $_count yedek silindi"
+        fi ;;
+    ipset_history_clean)
+        _hist="/opt/zapret_backups/history"
+        if [ ! -d "$_hist" ] || [ -z "$(ls -A "$_hist" 2>/dev/null)" ]; then
+            ok "Silinecek gecmis yedek yok"
+        else
+            _count=$(ls -1 "$_hist" 2>/dev/null | wc -l | tr -d ' ')
+            rm -rf "${_hist:?}"/* 2>/dev/null
+            ok "Temizlendi: $_count gecmis yedek silindi"
+        fi ;;
+    component_check)
+        _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+        [ -f "$_kzm" ] || { fail "KZM bulunamadi"; exit 0; }
+        ZKM_SKIP_LOCK=1 sh "$_kzm" --cgi-action component_check 2>/dev/null ;;
     status_refresh)
         refresh; ok "Durum guncellendi" ;;
     opkg_update)
@@ -13869,7 +14011,7 @@ case "$ACTION" in
         printf '%s' "$_dnsraw" | grep -q "norebind_ctl = on" && _rebind="on"
         _items=""
         _comma=""
-        for _dkey in             "8.8.8.8@dns.google|DoT"             "8.8.4.4@dns.google|DoT"             "dns.google/dns-query|DoH"             "1.1.1.1@one.one.one.one|DoT"             "1.0.0.1@one.one.one.one|DoT"             "cloudflare-dns.com/dns-query|DoH"             "1.1.1.2@security.cloudflare-dns.com|DoT"             "1.0.0.2@security.cloudflare-dns.com|DoT"             "keenetic.dns.nextdns.io|DoH"             "dns.comss.one/dns-query|DoH"
+        for _dkey in             "8.8.8.8@dns.google|DoT"             "8.8.4.4@dns.google|DoT"             "dns.google/dns-query|DoH"             "1.1.1.1@one.one.one.one|DoT"             "1.0.0.1@one.one.one.one|DoT"             "cloudflare-dns.com/dns-query|DoH"             "1.1.1.2@security.cloudflare-dns.com|DoT"             "1.0.0.2@security.cloudflare-dns.com|DoT"            "dns.comss.one/dns-query|DoH"
         do
             _dk="${_dkey%%|*}"
             _dt="${_dkey##*|}"
@@ -13883,18 +14025,22 @@ case "$ACTION" in
 ' "$_items" "$_rebind" ;;
     dns_add_preset)
         _pkg=$(get_param pkg)
-        case "$_pkg" in Google|Cloudflare|CF_Families|NextDNS|Comss) ;; *) fail "Gecersiz paket"; exit 0 ;; esac
+        case "$_pkg" in Google|Cloudflare|CF_Families|Comss|Quad9|AdGuard|Mullvad|Dns0eu|CleanBrowsing) ;; *) fail "Gecersiz paket"; exit 0 ;; esac
         _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
         [ -f "$_kzm" ] || { fail "KZM bulunamadi"; exit 0; }
         # Zaten mevcut mu inline kontrol et
         _dnsraw_chk="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
         _pkg_all_exist=1
         case "$_pkg" in
-            Google)      _pkg_keys="8.8.8.8 8.8.4.4 dns.google" ;;
-            Cloudflare)  _pkg_keys="1.1.1.1 1.0.0.1 cloudflare-dns.com" ;;
-            CF_Families) _pkg_keys="1.1.1.2 1.0.0.2" ;;
-            NextDNS)     _pkg_keys="keenetic.dns.nextdns.io" ;;
-            Comss)       _pkg_keys="dns.comss.one" ;;
+            Google)        _pkg_keys="8.8.8.8 8.8.4.4 dns.google" ;;
+            Cloudflare)    _pkg_keys="1.1.1.1 1.0.0.1 cloudflare-dns.com" ;;
+            CF_Families)   _pkg_keys="1.1.1.2 1.0.0.2" ;;
+            Comss)         _pkg_keys="dns.comss.one" ;;
+            Quad9)         _pkg_keys="9.9.9.9 149.112.112.112" ;;
+            AdGuard)       _pkg_keys="94.140.14.14 94.140.15.15" ;;
+            Mullvad)       _pkg_keys="dns.mullvad.net" ;;
+            Dns0eu)        _pkg_keys="dns.dns0.eu" ;;
+            CleanBrowsing) _pkg_keys="185.228.168.9 185.228.169.9" ;;
         esac
         for _pk in $_pkg_keys; do
             printf '%s' "$_dnsraw_chk" | grep -qF "$_pk" || { _pkg_all_exist=0; break; }
@@ -14064,12 +14210,12 @@ header{display:flex;align-items:center;justify-content:space-between;flex-wrap:w
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
   padding:16px 16px 13px;display:flex;flex-direction:column;gap:10px;}
 .card.wide{grid-column:1/-1}
-.card h3{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.04em}
+.card h3{font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.04em}
 .big{font-size:30px;font-weight:800;letter-spacing:-.02em}
-.sub{font-size:12px;color:var(--muted);line-height:1.5}
+.sub{font-size:14px;color:var(--muted);line-height:1.5}
 .row{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
-.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;
-  border-radius:999px;letter-spacing:.03em;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;
+  border-radius:999px;letter-spacing:.03em;min-width:110px;text-align:center;box-sizing:border-box;}
 .badge.good{background:rgba(46,204,113,.15);color:var(--good);border:1px solid rgba(46,204,113,.3)}
 .badge.bad{background:rgba(231,76,60,.15);color:var(--bad);border:1px solid rgba(231,76,60,.3)}
 .badge.warn{background:rgba(241,196,15,.12);color:var(--warn);border:1px solid rgba(241,196,15,.25)}
@@ -14093,9 +14239,9 @@ button.ok:hover{background:rgba(46,204,113,.28)}
 .info-sec{padding:6px 11px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);background:rgba(255,255,255,.04);border-bottom:1px solid var(--line)}
 .info-row{display:grid;grid-template-columns:200px 1fr;border-bottom:1px solid var(--line)}
 .info-row:last-child{border-bottom:none}
-.info-row .lbl{padding:8px 11px;color:var(--muted);font-size:12.5px}
-.info-row .val{padding:8px 11px;font-size:12.5px}
-.spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.25);
+.info-row .lbl{padding:8px 11px;color:var(--muted);font-size:14px}
+.info-row .val{padding:8px 11px;font-size:14px}
+@keyframes hcBar{0%,100%{height:4px}50%{height:36px}}.spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.25);
   border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin-right:5px;vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .toast{position:fixed;bottom:20px;right:20px;z-index:999;padding:11px 16px;
@@ -14144,9 +14290,11 @@ select option{background:#111f3d}
   <div class="sec" data-tr="SERV&#304;SLER" data-en="SERVICES">SERV&#304;SLER</div>
   <nav>
     <div class="item" data-view="healthmon"><span class="item-icon">&#9829;</span><span class="item-label" data-tr="Sistem &#304;zleme" data-en="System Monitor">Sistem &#304;zleme</span><span class="pill">16</span><span class="tip">Sistem &#304;zleme</span></div>
-    <div class="item" data-view="healthcheck"><span class="item-icon">&#9906;</span><span class="item-label" data-tr="A&#287; Tan&#305;lama" data-en="Network Diagnostics">A&#287; Tan&#305;lama</span><span class="pill">14</span><span class="tip">A&#287; Tan&#305;lama</span></div>
+    <div class="item" data-view="healthcheck"><span class="item-icon">&#9906;</span><span class="item-label" data-tr="A&#287; Tan&#305;lama" data-en="Network Diagnostics">A&#287; Tan&#305;lama</span><span class="pill">14-1</span><span class="tip">A&#287; Tan&#305;lama</span></div>
+    <div class="item" data-view="dns"><span class="item-icon">&#9670;</span><span class="item-label" data-tr="DNS Y&#246;netimi" data-en="DNS Management">DNS Y&#246;netimi</span><span class="pill">14-3</span><span class="tip">DNS Y&#246;netimi</span></div>
+    <div class="item" data-view="compcheck"><span class="item-icon">&#9874;</span><span class="item-label" data-tr="Bile&#351;en Kontrolu" data-en="Component Check">Bile&#351;en Kontrolu</span><span class="pill">14-4</span><span class="tip">Bile&#351;en Kontrolu</span></div>
     <div class="item" data-view="telegram"><span class="item-icon">&#9992;</span><span class="item-label" data-tr="Telegram" data-en="Telegram">Telegram</span><span class="pill">15</span><span class="tip">Telegram</span></div>
-    <div class="item" data-view="dns"><span class="item-icon">&#9670;</span><span class="item-label" data-tr="DNS Y&#246;netimi" data-en="DNS Management">DNS Y&#246;netimi</span><span class="pill">14</span><span class="tip">DNS Y&#246;netimi</span></div>
+ 
   </nav>
   <div class="sec" data-tr="D&#304;&#286;ER" data-en="OTHER">D&#304;&#286;ER</div>
   <nav>
@@ -14349,13 +14497,42 @@ function dnsLoad(){
   getD('dns_list',function(r){dnsCache=r;dnsRender(r);});
 }
 function dnsRefresh(){dnsCache=null;setTimeout(dnsLoad,3500);}
+function dnsPresetHtml(){
+  var rows=[
+    ['Standard','Standard (No Filter)','Standart (Filtresiz)','Google + Cloudflare DoT/DoH'],
+    ['Privacy','Privacy Focused','Gizlilik Odakl&#305;','Quad9 + Mullvad + dns0.eu'],
+    ['AdGuard','Ad Blocker','Reklam Engelleyici','AdGuard DoT'],
+    ['Family','Family Filter','Aile Filtresi','CF Families + CleanBrowsing DoT'],
+    ['Turkiye','T&#252;rkiye Optimize','T&#252;rkiye Optimizeli','Comss DoH']
+  ];
+  var h='<div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">';
+  rows.forEach(function(r){
+    h+='<div style="display:flex;align-items:center;gap:12px">'+
+       '<button onclick="dnsAddPreset(\''+r[0]+'\',this)" style="min-width:210px;text-align:left">'+(L?r[1]:r[2])+'</button>'+
+       '<span style="font-size:13px;color:var(--muted)">'+r[3]+'</span></div>';
+  });
+  return h+'</div>';
+}
 function dnsAddPreset(pkg,btn){
+  var profiles={
+    'Standard':['Google','Cloudflare'],
+    'Privacy':['Quad9','Mullvad','Dns0eu'],
+    'AdGuard':['AdGuard'],
+    'Family':['CF_Families','CleanBrowsing'],
+    'Turkiye':['Comss']
+  };
+  var pkgs=profiles[pkg]||[pkg];
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
-  fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:'action=dns_add_preset&pkg='+pkg})
-  .then(function(r){return r.json();})
+  var chain=Promise.resolve();
+  pkgs.forEach(function(p){
+    chain=chain.then(function(){
+      return fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'action=dns_add_preset&pkg='+p}).then(function(r){return r.json();});
+    });
+  });
+  chain
   .then(function(res){
-    toast(res.msg||(L?'Done':'Tamam'),!!res.ok);
+    toast((res&&res.msg)?fixTR(res.msg):(L?'Done':'Tamam'),!!(res&&res.ok!==0));
     if(btn){btn.disabled=false;btn.innerHTML=btn._o;}
     dnsCache=null;dnsLoad();
   }).catch(function(){if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
@@ -14544,8 +14721,8 @@ var V={
         ir('Zapret',bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
         ir('Health Monitor',bdg(S.healthmon_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
         ir('Telegram Bot',bdgO(S.telegram_enabled&&S.telegram_running,L?'ACTIVE':'AKT&#304;F',L?'OFF':'KAPALI'))+
-        ir(L?'Web Panel (lighttpd)':'Web Panel (lighttpd)',bdg(S.lighttpd_running,L?'Running':'Calisiyor',L?'Stopped':'Durdu'))+
-        ir('curl',S.curl_ok?'<span class="badge good">'+(L?'Installed':'Kurulu')+'</span>':'<span class="badge bad">'+(L?'Not found':'Bulunamadi')+'</span>')+
+        ir(L?'Web Panel (lighttpd)':'Web Panel (lighttpd)',bdg(S.lighttpd_running,L?'RUNNING':'&#199;ALI&#350;IYOR',L?'STOPPED':'DURDU'))+
+        ir('curl',S.curl_ok?'<span class="badge good">'+(L?'INSTALLED':'KURULU')+'</span>':'<span class="badge bad">'+(L?'NOT FOUND':'BULUNAMADI')+'</span>')+
         ir(L?'KZM Version':'KZM S&#252;r&#252;m',S.kzm_version||'—')+ir(L?'Zapret Version':'Zapret S&#252;r&#252;m',S.zapret_version||'—')+
         ir('GitHub','<a href="https://github.com/RevolutionTR/keenetic-zapret-manager" target="_blank" style="color:var(--accent)">github.com/RevolutionTR/keenetic-zapret-manager</a>')+
       '</div></div></div>';
@@ -14688,10 +14865,15 @@ var V={
     return h;
   }},
 
+  compcheck:{title:'Bile&#351;en Kontrolu',titleEn:'Component Check',sub:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC kontrol&#252;.',subEn:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC check.',html:function(){
+    setTimeout(function(){ccRun();},100);
+    return '<div id="ccResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.4s"></div></div><div style="font-size:1.1em;color:var(--fg)">'+(L?'Checking components...':'Bile&#351;enler kontrol ediliyor...')+'</div></div></div>';
+  }},
+
   healthcheck:{title:'A&#287; Tan&#305;lama',titleEn:'Network Diagnostics',sub:'DNS/NTP/GitHub/OPKG/Disk/Zapret kontrol&#252; (Menu 14).',subEn:'DNS/NTP/GitHub/OPKG/Disk/Zapret check (Menu 14).',html:function(){
     if(!S)return nd();
     setTimeout(function(){hcRun();},50);
-    return '<div id="hcResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><span class="spinner" style="width:36px;height:36px;border-width:4px"></span><div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div><div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait':'L&#252;tfen bekleyin')+'</div></div></div>';
+    return '<div id="hcResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.4s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.5s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.6s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.7s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.8s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.9s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:1.0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:1.1s"></div></div><div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div><div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait':'L&#252;tfen bekleyin')+'</div></div></div>';
   }},
 
   telegram:{title:'Telegram',titleEn:'Telegram',sub:'Bildirim ve interaktif bot.',subEn:'Notifications and interactive bot.',html:function(){
@@ -14829,15 +15011,7 @@ var V={
     h+='<div class="card wide"><h3>'+(L?'Active DNS Servers':'Aktif DNS Sunucular&#305;')+'</h3>'+
       '<div id="dnsListArea"><span class="sub">'+(L?'Loading...':'Y&#252;kleniyor...')+'</span></div>'+
       '<div style="margin-top:12px">'+
-        '<b>'+(L?'Add Preset:':'Haz&#305;r Paket Ekle:')+'</b>'+
-        '<div class="irow" style="flex-wrap:wrap;gap:6px;margin-top:6px">'+
-          '<button onclick="dnsAddPreset(this.getAttribute(\'data-pkg\'),this)" data-pkg="Google">Google</button>'+
-          '<button onclick="dnsAddPreset(this.getAttribute(\'data-pkg\'),this)" data-pkg="Cloudflare">Cloudflare</button>'+
-          '<button onclick="dnsAddPreset(this.getAttribute(\'data-pkg\'),this)" data-pkg="CF_Families">CF Families</button>'+
-          '<button onclick="dnsAddPreset(this.getAttribute(\'data-pkg\'),this)" data-pkg="NextDNS">NextDNS</button>'+
-          '<button onclick="dnsAddPreset(this.getAttribute(\'data-pkg\'),this)" data-pkg="Comss">Comss</button>'+
-        '</div>'+
-      '</div>'+
+        '<b>'+(L?'Add Preset:':'Haz&#305;r Paket Ekle:')+'</b>'+dnsPresetHtml()+
     '</div>'+
     '<div class="card"><h3>Rebind '+(L?'Protection':'Koruma')+'</h3>'+
       '<div id="dnsRebindStatus" class="sub">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div>'+
@@ -14847,6 +15021,7 @@ var V={
       '<div class="hint" style="margin-top:8px">'+(L?'Blocks DNS responses returning local IPs (prevents DNS rebinding attacks).':'Yerel IP d&#246;nd&#252;ren DNS yan&#305;tlar&#305;n&#305; engeller.')+'</div>'+
     '</div>'+
     '</div>';
+    h+='<div style="margin-top:16px;background:#2a1f00;border:1px solid var(--warn);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px"><span style="font-size:1.3em">&#9888;</span><span style="color:var(--warn);font-size:14px;font-weight:500">'+(L?'If you use a VPN, assign a dedicated DNS to your VPN interface to prevent DNS leaks.':'VPN kullan&#305;yorsan&#305;z DNS s&#305;z&#305;nt&#305;s&#305;n&#305; &#246;nlemek i&#231;in VPN aray&#252;z&#252;n&#252;ze &#246;zel DNS atay&#305;n&#305;z.')+'</span></div>';
     setTimeout(function(){dnsLoad();},100);
     return h;
   }},
@@ -14858,8 +15033,9 @@ var V={
       '<div class="card"><h3>&#128190; '+(L?'Backup Zapret Settings':'Zapret Ayarlar&#305; Yedekle')+'</h3>'+
         '<div class="sub">'+(L?'Backs up config, hostlist, IPSET, DPI profile, healthmon, telegram as tar.gz.':'config, hostlist, IPSET, DPI profili, healthmon, telegram ayarlar&#305; tar.gz olarak yedekler.')+'</div>'+
         '<div class="btns" style="margin-top:8px">'+
-          '<button onclick="act(\'backup_settings\',this,'+(L?'\'Backed up\'':'\'Yedeklendi\'')+')">'+'&#128190; '+(L?'Backup':'Yedekle')+'</button>'+
+          '<button onclick="bkDoSettingsBackup(this)">'+'&#128190; '+(L?'Backup':'Yedekle')+'</button>'+
           '<button onclick="bkSettingsList(this)" style="background:#444">&#128220; '+(L?'View Backups':'Yedekleri G&#246;r')+'</button>'+
+          '<button onclick="bkSettingsClean(this)" style="background:#5a1a1a">&#128465; '+(L?'Clean Backups':'Yedekleri Temizle')+'</button>'+
         '</div>'+
         '<div class="hint" style="margin-top:8px">'+(L?'Location:':'Konum:')+' /opt/zapret_backups/zapret_settings/</div>'+
         '<div id="bkSetList" style="margin-top:8px"></div>'+
@@ -14881,8 +15057,9 @@ var V={
       '<div class="card"><h3>&#128190; '+(L?'Backup IPSET':'IPSET Yedekle')+'</h3>'+
         '<div class="sub">'+(L?'Copies current IPSET .txt files to current + history folders.':'Mevcut IPSET .txt dosyalar&#305;n&#305; current + history klas&#246;rlerine kopyalar.')+'</div>'+
         '<div class="btns" style="margin-top:8px">'+
-          '<button onclick="act(\'ipset_backup\',this,'+(L?'\'IPSET Backed up\'':'\'IPSET Yedeklendi\'')+')">'+'&#128190; '+(L?'Backup':'Yedekle')+'</button>'+
+          '<button onclick="bkDoIpsetBackup(this)">'+'&#128190; '+(L?'Backup':'Yedekle')+'</button>'+
           '<button onclick="bkIpsetList(this)" style="background:#444">&#128220; '+(L?'View Backups':'Yedekleri G&#246;r')+'</button>'+
+          '<button onclick="bkIpsetClean(this)" style="background:#5a1a1a">&#128465; '+(L?'Clean History':'Ge&#231;mi&#351;i Temizle')+'</button>'+
         '</div>'+
         '<div class="hint" style="margin-top:8px">'+(L?'Location:':'Konum:')+' /opt/zapret_backups/current/</div>'+
         '<div id="bkIpList" style="margin-top:8px"></div>'+
@@ -14976,12 +15153,12 @@ function hcRun(btn){
     var elapsed=Math.round((Date.now()-_hcStart)/1000);
     var el2=document.getElementById('hcResult');
     if(el2)el2.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px">'+
-      '<span class="spinner" style="width:36px;height:36px;border-width:4px"></span>'+
+      '<div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.4s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.5s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.6s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.7s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.8s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.9s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:1.0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:1.1s"></div></div>'+
       '<div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div>'+
       '<div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait &mdash; ':'L&#252;tfen bekleyin &mdash; ')+elapsed+'s</div>'+
       '</div>';
   }
-  if(el)el.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><span class="spinner" style="width:36px;height:36px;border-width:4px"></span><div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div><div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait':'L&#252;tfen bekleyin')+'</div></div>';
+  if(el)el.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.4s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.5s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.6s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.7s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.8s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.9s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:1.0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:1.1s"></div></div><div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div><div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait':'L&#252;tfen bekleyin')+'</div></div>';
   if(btn){btn.disabled=true;}
   _hcAttempts=0;
   _hcDotTimer=setInterval(updateProgress,1000);
@@ -15153,6 +15330,80 @@ function tgStop(btn){
   }).catch(function(){toast('Ba&#287;lant&#305; hatas&#305;',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
 
+function bkDoSettingsBackup(btn){
+  if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
+  fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=backup_settings'})
+  .then(function(r){return r.json();})
+  .then(function(res){
+    if(btn){btn.disabled=false;btn.innerHTML=btn._o||btn.innerHTML;}
+    toast(res.msg||(L?'Backed up':'Yedeklendi'),!!res.ok);
+    if(res.ok)bkSettingsList(null);
+  }).catch(function(){if(btn){btn.disabled=false;btn.innerHTML=btn._o||btn.innerHTML;}});
+}
+function bkDoIpsetBackup(btn){
+  if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
+  fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=ipset_backup'})
+  .then(function(r){return r.json();})
+  .then(function(res){
+    if(btn){btn.disabled=false;btn.innerHTML=btn._o||btn.innerHTML;}
+    toast(res.msg||(L?'IPSET Backed up':'IPSET Yedeklendi'),!!res.ok);
+    if(res.ok)bkIpsetList(null);
+  }).catch(function(){if(btn){btn.disabled=false;btn.innerHTML=btn._o||btn.innerHTML;}});
+}
+function bkSettingsClean(btn){
+  if(!confirm(L?'Delete all Zapret settings backups?':'Tum Zapret ayar yedekleri silinsin mi?'))return;
+  if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
+  fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=settings_clean'})
+  .then(function(r){return r.json();})
+  .then(function(res){
+    if(btn){btn.disabled=false;btn.innerHTML=btn._o||btn.innerHTML;}
+    toast(res.msg||(L?'Done':'Tamam'),!!res.ok);
+    bkSettingsList(null);
+  }).catch(function(){if(btn){btn.disabled=false;btn.innerHTML=btn._o||btn.innerHTML;}});
+}
+function bkIpsetClean(btn){
+  if(!confirm(L?'Delete IPSET history backups?':'IPSET gecmis yedekleri silinsin mi?'))return;
+  if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
+  fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=ipset_history_clean'})
+  .then(function(r){return r.json();})
+  .then(function(res){
+    if(btn){btn.disabled=false;btn.innerHTML=btn._o||btn.innerHTML;}
+    toast(res.msg||(L?'Done':'Tamam'),!!res.ok);
+    bkIpsetList(null);
+  }).catch(function(){if(btn){btn.disabled=false;btn.innerHTML=btn._o||btn.innerHTML;}});
+}
+function ccRun(){
+  fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=component_check'})
+  .then(function(r){return r.json();})
+  .then(function(res){
+    var el=document.getElementById('ccResult');
+    if(!el)return;
+    var lines=(res.msg||'').split('|');
+    var h='<div style="font-family:monospace;font-size:13px;line-height:1.8;text-align:left;padding:8px 0">';
+    lines.forEach(function(line){
+      if(!line)return;
+      if(line==='SEP'){h+='<div style="border-top:1px solid var(--border);margin:10px 0"></div>';return;}
+      var isResult=line.indexOf('RESULT ')===0;
+      var l=isResult?line.slice(7):line;
+      var pfx=l.split(' ')[0];
+      var rest=l.indexOf(' ')>=0?l.slice(pfx.length+1):l;
+      var pc='var(--fg)',tc='var(--fg)';
+      if(pfx==='PASS'){pc='var(--good)';}
+      else if(pfx==='FAIL'){pc='var(--bad)';tc='var(--bad)';}
+      else if(pfx==='WARN'){pc='var(--warn)';tc='var(--warn)';}
+      else if(pfx==='INFO'){pc='var(--info)';}
+      else{rest=l;pfx='';}
+      var pfxHtml=pfx?'<span style="color:'+pc+';font-weight:600">'+pfx+'</span> ':'';
+      if(isResult){h+='<div style="font-size:15px;font-weight:700;margin-top:16px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px">'+pfxHtml+'<span style="color:#fff">'+rest+'</span></div>';}
+      else{h+='<div>'+pfxHtml+'<span style="color:'+tc+'">'+rest+'</span></div>';}
+    });
+    h+='</div>';
+    el.innerHTML=h;
+  }).catch(function(){
+    var el=document.getElementById('ccResult');
+    if(el)el.innerHTML='<div style="color:var(--bad)">Hata</div>';
+  });
+}
 function bkLoad(){bkSettingsList(null);bkIpsetList(null);}
 function bkSettingsList(btn){
   if(btn)btn.disabled=true;
@@ -15212,7 +15463,7 @@ function bkIpsetList(btn){
       var hist=r.history.split('|').filter(function(x){return x;});
       if(hist.length){
         html+='<div style="font-size:11px;color:#888;margin-top:8px;margin-bottom:4px">'+(L?'History (last 5):':'Ge&#231;mi&#351; (son 5):')+'</div>';
-        hist.forEach(function(h){html+='<div style="font-size:11px;color:#666;padding:2px 0">'+h+'</div>';});
+        hist.forEach(function(h){html+='<div class="li" style="font-size:11px;color:var(--fg)">'+h+'</div>';});
       }
     }
     el.innerHTML=html;
