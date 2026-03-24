@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.24"
+SCRIPT_VERSION="v26.3.24.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -12016,8 +12016,11 @@ DEOF
             elif command -v lighttpd >/dev/null 2>&1; then _add "svc" "$(T TXT_HEALTH_LIGHTTPD)" "$(T _ 'Kurulu ama calismiyor' 'Installed but not running')" "WARN"
             else _add "svc" "$(T TXT_HEALTH_LIGHTTPD)" "$(T _ 'Kurulu degil' 'Not installed')" "INFO"; fi
             # HealthMon
-            if healthmon_is_running 2>/dev/null; then _add "svc" "$(T TXT_HEALTH_HEALTHMON)" "$(T _ 'Calisiyor' 'Running') (PID: $(cat /tmp/healthmon.pid 2>/dev/null))" "PASS"
-            elif [ "${HM_ENABLE:-0}" = "1" ]; then _add "svc" "$(T TXT_HEALTH_HEALTHMON)" "$(T _ 'Acik ama calismiyor' 'Enabled but not running')" "WARN"
+            _hc_hm_pid="$(cat /tmp/healthmon.pid 2>/dev/null)"
+            _hc_hm_en="$(grep -s '^HM_ENABLE=' /opt/etc/healthmon.conf | cut -d= -f2 | tr -d '"')"
+            if [ -n "$_hc_hm_pid" ] && kill -0 "$_hc_hm_pid" 2>/dev/null; then
+                _add "svc" "$(T TXT_HEALTH_HEALTHMON)" "$(T _ 'Calisiyor' 'Running') (PID: $_hc_hm_pid)" "PASS"
+            elif [ "$_hc_hm_en" = "1" ]; then _add "svc" "$(T TXT_HEALTH_HEALTHMON)" "$(T _ 'Acik ama calismiyor' 'Enabled but not running')" "WARN"
             else _add "svc" "$(T TXT_HEALTH_HEALTHMON)" "$(T _ 'Kapali' 'Disabled')" "INFO"; fi
             # Telegram Bot
             _hc_tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
