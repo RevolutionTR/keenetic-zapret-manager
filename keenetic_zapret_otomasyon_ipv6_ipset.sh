@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.24.1"
+SCRIPT_VERSION="v26.3.26"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1981,10 +1981,10 @@ TXT_DNS_MGMT_MANUAL_URL_TR="DoH URL girin (ornek: https://dns.example.com/dns-qu
 TXT_DNS_MGMT_MANUAL_URL_EN="Enter DoH URL (example: https://dns.example.com/dns-query):"
 TXT_DNS_MGMT_MANUAL_INVALID_TR="Gecersiz giris, iptal edildi."
 TXT_DNS_MGMT_MANUAL_INVALID_EN="Invalid input, cancelled."
-TXT_DNS_MGMT_REBIND_ON_TR="Rebind koruma: ACIK"
-TXT_DNS_MGMT_REBIND_ON_EN="Rebind protection: ON"
-TXT_DNS_MGMT_REBIND_OFF_TR="Rebind koruma: KAPALI"
-TXT_DNS_MGMT_REBIND_OFF_EN="Rebind protection: OFF"
+TXT_DNS_MGMT_REBIND_ON_TR="ACIK"
+TXT_DNS_MGMT_REBIND_ON_EN="ON"
+TXT_DNS_MGMT_REBIND_OFF_TR="KAPALI"
+TXT_DNS_MGMT_REBIND_OFF_EN="OFF"
 TXT_DNS_MGMT_REBIND_ENABLED_TR="Rebind koruma aktif edildi."
 TXT_DNS_MGMT_REBIND_ENABLED_EN="Rebind protection enabled."
 TXT_DNS_MGMT_REBIND_DISABLED_TR="Rebind koruma devre disi birakildi."
@@ -7262,9 +7262,9 @@ dns_management_menu() {
         _raw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
         _rc="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
         if echo "$_raw" | grep -q "norebind_ctl = on" && ! echo "$_rc" | grep -q "no rebind-protect"; then
-            _rebind_st="$(T TXT_DNS_MGMT_REBIND_ON)"
+            _rebind_st="${CLR_GREEN}${CLR_BOLD}$(T TXT_DNS_MGMT_REBIND_ON)${CLR_RESET}"
         else
-            _rebind_st="$(T TXT_DNS_MGMT_REBIND_OFF)"
+            _rebind_st="${CLR_RED}${CLR_BOLD}$(T TXT_DNS_MGMT_REBIND_OFF)${CLR_RESET}"
         fi
         clear
         print_line "="
@@ -7275,7 +7275,7 @@ dns_management_menu() {
         printf " %b 2.%b $(T TXT_DNS_MGMT_OPT2) %b[IP + SNI veya DoH URL]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "${CLR_DIM}" "${CLR_RESET}"
         printf " %b 3.%b $(T TXT_DNS_MGMT_OPT3)\n" "${CLR_BOLD}" "${CLR_RESET}"
         printf " %b 4.%b $(T TXT_DNS_MGMT_OPT4)\n" "${CLR_BOLD}" "${CLR_RESET}"
-        printf " %b 5.%b $(T TXT_DNS_MGMT_OPT5) %b[%s]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "${CLR_DIM}" "$_rebind_st" "${CLR_RESET}"
+        printf " %b 5.%b $(T TXT_DNS_MGMT_OPT5) [%b]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "$_rebind_st" "${CLR_RESET}"
         printf " %b 0.%b $(T _ 'Geri' 'Back')\n" "${CLR_BOLD}" "${CLR_RESET}"
         echo ""
         printf " %b%s%b\n" "${CLR_ORANGE}" "$(T TXT_MENU14_DNS_VPN_WARN)" "${CLR_RESET}"
@@ -10956,6 +10956,16 @@ hm_wanmon_tick() {
 
 healthmon_log() {
     # $1 line
+    # Epoch timestamp prefix varsa okunabilir formata cevir (BusyBox date -d @ destekliyor)
+    local _line="$1"
+    local _ts="${_line%% |*}"
+    case "$_ts" in
+        [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
+            local _hr
+            _hr="$(date -d "@${_ts}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+            [ -n "$_hr" ] && _line="${_hr} | ${_line#*| }"
+            ;;
+    esac
     # In daemon mode, stdout is redirected by init.d to /tmp/healthmon.log,
     # so printing to stdout is the most reliable way to make logs visible immediately.
     if [ -t 1 ]; then
@@ -10970,11 +10980,11 @@ healthmon_log() {
                     tail -n 200 "$HM_LOG_FILE" > "$_tmp" 2>/dev/null && mv "$_tmp" "$HM_LOG_FILE" 2>/dev/null
                 fi
             fi
-            echo "$1" >>"$HM_LOG_FILE" 2>/dev/null
+            echo "$_line" >>"$HM_LOG_FILE" 2>/dev/null
         fi
     else
         # Daemon: write to stdout (captured by init.d redirection)
-        echo "$1"
+        echo "$_line"
     fi
 }
 healthmon_should_alert() {
@@ -11105,18 +11115,18 @@ healthmon_updatecheck_do() {
 
     if [ -n "$zap_cur" ]; then
         zap_latest="$(curl -fsS "$zap_api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-        echo "$(date +%s 2>/dev/null) | updatecheck | zapret | cur=$zap_cur latest=${zap_latest:-N/A}" >> /tmp/healthmon.log 2>/dev/null
+        healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zapret | cur=$zap_cur latest=${zap_latest:-N/A}"
 
         if [ -n "$zap_latest" ]; then
             if ver_is_newer "$zap_latest" "$zap_cur"; then
                 # Normal guncelleme: yeni surum mevcut
                 zap_url="https://github.com/${zap_repo}/releases/latest"
                 telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" CUR "$zap_cur" NEW "$zap_latest" URL "$zap_url")"
-                echo "$(date +%s 2>/dev/null) | updatecheck | zapret | notified cur=$zap_cur latest=$zap_latest" >> /tmp/healthmon.log 2>/dev/null
+                healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zapret | notified cur=$zap_cur latest=$zap_latest"
             elif ver_is_newer "$zap_cur" "$zap_latest"; then
                 # Geri cekilmis release: kurulu surum GitHub'dan yeni
                 telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_ROLLED)" CUR "$zap_cur" NEW "$zap_latest")"
-                echo "$(date +%s 2>/dev/null) | updatecheck | zapret | pulled_release cur=$zap_cur stable=$zap_latest" >> /tmp/healthmon.log 2>/dev/null
+                healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zapret | pulled_release cur=$zap_cur stable=$zap_latest"
             fi
         fi
     fi
@@ -11130,11 +11140,11 @@ healthmon_updatecheck_do() {
     latest="$(curl -fsS "$api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
 
     # Always log what we saw, so "ran but did nothing" is visible.
-    echo "$(date +%s 2>/dev/null) | updatecheck | zkm | cur=$cur latest=${latest:-N/A} mode=$upd_mode" >> /tmp/healthmon.log 2>/dev/null
+    healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | cur=$cur latest=${latest:-N/A} mode=$upd_mode"
 
     if [ -z "$latest" ]; then
         # GitHub unreachable: only log, do NOT send Telegram (network may be temporarily unavailable)
-        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | github_unreachable cur=$cur" >> /tmp/healthmon.log 2>/dev/null
+        healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | github_unreachable cur=$cur"
         # Reset timestamp so it retries next cycle instead of waiting full HM_UPDATECHECK_SEC
         rm -f "$f" 2>/dev/null
         return 0
@@ -11142,7 +11152,7 @@ healthmon_updatecheck_do() {
 
     # Never downgrade: skip if remote is not newer than local (dev builds like v26.2.5.1 must not be replaced by v26.2.5).
     if ! ver_is_newer "$latest" "$cur"; then
-        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | up_to_date cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+        healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | up_to_date cur=$cur latest=$latest"
         telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_UP_TO_DATE)" CUR "$cur")"
         return 0
     fi
@@ -11154,19 +11164,19 @@ healthmon_updatecheck_do() {
     if [ "$upd_mode" = "1" ]; then
         msg="$(tpl_render "$(T TXT_UPD_ZKM_NEW)" NEW "$latest" CUR "$cur" URL "$url")"
         telegram_send "$msg"
-        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | notified cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+        healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | notified cur=$cur latest=$latest"
         return 0
     fi
 
     # upd_mode=2 -> auto install
     if [ "$upd_mode" = "2" ]; then
-        echo "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_start cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+        healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_start cur=$cur latest=$latest"
         if update_manager_script >/tmp/zkm_autoupdate.log 2>&1; then
             telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_OK)" NEW "$latest" CUR "$cur" URL "$url")"
-            echo "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_ok cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+            healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_ok cur=$cur latest=$latest"
         else
             telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_FAIL)" CUR "$cur" NEW "$latest" URL "$url")"
-            echo "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_fail cur=$cur latest=$latest" >> /tmp/healthmon.log 2>/dev/null
+            healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_fail cur=$cur latest=$latest"
         fi
     fi
 
@@ -11262,8 +11272,7 @@ healthmon_loop() {
         fi
     fi
     echo "$$" >"$HM_PID_FILE" 2>/dev/null
-    : >"$HM_LOG_FILE" 2>/dev/null
-    echo "$(date +%s) | started" >>"$HM_LOG_FILE" 2>/dev/null
+    healthmon_log "$(date +%s) | started"
 
     # Load config early
     healthmon_load_config
@@ -11451,6 +11460,8 @@ healthmon_loop() {
 
         # ---- NFQUEUE qlen watchdog (qnum=200) ----
         # nfqws calisiyor gorunse de kuyruk tikanirsa (zombie working) tespit eder ve restart atar.
+        # Spike/stall ayrimi: qlen esigi asildiktan sonra dusuyorsa spike (sayac sifirla),
+        # artiyorsa veya sabit kaliyorsa gercek stall (sayac artar, N turda restart).
         if [ "${HM_QLEN_WATCHDOG:-1}" = "1" ]; then
             local qlen_th qlen_turns qlen_val qlen_cnt_f qlen_prev_f qlen_cnt qlen_prev
             qlen_th="${HM_QLEN_WARN_TH:-50}"
@@ -11464,42 +11475,49 @@ healthmon_loop() {
             qlen_val="$(awk '$1 == 200 { print $3; exit }' /proc/net/netfilter/nfnetlink_queue 2>/dev/null)"
             case "$qlen_val" in ''|*[!0-9]*) qlen_val=0 ;; esac
 
-            # Onceki qlen degerini oku (artip artmadigini loglamak icin)
+            # Onceki qlen degerini oku
             qlen_prev="$(cat "$qlen_prev_f" 2>/dev/null)"
             case "$qlen_prev" in ''|*[!0-9]*) qlen_prev=0 ;; esac
             echo "$qlen_val" > "$qlen_prev_f" 2>/dev/null
 
             if [ "$qlen_val" -gt "$qlen_th" ]; then
-                # Kuyrug yuksek: sayaci artir
                 qlen_cnt="$(cat "$qlen_cnt_f" 2>/dev/null)"
                 case "$qlen_cnt" in ''|*[!0-9]*) qlen_cnt=0 ;; esac
-                qlen_cnt=$((qlen_cnt + 1))
-                echo "$qlen_cnt" > "$qlen_cnt_f" 2>/dev/null
-                healthmon_log "$now | qlen_high | qnum=200 qlen=$qlen_val prev=$qlen_prev cnt=$qlen_cnt/${qlen_turns}"
 
-                if [ "$qlen_cnt" -ge "$qlen_turns" ]; then
-                    # Ardisik N tur yuksek: restart_zapret
-                    healthmon_log "$now | qlen_crit | qnum=200 qlen=$qlen_val cnt=$qlen_cnt triggers=restart_zapret"
-                    if healthmon_should_alert "qlen_crit" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
-                        telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen=$qlen_val]"
-                    fi
-                    restart_zapret >/dev/null 2>&1
-                    sleep 2
-                    # zapret_watchdog ile cift-restart cakmasi onlemek icin state dosyalarini sifirla.
-                    # zapret_watchdog bir sonraki turda is_zapret_running=true gorur (ok) ya da
-                    # 30s sayacini bastan baslatir (fail) > tek kaynaktan kontrol saglanir.
-                    rm -f /tmp/healthmon_zapret_down.start /tmp/healthmon_zapret_restart.tried 2>/dev/null
-                    # Restart sonrasi kontrol
-                    if is_zapret_running; then
-                        healthmon_log "$now | qlen_restart_ok | qnum=200 zapret is running"
-                        if healthmon_should_alert "qlen_restart_ok" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
-                            telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen watchdog ok]"
-                        fi
-                    else
-                        healthmon_log "$now | qlen_restart_fail | qnum=200 zapret still not running after restart"
-                    fi
-                    # Sayaci sifirla (restart sonrasi tekrar izlemeye basla)
+                if [ "$qlen_val" -lt "$qlen_prev" ]; then
+                    # Kuyruk dusiyor: spike, sayaci sifirla
+                    healthmon_log "$now | qlen_relief | qnum=200 qlen=$qlen_val prev=$qlen_prev cnt_reset"
                     rm -f "$qlen_cnt_f" 2>/dev/null
+                else
+                    # Kuyruk artiyor veya sabit: gercek stall, sayaci artir
+                    qlen_cnt=$((qlen_cnt + 1))
+                    echo "$qlen_cnt" > "$qlen_cnt_f" 2>/dev/null
+                    healthmon_log "$now | qlen_high | qnum=200 qlen=$qlen_val prev=$qlen_prev cnt=$qlen_cnt/${qlen_turns}"
+
+                    if [ "$qlen_cnt" -ge "$qlen_turns" ]; then
+                        # Ardisik N tur yuksek/sabit: restart_zapret
+                        healthmon_log "$now | qlen_crit | qnum=200 qlen=$qlen_val cnt=$qlen_cnt triggers=restart_zapret"
+                        if healthmon_should_alert "qlen_crit" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
+                            telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen=$qlen_val]"
+                        fi
+                        restart_zapret >/dev/null 2>&1
+                        sleep 2
+                        # zapret_watchdog ile cift-restart cakmasi onlemek icin state dosyalarini sifirla.
+                        # zapret_watchdog bir sonraki turda is_zapret_running=true gorur (ok) ya da
+                        # 30s sayacini bastan baslatir (fail) > tek kaynaktan kontrol saglanir.
+                        rm -f /tmp/healthmon_zapret_down.start /tmp/healthmon_zapret_restart.tried 2>/dev/null
+                        # Restart sonrasi kontrol
+                        if is_zapret_running; then
+                            healthmon_log "$now | qlen_restart_ok | qnum=200 zapret is running"
+                            if healthmon_should_alert "qlen_restart_ok" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
+                                telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen watchdog ok]"
+                            fi
+                        else
+                            healthmon_log "$now | qlen_restart_fail | qnum=200 zapret still not running after restart"
+                        fi
+                        # Sayaci sifirla (restart sonrasi tekrar izlemeye basla)
+                        rm -f "$qlen_cnt_f" 2>/dev/null
+                    fi
                 fi
             else
                 # qlen normal: sayaci sifirla
@@ -12267,14 +12285,14 @@ healthmon_start() {
     healthmon_autostart_install
 
     # Clear stale state (safe)
-    rm -f "$HM_PID_FILE" /tmp/healthmon.log 2>/dev/null
+    rm -f "$HM_PID_FILE" 2>/dev/null
     rm -rf "$HM_LOCKDIR" 2>/dev/null
 
     # Start as a detached daemon by re-invoking this script
     if command -v nohup >/dev/null 2>&1; then
-        nohup "$0" --healthmon-daemon </dev/null >/tmp/healthmon.log 2>&1 &
+        nohup "$0" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
     else
-        "$0" --healthmon-daemon </dev/null >/tmp/healthmon.log 2>&1 &
+        "$0" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
     fi
 
     # Wait up to 5s for PID to appear and process to be alive (BusyBox-safe)
@@ -12318,7 +12336,10 @@ healthmon_stop() {
     done
 
     # Clear volatile state to avoid stale counters after reboot/power loss
-    rm -f /tmp/wanmon.* /tmp/healthmon.* /tmp/healthmon_wan.* 2>/dev/null
+    rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
+    rm -f /tmp/healthmon.pid /tmp/healthmon_cpu_* /tmp/healthmon_disk* /tmp/healthmon_ram* 2>/dev/null
+    rm -f /tmp/healthmon_zapret_* /tmp/healthmon_last_* /tmp/healthmon_qlen.* 2>/dev/null
+    rm -f /tmp/healthmon_updatecheck.* /tmp/healthmon_keendns* /tmp/healthmon_heartbeat* 2>/dev/null
     rm -rf "$HM_LOCKDIR" 2>/dev/null
 }
 
@@ -13575,7 +13596,7 @@ case "$ACTION" in
             rm -rf /tmp/healthmon.lock 2>/dev/null
             # trap+double-fork: lighttpd CGI kapaninca SIGHUP/SIGTERM gonderir
             # Subshell icinde sinyalleri engelleyip arka plana alinca init'e baglanir
-            (ZKM_SKIP_LOCK=1 sh "$SCRIPT" --healthmon-daemon </dev/null >/tmp/healthmon.log 2>&1 &)
+            (ZKM_SKIP_LOCK=1 sh "$SCRIPT" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &)
             sleep 2; refresh; ok "Health Monitor baslatildi"
         fi ;;
     healthmon_stop)
@@ -14434,7 +14455,7 @@ function brr(p){var c=p>85?'bad':p>60?'warn':'good';return '<div class="progress
 function pct(u,t){return t?Math.round(u/t*100):0;}
 function ir(l,v){return '<div class="info-row"><div class="lbl">'+l+'</div><div class="val">'+v+'</div></div>';}
 function nd(){return '<div class="empty">Y&#252;kleniyor...</div>';}
-function fmtKeenDns(a){var m={'direct':'<span style="color:var(--good)">&#9679; Direct</span>','cloud':'<span style="color:var(--warn)">&#9679; Cloud</span>'};return m[a]||'<span style="color:var(--bad)">&#9679; Unknown</span>';}
+function fmtKeenDns(a){var d=L?'Direct':'Do&#287;rudan';var c=L?'Cloud':'Cloud';var u=L?'Unknown':'Bilinmiyor';var m={'direct':'<span style="color:var(--good)">&#9679; '+d+'</span>','cloud':'<span style="color:var(--warn)">&#9679; '+c+'</span>'};return m[a]||'<span style="color:var(--bad)">&#9679; '+u+'</span>';}
 var opkgState={status:null,count:0,upgraded:false};
 var hmConfCache=null;
 var dnsCache=null;
