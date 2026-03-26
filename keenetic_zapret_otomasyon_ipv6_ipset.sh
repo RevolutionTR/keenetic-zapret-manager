@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.26"
+SCRIPT_VERSION="v26.3.26.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -13263,33 +13263,33 @@ kzm_gui_gen_status() {
     [ -z "$_disk_used_mb" ] && _disk_used_mb=0
 
     # Zapret version
-    local _zap_ver="unknown"
+    local _zap_ver="Unknown"
     if [ -f /opt/zapret/ip2net/ip2net ]; then
         _zap_ver="$(strings /opt/zapret/ip2net/ip2net 2>/dev/null | grep -E '^v[0-9]+\.' | head -n1)"
     fi
     [ -z "$_zap_ver" ] && _zap_ver="$(cat /opt/zapret/VERSION 2>/dev/null | head -n1 | tr -d '\n')"
-    [ -z "$_zap_ver" ] && _zap_ver="unknown"
+    [ -z "$_zap_ver" ] && _zap_ver="Unknown"
 
     # WAN bilgisi
     local _wan_dev _wan_ip
     _wan_dev="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '\n')"
     [ -z "$_wan_dev" ] && _wan_dev="$(ip -4 route show default 2>/dev/null | awk '/^default/{print $5; exit}')"
-    [ -z "$_wan_dev" ] && _wan_dev="unknown"
+    [ -z "$_wan_dev" ] && _wan_dev="Unknown"
     _wan_ip="$(ip -4 addr show "$_wan_dev" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
-    [ -z "$_wan_ip" ] && _wan_ip="unknown"
+    [ -z "$_wan_ip" ] && _wan_ip="Unknown"
 
     # Model ve firmware: statik dosyadan oku (kurulumda yazildi)
     local _model _firmware
     _model="$(cat /opt/var/run/kzm_hw_model 2>/dev/null | tr -d '\n')"
     _firmware="$(cat /opt/var/run/kzm_hw_firmware 2>/dev/null | tr -d '\n')"
     [ -z "$_model"    ] && _model="Keenetic"
-    [ -z "$_firmware" ] && _firmware="unknown"
+    [ -z "$_firmware" ] && _firmware="Unknown"
 
     # DPI profil bilgisi
     local _dpi_profile _dpi_origin
     _dpi_profile="$(cat /opt/zapret/dpi_profile 2>/dev/null | tr -d '\n')"
     _dpi_origin="$(cat /opt/zapret/dpi_profile_origin 2>/dev/null | tr -d '\n')"
-    [ -z "$_dpi_profile" ] && _dpi_profile="unknown"
+    [ -z "$_dpi_profile" ] && _dpi_profile="Unknown"
     [ -z "$_dpi_origin"  ] && _dpi_origin="manual"
 
     # Blockcheck sonucu
@@ -13450,15 +13450,15 @@ _curl_ok=0; command -v curl >/dev/null 2>&1 && _curl_ok=1
 
 _wan="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '\n')"
 [ -z "$_wan" ] && _wan="$(ip -4 route show default 2>/dev/null | awk '/^default/{print $5;exit}')"
-[ -z "$_wan" ] && _wan="unknown"
+[ -z "$_wan" ] && _wan="Unknown"
 _wip="$(ip -4 addr show "$_wan" 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
-[ -z "$_wip" ] && _wip="unknown"
+[ -z "$_wip" ] && _wip="Unknown"
 
 _zver="$(cat /opt/zapret/version 2>/dev/null | head -n1 | tr -d '\n')"
-[ -z "$_zver" ] && _zver="unknown"
+[ -z "$_zver" ] && _zver="Unknown"
 
 _kzmver="$(grep '^SCRIPT_VERSION=' /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh 2>/dev/null | head -n1 | cut -d= -f2 | tr -d '"')"
-[ -z "$_kzmver" ] && _kzmver="unknown"
+[ -z "$_kzmver" ] && _kzmver="Unknown"
 
 _model="$(cat /opt/var/run/kzm_hw_model 2>/dev/null | tr -d '\n')"
 if [ -z "$_model" ] || [ "$_model" = "Keenetic" ]; then
@@ -13466,7 +13466,7 @@ if [ -z "$_model" ] || [ "$_model" = "Keenetic" ]; then
     [ -n "$_model" ] && printf '%s' "$_model" > /opt/var/run/kzm_hw_model 2>/dev/null
 fi
 [ -z "$_model" ] && _model="Keenetic"
-_fw="$(cat /opt/var/run/kzm_hw_firmware 2>/dev/null | tr -d '\n')"; [ -z "$_fw" ] && _fw="unknown"
+_fw="$(cat /opt/var/run/kzm_hw_firmware 2>/dev/null | tr -d '\n')"; [ -z "$_fw" ] && _fw="Unknown"
 _ts="$(date +%s 2>/dev/null)"; [ -z "$_ts" ] && _ts=0
 
 _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
@@ -13481,7 +13481,7 @@ fi
 
 _dpi_profile="$(cat /opt/zapret/dpi_profile 2>/dev/null | tr -d '\n')"
 _dpi_origin="$(cat /opt/zapret/dpi_profile_origin 2>/dev/null | tr -d '\n')"
-[ -z "$_dpi_profile" ] && _dpi_profile="unknown"
+[ -z "$_dpi_profile" ] && _dpi_profile="Unknown"
 [ -z "$_dpi_origin"  ] && _dpi_origin="manual"
 
 _bc_score=0; _bc_dns_ok=0; _bc_tls12_ok=0; _bc_udp_weak=1; _bc_ts=0
@@ -13690,23 +13690,23 @@ case "$ACTION" in
         _rows="${_rows}$(_r "Kontrol Aral&#305;&#287;&#305;" "${HM_INTERVAL}s")"
         _rows="${_rows}$(_r "Heartbeat" "${HM_HEARTBEAT_SEC}s")"
         _rows="${_rows}$(_r "Bildirim Bekleme" "${HM_COOLDOWN_SEC}s")"
-        _rows="${_rows}$(_r "Guncelleme Kontrolu" "${_upd} / her ${HM_UPDATECHECK_SEC}s")"
-        _rows="${_rows}$(_r "Oto Guncelleme" "${_mode} (mod ${HM_AUTOUPDATE_MODE})")"
-        _rows="${_rows}$(_s "ESIKLER")"
+        _rows="${_rows}$(_r "G&#252;ncelleme Kontrol&#252;" "${_upd} / her ${HM_UPDATECHECK_SEC}s")"
+        _rows="${_rows}$(_r "Oto G&#252;ncelleme" "${_mode} (mod ${HM_AUTOUPDATE_MODE})")"
+        _rows="${_rows}$(_s "E&#350;&#304;KLER")"
         _rows="${_rows}$(_r "CPU Uyar&#305;" "${HM_CPU_WARN}% / ${HM_CPU_WARN_DUR}s")"
         _rows="${_rows}$(_r "CPU Kritik" "${HM_CPU_CRIT}% / ${HM_CPU_CRIT_DUR}s")"
         _rows="${_rows}$(_r "Disk /opt Uyar&#305;" "%${HM_DISK_WARN} dolulukta")"
-        _rows="${_rows}$(_r "RAM Uyar&#305;" "${HM_RAM_WARN_MB} MB altinda")"
+        _rows="${_rows}$(_r "RAM Uyar&#305;" "${HM_RAM_WARN_MB} MB alt&#305;nda")"
         _rows="${_rows}$(_s "ZAPRET")"
         _rows="${_rows}$(_r "Zapret Denetimi" "${_zwd}")"
         _rows="${_rows}$(_r "Denetim Bekleme" "${HM_ZAPRET_COOLDOWN_SEC}s")"
-        _rows="${_rows}$(_r "Oto Yeniden Baslat" "${_zar}")"
-        _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | Esik: <b>${HM_QLEN_WARN_TH}</b> Paket | Ardisik: <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
-        _rows="${_rows}$(_r "WAN Izleme" "${_wmen} | <span style='color:var(--muted)'>Kesinti Esigi:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Basarisiz Ping | <span style='color:var(--muted)'>Toparlanma Esigi:</span> <b>${HM_WANMON_OK_TH:-2}</b> Basarili Ping | <span style='color:var(--muted)'>Arayuz:</span> ${HM_WANMON_IFACE:-auto}")"
+        _rows="${_rows}$(_r "Oto Yeniden Ba&#351;lat" "${_zar}")"
+        _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | E&#351;ik: <b>${HM_QLEN_WARN_TH}</b> Paket | Ard&#305;&#351;&#305;k: <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
+        _rows="${_rows}$(_r "WAN &#304;zleme" "${_wmen} | <span style='color:var(--muted)'>Kesinti E&#351;i&#287;i:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Ba&#351;ar&#305;s&#305;z Ping | <span style='color:var(--muted)'>Toparlanma E&#351;i&#287;i:</span> <b>${HM_WANMON_OK_TH:-2}</b> Ba&#351;ar&#305;l&#305; Ping | <span style='color:var(--muted)'>Aray&#252;z:</span> ${HM_WANMON_IFACE:-auto}")"
         _rows="${_rows}$(_r "KeenDNS Kontrol Aral&#305;&#287;&#305;" "${HM_KEENDNS_CURL_SEC}s")"
         _rows="${_rows}$(_s "ANLIK DURUM")"
-        _rows="${_rows}$(_r "CPU Yuku" "${_load}")"
-        _rows="${_rows}$(_r "Bos RAM" "${_ram_free} MB")"
+        _rows="${_rows}$(_r "CPU Y&#252;k&#252;" "${_load}")"
+        _rows="${_rows}$(_r "Bo&#351; RAM" "${_ram_free} MB")"
         _rows="${_rows}$(_r "Disk /opt" "${_disk}% dolu")"
         _rows="${_rows}$(_r "Zapret" "${_zst}")"
         fi
@@ -14316,7 +14316,7 @@ select option{background:#111f3d}
     <div class="item" data-view="healthmon"><span class="item-icon">&#9829;</span><span class="item-label" data-tr="Sistem &#304;zleme" data-en="System Monitor">Sistem &#304;zleme</span><span class="pill">16</span><span class="tip">Sistem &#304;zleme</span></div>
     <div class="item" data-view="healthcheck"><span class="item-icon">&#9906;</span><span class="item-label" data-tr="A&#287; Tan&#305;lama" data-en="Network Diagnostics">A&#287; Tan&#305;lama</span><span class="pill">14-1</span><span class="tip">A&#287; Tan&#305;lama</span></div>
     <div class="item" data-view="dns"><span class="item-icon">&#9670;</span><span class="item-label" data-tr="DNS Y&#246;netimi" data-en="DNS Management">DNS Y&#246;netimi</span><span class="pill">14-3</span><span class="tip">DNS Y&#246;netimi</span></div>
-    <div class="item" data-view="compcheck"><span class="item-icon">&#9874;</span><span class="item-label" data-tr="Bile&#351;en Kontrolu" data-en="Component Check">Bile&#351;en Kontrolu</span><span class="pill">14-4</span><span class="tip">Bile&#351;en Kontrolu</span></div>
+    <div class="item" data-view="compcheck"><span class="item-icon">&#9874;</span><span class="item-label" data-tr="Bile&#351;en Kontrol&#252;" data-en="Component Check">Bile&#351;en Kontrolu</span><span class="pill">14-4</span><span class="tip">Bile&#351;en Kontrolu</span></div>
     <div class="item" data-view="telegram"><span class="item-icon">&#9992;</span><span class="item-label" data-tr="Telegram" data-en="Telegram">Telegram</span><span class="pill">15</span><span class="tip">Telegram</span></div>
  
   </nav>
@@ -14702,7 +14702,7 @@ var V={
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
     return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
       '<div class="card"><h3>'+(L?'KZM Version':'KZM S&#252;r&#252;m')+'</h3><div class="big">'+(S.kzm_version||'—')+'</div>'+
-        '<div class="sub">Zapret: '+(S.zapret_version||'—')+'</div></div>'+
+        '<div class="sub">Zapret: '+fixTR(S.zapret_version||'—')+'</div></div>'+
       '<div class="card"><h3>'+(L?'Zapret Status':'Zapret Durumu')+'</h3>'+
         '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
           ' <span class="pill">'+(S.wan_dev||'—')+'</span>'+
@@ -14747,7 +14747,7 @@ var V={
         ir('Telegram Bot',bdgO(S.telegram_enabled&&S.telegram_running,L?'ACTIVE':'AKT&#304;F',L?'OFF':'KAPALI'))+
         ir(L?'Web Panel (lighttpd)':'Web Panel (lighttpd)',bdg(S.lighttpd_running,L?'RUNNING':'&#199;ALI&#350;IYOR',L?'STOPPED':'DURDU'))+
         ir('curl',S.curl_ok?'<span class="badge good">'+(L?'INSTALLED':'KURULU')+'</span>':'<span class="badge bad">'+(L?'NOT FOUND':'BULUNAMADI')+'</span>')+
-        ir(L?'KZM Version':'KZM S&#252;r&#252;m',S.kzm_version||'—')+ir(L?'Zapret Version':'Zapret S&#252;r&#252;m',S.zapret_version||'—')+
+        ir(L?'KZM Version':'KZM S&#252;r&#252;m',S.kzm_version||'—')+ir(L?'Zapret Version':'Zapret S&#252;r&#252;m',fixTR(S.zapret_version||'—'))+
         ir('GitHub','<a href="https://github.com/RevolutionTR/keenetic-zapret-manager" target="_blank" style="color:var(--accent)">github.com/RevolutionTR/keenetic-zapret-manager</a>')+
       '</div></div></div>';
   }},
@@ -14758,7 +14758,7 @@ var V={
       '<div class="card"><h3>'+(L?'Status':'Durum')+'</h3>'+
         '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
           ' <span class="pill">WAN: '+(S.wan_dev||'—')+'</span>'+
-          ' <span class="pill">'+(S.zapret_version||'—')+'</span></div></div>'+
+          ' <span class="pill">'+fixTR(S.zapret_version||'—')+'</span></div></div>'+
       '<div class="card"><h3>'+(L?'Control':'Kontrol')+'</h3>'+
         '<div class="btns">'+
           '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Baslatildi\')">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>'+
@@ -14856,7 +14856,7 @@ var V={
     setTimeout(ipLoad,100);return h;
   }},
 
-  healthmon:{title:'Sistem Izleme',titleEn:'System Monitor',sub:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',subEn:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',html:function(){
+  healthmon:{title:'Sistem &#304;zleme',titleEn:'System Monitor',sub:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',subEn:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
     var h='<div class="grid">'  /* uyari hmUpdate tarafindan yonetilir */+
@@ -14889,7 +14889,7 @@ var V={
     return h;
   }},
 
-  compcheck:{title:'Bile&#351;en Kontrolu',titleEn:'Component Check',sub:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC kontrol&#252;.',subEn:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC check.',html:function(){
+  compcheck:{title:'Bile&#351;en Kontrol&#252;',titleEn:'Component Check',sub:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC kontrol&#252;.',subEn:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC check.',html:function(){
     setTimeout(function(){ccRun();},100);
     return '<div id="ccResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.4s"></div></div><div style="font-size:1.1em;color:var(--fg)">'+(L?'Checking components...':'Bile&#351;enler kontrol ediliyor...')+'</div></div></div>';
   }},
@@ -15259,7 +15259,7 @@ function fixTR(s){if(!s)return s;
           .replace(/Bos\b/g,'Bo&#351;').replace(/bos\b/g,'bo&#351;').replace(/MB bos/g,'MB bo&#351;')
           .replace(/Onizleme/g,'&#214;nizleme').replace(/onizleme/g,'&#246;nizleme')
           .replace(/Yerel cozucu/g,'Yerel DNS &#199;&#246;z&#252;c&#252;').replace(/resolver/g,'DNS &#199;&#246;z&#252;c&#252;')
-          .replace(/unknown/g,'bilinmiyor')
+          .replace(/unknown/g,'bilinmiyor').replace(/Unknown/g,'Bilinmiyor')
           .replace(/Dogrulandi/g,'Do&#287;ruland&#305;').replace(/Eslesmiyor/g,'E&#351;le&#351;miyor')
           .replace(/Dogrulanmamis/g,'Do&#287;rulanmam&#305;&#351;').replace(/Dogrudan Erisim/g,'Do&#287;rudan Eri&#351;im')
           .replace(/Dogrudan erisim/g,'Do&#287;rudan eri&#351;im').replace(/butunlugu/g,'b&#252;t&#252;nl&#252;&#287;&#252;')
@@ -15267,7 +15267,12 @@ function fixTR(s){if(!s)return s;
           .replace(/Henuz/g,'Hen&#252;z').replace(/henuz/g,'hen&#252;z')
           .replace(/uyarilari/g,'uyar&#305;lar&#305;').replace(/bildirimleri/g,'bildirimleri')
           .replace(/gonder/g,'g&#246;nder').replace(/yonet/g,'y&#246;net')
-          .replace(/Erisim/g,'Eri&#351;im').replace(/erisim/g,'eri&#351;im');
+          .replace(/Erisim/g,'Eri&#351;im').replace(/erisim/g,'eri&#351;im')
+          .replace(/kullanilan/g,'kullan&#305;lan').replace(/Kullanilan/g,'Kullan&#305;lan')
+          .replace(/Sicakligi/g,'S&#305;cakl&#305;&#287;&#305;').replace(/sicakligi/g,'s&#305;cakl&#305;&#287;&#305;')
+          .replace(/Sistem yuk/g,'Sistem y&#252;k')
+          .replace(/Dogru yerde mi/g,'Do&#287;ru yerde mi')
+          .replace(/Izleme/g,'&#304;zleme');
 }
 function hcRender(d){
   var el=document.getElementById('hcResult');
