@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.26.1"
+SCRIPT_VERSION="v26.3.26.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1390,6 +1390,11 @@ TXT_HM_ENABLED_EN="Health Monitor enabled."
 
 TXT_HM_DISABLED_TR="Sistem Sagligi Monitoru kapatildi."
 TXT_HM_DISABLED_EN="Health Monitor disabled."
+
+TXT_HM_RESTART_TR="Yeniden Baslat"
+TXT_HM_RESTART_EN="Restart"
+TXT_HM_RESTARTED_TR="Sistem Sagligi Monitoru yeniden baslatildi."
+TXT_HM_RESTARTED_EN="Health Monitor restarted."
 
 TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Saglik Izleme testi\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 TXT_HM_TEST_MSG_EN="📌 HealthMon %TS%\n✅ Health Monitor test\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
@@ -11174,6 +11179,10 @@ healthmon_updatecheck_do() {
         if update_manager_script >/tmp/zkm_autoupdate.log 2>&1; then
             telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_OK)" NEW "$latest" CUR "$cur" URL "$url")"
             healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_ok cur=$cur latest=$latest"
+            # Web Panel HTML/CGI guncelle
+            (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
+            # HealthMon restart flag - loop bir sonraki iterasyonda yakalar
+            touch /tmp/healthmon_restart_requested 2>/dev/null
         else
             telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_FAIL)" CUR "$cur" NEW "$latest" URL "$url")"
             healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_fail cur=$cur latest=$latest"
@@ -11700,6 +11709,17 @@ healthmon_loop() {
                 _ahl_tmp="${_ahl_log}.tmp"
                 tail -n 500 "$_ahl_log" > "$_ahl_tmp" 2>/dev/null && mv "$_ahl_tmp" "$_ahl_log" 2>/dev/null
             fi
+        fi
+
+        # Otomatik guncelleme sonrasi self-restart
+        if [ -f /tmp/healthmon_restart_requested ]; then
+            rm -f /tmp/healthmon_restart_requested 2>/dev/null
+            healthmon_log "$(date +%s 2>/dev/null) | healthmon | self_restart | yeni surum icin yeniden baslatiliyor"
+            rm -f "$HM_PID_FILE" 2>/dev/null
+            rmdir "$HM_LOCKDIR" 2>/dev/null
+            (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &)
+            sleep 1
+            exit 0
         fi
 
         sleep "$HM_INTERVAL"
@@ -13020,6 +13040,7 @@ health_monitor_menu() {
         echo " 2) $(T TXT_HM_SHOW_STATUS)"
         echo " 3) $(T TXT_HM_SEND_TEST)"
         echo " 4) $(T TXT_HM_CONFIG_THRESHOLDS)"
+        echo " 5) $(T TXT_HM_RESTART)"
         echo " 0) $(T TXT_BACK)"
         print_line "-"
         printf "%s" "$(T TXT_CHOICE) "
@@ -13056,6 +13077,16 @@ health_monitor_menu() {
 
 4)
     healthmon_config_menu
+    press_enter_to_continue
+    ;;
+
+5)
+    healthmon_stop
+    if healthmon_start; then
+        print_status PASS "$(T TXT_HM_RESTARTED)"
+    else
+        print_status FAIL "$(T TXT_HM_RESTARTED)"
+    fi
     press_enter_to_continue
     ;;
 
@@ -13605,6 +13636,24 @@ case "$ACTION" in
         _hmpid="$(cat /tmp/healthmon.pid 2>/dev/null)"
         [ -n "$_hmpid" ] && kill "$_hmpid" 2>/dev/null
         sleep 1; rm -f /tmp/healthmon.pid 2>/dev/null; refresh; ok "Health Monitor durduruldu" ;;
+    healthmon_restart)
+        _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+        [ -f "$_kzm" ] || { fail "KZM script bulunamadi"; exit 0; }
+        # Once durdur
+        _hmpid="$(cat /tmp/healthmon.pid 2>/dev/null)"
+        [ -n "$_hmpid" ] && kill "$_hmpid" 2>/dev/null
+        sleep 1; kill -9 "$_hmpid" 2>/dev/null; rm -f /tmp/healthmon.pid 2>/dev/null
+        rm -rf /tmp/healthmon.lock 2>/dev/null
+        # HM_ENABLE=1 yaz ve autostart kur
+        CONF=/opt/etc/healthmon.conf
+        [ -f "$CONF" ] && sed -i 's/^HM_ENABLE=.*/HM_ENABLE="1"/' "$CONF" 2>/dev/null
+        # init.d autostart yoksa kur
+        [ -f /opt/etc/init.d/S99zkm_healthmon ] || ZKM_SKIP_LOCK=1 sh "$_kzm" --cgi-action healthmon_start >/dev/null 2>&1
+        # Yeniden baslat
+        (ZKM_SKIP_LOCK=1 sh "$_kzm" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &)
+        sleep 2
+        refresh
+        ok "Health Monitor yeniden baslatildi" ;;
     hm_get)
         CONF=/opt/etc/healthmon.conf
         [ -f "$CONF" ] || { fail "Config bulunamadi"; exit 0; }
@@ -14868,14 +14917,15 @@ var V={
       '<div class="card"><h3>Disk /opt</h3><div class="big" id="hmDiskPct">'+(S.disk_used_pct>0?S.disk_used_pct+'%':'<1%')+'</div>'+
         '<div class="sub" id="hmDiskSub">'+(S.disk_used_mb||0)+' MB / '+Math.round(S.disk_total_mb/1024)+' GB</div>'+
         '<div id="hmDiskBar">'+brr(S.disk_used_pct)+'</div></div>'+
-      '<div class="card"><h3>Zapret &amp; HealthMon</h3>'+
-        '<div class="row" id="hmZapBdg">'+bdg(S.zapret_running,'Zapret OK',L?'Zapret INACTIVE':'Zapret PAS&#304;F')+'</div>'+
-        '<div class="row" style="margin-top:6px" id="hmHmBdg">'+bdg(S.healthmon_running,'HealthMon OK',L?'HealthMon INACTIVE':'HealthMon PAS&#304;F')+'</div>'+
+      '<div class="card"><h3>HealthMon</h3>'+
+        '<div class="row" id="hmHmBdg">'+bdg(S.healthmon_running,'HealthMon OK',L?'HealthMon INACTIVE':'HealthMon PAS&#304;F')+'</div>'+
         '<div class="btns" style="margin-top:10px" id="hmBtn">';
+    h+='<button class="danger" onclick="hmRestart(this)">'+'&#8635; '+(L?'Restart HM':'HM Yeniden Ba&#351;lat')+'</button>';
     h+=S.healthmon_running
-      ?'<button class="danger" onclick="act(\'healthmon_stop\',this,'+(L?'\'HM stopped\'':'\'HM durduruldu\'')+')">'+'&#9632; '+(L?'Stop HM':'HM Durdur')+'</button>'
+      ?'<button class="ghost" onclick="act(\'healthmon_stop\',this,'+(L?'\'HM stopped\'':'\'HM durduruldu\'')+')">'+'&#9646;&#9646; '+(L?'Stop HM':'HM Durdur')+'</button>'
       :'<button class="ok" onclick="act(\'healthmon_start\',this,'+(L?'\'HM started\'':'\'HM ba&#351;lat&#305;ld&#305;\'')+')">'+'&#9654; '+(L?'Start HM':'HM Ba&#351;lat')+'</button>';
-    h+='<button class="ghost" onclick="act(\'status_refresh\',this,'+(L?'\'Updated\'':'\'G&#252;ncellendi\'')+')">'+'&#8635; '+(L?'Refresh':'Yenile')+'</button>'+
+    h+=
+      '<button class="ghost" onclick="act(\'status_refresh\',this,'+(L?'\'Updated\'':'\'G&#252;ncellendi\'')+')">'+'&#8635; '+(L?'Refresh':'Yenile')+'</button>'+
       '</div></div>'+
       '<div class="card wide" id="hmC">'+(hmConfCache||'<div class="sub">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div>')+'</div>'+
     '</div>';
@@ -15319,6 +15369,20 @@ function hcRender(d){
     h+='</table></div>';
   });
   el.innerHTML=h+'<div style="margin-top:12px"><button onclick="hcRun()">&#8635; '+(L?'Refresh':'Yenile')+'</button></div>';
+}
+function hmRestart(btn){
+  if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
+  fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=healthmon_restart'})
+  .then(function(r){return r.json();})
+  .then(function(res){
+    toast(res.msg||(L?'HM restarted':'HM yeniden baslatildi'),!!res.ok);
+    if(btn){btn.disabled=false;btn.innerHTML=btn._o;}
+    hmConfCache=null;
+    fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=status_refresh'})
+    .then(function(){return fetchS();})
+    .then(function(){quickPoll(5,2000);});
+  })
+  .catch(function(){toast('Ba&#287;lant&#305; hatas&#305;',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
 function zapretAct(action,btn,msg){
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
@@ -15952,6 +16016,14 @@ if [ "$1" = "--healthmon-daemon" ]; then
     # ignore hangup when parent shell exits
     trap '' HUP 2>/dev/null
     healthmon_loop
+    exit 0
+fi
+
+if [ "$1" = "--update-gui" ]; then
+    if [ -d "$KZM_GUI_DIR" ]; then
+        kzm_gui_write_html
+        kzm_gui_write_cgi
+    fi
     exit 0
 fi
 
