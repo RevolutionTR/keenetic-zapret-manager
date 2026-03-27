@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.26.2"
+SCRIPT_VERSION="v26.3.27"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -751,7 +751,7 @@ _zkm_kn_to_name() {
         KN-1714) echo "Keenetic Extra (KN-1714)"          ;;
         KN-1721) echo "Keenetic Carrier (KN-1721)"        ;;
         KN-1810) echo "Keenetic Ultra (KN-1810)"          ;;
-        KN-1811) echo "Keenetic Ultra (KN-1811)"          ;;
+        KN-1811) echo "Keenetic Titan (KN-1811)"          ;;
         KN-1812) echo "Keenetic Titan (KN-1812)"          ;;
         KN-1910) echo "Keenetic Viva (KN-1910)"           ;;
         KN-1912) echo "Keenetic Viva (KN-1912)"           ;;
@@ -1890,6 +1890,14 @@ TXT_HEALTH_TEMP_EN="SoC Temperature"
 
 TXT_HEALTH_DISK_TMP_TR="Disk doluluk (/tmp)"
 TXT_HEALTH_DISK_TMP_EN="Disk usage (/tmp)"
+TXT_HEALTH_DISK_HEALTH_TR="Disk sagligi (/opt)"
+TXT_HEALTH_DISK_HEALTH_EN="Disk health (/opt)"
+TXT_HEALTH_DISK_RO_TR="Salt okunur! Disk veya dosya sistemi hatali olabilir."
+TXT_HEALTH_DISK_RO_EN="Read-only! Disk or filesystem may be damaged."
+TXT_HEALTH_DISK_IO_ERR_TR="Kritik I/O hatasi tespit edildi (dmesg)"
+TXT_HEALTH_DISK_IO_ERR_EN="Critical I/O error detected (dmesg)"
+TXT_HEALTH_DISK_OK_TR="Saglikli"
+TXT_HEALTH_DISK_OK_EN="Healthy"
 
 TXT_HEALTH_LAN_IP_TR="LAN IP"
 TXT_HEALTH_LAN_IP_EN="LAN IP"
@@ -4198,6 +4206,13 @@ flush_all_nfqueue_rules() {
 # Zapret servisinin calisip calismadigini kontrol eder (nfqws prosesine gore)
 is_zapret_running() {
     pgrep -f "/opt/zapret/nfq/nfqws" >/dev/null 2>&1
+}
+
+# Zapret'in iptables kural varligini kontrol eder (filter veya mangle)
+# Process calisiyor olsa bile kural yoksa trafik islenmez
+_zapret_iptables_ok() {
+    iptables -t mangle -L -n 2>/dev/null | grep -q "NFQUEUE.*200" || \
+    iptables -L -n 2>/dev/null | grep -q "NFQUEUE.*200"
 }
 
 # Zapret'in yuklu olup olmadigini kontrol eder
@@ -7772,6 +7787,25 @@ run_health_check() {
         disk_ok="WARN"
     fi
 
+    # /opt disk sagligi: read-only ve kritik I/O hatasi kontrolu
+    local disk_health_ok="PASS" disk_health_msg
+    disk_health_msg="$(T TXT_HEALTH_DISK_OK)"
+    # Read-only kontrolu
+    if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
+        disk_health_ok="FAIL"
+        disk_health_msg="$(T TXT_HEALTH_DISK_RO)"
+    else
+        # /opt'un bagli oldugu cihazi tespit et (ornegin sda, ubi...)
+        local _opt_dev
+        _opt_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
+        if [ -n "$_opt_dev" ]; then
+            if dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_opt_dev}"; then
+                disk_health_ok="FAIL"
+                disk_health_msg="$(T TXT_HEALTH_DISK_IO_ERR) [${_opt_dev}]"
+            fi
+        fi
+    fi
+
     # RAM detay
     local ram_total_kb ram_free_kb ram_used_kb ram_buf_kb
     ram_total_kb="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
@@ -7903,6 +7937,7 @@ run_health_check() {
     add_line "$HC_SYS" "$(T TXT_HEALTH_LOAD)" " $load_msg" "$load_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_TEMP)" " $temp_msg" "$temp_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_DISK)" " $disk_msg" "$disk_ok"
+    add_line "$HC_SYS" "$(T TXT_HEALTH_DISK_HEALTH)" " $disk_health_msg" "$disk_health_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_DISK_TMP)" " $disk_tmp_msg" "$disk_tmp_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_TIME)" " $ntp_msg" "$ntp_ok"
 
@@ -10036,6 +10071,7 @@ tgbot_handle_callback() {
             tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_UPDATE_STARTED)" ""
             update_manager_script >/dev/null 2>&1
             _upd_rc=$?
+            [ "$_upd_rc" = "0" ] && [ -d "$KZM_GUI_DIR" ] && (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
             case "$_upd_rc" in
                 0) tgbot_edit "$chat_id" "$msg_id" \
                     "$(T TXT_TGBOT_UPDATE_DONE) ($(zkm_get_installed_script_version 2>/dev/null || echo "$SCRIPT_VERSION"))" "$(tgbot_kb_kzm)" ;;
@@ -11358,7 +11394,7 @@ healthmon_loop() {
             local el=$((now-st))
             if [ "$el" -ge "$HM_CPU_WARN_DUR" ]; then
                 if healthmon_should_alert "cpu_warn" "$HM_COOLDOWN_SEC"; then
-                    telegram_send "$(tpl_render "$(T TXT_HM_CPU_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                    telegram_send "$(tpl_render "$(T TXT_HM_CPU_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
                         healthmon_log "$now | cpu_warn | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                 fi
                 rm -f "$cpu_warn_start" 2>/dev/null
@@ -11374,7 +11410,7 @@ healthmon_loop() {
             local elc=$((now-stc))
             if [ "$elc" -ge "$HM_CPU_CRIT_DUR" ]; then
                 if healthmon_should_alert "cpu_crit" "$HM_COOLDOWN_SEC"; then
-                    telegram_send "$(tpl_render "$(T TXT_HM_CPU_CRIT_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                    telegram_send "$(tpl_render "$(T TXT_HM_CPU_CRIT_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
                         healthmon_log "$now | cpu_crit | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                 fi
                 rm -f "$cpu_crit_start" 2>/dev/null
@@ -11390,7 +11426,7 @@ healthmon_loop() {
             local eld=$((now-sd))
             if [ "$eld" -ge 60 ]; then
                 if healthmon_should_alert "disk" "$HM_COOLDOWN_SEC"; then
-                    telegram_send "$(tpl_render "$(T TXT_HM_DISK_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                    telegram_send "$(tpl_render "$(T TXT_HM_DISK_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
                         healthmon_log "$now | disk_warn | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                 fi
                 rm -f "$disk_start" 2>/dev/null
@@ -11406,7 +11442,7 @@ healthmon_loop() {
             local elr=$((now-sr))
             if [ "$elr" -ge 60 ]; then
                 if healthmon_should_alert "ram" "$HM_COOLDOWN_SEC"; then
-                    telegram_send "$(tpl_render "$(T TXT_HM_RAM_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                    telegram_send "$(tpl_render "$(T TXT_HM_RAM_WARN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
                         healthmon_log "$now | ram_warn | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                 fi
                 rm -f "$ram_start" 2>/dev/null
@@ -11417,7 +11453,15 @@ healthmon_loop() {
 
         # ---- Zapret watchdog ----
         if [ "$HM_ZAPRET_WATCHDOG" = "1" ]; then
-            if is_zapret_installed && ! is_zapret_running; then
+            local _zap_down=0 _zap_reason=""
+            if is_zapret_installed; then
+                if ! is_zapret_running; then
+                    _zap_down=1; _zap_reason="no_process"
+                elif ! _zapret_iptables_ok; then
+                    _zap_down=1; _zap_reason="iptables_missing"
+                fi
+            fi
+            if [ "$_zap_down" = "1" ]; then
                 [ -f "$zapret_start" ] || echo "$now" >"$zapret_start"
                 local sz=$(cat "$zapret_start" 2>/dev/null)
                 local elz=$((now-sz))
@@ -11426,14 +11470,18 @@ healthmon_loop() {
                     local restart_ok="0"
                     if [ "$HM_ZAPRET_AUTORESTART" = "1" ] && [ ! -f "$zapret_restart_flag" ]; then
                         echo "1" >"$zapret_restart_flag" 2>/dev/null
-                        start_zapret >/dev/null 2>&1
+                        if [ "$_zap_reason" = "iptables_missing" ]; then
+                            restart_zapret >/dev/null 2>&1
+                        else
+                            start_zapret >/dev/null 2>&1
+                        fi
                         sleep 1
-                        if is_zapret_running; then
+                        if is_zapret_running && _zapret_iptables_ok; then
                             restart_ok="1"
                             # Notify "UP" immediately to reduce panic
                             if healthmon_should_alert "zapret_up" "$HM_ZAPRET_COOLDOWN_SEC"; then
-                                telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
-                                healthmon_log "$now | zapret_autorestart_ok | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                                telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
+                                healthmon_log "$now | zapret_autorestart_ok | reason=$_zap_reason cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                             fi
                             # clear state to allow future down events to re-attempt restart
                             rm -f "$zapret_flag" 2>/dev/null
@@ -11446,8 +11494,8 @@ healthmon_loop() {
                     # If still down here, notify only when cooldown allows
                     if [ "$restart_ok" != "1" ]; then
                         if healthmon_should_alert "zapret_down" "$HM_ZAPRET_COOLDOWN_SEC"; then
-                            telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
-                            healthmon_log "$now | zapret_down | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                            telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
+                            healthmon_log "$now | zapret_down | reason=$_zap_reason cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                             echo "1" >"$zapret_flag" 2>/dev/null
                         fi
                         rm -f "$zapret_start" 2>/dev/null
@@ -11457,7 +11505,7 @@ healthmon_loop() {
                 # recovered
                 if [ -f "$zapret_flag" ] && is_zapret_installed && is_zapret_running; then
                     if healthmon_should_alert "zapret_up" "$HM_ZAPRET_COOLDOWN_SEC"; then
-                        telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
+                        telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
                         healthmon_log "$now | zapret_up | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                     fi
                     rm -f "$zapret_flag" 2>/dev/null
@@ -11507,7 +11555,7 @@ healthmon_loop() {
                         # Ardisik N tur yuksek/sabit: restart_zapret
                         healthmon_log "$now | qlen_crit | qnum=200 qlen=$qlen_val cnt=$qlen_cnt triggers=restart_zapret"
                         if healthmon_should_alert "qlen_crit" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
-                            telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen=$qlen_val]"
+                            telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen=$qlen_val]" &
                         fi
                         restart_zapret >/dev/null 2>&1
                         sleep 2
@@ -11519,7 +11567,7 @@ healthmon_loop() {
                         if is_zapret_running; then
                             healthmon_log "$now | qlen_restart_ok | qnum=200 zapret is running"
                             if healthmon_should_alert "qlen_restart_ok" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
-                                telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen watchdog ok]"
+                                telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen watchdog ok]" &
                             fi
                         else
                             healthmon_log "$now | qlen_restart_fail | qnum=200 zapret still not running after restart"
@@ -12008,6 +12056,17 @@ DEOF
             _disk_free_mb="$(df -k /opt 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
             if [ "$_disk_pct" != "<1" ] && [ -n "$_disk_pct" ] && [ "$_disk_pct" -gt 90 ] 2>/dev/null; then _add "sys" "$(T TXT_HEALTH_DISK)" "${_disk_pct}% (${_disk_free_mb}MB $(T _ 'bos' 'free'))" "WARN"
             else _add "sys" "$(T TXT_HEALTH_DISK)" "${_disk_pct}% (${_disk_free_mb}MB $(T _ 'bos' 'free'))" "PASS"; fi
+            # Disk sagligi: read-only ve kritik I/O hatasi kontrolu
+            _dh_ok="PASS"; _dh_msg="$(T TXT_HEALTH_DISK_OK)"
+            if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
+                _dh_ok="FAIL"; _dh_msg="$(T TXT_HEALTH_DISK_RO)"
+            else
+                _opt_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
+                if [ -n "$_opt_dev" ] && dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_opt_dev}"; then
+                    _dh_ok="FAIL"; _dh_msg="$(T TXT_HEALTH_DISK_IO_ERR) [${_opt_dev}]"
+                fi
+            fi
+            _add "sys" "$(T TXT_HEALTH_DISK_HEALTH)" "$_dh_msg" "$_dh_ok"
             # Disk / ve /tmp
             _dr_pct="$(df -k / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
             _dr_free_mb="$(df -k / 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
@@ -13515,6 +13574,11 @@ _dpi_origin="$(cat /opt/zapret/dpi_profile_origin 2>/dev/null | tr -d '\n')"
 [ -z "$_dpi_profile" ] && _dpi_profile="Unknown"
 [ -z "$_dpi_origin"  ] && _dpi_origin="manual"
 
+_sha_kzm="$(cat /opt/etc/zkm_sha256_kzm.state 2>/dev/null | tr -d '[:space:]')"
+[ -z "$_sha_kzm" ] && _sha_kzm="unknown"
+_sha_zapret="$(cat /opt/etc/zkm_sha256_zapret.state 2>/dev/null | tr -d '[:space:]')"
+[ -z "$_sha_zapret" ] && _sha_zapret="unknown"
+
 _bc_score=0; _bc_dns_ok=0; _bc_tls12_ok=0; _bc_udp_weak=1; _bc_ts=0
 if [ -f /opt/zapret/blockcheck_result.json ]; then
     _bc_score="$(grep '"score"'    /opt/zapret/blockcheck_result.json | grep -o '[0-9]*' | head -1)"
@@ -13529,7 +13593,7 @@ if [ -f /opt/zapret/blockcheck_result.json ]; then
     [ -z "$_bc_ts"       ] && _bc_ts=0
 fi
 
-printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s\n}\n' \
+printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
     "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$_kzmver" "$_model" "$_fw" "$_wan" "$_wip" "$_lan_ip" \
     "$_kdns_fqdn" "$_kdns_access" \
     "$_zap" "$_zver" "$_hm" "$_hm_en" "$_tg_en" "$_tg" "$_tg_configured" \
@@ -13540,6 +13604,7 @@ printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s"
     "$_tmp_pct" "$_tmp_used_mb" "$_tmp_total_mb" "$_cpu_temp" \
     "$_dpi_profile" "$_dpi_origin" \
     "$_bc_score" "$_bc_dns_ok" "$_bc_tls12_ok" "$_bc_udp_weak" "$_bc_ts" \
+    "$_sha_kzm" "$_sha_zapret" \
     > /opt/var/run/kzm_status.json
 STATEOF
     chmod +x "$KZM_GUI_STATUS_SCRIPT"
@@ -14373,6 +14438,7 @@ select option{background:#111f3d}
   <nav>
     <div class="item" data-view="sched"><span class="item-icon">&#9719;</span><span class="item-label" data-tr="Zamanl&#305; Reboot" data-en="Scheduled Reboot">Zamanl&#305; Reboot</span><span class="pill">R</span><span class="tip">Zamanl&#305; Reboot</span></div>
     <div class="item" data-view="backup"><span class="item-icon">&#128190;</span><span class="item-label" data-tr="Yedekle" data-en="Backup">Yedekle</span><span class="pill">8</span><span class="tip">Yedekle</span></div>
+    <div class="item" data-view="changelog"><span class="item-icon">&#128203;</span><span class="item-label" data-tr="S&#252;r&#252;m Notlar&#305;" data-en="Release Notes">S&#252;r&#252;m Notlar&#305;</span><span class="tip">S&#252;r&#252;m Notlar&#305;</span></div>
   </nav>
   <div class="fnote">KZM Web Panel<br/><small id="atick"><span id="atickLabel">Otomatik yenileme</span>: 15s</small></div>
 </aside>
@@ -14522,7 +14588,7 @@ function fmtOpkgCard(){
   } else if(opkgState.status==='err'){
     statusHtml='<span style="color:var(--bad)">&#10007; '+(L?'Error occurred.':'Hata olustu.')+'</span>';
   }
-  return '<div class="card" id="opkgCard">'+
+  return '<div class="card" id="opkgCard" style="grid-column:span 2">'+
     '<h3>'+(L?'OPKG Packages':'OPKG Paketleri')+'</h3>'+
     '<div id="opkgStatus" style="font-size:12.5px;color:var(--muted);margin:8px 0 10px">'+statusHtml+'</div>'+
     '<div class="btns">'+
@@ -14715,7 +14781,7 @@ function fmtBcCard(S){
   };
   var profLabel=profileNames[S.dpi_profile]||S.dpi_profile||'—';
   if(!S.bc_ts){
-    return '<div class="card"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
+    return '<div class="card" style="grid-column:span 2"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
       '<div style="color:var(--muted);font-size:13px;margin:10px 0 6px">'+(L?'Blockcheck has not been run yet.':'Blockcheck hen&#252;z &#231;al&#305;&#351;t&#305;r&#305;lmad&#305;.')+'</div>'+
       '<div style="font-size:12px;color:var(--muted)">'+(L?'Active Profile: ':'Aktif Profil: ')+'<span style="color:var(--text)">'+profLabel+'</span></div>'+
       '<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">'+(L?'Run SSH &rarr; Menu <b>B</b> (Blockcheck) to see score.':'Score g&#246;rmek i&#231;in SSH ile ba&#287;lan&#305;p<br><span style="color:var(--accent);font-family:monospace">kzm</span> &rarr; Men&#252; <b>B</b> (Blockcheck) &#231;al&#305;&#351;t&#305;r&#305;n.')+'</div>'+
@@ -14731,7 +14797,7 @@ function fmtBcCard(S){
   if(!S.bc_dns_ok) warns+='<span class="badge bad" style="font-size:10px">DNS: WARN</span> ';
   if(!S.bc_tls12_ok) warns+='<span class="badge bad" style="font-size:10px">TLS12: WARN</span> ';
   if(S.bc_udp_weak) warns+='<span class="badge warn" style="font-size:10px">UDP 443: WARN</span>';
-  return '<div class="card"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
+  return '<div class="card" style="grid-column:span 2"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
     '<div style="display:flex;align-items:flex-end;gap:8px;margin:8px 0 4px">'+
       '<span style="font-size:2.4em;font-weight:800;color:'+clr+'">'+sc+'</span>'+
       '<span style="color:var(--muted);font-size:13px;padding-bottom:6px">/ 10 ('+rat+')</span>'+
@@ -14749,19 +14815,20 @@ var V={
   dash:{title:'Dashboard',titleEn:'Dashboard',sub:'Canl&#305; sistem &#246;zeti.',subEn:'Live system overview.',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
-    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
-      '<div class="card"><h3>'+(L?'KZM Version':'KZM S&#252;r&#252;m')+'</h3><div class="big">'+(S.kzm_version||'—')+'</div>'+
-        '<div class="sub">Zapret: '+fixTR(S.zapret_version||'—')+'</div></div>'+
-      '<div class="card"><h3>'+(L?'Zapret Status':'Zapret Durumu')+'</h3>'+
-        '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
-          ' <span class="pill">'+(S.wan_dev||'—')+'</span>'+
-          ' <span class="pill">'+(S.wan_ip||'—')+'</span></div>'+
-        '<div class="btns">'+
-          '<button class="danger" onclick="zapretAct(\'zapret_restart\',this,\'Restart OK\')">&#8635; '+(L?'Restart':'Yeniden Ba&#351;lat')+'</button>'+
-          '<button class="ghost" onclick="zapretAct(\'zapret_stop\',this,\'Stop OK\')">&#9646;&#9646; '+(L?'Stop':'Durdur')+'</button>'+
-          '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Start OK\')">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>'+
-        '</div></div>'+
-      '<div class="card"><h3>CPU / RAM / Disk</h3>'+
+    return '<div style="display:flex;flex-direction:column;gap:16px">'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">'+
+        '<div class="card"><h3>'+(L?'KZM Version':'KZM S&#252;r&#252;m')+'</h3><div class="big" style="color:'+(S.sha_kzm==='ok'?'var(--good)':S.sha_kzm==='fail'?'var(--warn)':'var(--text)')+'">'+  (S.kzm_version||'—')+'</div></div>'+
+        '<div class="card"><h3>'+(L?'Zapret Version':'Zapret S&#252;r&#252;m')+'</h3><div class="big" style="color:'+(S.sha_zapret==='ok'?'var(--good)':S.sha_zapret==='fail'?'var(--warn)':'var(--text)')+'">'+fixTR(S.zapret_version||'—')+'</div></div>'+
+        '<div class="card" style="grid-column:span 2"><h3>'+(L?'Zapret Status':'Zapret Durumu')+'</h3>'+
+          '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
+            ' <span class="pill">'+(S.wan_dev||'—')+'</span>'+
+            ' <span class="pill">'+(S.wan_ip||'—')+'</span></div>'+
+          '<div class="btns">'+
+            '<button class="danger" onclick="zapretAct(\'zapret_restart\',this,\'Restart OK\')">&#8635; '+(L?'Restart':'Yeniden Ba&#351;lat')+'</button>'+
+            '<button class="ghost" onclick="zapretAct(\'zapret_stop\',this,\'Stop OK\')">&#9646;&#9646; '+(L?'Stop':'Durdur')+'</button>'+
+            '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Start OK\')">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>'+
+          '</div></div>'+
+        '<div class="card" style="grid-column:span 2"><h3>CPU / RAM / Disk</h3>'+
         '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px">'+
           '<tr><td style="color:var(--muted);padding:3px 0;width:38%">'+(L?'CPU Load (1/5/15min)':'CPU Y&#252;k&#252; (1/5/15dk)')+'</td>'+
               '<td style="padding:3px 0"><b>'+S.load1+'</b> / '+S.load5+' / '+S.load15+'</td>'+
@@ -14780,12 +14847,13 @@ var V={
           '</tr>'+
         '</table>'+
       '</div>'+
-      '<div class="card"><h3>'+(L?'Services':'Servisler')+'</h3>'+
+      '<div class="card" style="grid-column:span 2"><h3>'+(L?'Services':'Servisler')+'</h3>'+
         '<div class="row">'+bdg(S.healthmon_running,'Health Mon OK',L?'Health Mon INACTIVE':'Health Mon PAS&#304;F')+'</div>'+
         '<div class="row" style="margin-top:6px">'+bdgO(S.telegram_enabled&&S.telegram_running,L?'Telegram ACTIVE':'Telegram AKT&#304;F',L?'Telegram OFF':'Telegram KAPALI')+'</div>'+
       '</div>'+
       fmtBcCard(S)+
       fmtOpkgCard()+
+      '</div>'+
       '<div class="card wide"><h3>'+(L?'System Info':'Sistem Bilgisi')+'</h3><div class="info-grid">'+
         ir('Model',S.model||'—')+ir('Firmware',(L?fixTR(S.firmware||'—').replace('&#214;nizleme','Preview').replace('&#214;nizleme','Preview'):fixTR(S.firmware||'—')))+
         ir('WAN',(S.wan_dev||'—')+' | '+(S.wan_ip||'—'))+
@@ -14798,7 +14866,7 @@ var V={
         ir('curl',S.curl_ok?'<span class="badge good">'+(L?'INSTALLED':'KURULU')+'</span>':'<span class="badge bad">'+(L?'NOT FOUND':'BULUNAMADI')+'</span>')+
         ir(L?'KZM Version':'KZM S&#252;r&#252;m',S.kzm_version||'—')+ir(L?'Zapret Version':'Zapret S&#252;r&#252;m',fixTR(S.zapret_version||'—'))+
         ir('GitHub','<a href="https://github.com/RevolutionTR/keenetic-zapret-manager" target="_blank" style="color:var(--accent)">github.com/RevolutionTR/keenetic-zapret-manager</a>')+
-      '</div></div></div>';
+      '</div></div></div></div>';
   }},
 
   zapret:{title:'Zapret Kontrol',titleEn:'Zapret Control',sub:'Zapret servisini y&#246;net.',subEn:'Manage Zapret service.',html:function(){
@@ -15145,6 +15213,16 @@ var V={
       '</div>'+
 
     '</div>';
+  }},
+
+  changelog:{title:'S&#252;r&#252;m Notlar&#305;',titleEn:'Release Notes',sub:'KZM g&#252;ncelleme ge&#231;mi&#351;i.',subEn:'KZM update history.',html:function(){
+    setTimeout(function(){clLoad();},100);
+    return '<div class="grid" style="grid-template-columns:200px 1fr;gap:14px">'+
+      '<div class="card" id="clList" style="max-height:70vh;overflow-y:auto"><div class="sub">Y&#252;kleniyor...</div></div>'+
+      '<div class="card" id="clBody" style="max-height:70vh;overflow-y:auto"><div class="sub">'+
+        (L?'Select a version from the list.':'Listeden bir s&#252;r&#252;m se&#231;in.')+
+      '</div></div>'+
+    '</div>';
   }}
 };
 
@@ -15295,7 +15373,7 @@ function fixTR(s){if(!s)return s;
           .replace(/Butunlugu/g,'B&#252;t&#252;nl&#252;&#287;&#252;').replace(/Surum durumu/g,'S&#252;r&#252;m durumu')
           .replace(/surum/g,'s&#252;r&#252;m').replace(/Acik/g,'A&#231;&#305;k').replace(/Kapali/g,'Kapal&#305;')
           .replace(/Guncelleme/g,'G&#252;ncelleme').replace(/Guncel/g,'G&#252;ncel')
-          .replace(/Saglik/g,'Sa&#287;l&#305;k').replace(/Tanilama/g,'Tan&#305;lama')
+          .replace(/Saglikli/g,'Sa&#287;l&#305;kl&#305;').replace(/Saglik/g,'Sa&#287;l&#305;k').replace(/sagligi/g,'sa&#287;l&#305;&#287;&#305;').replace(/hatali/g,'hatal&#305;').replace(/hatasi/g,'hatas&#305;').replace(/Tanilama/g,'Tan&#305;lama')
           .replace(/Anlik/g,'Anl&#305;k').replace(/Esik/g,'E&#351;ik').replace(/esigi/g,'e&#351;i&#287;i')
           .replace(/Ardisik/g,'Ard&#305;&#351;&#305;k').replace(/Arayuz/g,'Aray&#252;z')
           .replace(/Baglanti/g,'Ba&#287;lant&#305;').replace(/baglanti/g,'ba&#287;lant&#305;')
@@ -15322,7 +15400,8 @@ function fixTR(s){if(!s)return s;
           .replace(/Sicakligi/g,'S&#305;cakl&#305;&#287;&#305;').replace(/sicakligi/g,'s&#305;cakl&#305;&#287;&#305;')
           .replace(/Sistem yuk/g,'Sistem y&#252;k')
           .replace(/Dogru yerde mi/g,'Do&#287;ru yerde mi')
-          .replace(/Izleme/g,'&#304;zleme');
+          .replace(/Kararli/g,'Kararl&#305;').replace(/kararli/g,'kararl&#305;')
+          .replace(/Kararsiz/g,'Karars&#305;z').replace(/kararsiz/g,'karars&#305;z')
 }
 function hcRender(d){
   var el=document.getElementById('hcResult');
@@ -15567,6 +15646,69 @@ function bkIpRestore(fname,btn){
   if(!confirm(fname+' geri yuklensin mi?'))return;
   if(btn)btn.disabled=true;
   actD('ipset_restore','file='+encodeURIComponent(fname),btn,'Geri yuklendi');
+}
+var clCache=null;
+var clCurTag=null;
+function clLoad(){
+  var el=document.getElementById('clList');
+  if(!el)return;
+  if(clCache){clBuildList();return;}
+  el.innerHTML='<div class="sub">Y&#252;kleniyor...</div>';
+  fetch('https://api.github.com/repos/RevolutionTR/keenetic-zapret-manager/releases?per_page=100')
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!Array.isArray(data)||!data.length){
+      el.innerHTML='<div class="sub">'+(L?'Could not load releases.':'S&#252;r&#252;mler y&#252;klenemedi.')+'</div>';
+      return;
+    }
+    clCache=data;
+    clBuildList();
+  })
+  .catch(function(){
+    if(el)el.innerHTML='<div class="sub">'+(L?'Connection error.':'Ba&#287;lant&#305; hatas&#305;.')+'</div>';
+  });
+}
+function clBuildList(){
+  var el=document.getElementById('clList');
+  if(!el||!clCache)return;
+  var cur=S?S.kzm_version:'';
+  var h='<h3>'+(L?'Versions':'S&#252;r&#252;mler')+'</h3><div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">';
+  clCache.forEach(function(r){
+    var tag=r.tag_name||r.name||'';
+    var isCur=tag===cur;
+    var isActive=tag===clCurTag;
+    h+='<div onclick="clSelect(\''+tag+'\')" style="cursor:pointer;padding:6px 10px;border-radius:7px;font-size:12.5px;'+
+      (isActive?'background:rgba(75,125,255,.2);border:1px solid rgba(75,125,255,.5);':'border:1px solid transparent;')+
+      '">'+tag+(isCur?' <span style="color:var(--good);font-size:10px">&#9679; '+(L?'Installed':'Kurulu')+'</span>':'')+'</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+  // ilk acilista latest goster
+  if(!clCurTag&&clCache.length){clSelect(clCache[0].tag_name||clCache[0].name);}
+}
+function clSelect(tag){
+  clCurTag=tag;
+  clBuildList();
+  var rel=clCache?clCache.filter(function(r){return (r.tag_name||r.name)===tag;})[0]:null;
+  var el=document.getElementById('clBody');
+  if(!el)return;
+  if(!rel){el.innerHTML='<div class="sub">'+(L?'Not found.':'Bulunamadi.')+'</div>';return;}
+  el.innerHTML='<div style="font-size:13.5px;line-height:1.7">'+clFmt(rel.body||'')+'</div>';
+  el.scrollTop=0;
+}
+function clFmt(md){
+  if(!md)return '';
+  return md
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^## (.+)$/gm,'<div style="font-size:16px;font-weight:700;margin:16px 0 6px;color:var(--text)">$1</div>')
+    .replace(/^### (.+)$/gm,'<div style="font-size:13px;font-weight:700;margin:12px 0 4px;color:var(--accent)">$1</div>')
+    .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>')
+    .replace(/^&gt; (.+)$/gm,'<div style="padding:4px 10px;margin:2px 0;border-left:3px solid var(--accent);color:var(--muted);font-size:12.5px">$1</div>')
+    .replace(/^&gt;$/gm,'')
+    .replace(/^---$/gm,'<hr style="border:none;border-top:1px solid var(--line);margin:12px 0"/>')
+    .replace(/^- (.+)$/gm,'<div style="padding:2px 0 2px 12px;color:var(--text)">&#8226; $1</div>')
+    .replace(/^(?!<div|<hr)(.+)$/gm,'<div style="color:var(--muted);font-size:12px;margin:2px 0">$1</div>')
+    .replace(/\n{2,}/g,'<div style="height:6px"></div>');
 }
 function render(k){
   var v=V[k]||V.dash;
@@ -16059,13 +16201,18 @@ if [ "$1" != "--healthmon-daemon" ] && [ "$1" != "--telegram-daemon" ] && [ "$1"
 fi
 
 # Web GUI versiyon kontrolu: HTML veya CGI surumu eslesmiyor ise sessizce guncelle
-if [ -f "$KZM_GUI_HTML" ]; then
+if [ -d "$KZM_GUI_DIR" ]; then
     _gui_ver="$(grep -o 'kzm-version" content="[^"]*"' "$KZM_GUI_HTML" 2>/dev/null | sed 's/.*content="//;s/"//')"
     _cgi_ver="$(grep -o 'kzm-cgi-version: [^[:space:]]*' "$KZM_GUI_CGI" 2>/dev/null | sed 's/.*kzm-cgi-version: //')"
     if [ "$_gui_ver" != "$SCRIPT_VERSION" ] || [ "$_cgi_ver" != "$SCRIPT_VERSION" ]; then
         kzm_gui_write_html
         kzm_gui_write_cgi
     fi
+fi
+
+# rc.unslung patch: /opt/bin/find yerine BusyBox find kullan (Entware binary bozulmasina karsi)
+if grep -q '/opt/bin/find' /opt/etc/init.d/rc.unslung 2>/dev/null; then
+    sed -i 's|/opt/bin/find|find|g' /opt/etc/init.d/rc.unslung 2>/dev/null
 fi
 
 main_menu_loop
