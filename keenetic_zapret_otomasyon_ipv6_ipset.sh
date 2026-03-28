@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.27"
+SCRIPT_VERSION="v26.3.28"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1417,6 +1417,15 @@ TXT_HM_ZAPRET_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Zapret may be down!\n🧠 C
 TXT_HM_ZAPRET_UP_MSG_TR="📌 HealthMon %TS%\n✅ Zapret tekrar calisiyor.\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 TXT_HM_ZAPRET_UP_MSG_EN="📌 HealthMon %TS%\n✅ Zapret is running again.\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 
+TXT_HM_DISK_HEALTH_DOWN_MSG_TR="📌 HealthMon %TS%\n🚨 Disk sagligi sorunu: /opt\n💾 Durum: %REASON%\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB"
+TXT_HM_DISK_HEALTH_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Disk health issue: /opt\n💾 Status: %REASON%\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB"
+TXT_HM_DISK_HEALTH_UP_MSG_TR="📌 HealthMon %TS%\n✅ Disk sagligi normale dondu: /opt\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB"
+TXT_HM_DISK_HEALTH_UP_MSG_EN="📌 HealthMon %TS%\n✅ Disk health restored: /opt\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB"
+TXT_HM_DISK_HEALTH_RO_TR="Salt okunur (read-only)"
+TXT_HM_DISK_HEALTH_RO_EN="Read-only mount"
+TXT_HM_DISK_HEALTH_IO_TR="Kritik I/O hatasi"
+TXT_HM_DISK_HEALTH_IO_EN="Critical I/O error"
+
 TXT_HM_STATUS_RUNNING_TR="Calisiyor:"
 TXT_HM_STATUS_RUNNING_EN="Running:"
 
@@ -1565,11 +1574,17 @@ TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the sc
 TXT_UPD_ZKM_UP_TO_DATE_TR="[Guncelleme]
 📦 Paket : KZM
 🔄 Durum : Guncel ✅
-🔖 Surum : %CUR%"
+🔖 Surum : %CUR%
+
+[Saglik]
+💾 Disk (/opt) : %DISK_HEALTH%"
 TXT_UPD_ZKM_UP_TO_DATE_EN="[Update]
 📦 Package : KZM
 🔄 Status  : Up to date ✅
-🔖 Version : %CUR%"
+🔖 Version : %CUR%
+
+[Health]
+💾 Disk (/opt) : %DISK_HEALTH%"
 
 TXT_UPD_ZKM_AUTO_FAIL_TR="[OtoGuncelleme]\n❌ KZM otomatik kurulum BASARISIZ.\n⚠️ Lutfen elle guncelleyin (menu 10).\n\n📦 Paket  : KZM\n🔖 Mevcut : %CUR%\n🆕 Yeni   : %NEW%\n🔗 Link   : %URL%"
 TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\n❌ KZM auto install FAILED.\n⚠️ Please update manually (menu 10).\n\n📦 Package : KZM\n🔖 Current : %CUR%\n🆕 Latest  : %NEW%\n🔗 Link    : %URL%"
@@ -1812,6 +1827,19 @@ TXT_TGBOT_BOT_NOT_CONFIG_TR="Bot yapilandirilmamis. Once Telegram token ve chat 
 TXT_TGBOT_BOT_NOT_CONFIG_EN="Bot not configured. Enter Telegram token and chat ID first."
 TXT_TGBOT_BTN_WAN_RESET_TR="WAN Sureli Kapatma"
 TXT_TGBOT_BTN_WAN_RESET_EN="Timed WAN Shutdown"
+
+TXT_TGBOT_BTN_PINGCHECK_OFF_TR="Ping Kontrolu Kapat"
+TXT_TGBOT_BTN_PINGCHECK_OFF_EN="Disable Ping Check"
+TXT_TGBOT_BTN_PINGCHECK_ON_TR="Ping Kontrolu Ac"
+TXT_TGBOT_BTN_PINGCHECK_ON_EN="Enable Ping Check"
+TXT_TGBOT_PINGCHECK_OFF_OK_TR="❌ Ping Kontrolu kapatildi."
+TXT_TGBOT_PINGCHECK_OFF_OK_EN="❌ Ping Check disabled."
+TXT_TGBOT_PINGCHECK_ON_OK_TR="✅ Ping Kontrolu acildi."
+TXT_TGBOT_PINGCHECK_ON_OK_EN="✅ Ping Check enabled."
+TXT_TGBOT_PINGCHECK_ALREADY_OFF_TR="❌ Ping Kontrolu zaten kapali."
+TXT_TGBOT_PINGCHECK_ALREADY_OFF_EN="❌ Ping Check is already disabled."
+TXT_TGBOT_PINGCHECK_FAIL_TR="⚠️ Ping Kontrolu degistirilemedi."
+TXT_TGBOT_PINGCHECK_FAIL_EN="⚠️ Failed to change Ping Check."
 TXT_TGBOT_BTN_CONFIRM_TR="Onayla"
 TXT_TGBOT_BTN_CONFIRM_EN="Confirm"
 TXT_TGBOT_WAN_RESET_SELECT_TR="WAN kac dakika kapatilsin?"
@@ -2195,6 +2223,9 @@ TXT_BACKUP_SUB_CFG_RESTORE_EN="5. Restore Zapret / KZM Settings"
 TXT_BACKUP_SUB_CFG_SHOW_TR="6. Zapret Ayar Yedeklerini Goster"
 TXT_BACKUP_SUB_CFG_SHOW_EN="6. Show Settings Backups"
 
+TXT_BACKUP_SUB_TG_SEND_TR="7. Yedegi Telegram'a Gonder"
+TXT_BACKUP_SUB_TG_SEND_EN="7. Send Backup via Telegram"
+
 TXT_BACKUP_CFG_NO_FILES_TR="Yedeklenecek Zapret/KZM ayar dosyasi bulunamadi."
 TXT_BACKUP_CFG_NO_FILES_EN="No Zapret/KZM settings files found to backup."
 
@@ -2281,6 +2312,17 @@ TXT_RESTORE_RESTART_FAIL_EN="WARNING: Zapret could not be restarted."
 
 TXT_BACKUP_NO_BACKUP_TR="HATA: Yedek bulunamadi."
 TXT_BACKUP_NO_BACKUP_EN="ERROR: No backups found."
+
+TXT_BACKUP_TG_NO_CONFIG_TR="Telegram yapilandirilmamis. Once Menu 15'ten ayarlarin."
+TXT_BACKUP_TG_NO_CONFIG_EN="Telegram not configured. Set it up via Menu 15 first."
+TXT_BACKUP_TG_SENDING_TR="Yedek Telegram'a gonderiliyor..."
+TXT_BACKUP_TG_SENDING_EN="Sending backup to Telegram..."
+TXT_BACKUP_TG_OK_TR="Yedek basariyla gonderildi."
+TXT_BACKUP_TG_OK_EN="Backup sent successfully."
+TXT_BACKUP_TG_FAIL_TR="HATA: Gonderim basarisiz oldu."
+TXT_BACKUP_TG_FAIL_EN="ERROR: Failed to send backup."
+TXT_BACKUP_TG_NO_FILE_TR="Gonderilecek yedek dosyasi bulunamadi. Once 4. secenekle yedek alin."
+TXT_BACKUP_TG_NO_FILE_EN="No backup file found to send. Create a backup first via option 4."
 
 TXT_SELECT_FILE_TR="Dosya secin"
 TXT_SELECT_FILE_EN="Select a file"
@@ -8448,6 +8490,7 @@ print_line "="
         echo "  $(T TXT_BACKUP_SUB_CFG_BACKUP)"
         echo "  $(T TXT_BACKUP_SUB_CFG_RESTORE)"
         echo "  $(T TXT_BACKUP_SUB_CFG_SHOW)"
+        echo "  $(T TXT_BACKUP_SUB_TG_SEND)"
         echo "  $(T TXT_BACKUP_SUB_BACK)"
         print_line "-"
         printf "%s: " "$(T TXT_SELECT_ACTION)"
@@ -8468,7 +8511,7 @@ print_line "="
                     cp -a "$f" "$CUR_DIR/$(basename "$f")" 2>/dev/null
                     cp -a "$f" "$HIST_DIR/$TS/$(basename "$f")" 2>/dev/null
                 done
-                echo "$(T TXT_BACKUP_DONE)"
+                print_status PASS "$(T TXT_BACKUP_DONE)"
                 press_enter_to_continue
                 ;;
             2)
@@ -8530,6 +8573,32 @@ print_line "="
             5) zapret_restore_menu "$BACKUP_BASE" ;;
             6)
                 show_zapret_settings_backups "$BACKUP_BASE"
+                ;;
+            7)
+                # Telegram'a gonder: once yeni yedek al, sonra gonder
+                if ! telegram_ready 2>/dev/null; then
+                    print_status WARN "$(T TXT_BACKUP_TG_NO_CONFIG)"
+                    press_enter_to_continue
+                    continue
+                fi
+                echo "$(T _ 'Yedek olusturuluyor...' 'Creating backup...')"
+                backup_zapret_settings "$BACKUP_BASE"
+                local _tg_file
+                _tg_file="$(ls -t "${BACKUP_BASE}/zapret_settings"/zapret_settings_*.tar.gz 2>/dev/null | head -1)"
+                if [ -z "$_tg_file" ]; then
+                    print_status FAIL "$(T TXT_BACKUP_TG_NO_FILE)"
+                    press_enter_to_continue
+                    continue
+                fi
+                echo "$(T TXT_BACKUP_TG_SENDING)"
+                local _tg_caption
+                _tg_caption="$(T _ 'KZM Yedek' 'KZM Backup') | $(basename "$_tg_file") | $(date '+%Y-%m-%d %H:%M')"
+                if tgbot_send_document "$TG_CHAT_ID" "$_tg_file" "$_tg_caption"; then
+                    print_status PASS "$(T TXT_BACKUP_TG_OK)"
+                else
+                    print_status FAIL "$(T TXT_BACKUP_TG_FAIL)"
+                fi
+                press_enter_to_continue
                 ;;
             0)
                 return 0
@@ -9523,14 +9592,23 @@ tgbot_kb_wan_reset_confirm() {
 
 tgbot_kb_sistem() {
     local rid="${TG_ROUTER_ID:-default}"
-    # Router buton etiketi: "🟢 SweetHome (KN-1812)" formatinda
     local _dev_label
     _dev_label="${TG_DEVICE_NAME:-Router}"
     [ -n "$TG_DEVICE_MODEL" ] && _dev_label="${_dev_label} (${TG_DEVICE_MODEL})"
-    printf '[[{"text":"📡 %s","callback_data":"%s:sys_net_devices"},{"text":"📶 %s","callback_data":"%s:sys_wifi"}],[{"text":"🌐 %s","callback_data":"%s:sys_wan_reset"}],[{"text":"🟢 %s","callback_data":"%s:sys_device_detail"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
+    # Ping-check durumuna gore buton sec
+    local _pc_active _pc_btn _pc_action
+    if LD_LIBRARY_PATH= ndmc -c "show ping-check" 2>/dev/null | grep -q "interface:"; then
+        _pc_btn="$(T TXT_TGBOT_BTN_PINGCHECK_OFF)"
+        _pc_action="sys_pingcheck_off"
+    else
+        _pc_btn="$(T TXT_TGBOT_BTN_PINGCHECK_ON)"
+        _pc_action="sys_pingcheck_on"
+    fi
+    printf '[[{"text":"📡 %s","callback_data":"%s:sys_net_devices"},{"text":"📶 %s","callback_data":"%s:sys_wifi"}],[{"text":"🌐 %s","callback_data":"%s:sys_wan_reset"},{"text":"🔔 %s","callback_data":"%s:%s"}],[{"text":"🟢 %s","callback_data":"%s:sys_device_detail"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
         "$(T TXT_TGBOT_BTN_NET_DEVICES)" "$rid" \
         "$(T TXT_TGBOT_BTN_WIFI)" "$rid" \
         "$(T TXT_TGBOT_BTN_WAN_RESET)" "$rid" \
+        "$_pc_btn" "$rid" "$_pc_action" \
         "$_dev_label" "$rid" \
         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
@@ -10213,6 +10291,35 @@ tgbot_handle_callback() {
             sleep 2
             LD_LIBRARY_PATH= ndmc -c "system reboot" >/dev/null 2>&1 || true
             ;;
+        sys_pingcheck_off)
+            local _pc_wan _pc_prof
+            _pc_prof="$(LD_LIBRARY_PATH= ndmc -c "show ping-check" 2>/dev/null | \
+                awk '/profile:/{prof=$NF} /host:/ && prof!="default"{print prof; exit}')"
+            _pc_wan="$(LD_LIBRARY_PATH= ndmc -c "show ping-check" 2>/dev/null | \
+                awk '/name:/{print $NF; exit}')"
+            if ! LD_LIBRARY_PATH= ndmc -c "show ping-check" 2>/dev/null | grep -q "interface:"; then
+                tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_PINGCHECK_ALREADY_OFF)" "$(tgbot_kb_sistem)"
+            else
+                echo "$_pc_wan $_pc_prof" > /opt/etc/pingcheck_saved 2>/dev/null
+                LD_LIBRARY_PATH= ndmc -c "interface $_pc_wan no ping-check profile" >/dev/null 2>&1
+                LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
+                tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_PINGCHECK_OFF_OK)" "$(tgbot_kb_sistem)"
+            fi
+            ;;
+        sys_pingcheck_on)
+            local _pc_saved _pc_wan _pc_prof
+            _pc_saved="$(cat /opt/etc/pingcheck_saved 2>/dev/null)"
+            _pc_wan="$(printf '%s' "$_pc_saved" | awk '{print $1}')"
+            _pc_prof="$(printf '%s' "$_pc_saved" | awk '{print $2}')"
+            if [ -z "$_pc_wan" ] || [ -z "$_pc_prof" ]; then
+                tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_PINGCHECK_FAIL)" "$(tgbot_kb_sistem)"
+            else
+                LD_LIBRARY_PATH= ndmc -c "interface $_pc_wan ping-check profile $_pc_prof" >/dev/null 2>&1
+                LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
+                rm -f /opt/etc/pingcheck_saved 2>/dev/null
+                tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_PINGCHECK_ON_OK)" "$(tgbot_kb_sistem)"
+            fi
+            ;;
         sys_wan_reset)
             tgbot_edit "$chat_id" "$msg_id" \
                 "$(T TXT_TGBOT_WAN_RESET_SELECT)" "$(tgbot_kb_wan_reset_time)"
@@ -10498,14 +10605,15 @@ telegram_bot_stop() {
         pid="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
         if [ -n "$pid" ]; then
             kill "$pid" 2>/dev/null || true
-            sleep 1
+            sleep 2
             kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+            sleep 1
         fi
         rm -f "$TG_BOT_PID_FILE" 2>/dev/null
     fi
     ps 2>/dev/null | awk -v n="$SCRIPT_NAME" \
         'index($0,"--telegram-daemon")>0 && index($0,n)>0 {print $1}' | \
-        while read -r _p; do kill "$_p" 2>/dev/null || true; done
+        while read -r _p; do kill -9 "$_p" 2>/dev/null || true; done
     print_status PASS "$(T TXT_TGBOT_BOT_STOPPED)"
 }
 
@@ -10969,7 +11077,7 @@ hm_wanmon_tick() {
                 "$(tpl_render "$(T TXT_HM_WAN_UP_TITLE)" IF "$wan_disp")" \
                 "📉 $(T TXT_HM_WAN_DOWN_TIME_LABEL)" "$down_hms" \
                 "📈 $(T TXT_HM_WAN_UP_TIME_LABEL)" "$up_hms" \
-                "🕐 $(T TXT_HM_WAN_DUR_LABEL)" "$dur")"
+                "🕐 $(T TXT_HM_WAN_DUR_LABEL)" "$dur")" &
             healthmon_log "$now | wanmon | up iface=$ifc dur=$dur"
         fi
         return 0
@@ -11194,7 +11302,19 @@ healthmon_updatecheck_do() {
     # Never downgrade: skip if remote is not newer than local (dev builds like v26.2.5.1 must not be replaced by v26.2.5).
     if ! ver_is_newer "$latest" "$cur"; then
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | up_to_date cur=$cur latest=$latest"
-        telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_UP_TO_DATE)" CUR "$cur")"
+        local _dh_val
+        if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
+            _dh_val="$(T _ 'Salt okunur! Disk hatali olabilir.' 'Read-only! Disk may be damaged.')"
+        else
+            local _dh_dev
+            _dh_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
+            if [ -n "$_dh_dev" ] && dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_dh_dev}"; then
+                _dh_val="$(T _ 'Kritik I/O hatasi tespit edildi' 'Critical I/O error detected') [${_dh_dev}]"
+            else
+                _dh_val="$(T _ 'OK ✅' 'OK ✅')"
+            fi
+        fi
+        telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_UP_TO_DATE)" CUR "$cur" DISK_HEALTH "$_dh_val")"
         return 0
     fi
 
@@ -11373,6 +11493,7 @@ healthmon_loop() {
     local zapret_start="/tmp/healthmon_zapret_down.start"
     local zapret_flag="/tmp/healthmon_zapret_down.flag"
     local zapret_restart_flag="/tmp/healthmon_zapret_restart.tried"
+    local disk_health_flag="/tmp/healthmon_disk_health.flag"
     local hb_ts="/tmp/healthmon_heartbeat.ts"
 
     while true; do
@@ -11433,6 +11554,33 @@ healthmon_loop() {
             fi
         else
             rm -f "$disk_start" 2>/dev/null
+        fi
+
+        # ---- DISK HEALTH (read-only + I/O error) ----
+        local _dh_down=0 _dh_reason=""
+        if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
+            _dh_down=1; _dh_reason="$(T TXT_HM_DISK_HEALTH_RO)"
+        else
+            local _dh_dev
+            _dh_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
+            if [ -n "$_dh_dev" ] && dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_dh_dev}"; then
+                _dh_down=1; _dh_reason="$(T TXT_HM_DISK_HEALTH_IO) [${_dh_dev}]"
+            fi
+        fi
+        if [ "$_dh_down" = "1" ]; then
+            if healthmon_should_alert "disk_health" "$HM_COOLDOWN_SEC"; then
+                telegram_send "$(tpl_render "$(T TXT_HM_DISK_HEALTH_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" REASON "$_dh_reason")" &
+                healthmon_log "$now | disk_health_down | reason=$_dh_reason cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                echo "1" >"$disk_health_flag" 2>/dev/null
+            fi
+        else
+            if [ -f "$disk_health_flag" ]; then
+                if healthmon_should_alert "disk_health_up" "$HM_COOLDOWN_SEC"; then
+                    telegram_send "$(tpl_render "$(T TXT_HM_DISK_HEALTH_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram")" &
+                    healthmon_log "$now | disk_health_up | cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                fi
+                rm -f "$disk_health_flag" 2>/dev/null
+            fi
         fi
 
         # ---- RAM ----
@@ -11635,13 +11783,13 @@ healthmon_loop() {
                 if [ "$kdns_access2" = "direct" ]; then
                     # direct'e dondu
                     if healthmon_should_alert "keendns_up" "$HM_COOLDOWN_SEC"; then
-                        telegram_send "$(printf "$(T TXT_KEENDNS_BACK)" "$kdns_fqdn")"
+                        telegram_send "$(printf "$(T TXT_KEENDNS_BACK)" "$kdns_fqdn")" &
                         healthmon_log "$now | keendns_up | $kdns_fqdn"
                     fi
                 elif [ "$kdns_can_direct2" = "no" ]; then
                     # CGN: cloud'a dustu, direct imkansiz > kritik alarm
                     if healthmon_should_alert "keendns_down" "$HM_COOLDOWN_SEC"; then
-                        telegram_send "$(printf "$(T TXT_KEENDNS_CGN_LOST)" "$kdns_fqdn")"
+                        telegram_send "$(printf "$(T TXT_KEENDNS_CGN_LOST)" "$kdns_fqdn")" &
                         healthmon_log "$now | keendns_cgn_lost | $kdns_fqdn"
                     fi
                 fi
@@ -11691,18 +11839,18 @@ healthmon_loop() {
                     if [ "$kdns_reach2" = "yes" ]; then
                         if healthmon_should_alert "keendns_reach" "$HM_COOLDOWN_SEC"; then
                             if [ "$kdns_can_direct2" = "no" ]; then
-                                telegram_send "$(printf "$(T TXT_KEENDNS_CGN_BACK)" "$kdns_fqdn")"
+                                telegram_send "$(printf "$(T TXT_KEENDNS_CGN_BACK)" "$kdns_fqdn")" &
                             else
-                                telegram_send "$(printf "$(T TXT_KEENDNS_REACH)" "$kdns_fqdn")"
+                                telegram_send "$(printf "$(T TXT_KEENDNS_REACH)" "$kdns_fqdn")" &
                             fi
                             healthmon_log "$now | keendns_reachable | $kdns_fqdn"
                         fi
                     else
                         if healthmon_should_alert "keendns_unreach" "$HM_COOLDOWN_SEC"; then
                             if [ "$kdns_can_direct2" = "no" ]; then
-                                telegram_send "$(printf "$(T TXT_KEENDNS_CGN_LOST)" "$kdns_fqdn")"
+                                telegram_send "$(printf "$(T TXT_KEENDNS_CGN_LOST)" "$kdns_fqdn")" &
                             else
-                                telegram_send "$(printf "$(T TXT_KEENDNS_FAIL)" "$kdns_fqdn")"
+                                telegram_send "$(printf "$(T TXT_KEENDNS_FAIL)" "$kdns_fqdn")" &
                             fi
                             healthmon_log "$now | keendns_unreachable | $kdns_fqdn port=$kdns_port2 http=$kdns_http2"
                         fi
@@ -13288,6 +13436,8 @@ kzm_gui_get_lan_ip() {
 kzm_gui_gen_status() {
     local _dir="/opt/var/run"
     mkdir -p "$_dir" 2>/dev/null
+    # JSON /tmp'ye yazilir, symlink /opt/var/run altinda kalir (USB write azaltmak icin)
+    ln -sf /tmp/kzm_status.json "$_dir/kzm_status.json" 2>/dev/null
 
     # Zapret calisiyor mu?
     local _zap_run=0
@@ -13417,7 +13567,7 @@ kzm_gui_gen_status() {
     [ -z "$_ts" ] && _ts=0
 
     # JSON yaz (jq yok, elle compose)
-    cat > "$_dir/kzm_status.json" << EOF
+    cat > /tmp/kzm_status.json << EOF
 {
   "ts": $_ts,
   "lang": "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)",
@@ -13467,6 +13617,8 @@ kzm_gui_write_status_script() {
 
 export PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 mkdir -p /opt/var/run 2>/dev/null
+# JSON /tmp'ye yazilir, /opt/var/run altinda symlink kalir (USB write azaltmak icin)
+ln -sf /tmp/kzm_status.json /opt/var/run/kzm_status.json 2>/dev/null
 
 _zap=0; pgrep nfqws >/dev/null 2>&1 && _zap=1
 _hm=0
@@ -13605,7 +13757,7 @@ printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s"
     "$_dpi_profile" "$_dpi_origin" \
     "$_bc_score" "$_bc_dns_ok" "$_bc_tls12_ok" "$_bc_udp_weak" "$_bc_ts" \
     "$_sha_kzm" "$_sha_zapret" \
-    > /opt/var/run/kzm_status.json
+    > /tmp/kzm_status.json
 STATEOF
     chmod +x "$KZM_GUI_STATUS_SCRIPT"
 }
@@ -16165,6 +16317,7 @@ if [ "$1" = "--update-gui" ]; then
     if [ -d "$KZM_GUI_DIR" ]; then
         kzm_gui_write_html
         kzm_gui_write_cgi
+        kzm_gui_write_status_script
     fi
     exit 0
 fi
