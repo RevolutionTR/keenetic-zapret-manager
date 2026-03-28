@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.28"
+SCRIPT_VERSION="v26.3.28.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1710,6 +1710,12 @@ TXT_TGBOT_BTN_CANCEL_TR="Iptal"
 TXT_TGBOT_BTN_CANCEL_EN="Cancel"
 TXT_TGBOT_BTN_KZM_UPDATE_TR="KZM Guncelle"
 TXT_TGBOT_BTN_KZM_UPDATE_EN="Update KZM"
+TXT_TGBOT_BTN_KZM_BACKUP_TR="KZM Yedekle"
+TXT_TGBOT_BTN_KZM_BACKUP_EN="Backup KZM"
+TXT_TGBOT_KZM_BACKUP_OK_TR="✅ Yedek Telegram'a gonderildi."
+TXT_TGBOT_KZM_BACKUP_OK_EN="✅ Backup sent to Telegram."
+TXT_TGBOT_KZM_BACKUP_FAIL_TR="❌ Yedek gonderilemedi."
+TXT_TGBOT_KZM_BACKUP_FAIL_EN="❌ Failed to send backup."
 TXT_TGBOT_BTN_ZAP_UPDATE_TR="Zapret Guncelle"
 TXT_TGBOT_BTN_ZAP_UPDATE_EN="Update Zapret"
 TXT_TGBOT_STATUS_RUNNING_TR="Calisiyor"
@@ -8703,6 +8709,7 @@ backup_zapret_settings() {
     add_rel "/opt/zapret/blockcheck_auto_params"
     add_rel "/opt/etc/healthmon.conf"
     add_rel "/opt/etc/telegram.conf"
+    add_rel "/opt/etc/kzm_gui.conf"
 
     # include all .txt files from ipset dir (nozapret, zapret-hosts-*, future files)
     for f in /opt/zapret/ipset/*.txt; do
@@ -9566,7 +9573,10 @@ tgbot_kb_zapret_force() {
 
 tgbot_kb_kzm() {
     local rid="${TG_ROUTER_ID:-default}"
-    printf '[[{"text":"⬆️ %s","callback_data":"%s:sys_kzm_update"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]'         "$(T TXT_TGBOT_BTN_KZM_UPDATE)" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
+    printf '[[{"text":"⬆️ %s","callback_data":"%s:sys_kzm_update"},{"text":"💾 %s","callback_data":"%s:sys_kzm_backup"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
+        "$(T TXT_TGBOT_BTN_KZM_UPDATE)" "$rid" \
+        "$(T TXT_TGBOT_BTN_KZM_BACKUP)" "$rid" \
+        "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
 
 tgbot_kb_reboot_confirm() {
@@ -10158,6 +10168,41 @@ tgbot_handle_callback() {
                 *) tgbot_edit "$chat_id" "$msg_id" \
                     "$(T TXT_TGBOT_UPDATE_FAIL)" "$(tgbot_kb_kzm)" ;;
             esac
+            ;;
+        sys_kzm_backup)
+            tgbot_edit "$chat_id" "$msg_id" "$(T TXT_BACKUP_TG_SENDING)" ""
+            local _bk_base="/opt/zapret_backups"
+            local _bk_dest="${_bk_base}/zapret_settings"
+            mkdir -p "$_bk_dest" 2>/dev/null
+            local _bk_ts _bk_file
+            _bk_ts="$(date +%Y%m%d_%H%M%S)"
+            _bk_file="${_bk_dest}/zapret_settings_${_bk_ts}.tar.gz"
+            # Mevcut dosyaları topla ve tar.gz olustur
+            local _rels=""
+            for _f in /opt/zapret/config /opt/zapret/wan_if /opt/zapret/lang \
+                      /opt/zapret/hostlist_mode /opt/zapret/scope_mode \
+                      /opt/zapret/ipset_clients.txt /opt/zapret/ipset_clients_mode \
+                      /opt/zapret/dpi_profile /opt/zapret/dpi_profile_origin \
+                      /opt/zapret/dpi_profile_params /opt/zapret/blockcheck_auto_params \
+                      /opt/etc/healthmon.conf /opt/etc/telegram.conf /opt/etc/kzm_gui.conf; do
+                [ -e "$_f" ] && _rels="$_rels ${_f#/}"
+            done
+            for _f in /opt/zapret/ipset/*.txt; do
+                [ -e "$_f" ] && _rels="$_rels ${_f#/}"
+            done
+            tar -C / -czf "$_bk_file" $_rels >/dev/null 2>&1
+            if [ -s "$_bk_file" ]; then
+                local _bk_caption
+                _bk_caption="$(T _ 'KZM Yedek' 'KZM Backup') | $(basename "$_bk_file") | $(date '+%Y-%m-%d %H:%M')"
+                if tgbot_send_document "$chat_id" "$_bk_file" "$_bk_caption"; then
+                    tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_KZM_BACKUP_OK)" "$(tgbot_kb_kzm)"
+                else
+                    tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_KZM_BACKUP_FAIL)" "$(tgbot_kb_kzm)"
+                fi
+            else
+                rm -f "$_bk_file" 2>/dev/null
+                tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_KZM_BACKUP_FAIL)" "$(tgbot_kb_kzm)"
+            fi
             ;;
         sys_net_devices)
             local _nd_total
@@ -16155,8 +16200,12 @@ kzm_gui_change_port() {
         press_enter_to_continue
         return 1
     fi
-    # Conf dosyasina yaz
-    printf 'KZM_GUI_PORT=%s\n' "$_newport" > "$KZM_GUI_CONF_CUSTOM"
+    # Conf dosyasina yaz (default 8088 ise dosyayi sil)
+    if [ "$_newport" = "8088" ]; then
+        rm -f "$KZM_GUI_CONF_CUSTOM" 2>/dev/null
+    else
+        printf 'KZM_GUI_PORT=%s\n' "$_newport" > "$KZM_GUI_CONF_CUSTOM"
+    fi
     KZM_GUI_PORT="$_newport"
     # lighttpd.conf yeniden olustur
     kzm_gui_write_lighttpd_conf
