@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.28.1"
+SCRIPT_VERSION="v26.3.29"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -810,8 +810,15 @@ zkm_banner_get_system() {
     # 1) ndmc show version
     _ver="$(ndmc -c show version 2>/dev/null | tr -d '\r')"
     if [ -n "$_ver" ]; then
+        # Once description: ara — tam isim burada (ornek: "Keenetic Titan (KN-1811)")
         m="$(printf '%s\n' "$_ver" | awk -F': ' '
-            /model:|description:|product:|device:|hardware:|board:/ {
+            /description:/ {
+                gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                if ($2 != "") { print $2; exit }
+            }')"
+        # description yoksa diger alanlara bak
+        [ -z "$m" ] && m="$(printf '%s\n' "$_ver" | awk -F': ' '
+            /model:|product:|device:|hardware:|board:/ {
                 gsub(/^[ \t]+|[ \t]+$/, "", $2);
                 if ($2 != "") { print $2; exit }
             }')"
@@ -830,7 +837,12 @@ zkm_banner_get_system() {
     _sys="$(ndmc -c show system 2>/dev/null | tr -d '\r')"
     if [ -n "$_sys" ]; then
         m="$(printf '%s\n' "$_sys" | awk -F': ' '
-            /model:|description:|product:|device:|hardware:|board:/ {
+            /description:/ {
+                gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                if ($2 != "") { print $2; exit }
+            }')"
+        [ -z "$m" ] && m="$(printf '%s\n' "$_sys" | awk -F': ' '
+            /model:|product:|device:|hardware:|board:/ {
                 gsub(/^[ \t]+|[ \t]+$/, "", $2);
                 if ($2 != "") { print $2; exit }
             }')"
@@ -4289,6 +4301,8 @@ start_zapret() {
 
 	/opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1
 	/opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1
+	# custom.d hook'un her zaman mevcut olmasini garantile
+	write_client_ipset_hook >/dev/null 2>&1
 	# start-fw, moddan bagimsiz olarak genel NFQUEUE kurallarini basabilir.
 	# Burada MODE=list ise genel kurallari temizleyip sadece IPSET kurallarini birakiriz.
 	enforce_client_mode_rules >/dev/null 2>&1
@@ -8710,6 +8724,10 @@ backup_zapret_settings() {
     add_rel "/opt/etc/healthmon.conf"
     add_rel "/opt/etc/telegram.conf"
     add_rel "/opt/etc/kzm_gui.conf"
+    add_rel "/opt/zapret/keenetic_fw_post_up.sh"
+    add_rel "/opt/zapret/init.d/sysv/zapret.real"
+    add_rel "/opt/zapret/init.d/sysv/custom.d/90-keenetic-client-ipset"
+    add_rel "/opt/etc/init.d/S99zkm_healthmon"
 
     # include all .txt files from ipset dir (nozapret, zapret-hosts-*, future files)
     for f in /opt/zapret/ipset/*.txt; do
@@ -9016,6 +9034,10 @@ restore_zapret_settings() {
         6) # KZM settings (healthmon + telegram)
             _copy_if_exists "opt/etc/healthmon.conf" || true
             _copy_if_exists "opt/etc/telegram.conf" || true
+            _copy_if_exists "opt/zapret/keenetic_fw_post_up.sh" || true
+            _copy_if_exists "opt/zapret/init.d/sysv/zapret.real" || true
+            _copy_if_exists "opt/zapret/init.d/sysv/custom.d/90-keenetic-client-ipset" || true
+            _copy_if_exists "opt/etc/init.d/S99zkm_healthmon" || true
             ;;
         *)
             rm -rf "$tmp" 2>/dev/null
@@ -9161,9 +9183,15 @@ telegram_device_info_init() {
 
     _ver="$(LD_LIBRARY_PATH= ndmc -c show version 2>/dev/null)"
     if [ -n "$_ver" ]; then
-        # 1) Key:value lines
+        # 1) Once description: ara — tam isim burada
         TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | awk -F': ' '
-            /model:|description:|product:|device:|hardware:|board:/ {
+            /description:/ {
+                gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                if ($2 != "") { print $2; exit }
+            }')"
+        # description yoksa diger alanlara bak
+        [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="$(printf '%s\n' "$_ver" | awk -F': ' '
+            /model:|product:|device:|hardware:|board:/ {
                 gsub(/^[ \t]+|[ \t]+$/, "", $2);
                 if ($2 != "") { print $2; exit }
             }')"
@@ -9190,7 +9218,12 @@ telegram_device_info_init() {
     if [ -z "$TG_DEVICE_MODEL" ]; then
         _sys="$(LD_LIBRARY_PATH= ndmc -c show system 2>/dev/null)"
         TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | awk -F': ' '
-            /model:|description:|product:|device:|hardware:|board:/ {
+            /description:/ {
+                gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                if ($2 != "") { print $2; exit }
+            }')"
+        [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | awk -F': ' '
+            /model:|product:|device:|hardware:|board:/ {
                 gsub(/^[ \t]+|[ \t]+$/, "", $2);
                 if ($2 != "") { print $2; exit }
             }')"
@@ -10027,9 +10060,21 @@ tgbot_status_text() {
     [ -z "$kzm_ver" ] && kzm_ver="$SCRIPT_VERSION"
     zapret_ver="$(cat /opt/zapret/version 2>/dev/null)"
     [ -z "$zapret_ver" ] && zapret_ver="$(T TXT_TGBOT_STATUS_UNKNOWN)"
-    printf "Zapret: %s\nDPI: %s\nWAN IP: %s\nLAN IP: %s\nCPU: %s%% | RAM: %s\nDisk: %s | Uptime: %s\nHealthMon: %s\nKZM: %s | Zapret: %s" \
+    local disk_health_val
+    if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
+        disk_health_val="$(T _ 'Salt okunur!' 'Read-only!')"
+    else
+        local _dh_dev
+        _dh_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
+        if [ -n "$_dh_dev" ] && dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_dh_dev}"; then
+            disk_health_val="$(T _ 'I/O Hatasi!' 'I/O Error!') [${_dh_dev}]"
+        else
+            disk_health_val="OK"
+        fi
+    fi
+    printf "Zapret: %s\nDPI: %s\nWAN IP: %s\nLAN IP: %s\nCPU: %s%% | RAM: %s\nDisk: %s | Uptime: %s\nDisk Sagligi: %s\nHealthMon: %s\nKZM: %s | Zapret: %s" \
         "$zapret_st" "$profile_name" "$wan_ip" "$lan_ip" \
-        "$cpu_val" "$ram_val" "$disk_val" "$uptime_val" "$hm_st" \
+        "$cpu_val" "$ram_val" "$disk_val" "$uptime_val" "$disk_health_val" "$hm_st" \
         "$kzm_ver" "$zapret_ver"
 }
 
@@ -10177,14 +10222,18 @@ tgbot_handle_callback() {
             local _bk_ts _bk_file
             _bk_ts="$(date +%Y%m%d_%H%M%S)"
             _bk_file="${_bk_dest}/zapret_settings_${_bk_ts}.tar.gz"
-            # Mevcut dosyaları topla ve tar.gz olustur
+            # Mevcut dosyalari topla ve tar.gz olustur
             local _rels=""
             for _f in /opt/zapret/config /opt/zapret/wan_if /opt/zapret/lang \
                       /opt/zapret/hostlist_mode /opt/zapret/scope_mode \
                       /opt/zapret/ipset_clients.txt /opt/zapret/ipset_clients_mode \
                       /opt/zapret/dpi_profile /opt/zapret/dpi_profile_origin \
                       /opt/zapret/dpi_profile_params /opt/zapret/blockcheck_auto_params \
-                      /opt/etc/healthmon.conf /opt/etc/telegram.conf /opt/etc/kzm_gui.conf; do
+                      /opt/etc/healthmon.conf /opt/etc/telegram.conf /opt/etc/kzm_gui.conf \
+                      /opt/zapret/keenetic_fw_post_up.sh \
+                      /opt/zapret/init.d/sysv/zapret.real \
+                      /opt/zapret/init.d/sysv/custom.d/90-keenetic-client-ipset \
+                      /opt/etc/init.d/S99zkm_healthmon; do
                 [ -e "$_f" ] && _rels="$_rels ${_f#/}"
             done
             for _f in /opt/zapret/ipset/*.txt; do
@@ -10195,13 +10244,13 @@ tgbot_handle_callback() {
                 local _bk_caption
                 _bk_caption="$(T _ 'KZM Yedek' 'KZM Backup') | $(basename "$_bk_file") | $(date '+%Y-%m-%d %H:%M')"
                 if tgbot_send_document "$chat_id" "$_bk_file" "$_bk_caption"; then
-                    tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_KZM_BACKUP_OK)" "$(tgbot_kb_kzm)"
+                    tgbot_send "$chat_id" "$(T TXT_TGBOT_KZM_BACKUP_OK)" "$(tgbot_kb_kzm)"
                 else
-                    tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_KZM_BACKUP_FAIL)" "$(tgbot_kb_kzm)"
+                    tgbot_send "$chat_id" "$(T TXT_TGBOT_KZM_BACKUP_FAIL)" "$(tgbot_kb_kzm)"
                 fi
             else
                 rm -f "$_bk_file" 2>/dev/null
-                tgbot_edit "$chat_id" "$msg_id" "$(T TXT_TGBOT_KZM_BACKUP_FAIL)" "$(tgbot_kb_kzm)"
+                tgbot_send "$chat_id" "$(T TXT_TGBOT_KZM_BACKUP_FAIL)" "$(tgbot_kb_kzm)"
             fi
             ;;
         sys_net_devices)
@@ -10310,20 +10359,15 @@ tgbot_handle_callback() {
             tgbot_send "$chat_id" "$(T TXT_TGBOT_CLIENT_RENAME_PROMPT)" ""
             ;;
         sys_selftest)
-            # Selftest ciktiyi dosya olarak gonder - tam sonucu goruntule
             local _st_tmp="/tmp/tgbot_selftest_$$.txt"
-            sh "$ZKM_SCRIPT_PATH" --self-test > "$_st_tmp" 2>&1
-            local _st_fail
             if sh "$ZKM_SCRIPT_PATH" --self-test > "$_st_tmp" 2>&1; then
-                tgbot_edit "$chat_id" "$msg_id" \
-                    "$(T TXT_TGBOT_SELFTEST_PASS)" "$(tgbot_kb_device)"
                 tgbot_send_document "$chat_id" "$_st_tmp" \
                     "✅ Selftest PASS | ${TG_ROUTER_ID:-router}"
+                tgbot_send "$chat_id" "$(T TXT_TGBOT_SELFTEST_PASS)" "$(tgbot_kb_device)"
             else
-                tgbot_edit "$chat_id" "$msg_id" \
-                    "$(T TXT_TGBOT_SELFTEST_FAIL)" "$(tgbot_kb_device)"
                 tgbot_send_document "$chat_id" "$_st_tmp" \
                     "❌ Selftest FAIL | ${TG_ROUTER_ID:-router}"
+                tgbot_send "$chat_id" "$(T TXT_TGBOT_SELFTEST_FAIL)" "$(tgbot_kb_device)"
             fi
             rm -f "$_st_tmp" 2>/dev/null
             ;;
@@ -14058,6 +14102,34 @@ case "$ACTION" in
         ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | \
             while IFS= read -r _p; do kill -9 "$_p" 2>/dev/null || true; done
         ok "Bot durduruldu" ;;
+    tg_restart)
+        _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+        _pid_f="/tmp/zkm_telegram_bot.pid"
+        # tg_stop ile ayni mantik
+        if [ -f "$_pid_f" ]; then
+            _pid="$(cat "$_pid_f" 2>/dev/null)"
+            if [ -n "$_pid" ]; then
+                kill "$_pid" 2>/dev/null || true
+                sleep 2
+                kill -9 "$_pid" 2>/dev/null || true
+            fi
+            rm -f "$_pid_f" 2>/dev/null
+        fi
+        for _kp in $(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}'); do
+            kill -9 "$_kp" 2>/dev/null || true
+        done
+        # tg_start ile ayni kontrol
+        _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
+        [ "$_tg_en" != "1" ] && { ok "Bot durduruldu (yapilandirilmamis)"; exit 0; }
+        # tg_start ile birebir ayni baslatma
+        _log="/tmp/zkm_telegram_bot.log"
+        if command -v nohup >/dev/null 2>&1; then
+            nohup sh "$_kzm" --telegram-daemon </dev/null >>"$_log" 2>&1 &
+        else
+            sh "$_kzm" --telegram-daemon </dev/null >>"$_log" 2>&1 &
+        fi
+        echo $! > "$_pid_f"
+        ok "Bot yeniden baslatildi" ;;
     tg_info)
         _tok="$(grep -s '^TG_BOT_TOKEN=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
         _chat="$(grep -s '^TG_CHAT_ID=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
@@ -14224,6 +14296,11 @@ case "$ACTION" in
         _ar /opt/zapret/blockcheck_auto_params
         _ar /opt/etc/healthmon.conf
         _ar /opt/etc/telegram.conf
+        _ar /opt/etc/kzm_gui.conf
+        _ar /opt/zapret/keenetic_fw_post_up.sh
+        _ar /opt/zapret/init.d/sysv/zapret.real
+        _ar /opt/zapret/init.d/sysv/custom.d/90-keenetic-client-ipset
+        _ar /opt/etc/init.d/S99zkm_healthmon
         for _xf in /opt/zapret/ipset/*.txt; do [ -e "$_xf" ] && _rels="$_rels ${_xf#/}"; done
         [ -z "$(printf '%s' "$_rels" | tr -d ' ')" ] && { fail "Yedeklenecek dosya yok"; exit 0; }
         tar -C / -czf "$_f" $_rels 2>/dev/null
@@ -14635,7 +14712,7 @@ select option{background:#111f3d}
   <nav>
     <div class="item" data-view="sched"><span class="item-icon">&#9719;</span><span class="item-label" data-tr="Zamanl&#305; Reboot" data-en="Scheduled Reboot">Zamanl&#305; Reboot</span><span class="pill">R</span><span class="tip">Zamanl&#305; Reboot</span></div>
     <div class="item" data-view="backup"><span class="item-icon">&#128190;</span><span class="item-label" data-tr="Yedekle" data-en="Backup">Yedekle</span><span class="pill">8</span><span class="tip">Yedekle</span></div>
-    <div class="item" data-view="changelog"><span class="item-icon">&#128203;</span><span class="item-label" data-tr="S&#252;r&#252;m Notlar&#305;" data-en="Release Notes">S&#252;r&#252;m Notlar&#305;</span><span class="tip">S&#252;r&#252;m Notlar&#305;</span></div>
+    <div class="item" data-view="changelog"><span class="item-icon">&#128203;</span><span class="item-label" data-tr="KZM S&#252;r&#252;m Notlar&#305;" data-en="KZM Release Notes">KZM S&#252;r&#252;m Notlar&#305;</span><span class="tip">KZM S&#252;r&#252;m Notlar&#305;</span></div>
   </nav>
   <div class="fnote">KZM Web Panel<br/><small id="atick"><span id="atickLabel">Otomatik yenileme</span>: 15s</small></div>
 </aside>
@@ -15223,8 +15300,9 @@ var V={
     var dis=cfg?'':'disabled';
     var notCfg='<div style="background:rgba(255,180,0,0.12);border:1px solid var(--warn);border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:0.88em;color:var(--warn)">&#9888; '+(L?'Not configured &mdash; SSH &gt; Menu 15':'Yap&#305;land&#305;r&#305;lmam&#305;&#351; &mdash; SSH &gt; Menu 15')+'</div>';
     var startBtn=run
-      ?'<button class="danger" onclick="tgStop(this)">&#9632; '+(L?'Stop':'Durdur')+'</button>'
-      :'<button '+dis+' onclick="tgStart(this)">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>';
+      ?'<button class="danger" style="min-width:130px" onclick="tgStop(this)">&#9632; '+(L?'Stop':'Durdur')+'</button>'+
+       '<button class="ghost" style="min-width:130px;margin-top:6px" onclick="tgRestart(this)">&#8635; '+(L?'Restart':'Yeniden Ba&#351;lat')+'</button>'
+      :'<button '+dis+' style="min-width:130px" onclick="tgStart(this)">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>';
     var h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
       '<div class="card">'+
         '<h3>&#128276; '+(L?'Notifications':'Bildirim')+' <span style="font-size:0.7em;font-weight:normal;color:var(--muted)">'+(L?'(One-Way)':'(Tek Yon)')+'</span></h3>'+
@@ -15241,7 +15319,7 @@ var V={
         (cfg?'':''+notCfg)+
         '<div style="font-size:0.85em;color:var(--muted);margin-bottom:10px">'+(L?'Send commands from Telegram, manage router':'Telegram\'dan komut g&#246;nder, router\'&#305; y&#246;net')+'</div>'+
         '<div class="row">'+bdgO(run,L?'Running':'&#199;al&#305;&#351;&#305;yor',L?'Stopped':'Durdu')+'</div>'+
-        '<div class="btns" style="margin-top:12px">'+startBtn+'</div>'+
+        '<div class="btns" style="margin-top:12px;display:flex;flex-direction:column;align-items:flex-start;gap:6px">'+startBtn+'</div>'+
       '</div>'+
     '</div>'+
     '<div style="margin-top:16px">'+
@@ -15412,7 +15490,7 @@ var V={
     '</div>';
   }},
 
-  changelog:{title:'S&#252;r&#252;m Notlar&#305;',titleEn:'Release Notes',sub:'KZM g&#252;ncelleme ge&#231;mi&#351;i.',subEn:'KZM update history.',html:function(){
+  changelog:{title:'KZM — S&#252;r&#252;m Notlar&#305;',titleEn:'KZM — Release Notes',sub:'KZM g&#252;ncelleme ge&#231;mi&#351;i.',subEn:'KZM update history.',noPrefix:true,html:function(){
     setTimeout(function(){clLoad();},100);
     return '<div class="grid" style="grid-template-columns:200px 1fr;gap:14px">'+
       '<div class="card" id="clList" style="max-height:70vh;overflow-y:auto"><div class="sub">Y&#252;kleniyor...</div></div>'+
@@ -15692,7 +15770,18 @@ function tgStop(btn){
   .then(function(res){
     toast(res.msg||'Bot durduruldu',!!res.ok);
     if(btn){btn.disabled=false;btn.innerHTML=btn._o;}
-    // status_refresh -> fetchS -> render
+    fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=status_refresh'})
+    .then(function(){return fetchS();})
+    .then(function(){render('telegram');});
+  }).catch(function(){toast('Ba&#287;lant&#305; hatas&#305;',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
+}
+function tgRestart(btn){
+  if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
+  fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=tg_restart'})
+  .then(function(r){return r.json();})
+  .then(function(res){
+    toast(res.msg||(L?'Bot restarted':'Bot yeniden baslatildi'),!!res.ok);
+    if(btn){btn.disabled=false;btn.innerHTML=btn._o;}
     fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=status_refresh'})
     .then(function(){return fetchS();})
     .then(function(){render('telegram');});
@@ -15909,7 +15998,9 @@ function clFmt(md){
 }
 function render(k){
   var v=V[k]||V.dash;
-  document.getElementById('pTitle').innerHTML=(L&&v.titleEn)?v.titleEn:(v.title||k);
+  var t=(L&&v.titleEn)?v.titleEn:(v.title||k);
+  var modelPfx=(S&&S.model&&!v.noPrefix)?S.model+' — ':'';
+  document.getElementById('pTitle').innerHTML=modelPfx+t;
   document.getElementById('pSub').innerHTML=(L&&v.subEn)?v.subEn:(v.sub||'');
   document.getElementById('view').innerHTML=v.html?v.html():'<div class="empty">Yap&#305;m a&#351;amas&#305;nda...</div>';
 }
