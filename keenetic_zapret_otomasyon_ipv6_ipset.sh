@@ -30,26 +30,21 @@
 #  along with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 # ============================================================
-
 # BETIK BILGILENDIRME                                 
 # Notepad++ da Duzen > Satir Sonunu Donustur > UNIX (LF)
-
 # -------------------------------------------------------------------
 # Script Kimligi (Repo/Surum)
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.29.1"
+SCRIPT_VERSION="v26.3.29.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
-
 # Daemon icin +x gerekli; "sh script.sh" ile calisinca izin olmasa da menu acilir
 # ama healthmon baslatilamaz. Script her calistiginda otomatik duzelt.
 [ -x "$ZKM_SCRIPT_PATH" ] || chmod +x "$ZKM_SCRIPT_PATH" 2>/dev/null
 # -------------------------------------------------------------------
-
-
 # -------------------------------------------------------------------
 # BEGIN_SESSION_GUARD_V3
 # Amac:
@@ -59,7 +54,6 @@ SCRIPT_AUTHOR="RevolutionTR"
 # -------------------------------------------------------------------
 ZKM_LOCKDIR="/tmp/keenetic_zapret_mgr.lock"
 ZKM_SELF_PID="$$"
-
 # Acquire lock (mkdir is atomic)
 # NOTE: Internal daemon modes must bypass the main session lock,
 # otherwise they cannot start while the UI script is open.
@@ -72,29 +66,23 @@ case "$1" in
     --cgi-action)      ZKM_SKIP_LOCK="1" ;;
     --dev|--developer)  ZKM_DEV_CHECK="1" ;;
 esac
-
-
 # Developer / Self-test flags
 ZKM_SELF_TEST="${ZKM_SELF_TEST:-0}"
 ZKM_DEV_CHECK="${ZKM_DEV_CHECK:-0}"
-
 zkm_self_test() {
     local f="$0"
     local fail=0 warn=0
     _pass() { echo "PASS $*"; }
     _warn() { echo "WARN $*"; warn=$((warn+1)); }
     _fail() { echo "FAIL $*"; fail=$((fail+1)); }
-
     echo "=== KZM Self-Test ==="
     echo "File: $f"
-
     # 1) Syntax
     if sh -n "$f" 2>/tmp/zkm_selftest_syntax.err; then
         _pass "syntax: sh -n OK"
     else
         _fail "syntax: sh -n FAILED (see /tmp/zkm_selftest_syntax.err)"
     fi
-
     # 2) Turkish letters (byte-level) — HTML/CGI heredoc bolumlerini atla
     local found_tr=0 pat
     for pat in \
@@ -115,7 +103,6 @@ zkm_self_test() {
     else
         _pass "TR letters: none (byte-verified)"
     fi
-
     # 3) Translation coverage: used TXT_* keys must have _TR and _EN
     local miss="/tmp/zkm_selftest_missing.txt"
     : > "$miss"
@@ -126,7 +113,6 @@ zkm_self_test() {
             grep -qE "^${k}_TR=" "$f" 2>/dev/null || echo "${k}_TR" >> "$miss"
             grep -qE "^${k}_EN=" "$f" 2>/dev/null || echo "${k}_EN" >> "$miss"
         done
-
     if [ -s "$miss" ]; then
         _fail "missing translations found (see $miss)"
         head -n 30 "$miss" | sed 's/^/  - /'
@@ -137,7 +123,6 @@ zkm_self_test() {
         _pass "translations: all used TXT_* have TR+EN"
         rm -f "$miss" 2>/dev/null
     fi
-
     # 4) read -p usage (not supported in BusyBox ash)
     local readp_count
     readp_count="$(grep -E "read[[:space:]]+-r?[[:space:]]*-p|read[[:space:]]+-p" "$f" 2>/dev/null \
@@ -150,7 +135,6 @@ zkm_self_test() {
     else
         _pass "read -p: none detected"
     fi
-
     # 5) Telegram config (optional)
     if [ -f /opt/etc/telegram.conf ]; then
         . /opt/etc/telegram.conf 2>/dev/null
@@ -162,7 +146,6 @@ zkm_self_test() {
     else
         _warn "telegram: /opt/etc/telegram.conf not found (optional)"
     fi
-
     # 6) HealthMon auto-start (optional)
     if [ -f /opt/etc/healthmon.conf ]; then
         . /opt/etc/healthmon.conf 2>/dev/null
@@ -180,28 +163,20 @@ zkm_self_test() {
     else
         _warn "healthmon: /opt/etc/healthmon.conf not found (optional)"
     fi
-
     echo "=== Summary: FAIL=$fail WARN=$warn ==="
     [ "$fail" -eq 0 ]
 }
-
 # Run self-test and exit
 if [ "$ZKM_SELF_TEST" = "1" ]; then
     zkm_self_test
     exit $?
 fi
-
 # Optional developer check (silent). No dependency for users.
 if [ "$ZKM_DEV_CHECK" = "1" ] && [ -x /opt/etc/zkm_guard.sh ]; then
     /opt/bin/sh /opt/etc/zkm_guard.sh "$0" >/dev/null 2>&1
 fi
-
-
-
-
 if [ "$ZKM_SKIP_LOCK" != "1" ]; then
     if ! mkdir "$ZKM_LOCKDIR" 2>/dev/null; then
-
         if [ -f "$ZKM_LOCKDIR/pid" ] && kill -0 "$(cat "$ZKM_LOCKDIR/pid" 2>/dev/null)" 2>/dev/null; then
             _lock_pid="$(cat "$ZKM_LOCKDIR/pid" 2>/dev/null)"
             _lock_lang="$(cat /opt/zapret/lang 2>/dev/null)"
@@ -229,14 +204,11 @@ if [ "$ZKM_SKIP_LOCK" != "1" ]; then
         rm -rf "$ZKM_LOCKDIR" 2>/dev/null
         mkdir "$ZKM_LOCKDIR" 2>/dev/null || exit 1
     fi
-
     echo "$ZKM_SELF_PID" > "$ZKM_LOCKDIR/pid"
-
     # Session guard + cleanup only for the main interactive instance
     zkm_cleanup() {
         rm -rf "$ZKM_LOCKDIR" 2>/dev/null
     }
-
     # Forceful exit helper: in BusyBox ash, "exit" inside a trap handler may fail
     # to terminate the shell when deep in nested function calls (e.g., during
     # healthmon_start's sleep loop). kill -KILL $$ guarantees termination.
@@ -246,10 +218,8 @@ if [ "$ZKM_SKIP_LOCK" != "1" ]; then
         kill -KILL $$ 2>/dev/null
         exit "$1" 2>/dev/null
     }
-
     # Always cleanup the lock
     trap 'zkm_cleanup' EXIT
-
     # Extra traps: ensure Ctrl-C (INT) and disconnect signals actually EXIT
     trap '_zkm_force_exit 130' INT
     trap '_zkm_force_exit 143' TERM
@@ -257,57 +227,41 @@ if [ "$ZKM_SKIP_LOCK" != "1" ]; then
     trap '_zkm_force_exit 148' TSTP
     trap '_zkm_force_exit 150' TTIN
     trap '_zkm_force_exit 151' TTOU
-
     # END_SESSION_GUARD_V3
 fi
-
 # -------------------------------------------------------------------
 # Dogru Dizin Uyarisi (keenetic / keenetic-zapret)
 # -------------------------------------------------------------------
-
 #------ Komple Kaldirma ---------------------------------------------------------------
 # KZM + Zapret tam temiz kaldirma (UNSAFE / irreversible)
 # Not: "Zapret’i Kaldir" (mevcut) rutini aynen calisir, sonra KZM kalintilari temizlenir.
 # TR/EN Dictionary (Komple Kaldirma)
 TXT_ZKM_FULL_UNINSTALL_TITLE_TR="KZM + Zapret Kaldirma (Tam Temiz)"
 TXT_ZKM_FULL_UNINSTALL_TITLE_EN="KZM + Zapret Uninstall (Full Clean)"
-
 TXT_ZKM_FULL_UNINSTALL_WARN1_TR="Bu islem Zapret'i kaldirir ve KZM'nin HealthMon/Telegram ayarlarini, init dosyalarini ve log/state dosyalarini temizler."
 TXT_ZKM_FULL_UNINSTALL_WARN1_EN="This will uninstall Zapret and clean KZM HealthMon/Telegram configs, init files, and log/state files."
-
 TXT_ZKM_FULL_UNINSTALL_WARN2_TR="Islem geri alinamaz. Devam etmeden once yedek aldiginizdan emin olun."
 TXT_ZKM_FULL_UNINSTALL_WARN2_EN="This action is irreversible. Make sure you have a backup before continuing."
-
 TXT_ZKM_FULL_UNINSTALL_PROMPT1_TR="Devam etmek icin BUYUK HARFLE 'EVET' yazin (iptal icin Enter): "
 TXT_ZKM_FULL_UNINSTALL_PROMPT1_EN="Type 'YES' (uppercase) to continue (press Enter to cancel): "
-
 TXT_ZKM_FULL_UNINSTALL_PROMPT2_TR="Son onay: BUYUK HARFLE 'KALDIR' yazin (iptal icin Enter): "
 TXT_ZKM_FULL_UNINSTALL_PROMPT2_EN="Final confirm: type 'REMOVE' (uppercase) (press Enter to cancel): "
-
 TXT_ZKM_FULL_UNINSTALL_CANCEL_TR="Iptal edildi."
 TXT_ZKM_FULL_UNINSTALL_CANCEL_EN="Cancelled."
-
 TXT_ZKM_FULL_UNINSTALL_HINT_TR="Iptal icin ENTER'a basin."
 TXT_ZKM_FULL_UNINSTALL_HINT_EN="Press ENTER to cancel."
-
 TXT_ZKM_FULL_UNINSTALL_PHASE1_TR="1/2: Zapret kaldiriliyor..."
 TXT_ZKM_FULL_UNINSTALL_PHASE1_EN="1/2: Uninstalling Zapret..."
-
 TXT_ZKM_FULL_UNINSTALL_PHASE2_TR="2/2: KZM kalintilari temizleniyor..."
 TXT_ZKM_FULL_UNINSTALL_PHASE2_EN="2/2: Cleaning KZM leftovers..."
-
 TXT_ZKM_FULL_UNINSTALL_STEP1_TR="1/2: Zapret kaldiriliyor (mevcut kaldirma rutini)..."
 TXT_ZKM_FULL_UNINSTALL_STEP1_EN="1/2: Removing Zapret (existing uninstall routine)..."
-
 TXT_ZKM_FULL_UNINSTALL_STEP2_TR="2/2: KZM kalintilari temizleniyor..."
 TXT_ZKM_FULL_UNINSTALL_STEP2_EN="2/2: Cleaning KZM leftovers..."
-
 TXT_ZKM_FULL_UNINSTALL_DONE_TR="Tam temiz kaldirma tamamlandi."
 TXT_ZKM_FULL_UNINSTALL_DONE_EN="Full clean uninstall completed."
-
 TXT_ZKM_FULL_UNINSTALL_NOTE_TR="Not: Bu islemin ardindan betik artik calismayacaktir."
 TXT_ZKM_FULL_UNINSTALL_NOTE_EN="Note: After this, the script will no longer be available."
-
 TXT_ZKM_FULL_UNINSTALL_SCRIPT_NOTE_TR="Betik dosyasi guvenlik nedeniyle silinmedi. Isterseniz manuel olarak silebilirsiniz."
 TXT_ZKM_FULL_UNINSTALL_SCRIPT_NOTE_EN="Script file was not removed for safety. You may delete it manually if desired."
 zkm_full_uninstall() {
@@ -321,7 +275,6 @@ zkm_full_uninstall() {
     echo ""
     print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_HINT)"
     echo ""
-
 	    printf "%s" "$(T TXT_ZKM_FULL_UNINSTALL_PROMPT1)"
 	    read -r _ans1
 	    if [ -z "$_ans1" ] || ( [ "$_ans1" != "EVET" ] && [ "$_ans1" != "YES" ] ); then
@@ -329,7 +282,6 @@ zkm_full_uninstall() {
         press_enter_to_continue
         return 0
     fi
-
 	    printf "%s" "$(T TXT_ZKM_FULL_UNINSTALL_PROMPT2)"
 	    read -r _ans2
 	    if [ -z "$_ans2" ] || ( [ "$_ans2" != "KALDIR" ] && [ "$_ans2" != "REMOVE" ] ); then
@@ -337,14 +289,11 @@ zkm_full_uninstall() {
         press_enter_to_continue
         return 0
     fi
-
     echo ""
     print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_STEP1)"
     uninstall_zapret 1
-
     echo ""
     print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_STEP2)"
-
     # GUI kaldir (kurulu olsun olmasin, iz birakma)
     if kzm_gui_is_installed 2>/dev/null; then
         print_status INFO "$(T TXT_GUI_REMOVING)"
@@ -363,7 +312,6 @@ zkm_full_uninstall() {
         kzm_gui_remove_cron 2>/dev/null || true
         print_status PASS "$(T TXT_GUI_REMOVED)"
     fi
-
     # Stop HealthMon daemon if running
     if [ -f /tmp/healthmon.pid ]; then
         _pid="$(cat /tmp/healthmon.pid 2>/dev/null)"
@@ -371,55 +319,44 @@ zkm_full_uninstall() {
         rm -f /tmp/healthmon.pid 2>/dev/null
     fi
     rm -rf /tmp/healthmon.lock 2>/dev/null
-
     # Remove HealthMon / Telegram configs (KZM-owned)
     rm -f /opt/etc/healthmon.conf /opt/etc/healthmon.conf.bak 2>/dev/null
     rm -f /opt/etc/telegram.conf 2>/dev/null
-
     # Remove init autostart (if created by KZM)
     rm -f /opt/etc/init.d/S99zkm_healthmon 2>/dev/null
-
     # Remove state/log files (KZM/HealthMon/WANMon)
     rm -f /opt/etc/healthmon_update.state 2>/dev/null
     rm -f /tmp/zkm_autoupdate.log 2>/dev/null
     rm -f /tmp/healthmon.log 2>/dev/null
     rm -f /tmp/healthmon_* /tmp/wanmon.* 2>/dev/null
-
     # Remove helper/wrapper commands created by this script
     rm -f /opt/bin/keenetic /opt/bin/keenetic-zapret /opt/bin/kzm /opt/bin/KZM 2>/dev/null
-
     # Remove KZM backup files (script backups)
     rm -f /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_* 2>/dev/null
     # Script file is NOT removed (safety)
-
     echo ""
     print_status OK "$(T TXT_ZKM_FULL_UNINSTALL_DONE)"
     print_status INFO "$(T TXT_ZKM_FULL_UNINSTALL_SCRIPT_NOTE)"
     press_enter_to_continue
     exit 0
 }
-
 # -------------------------------------------------------------------
 # Dogru Dizin Uyarisi (keenetic / keenetic-zapret)
 # -------------------------------------------------------------------
 check_script_location_once() {
     local EXPECTED="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     local CURRENT="$(readlink -f "$0" 2>/dev/null)"
-
     [ -z "$CURRENT" ] && return
-
     if [ "$CURRENT" != "$EXPECTED" ]; then
         echo
         printf "%b %s
 " \
             "${CLR_RED}UYARI:${CLR_RESET}" \
             "$(T TXT_WARN_BAD_PATH)"
-
         echo
         echo "$(T TXT_WARN_MOVE)"
         echo "$(T TXT_WARN_CONTINUE)"
         echo
-
         printf '%s' "$(T TXT_WARN_CHOICE)"; read -r sel
         case "$sel" in
             1)
@@ -453,68 +390,53 @@ check_script_location_once() {
     fi
 }
 # -------------------------------------------------------------------
-
 # -------------------------------------------------------------------
 # CLI KISAYOL (keenetic / keenetic-zapret)
 # -------------------------------------------------------------------
 ensure_cli_shortcut() {
     # Script her seferinde tam path ile calistirilmasin diye
     # /opt/bin altina kisa komutlar ekler (idempotent).
-
     local CURRENT TARGET WRAP1 WRAP2
-
     CURRENT="$(readlink -f "$0" 2>/dev/null)"
     TARGET="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
-
     [ -f "$TARGET" ] || TARGET="$CURRENT"
-
     WRAP1="/opt/bin/keenetic-zapret"
     WRAP2="/opt/bin/keenetic"
     WRAP3="/opt/bin/kzm"
     WRAP4="/opt/bin/KZM"
-
     # keenetic-zapret her zaman yarat / guncelle
     cat > "$WRAP1" <<EOF
 #!/opt/bin/sh
 exec /opt/bin/sh "$TARGET" "\$@"
 EOF
     chmod +x "$WRAP1" 2>/dev/null
-
     # keenetic sadece yoksa olustur
     if [ ! -e "$WRAP2" ]; then
         ln -s "$WRAP1" "$WRAP2" 2>/dev/null || cp -a "$WRAP1" "$WRAP2"
         chmod +x "$WRAP2" 2>/dev/null
     fi
-
     # kzm sadece yoksa olustur
     if [ ! -e "$WRAP3" ]; then
         ln -s "$WRAP1" "$WRAP3" 2>/dev/null || cp -a "$WRAP1" "$WRAP3"
         chmod +x "$WRAP3" 2>/dev/null
     fi
-
     # KZM (buyuk harf) sadece yoksa olustur
     if [ ! -e "$WRAP4" ]; then
         ln -s "$WRAP1" "$WRAP4" 2>/dev/null || cp -a "$WRAP1" "$WRAP4"
         chmod +x "$WRAP4" 2>/dev/null
     fi
-
     return 0
 }
-
 # Ilk calistirmada CLI kisayolunu garanti altina al
 ensure_cli_shortcut
-
 # -------------------------------------------------------------------
-
 # Zapret IPv6 destegi secimi (y/n). Varsayilan: n
 ZAPRET_IPV6="n"
-
 # -------------------------------------------------------------------
 # Dil (TR/EN) Secimi ve Sozluk
 # -------------------------------------------------------------------
 LANG_FILE="/opt/zapret/lang"
 LANG="tr"
-
 # -------------------------------------------------------------------
 # Renkler (ANSI) - sadece terminal (TTY) ise etkin
 # -------------------------------------------------------------------
@@ -538,9 +460,6 @@ else
     CLR_DIM=""
     CLR_RESET=""
 fi
-
-
-
 # -------------------------------------------------------------------
 # UI: Dinamik cizgi (terminal genisligine gore)
 #  - UI_COLS=100 ile elle zorlanabilir
@@ -552,24 +471,20 @@ get_term_cols() {
         printf '%s' "${UI_COLS}"
         return 0
     fi
-
     # Prefer tput, fallback to stty, fallback to 80
     c="$(tput cols 2>/dev/null)"
     if [ -n "$c" ]; then
         printf '%s' "$c"
         return 0
     fi
-
     c="$(stty size 2>/dev/null | awk '{print $2}')"
     if [ -n "$c" ]; then
         printf '%s' "$c"
         return 0
     fi
-
     printf '%s' "80"
     return 0
 }
-
 print_line() {
     # Usage: print_line "="  OR  print_line "-"
     ch="${1:-=}"
@@ -580,8 +495,6 @@ print_line() {
     # print repeated character up to terminal width
     printf "%*s\n" "$cols" "" | tr " " "$ch"
 }
-
-
 # Screen helper
 clear_screen() {
     # Prefer 'clear' if available; otherwise reset the terminal
@@ -591,7 +504,6 @@ clear_screen() {
         printf '\033c'
     fi
 }
-
 hc_word() {
     # PASS/WARN/FAIL kelimesini renklendirir (renk kapaliysa sade basar)
     case "$1" in
@@ -602,7 +514,6 @@ hc_word() {
         *)    printf '%s' "$1" ;;
     esac
 }
-
 # --- Health helpers (used by Health Score layout) ---
 _nslookup_t() {
     # nslookup with 5s timeout via background+kill (timeout komutu gerekmez)
@@ -619,7 +530,6 @@ _nslookup_t() {
     kill "$_pid" 2>/dev/null
     return 1
 }
-
 _nslookup_ip() {
     # nslookup ile IP coz, sonucu stdout'a yaz (5s timeout, temp dosya ile)
     local _tmp="/tmp/nslookup_ip_$$"
@@ -638,28 +548,23 @@ _nslookup_ip() {
     rm -f "$_tmp"
     return 1
 }
-
 check_dns_local() {
     _nslookup_t github.com 127.0.0.1
 }
-
 check_dns_external() {
     _nslookup_t github.com 8.8.8.8
 }
-
 check_dns_consistency() {
     local dns_local_ip dns_pub_ip
     dns_local_ip="$(_nslookup_ip github.com 127.0.0.1)"
     dns_pub_ip="$(_nslookup_ip github.com 8.8.8.8)"
     [ -n "$dns_local_ip" ] && [ -n "$dns_pub_ip" ] && [ "$dns_local_ip" = "$dns_pub_ip" ]
 }
-
 check_ntp() {
     local now_epoch
     now_epoch="$(date +%s 2>/dev/null)"
     [ -n "$now_epoch" ] && [ "$now_epoch" -gt 1609459200 ] 2>/dev/null
 }
-
 check_github() {
     local code
     code="$(curl -I -m 5 -s -o /dev/null -w '%{http_code}' https://api.github.com/ 2>/dev/null)"
@@ -668,11 +573,9 @@ check_github() {
         *) return 1 ;;
     esac
 }
-
 check_opkg() {
     command -v opkg >/dev/null 2>&1 && opkg --version >/dev/null 2>&1
 }
-
 # print_status LEVEL MESSAGE
 # LEVEL: PASS/WARN/INFO/FAIL (colored via hc_word)
 print_status() {
@@ -682,8 +585,6 @@ print_status() {
     # If colors are disabled, hc_word will return plain text
     printf "%s %s\n" "$(hc_word "$_lvl")" "$_msg"
 }
-
-
 color_mode_name() {
     # outputs colored mode name for menu display
     case "$1" in
@@ -693,10 +594,8 @@ color_mode_name() {
         *)            printf '%b' "$1" ;;
     esac
 }
-
 # Zapret installed version (from file). Safe if not installed.
 ZAPRET_VERSION_FILE="/opt/zapret/version"
-
 zkm_get_zapret_version() {
     local v
     # Default fallback comes from TR/EN dictionary variables (no hardcoded literals here)
@@ -708,19 +607,16 @@ zkm_get_zapret_version() {
     fi
     printf "%s" "$v"
 }
-
 # ---- Main banner live status helpers (safe, minimal) ----
 zkm_banner_ndmc_ok() {
     command -v ndmc >/dev/null 2>&1 || return 1
     ndmc -c 'show version' >/dev/null 2>&1
 }
-
 zkm_banner_get_ndmc_field() {
     # $1: field name (e.g., "model:")
     [ -n "$1" ] || return 1
     ndmc -c 'show version' 2>/dev/null | tr -d '\r' | awk -v f="$1" '$1==f{ $1=""; sub(/^[ \t]+/,""); print; exit }'
 }
-
 # KN numarasindan cihaz adi dondurur
 _zkm_kn_to_name() {
     case "$1" in
@@ -803,10 +699,8 @@ _zkm_kn_to_name() {
         *)        echo "Keenetic $1"                       ;;
     esac
 }
-
 zkm_banner_get_system() {
     local m="" _ver="" _sys="" _kn=""
-
     # 1) ndmc show version
     _ver="$(ndmc -c show version 2>/dev/null | tr -d '\r')"
     if [ -n "$_ver" ]; then
@@ -832,7 +726,6 @@ zkm_banner_get_system() {
         _kn="$(printf '%s\n' "$_ver" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
         [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
     fi
-
     # 2) ndmc show system
     _sys="$(ndmc -c show system 2>/dev/null | tr -d '\r')"
     if [ -n "$_sys" ]; then
@@ -856,7 +749,6 @@ zkm_banner_get_system() {
         _kn="$(printf '%s\n' "$_sys" | grep -Eo 'KN-[0-9]{3,5}' | head -1)"
         [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
     fi
-
     # 3) /proc/device-tree/model veya /sys/firmware/devicetree/base/model
     for _f in /proc/device-tree/model /sys/firmware/devicetree/base/model; do
         [ -r "$_f" ] || continue
@@ -866,13 +758,11 @@ zkm_banner_get_system() {
         [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
         echo "$m"; return 0
     done
-
     # 4) /etc/components.xml — model="KN-XXXX"
     if [ -r /etc/components.xml ]; then
         _kn="$(grep -o 'model="KN-[0-9]*"' /etc/components.xml 2>/dev/null | head -1 | grep -o 'KN-[0-9]*')"
         [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
     fi
-
     # 5) MTD U-Config partition — ndmhwid=KN-XXXX
     # /proc/mtd'den "U-Config" adli bolumu bul, sadece ilk 64KB oku
     if [ -r /proc/mtd ]; then
@@ -883,28 +773,20 @@ zkm_banner_get_system() {
             [ -n "$_kn" ] && { _zkm_kn_to_name "$_kn"; return 0; }
         fi
     fi
-
     echo "Keenetic"
 }
-
-
-
 zkm_banner_get_firmware() {
     # /etc/components.xml'den firmware versiyonu ve kanal bilgisini okur
     # Cikti: "5.0.6 (Onizleme)" gibi
     local _xml _version _sandbox _channel_tr
-
     [ -r /etc/components.xml ] || return 1
     _xml="$(cat /etc/components.xml 2>/dev/null)" || return 1
-
     # Kisa versiyon: <title>5.0.6</title>
     _version="$(printf '%s' "$_xml" | grep -o '<title>[^<]*</title>' | head -1 | sed 's/<title>//;s/<\/title>//')"
     [ -z "$_version" ] && _version="$(printf '%s' "$_xml" | grep -o 'version="[^"]*"' | head -1 | sed 's/version="//;s/"//')"
     [ -z "$_version" ] && return 1
-
     # Kanal: sandbox="stable|preview|alpha"
     _sandbox="$(printf '%s' "$_xml" | grep -o 'sandbox="[^"]*"' | head -1 | sed 's/sandbox="//;s/"//')"
-
     # Kanal adini yerellestir
     case "$_sandbox" in
         stable)  _channel_tr="$(T _ 'Kararli'     'Stable')"     ;;
@@ -912,42 +794,32 @@ zkm_banner_get_firmware() {
         alpha)   _channel_tr="$(T _ 'Gelistirici' 'Developer')"  ;;
         *)       _channel_tr="$_sandbox"                          ;;
     esac
-
     if [ -n "$_channel_tr" ]; then
         printf '%s (%s)' "$_version" "$_channel_tr"
     else
         printf '%s' "$_version"
     fi
 }
-
 zkm_banner_get_wan_dev() {
     local dev=""
-
     # Prefer existing WAN detection helpers (used elsewhere in the script)
     dev="$(get_wan_if 2>/dev/null)"
     [ -z "$dev" ] && dev="$(healthmon_detect_wan_iface_ndm 2>/dev/null)"
-
     # Fallback: parse default route robustly (avoid returning 'link')
     if [ -z "$dev" ]; then
         dev="$(ip route 2>/dev/null | awk '$1=="default"{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
     fi
-
     printf "%s" "$dev"
 }
-
 zkm_banner_get_wan_state() {
     local dev="$1"
     local up
-
     [ -n "$dev" ] || { echo "DOWN"; return 0; }
-
     up="$(ip link show "$dev" 2>/dev/null | head -n 1)"
     echo "$up" | grep -q 'LOWER_UP' && { echo "UP"; return 0; }
     echo "$up" | grep -q '<.*UP' && { echo "UP"; return 0; }
-
     echo "DOWN"
 }
-
 zkm_banner_get_zapret_state() {
     if is_zapret_running; then
         echo "RUNNING"
@@ -955,7 +827,6 @@ zkm_banner_get_zapret_state() {
         echo "STOPPED"
     fi
 }
-
 zkm_banner_fmt_wan_state() {
     # $1: UP|DOWN
     case "$1" in
@@ -963,7 +834,6 @@ zkm_banner_fmt_wan_state() {
         *)    printf '%b' "${CLR_RED}$(T TXT_MAIN_DOWN)${CLR_RESET}" ;;
     esac
 }
-
 # IP adresini siniflandir: public / cgnat / private
 zkm_classify_ip() {
     local ip="$1"
@@ -981,7 +851,6 @@ zkm_classify_ip() {
     esac
     echo "public"
 }
-
 # IP'yi renkli formatla (alt-shell uyumu icin hardcoded escape)
 zkm_fmt_ip() {
     local ip="$1" type
@@ -992,7 +861,6 @@ zkm_fmt_ip() {
         *)       printf '\033[1;32m%s\033[0m'                            "$ip" ;;
     esac
 }
-
 zkm_banner_fmt_zapret_state() {
     # $1: RUNNING|STOPPED
     case "$1" in
@@ -1000,7 +868,6 @@ zkm_banner_fmt_zapret_state() {
         *)       printf '%b' "${CLR_RED}$(T TXT_MAIN_STOPPED)${CLR_RESET}" ;;
     esac
 }
-
 zkm_banner_fmt_keendns_state() {
     # $1: direct|cloud|unknown/empty
     case "$1" in
@@ -1009,235 +876,157 @@ zkm_banner_fmt_keendns_state() {
         *)      printf '%b' "${CLR_RED}$(T TXT_KEENDNS_UNKNOWN)${CLR_RESET}" ;;
     esac
 }
-
-
-
-
 # Sozluk: TXT_*_TR / TXT_*_EN
 TXT_MAIN_TITLE_TR="KEENETIC ZAPRET YONETIM ARACI (KZM)"
 TXT_MAIN_TITLE_EN="KEENETIC ZAPRET MANAGEMENT TOOL (KZM)"
-
 TXT_OPTIMIZED_TR=" Varsayilan ayarlar TT altyapisinda test edilerek optimize edilmistir."
 TXT_OPTIMIZED_EN=" Default settings are tested and optimized for TT infrastructure."
-
 TXT_DPI_WARNING_TR=" DPI profil basarimi; ISS, hat tipine gore degiskenlik gosterebilir."
 TXT_DPI_WARNING_EN=" DPI profile effectiveness may vary by ISP, line type."
-
 TXT_DEVELOPER_TR=" Gelistirici : RevolutionTR"
 TXT_DEVELOPER_EN=" Developer  : RevolutionTR"
-
 TXT_GITHUB_TR=" GitHub      : github.com/RevolutionTR/keenetic-zapret-manager"
 TXT_GITHUB_EN=" GitHub     : github.com/RevolutionTR/keenetic-zapret-manager"
-
 # TXT_EDITOR_TR=" Duzenleyen  : RevolutionTR"
 # TXT_EDITOR_EN=" Maintainer : RevolutionTR"
-
 TXT_VERSION_TR=" KZM Surum   : ${SCRIPT_VERSION}"
 TXT_VERSION_EN=" KZM Version: ${SCRIPT_VERSION}"
-
 TXT_ZAPRET_VERSION_PREFIX_TR=" Zapret Surum: "
 TXT_ZAPRET_VERSION_PREFIX_EN=" Zapret Ver : "
-
 TXT_UNKNOWN_TR="Kurulu Degil"
 TXT_UNKNOWN_EN="Not Installed"
-
 TXT_MAIN_SYS_LABEL_TR="Sistem"
 TXT_MAIN_SYS_LABEL_EN="System"
-
 TXT_MAIN_WAN_LABEL_TR="WAN"
 TXT_MAIN_WAN_LABEL_EN="WAN"
-
 TXT_MAIN_ZAPRET_LABEL_TR="Zapret"
 TXT_MAIN_ZAPRET_LABEL_EN="Zapret"
-
 TXT_MAIN_UP_TR="ACIK"
 TXT_MAIN_UP_EN="UP"
-
 TXT_MAIN_DOWN_TR="KAPALI"
 TXT_MAIN_DOWN_EN="DOWN"
-
 TXT_MAIN_RUNNING_TR="CALISIYOR"
 TXT_MAIN_RUNNING_EN="RUNNING"
-
 TXT_MAIN_STOPPED_TR="DURDU"
 TXT_MAIN_STOPPED_EN="STOPPED"
-
 TXT_DESC1_TR="Bu arac, Keenetic cihazlarinda Zapret kurulumunu,"
 TXT_DESC1_EN="This tool unifies Zapret installation,"
-
 TXT_DESC2_TR="yonetimini ve sistem izlemeyi tek noktada toplayan"
 TXT_DESC2_EN="management, and system monitoring"
-
 TXT_DESC3_TR="gelismis bir yonetim cozumudur."
 TXT_DESC3_EN="into a centralized solution for Keenetic devices."
-
 TXT_MENU_HEADER_TR="------------------- ANA MENU --------------------------------------------------------------"
 TXT_MENU_HEADER_EN="-------------------- MAIN MENU ------------------------------------------------------------"
-
 TXT_MENU_1_TR=" 1. Zapret'i Yukle"
 TXT_MENU_1_EN=" 1. Install Zapret"
-
 TXT_MENU_2_TR=" 2. Zapret'i Kaldir"
 TXT_MENU_2_EN=" 2. Uninstall Zapret"
-
 TXT_MENU_3_TR=" 3. Zapret'i Baslat"
 TXT_MENU_3_EN=" 3. Start Zapret"
-
 TXT_MENU_4_TR=" 4. Zapret'i Durdur"
 TXT_MENU_4_EN=" 4. Stop Zapret"
-
 TXT_MENU_5_TR=" 5. Zapret'i Yeniden Baslat"
 TXT_MENU_5_EN=" 5. Restart Zapret"
-
 TXT_MENU_6_TR=" 6. Zapret Guncelleme Kontrolu (Guncel/Kurulu - GitHub)"
 TXT_MENU_6_EN=" 6. Zapret Update Check (Latest/Installed - GitHub)"
-
 TXT_MENU_7_TR=" 7. Zapret IPv6 Destegi (Sihirbaz)"
 TXT_MENU_7_EN=" 7. Zapret IPv6 support (Wizard)"
-
 TXT_MENU_8_TR=" 8. Zapret / KZM Yedekle / Geri Yukle"
 TXT_MENU_8_EN=" 8. Zapret / KZM Backup / Restore"
-
 TXT_MENU_9_TR=" 9. DPI Profilini Degistir"
 TXT_MENU_9_EN=" 9. Change DPI profile"
-
 TXT_ACTIVE_DPI_TR=" Aktif DPI Profili"
 TXT_ACTIVE_DPI_EN=" Active DPI Profile"
-
 TXT_ACTIVE_DPI_AUTO_TR=" Blockcheck (Otomatik)"
 TXT_ACTIVE_DPI_AUTO_EN=" Blockcheck (Auto)"
-
 TXT_ACTIVE_DPI_DEFAULT_TR=" Varsayilan / Manuel"
 TXT_ACTIVE_DPI_DEFAULT_EN=" Default / Manual"
-
 TXT_ACTIVE_DPI_PARAMS_TR=" Parametreler"
 TXT_ACTIVE_DPI_PARAMS_EN=" Parameters"
-
 TXT_DPI_AUTO_NOTE_TR=" Not: Blockcheck (Otomatik) aktifken asagidaki 1-8 profilleri pasiftir."
 TXT_DPI_AUTO_NOTE_EN=" Note: While Blockcheck (Auto) is active, profiles 1-8 below are inactive."
-
 TXT_DPI_BASE_TR=" (Taban)"
 TXT_DPI_BASE_EN=" (Base)"
-
 TXT_DPI_BASE_PROFILE_TR=" Taban Profil"
 TXT_DPI_BASE_PROFILE_EN=" Base Profile"
-
 TXT_DPI_AUTO_DISABLE_PROMPT_TR="Blockcheck (Otomatik) aktif. Manuel profile gecmek otomatik modu kapatir. Devam edilsin mi? (e/h) [e]: "
 TXT_DPI_AUTO_DISABLE_PROMPT_EN="Blockcheck (Auto) is active. Switching to a manual profile will disable auto mode. Continue? (y/n) [y]: "
-
 TXT_BLOCKCHECK_APPLY_TR=" Bu ayarlari DPI profili olarak uygulamak ister misiniz? (e/h) [e]: "
 TXT_BLOCKCHECK_APPLY_EN=" Apply these settings as DPI profile? (y/n) [y]: "
-
 TXT_BLOCKCHECK_APPLIED_TR=" Ayarlar uygulandi ve Zapret yeniden baslatildi."
 TXT_BLOCKCHECK_APPLIED_EN=" Settings applied and Zapret restarted."
-
 TXT_BLOCKCHECK_NO_STRAT_TR=" UYARI: Uygulanabilir nfqws stratejisi bulunamadi."
 TXT_BLOCKCHECK_NO_STRAT_EN=" WARNING: No applicable nfqws strategy found."
-
 TXT_BLOCKCHECK_TPWS_WARN_TR=" UYARI: Bulunan strateji tpws. Guvenli oldugu icin otomatik uygulanmayacak. (Simdilik sadece nfqws destekleniyor.)"
 TXT_BLOCKCHECK_TPWS_WARN_EN=" WARNING: Found strategy is tpws. It will NOT be applied automatically for safety. (For now only nfqws is supported.)"
-
 TXT_MENU_10_TR="10. Betik Guncelleme Kontrolu (Guncel/Kurulu - GitHub)"
 TXT_MENU_10_EN="10. Script Update Check (Latest/Installed - GitHub)"
-
 TXT_MENU_11_TR="11. Hostlist / Autohostlist (Filtreleme)"
 TXT_MENU_11_EN="11. Hostlist / Autohostlist (Filtering)"
-
 TXT_MENU_12_TR="12. IPSET (Statik IP kullanan cihazlarla calisir - DHCP desteklenmez!)"
 TXT_MENU_12_EN="12. IPSET (Works with static IP devices - DHCP is not supported!)"
-
 TXT_MENU_13_TR="13. Betik: Yedekten Geri Don (Rollback)"
 TXT_MENU_13_EN="13. Script: Roll Back from Backup"
-
 TXT_MENU_14_TR="14. Ag Tanilama ve Sistem Kontrolu (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
 TXT_MENU_14_EN="14. Network Diagnostics & System Check (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
-
 TXT_MENU_15_TR="15. Bildirimler (Telegram)"
 TXT_MENU_15_EN="15. Notifications (Telegram)"
-
 TXT_MENU_16_TR="16. Sistem Izleme (CPU/RAM/Disk/Load/Zapret)"
 TXT_MENU_16_EN="16. System Monitoring (CPU/RAM/Disk/Load/Zapret)"
-
-
 # -------------------------------------------------------------------
 # Telegram notifications
 # -------------------------------------------------------------------
 TXT_TG_SETTINGS_TITLE_TR="Telegram Bildirim Ayarlari"
 TXT_TG_SETTINGS_TITLE_EN="Telegram Notification Settings"
-
 TXT_TG_TIME_LABEL_TR="Zaman "
 TXT_TG_TIME_LABEL_EN="Time  "
-
 TXT_TG_MODEL_LABEL_TR="Model "
 TXT_TG_MODEL_LABEL_EN="Model "
-
 TXT_TG_WAN_LABEL_TR="WAN IP"
 TXT_TG_WAN_LABEL_EN="WAN IP"
-
 TXT_TG_LAN_LABEL_TR="LAN IP"
 TXT_TG_LAN_LABEL_EN="LAN IP"
-
 TXT_TG_DEVICE_LABEL_TR="Cihaz"
 TXT_TG_DEVICE_LABEL_EN="Router"
-
 TXT_TG_EVENT_LABEL_TR="Olay"
 TXT_TG_EVENT_LABEL_EN="Event"
-
 TXT_TG_STATUS_ACTIVE_TR="Bildirimler: AKTIF (Token ve ChatID kayitli)"
 TXT_TG_STATUS_ACTIVE_EN="Notifications: ACTIVE (Token and ChatID saved)"
-
 TXT_TG_STATUS_NOT_CONFIG_TR="Durum: AYARLANMAMIS"
 TXT_TG_STATUS_NOT_CONFIG_EN="Status: NOT CONFIGURED"
-
 TXT_TG_SAVE_UPDATE_TR="Token/ChatID Kaydet-Guncelle"
 TXT_TG_SAVE_UPDATE_EN="Save/Update Token & ChatID"
-
 TXT_TG_SEND_TEST_TR="Test Mesaji Gonder"
 TXT_TG_SEND_TEST_EN="Send Test Message"
-
 TXT_TG_DELETE_RESET_TR="Ayar Dosyasini Sil (Reset)"
 TXT_TG_DELETE_RESET_EN="Delete Config (Reset)"
-
 TXT_TG_ENTER_TOKEN_TR="Bot Token girin (yapistir):"
 TXT_TG_ENTER_TOKEN_EN="Enter Bot Token (paste):"
-
 TXT_TG_ENTER_CHATID_TR="Chat ID girin (or: -100...):"
 TXT_TG_ENTER_CHATID_EN="Enter Chat ID (or: -100...):"
-
 TXT_TG_SAVED_OK_TR="Ayarlar kaydedildi."
 TXT_TG_SAVED_OK_EN="Settings saved."
-
 TXT_TG_SAVE_FAIL_TR="Kaydetme basarisiz!"
 TXT_TG_SAVE_FAIL_EN="Save failed!"
-
 TXT_TG_TEST_SENT_TR="Test mesaji gonderildi."
 TXT_TG_TEST_SENT_EN="Test message sent."
-
 TXT_TG_NOT_CONFIGURED_TR="Telegram ayari yapilmamis."
 TXT_TG_NOT_CONFIGURED_EN="Telegram not configured."
-
 TXT_TG_RESET_OK_TR="Ayarlar sifirlandi."
 TXT_TG_RESET_OK_EN="Settings reset."
-
 TXT_TG_TEST_FAIL_CONFIG_FIRST_TR="Test gonderilemedi. Once Token/ChatID ayarlayin."
 TXT_TG_TEST_FAIL_CONFIG_FIRST_EN="Test failed. Configure Token/ChatID first."
-
 TXT_TG_CONFIG_DELETED_TR="Ayar dosyasi silindi."
 TXT_TG_CONFIG_DELETED_EN="Config deleted."
-
 TXT_TG_TEST_SAVED_MSG_TR="✅ Telegram Test: Ayarlar kaydedildi"
 TXT_TG_TEST_SAVED_MSG_EN="✅ Telegram Test: Settings saved"
-
 TXT_TG_TEST_OK_MSG_TR="✅ Telegram Test: Bildirim calisiyor"
 TXT_TG_TEST_OK_MSG_EN="✅ Telegram Test: Notifications working"
-
-
 # -------------------------------------------------------------------
 # Health Monitor (Mod B) notifications
 # -------------------------------------------------------------------
 TXT_HM_TITLE_TR="Sistem Sagligi Monitoru"
 TXT_HM_TITLE_EN="System Health Monitor"
-
 TXT_HM_BANNER_LABEL_TR="Saglik Mon."
 TXT_HM_BANNER_LABEL_EN="Health Mon."
 TXT_TGBOT_BANNER_LABEL_TR="Telegram Bot"
@@ -1254,52 +1043,38 @@ TXT_GUI_BANNER_INACTIVE_TR="KAPALI"
 TXT_GUI_BANNER_INACTIVE_EN="INACTIVE"
 TXT_SCHED_BANNER_LABEL_TR="Tekrar Baslat"
 TXT_SCHED_BANNER_LABEL_EN="Sched.Reboot"
-
 TXT_HM_MENU_LINE2_TR="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load (uptime)"
 TXT_HM_MENU_LINE2_EN="Disk(/opt) >= %DISK%%%  |  RAM <= %RAM% MB  |  Load via uptime"
-
 TXT_HM_MENU_LINE3_TR="Zapret denetimi: %WD%  |  Aralik: %INT%s"
 TXT_HM_MENU_LINE3_EN="Zapret watchdog: %WD%  |  Interval: %INT%s"
-
 TXT_HM_CFG_TITLE_TR="Saglik Ayarlari"
 TXT_HM_CFG_TITLE_EN="Health Settings"
-
 TXT_HM_CFG_ITEM5_TR="Zapret denetimi"
 TXT_HM_CFG_ITEM5_EN="Zapret watchdog"
-
 TXT_HM_CFG_ITEM6_TR="Guncelleme kontrolu"
 TXT_HM_CFG_ITEM6_EN="Update check"
-
 TXT_HM_CFG_ITEM7_TR="Oto guncelleme modu"
 TXT_HM_CFG_ITEM7_EN="Auto update mode"
-
 TXT_HM_CFG_ITEM8_TR="Aralik (sn)"
 TXT_HM_CFG_ITEM8_EN="Interval (sec)"
-
 TXT_HM_CFG_ITEM9_TR="Cooldown (sn)"
 TXT_HM_CFG_ITEM9_EN="Cooldown (sec)"
-
 TXT_HM_CFG_ITEM10_TR="Heartbeat (sn)"
 TXT_HM_CFG_ITEM10_EN="Heartbeat (sec)"
-
-
 TXT_HM_CFG_ITEM11_TR="WAN izleme"
 TXT_HM_CFG_ITEM11_EN="WAN monitor"
 TXT_HM_CFG_ITEM12_TR="NFQUEUE kuyruk denetimi"
 TXT_HM_CFG_ITEM12_EN="NFQUEUE qlen watchdog"
-
 TXT_HM_PROMPT_WANMON_ENABLE_TR="WAN izleme aktif mi?"
 TXT_HM_PROMPT_WANMON_ENABLE_EN="Enable WAN monitoring?"
 TXT_HM_PROMPT_WANMON_FAIL_TH_TR="DOWN algilama esigi (adet)"
 TXT_HM_PROMPT_WANMON_FAIL_TH_EN="DOWN detect threshold (count)"
 TXT_HM_PROMPT_WANMON_OK_TH_TR="UP dogrulama esigi (adet)"
 TXT_HM_PROMPT_WANMON_OK_TH_EN="UP confirm threshold (count)"
-
 TXT_HM_WAN_DOWN_MSG_TR="🚫 WAN KAPALI (%IF%)"
 TXT_HM_WAN_DOWN_MSG_EN="🚫 WAN DOWN (%IF%)"
 TXT_HM_WAN_UP_MSG_TR="✅ WAN UP (%IF%)\nKesinti: %DUR%"
 TXT_HM_WAN_UP_MSG_EN="✅ WAN UP (%IF%)\nOutage: %DUR%"
-
 # WAN monitor - rich UP notification (Down/Up/Duration labels)
 TXT_HM_WAN_UP_TITLE_TR="✅ WAN ACIK (%IF%)"
 TXT_HM_WAN_UP_TITLE_EN="✅ WAN UP (%IF%)"
@@ -1309,126 +1084,86 @@ TXT_HM_WAN_UP_TIME_LABEL_TR="Acik"
 TXT_HM_WAN_UP_TIME_LABEL_EN="Up"
 TXT_HM_WAN_DUR_LABEL_TR="Sure"
 TXT_HM_WAN_DUR_LABEL_EN="Duration"
-
 TXT_HM_STATUS_DISK_OPT_TR="Disk(/opt)"
 TXT_HM_STATUS_DISK_OPT_EN="Disk(/opt)"
-
 TXT_HM_STATUS_TITLE_TR="Sistem Sagligi Monitoru Durumu"
 TXT_HM_STATUS_TITLE_EN="System Health Monitor Status"
-
 TXT_HM_STATUS_SEC_SETTINGS_TR="[AYARLAR]"
 TXT_HM_STATUS_SEC_SETTINGS_EN="[SETTINGS]"
-
 TXT_HM_STATUS_SEC_THRESH_TR="[ESIKLER]"
 TXT_HM_STATUS_SEC_THRESH_EN="[THRESHOLDS]"
-
 TXT_HM_STATUS_SEC_ZAPRET_TR="[ZAPRET]"
 TXT_HM_STATUS_SEC_ZAPRET_EN="[ZAPRET]"
-
 TXT_HM_STATUS_SEC_NOW_TR="[SIMDI]"
 TXT_HM_STATUS_SEC_NOW_EN="[NOW]"
-
 TXT_HM_STATUS_ZAPRET_AR_TR="AutoRes"
 TXT_HM_STATUS_ZAPRET_AR_EN="AutoRes"
-
 TXT_HM_STATUS_CPU_TR="CPU"
 TXT_HM_STATUS_CPU_EN="CPU"
-
 TXT_HM_STATUS_ZAPRET_TR="Zapret"
 TXT_HM_STATUS_ZAPRET_EN="Zapret"
-
 TXT_HM_ZAPRET_UP_SHORT_TR="acik"
 TXT_HM_ZAPRET_UP_SHORT_EN="up"
-
 TXT_HM_ZAPRET_DOWN_SHORT_TR="kapali"
 TXT_HM_ZAPRET_DOWN_SHORT_EN="down"
-
 TXT_HM_ZAPRET_NA_SHORT_TR="n/a"
 TXT_HM_ZAPRET_NA_SHORT_EN="n/a"
-
 TXT_HM_STATUS_SECTION_CFG_TR="Ayarlar"
 TXT_HM_STATUS_SECTION_CFG_EN="Settings"
-
 TXT_HM_STATUS_SECTION_NOW_TR="Anlik Durum"
 TXT_HM_STATUS_SECTION_NOW_EN="Live Status"
-
 TXT_HM_STATUS_UPDATECHECK_TR="Guncelleme kontrolu"
 TXT_HM_STATUS_UPDATECHECK_EN="Update check"
-
 TXT_HM_STATUS_AUTOUPDATE_TR="Oto guncelleme"
 TXT_HM_STATUS_AUTOUPDATE_EN="Auto update"
-
 TXT_HM_WORD_ON_TR="ACIK"
 TXT_HM_WORD_ON_EN="ON"
-
 TXT_HM_WORD_OFF_TR="KAPALI"
 TXT_HM_WORD_OFF_EN="OFF"
-
 TXT_HM_MODE0_TR="KAPALI"
 TXT_HM_MODE0_EN="OFF"
-
 TXT_HM_MODE1_TR="BILDIR"
 TXT_HM_MODE1_EN="Notify"
-
 TXT_HM_MODE2_TR="OTO KUR"
 TXT_HM_MODE2_EN="Auto install"
-
 TXT_HM_FLAG_EVERY_TR="her"
 TXT_HM_FLAG_EVERY_EN="every"
-
 TXT_HM_FLAG_MODE_TR="mod"
 TXT_HM_FLAG_MODE_EN="mode"
-
 TXT_HM_FLAG_ENABLED_TR="acik"
 TXT_HM_FLAG_ENABLED_EN="en"
-
 TXT_HM_STATUS_TR="Durum:"
 TXT_HM_STATUS_EN="Status:"
-
 TXT_HM_ENABLE_DISABLE_TR="Ac / Kapat"
 TXT_HM_ENABLE_DISABLE_EN="Enable / Disable"
-
 TXT_HM_SHOW_STATUS_TR="Durum Goster"
 TXT_HM_SHOW_STATUS_EN="Show Status"
-
 TXT_HM_SEND_TEST_TR="Test Bildirimi (Telegram)"
 TXT_HM_SEND_TEST_EN="Send Test Notification (Telegram)"
-
 TXT_HM_CONFIG_THRESHOLDS_TR="Esikleri Ayarla"
 TXT_HM_CONFIG_THRESHOLDS_EN="Configure Thresholds"
-
 TXT_HM_ENABLED_TR="Sistem Sagligi Monitoru acildi."
 TXT_HM_ENABLED_EN="Health Monitor enabled."
-
 TXT_HM_DISABLED_TR="Sistem Sagligi Monitoru kapatildi."
 TXT_HM_DISABLED_EN="Health Monitor disabled."
-
 TXT_HM_RESTART_TR="Yeniden Baslat"
 TXT_HM_RESTART_EN="Restart"
 TXT_HM_RESTARTED_TR="Sistem Sagligi Monitoru yeniden baslatildi."
 TXT_HM_RESTARTED_EN="Health Monitor restarted."
-
 TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Saglik Izleme testi\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 TXT_HM_TEST_MSG_EN="📌 HealthMon %TS%\n✅ Health Monitor test\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
-
 TXT_HM_CPU_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ CPU UYARI: %CPU%%\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 TXT_HM_CPU_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ CPU WARN: %CPU%%\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
-
 TXT_HM_CPU_CRIT_MSG_TR="📌 HealthMon %TS%\n🚨 CPU KRITIK: %CPU%%\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 TXT_HM_CPU_CRIT_MSG_EN="📌 HealthMon %TS%\n🚨 CPU CRIT: %CPU%%\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
-
 TXT_HM_DISK_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ Disk dolu: /opt %DISK%%%\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB"
 TXT_HM_DISK_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Disk high: /opt %DISK%%%\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB"
-
 TXT_HM_RAM_WARN_MSG_TR="📌 HealthMon %TS%\n⚠️ RAM dusuk: %RAM% MB\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n💾 Disk(/opt): %DISK%%"
 TXT_HM_RAM_WARN_MSG_EN="📌 HealthMon %TS%\n⚠️ Low RAM: %RAM% MB\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n💾 Disk(/opt): %DISK%%"
-
 TXT_HM_ZAPRET_DOWN_MSG_TR="📌 HealthMon %TS%\n🚨 Zapret durmus olabilir!\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 TXT_HM_ZAPRET_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Zapret may be down!\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
-
 TXT_HM_ZAPRET_UP_MSG_TR="📌 HealthMon %TS%\n✅ Zapret tekrar calisiyor.\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 TXT_HM_ZAPRET_UP_MSG_EN="📌 HealthMon %TS%\n✅ Zapret is running again.\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
-
 TXT_HM_DISK_HEALTH_DOWN_MSG_TR="📌 HealthMon %TS%\n🚨 Disk sagligi sorunu: /opt\n💾 Durum: %REASON%\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB"
 TXT_HM_DISK_HEALTH_DOWN_MSG_EN="📌 HealthMon %TS%\n🚨 Disk health issue: /opt\n💾 Status: %REASON%\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB"
 TXT_HM_DISK_HEALTH_UP_MSG_TR="📌 HealthMon %TS%\n✅ Disk sagligi normale dondu: /opt\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB"
@@ -1437,204 +1172,147 @@ TXT_HM_DISK_HEALTH_RO_TR="Salt okunur (read-only)"
 TXT_HM_DISK_HEALTH_RO_EN="Read-only mount"
 TXT_HM_DISK_HEALTH_IO_TR="Kritik I/O hatasi"
 TXT_HM_DISK_HEALTH_IO_EN="Critical I/O error"
-
 TXT_HM_STATUS_RUNNING_TR="Calisiyor:"
 TXT_HM_STATUS_RUNNING_EN="Running:"
-
 TXT_HM_RUN_ON_TR="AKTIF"
 TXT_HM_RUN_ON_EN="ON"
-
 TXT_HM_RUN_OFF_TR="KAPALI"
 TXT_HM_RUN_OFF_EN="OFF"
-
 TXT_HM_BANNER_WARN_TR="Otomatik guncelleme ve watchdog devre disi. Aktif etmek icin Menu 16."
 TXT_HM_BANNER_WARN_EN="Auto-update and watchdog disabled. Enable via Menu 16."
-
 TXT_HM_ENABLE_LABEL_TR="etkin"
 TXT_HM_ENABLE_LABEL_EN="enable"
-
 TXT_HM_STATUS_INTERVAL_TR="Aralik"
 TXT_HM_STATUS_INTERVAL_EN="Interval"
-
 TXT_HM_STATUS_CPU_WARN_TR="CPU UYARI"
 TXT_HM_STATUS_CPU_WARN_EN="CPU WARN"
-
 TXT_HM_STATUS_CPU_CRIT_TR="CPU KRITIK"
 TXT_HM_STATUS_CPU_CRIT_EN="CPU CRIT"
-
 TXT_HM_STATUS_DISK_WARN_TR="Disk(/opt) UYARI"
 TXT_HM_STATUS_DISK_WARN_EN="Disk(/opt) WARN"
-
 TXT_HM_STATUS_RAM_WARN_TR="RAM UYARI"
 TXT_HM_STATUS_RAM_WARN_EN="RAM WARN"
-
 TXT_HM_STATUS_ZAPRET_WD_TR="Zapret denetimi"
 TXT_HM_STATUS_ZAPRET_WD_EN="Zapret watchdog"
-
 TXT_HM_STATUS_ZAPRET_CD_TR="Zapret bekleme"
 TXT_HM_STATUS_ZAPRET_CD_EN="Zapret cooldown"
-
 TXT_HM_STATUS_COOLDOWN_TR="Bekleme"
 TXT_HM_STATUS_COOLDOWN_EN="Cooldown"
-
 TXT_HM_STATUS_NOW_TR="Simdi ->"
 TXT_HM_STATUS_NOW_EN="Now ->"
-
 TXT_HM_STATUS_LOAD_TR="Yuk"
 TXT_HM_STATUS_LOAD_EN="Load"
-
 TXT_HM_STATUS_RAM_FREE_TR="RAM bos"
 TXT_HM_STATUS_RAM_FREE_EN="RAM free"
-
 TXT_TG_ERR_TOKEN_FORMAT_TR="Token formati hatali (:) yok)."
 TXT_TG_ERR_TOKEN_FORMAT_EN="Invalid token format (missing :)."
-
 TXT_TG_ERR_CHATID_NUM_TR="ChatID sayi olmali."
 TXT_TG_ERR_CHATID_NUM_EN="ChatID must be numeric."
-
 TXT_TG_SAVED_AND_TEST_OK_TR="Kaydedildi ve test mesaji gonderildi."
 TXT_TG_SAVED_AND_TEST_OK_EN="Saved and test message sent."
-
 TXT_TG_SAVED_BUT_TEST_FAIL_TR="Kaydedildi ama test gonderilemedi. Token/ChatID veya interneti kontrol edin."
 TXT_TG_SAVED_BUT_TEST_FAIL_EN="Saved but test failed. Check token/chatid or internet."
-
 TXT_HM_TEST_SENT_TR="Test bildirimi gonderildi."
 TXT_HM_TEST_SENT_EN="Test notification sent."
-
 TXT_HM_NEED_TG_TR="Telegram ayarlanamamis olabilir. Once menu 15 ile ayarlayin."
 TXT_HM_NEED_TG_EN="Telegram may be unconfigured. Configure via menu 15."
-
 TXT_HM_PROMPT_CPU_WARN_TR="CPU WARN esigi (%) [or: 70]:"
 TXT_HM_PROMPT_CPU_WARN_EN="CPU WARN threshold (%) [e.g. 70]:"
-
 TXT_HM_PROMPT_CPU_WARN_DUR_TR="CPU WARN sure (sn) [or: 180]:"
 TXT_HM_PROMPT_CPU_WARN_DUR_EN="CPU WARN duration (sec) [e.g. 180]:"
-
 TXT_HM_PROMPT_CPU_CRIT_TR="CPU CRIT esigi (%) [or: 90]:"
 TXT_HM_PROMPT_CPU_CRIT_EN="CPU CRIT threshold (%) [e.g. 90]:"
-
 TXT_HM_PROMPT_CPU_CRIT_DUR_TR="CPU CRIT sure (sn) [or: 60]:"
 TXT_HM_PROMPT_CPU_CRIT_DUR_EN="CPU CRIT duration (sec) [e.g. 60]:"
-
 TXT_HM_PROMPT_DISK_WARN_TR="Disk esigi (/opt, %) [or: 90]:"
 TXT_HM_PROMPT_DISK_WARN_EN="Disk threshold (/opt, %) [e.g. 90]:"
-
 TXT_HM_PROMPT_RAM_WARN_TR="RAM esigi (MB) [or: 40]:"
 TXT_HM_PROMPT_RAM_WARN_EN="RAM threshold (MB) [e.g. 40]:"
-
 TXT_HM_PROMPT_ZAPRET_WD_TR="Zapret denetimi (1=acik,0=kapali) [or: 1]:"
 TXT_HM_PROMPT_ZAPRET_WD_EN="Zapret watchdog (1=on,0=off) [e.g. 1]:"
-
 TXT_HM_PROMPT_ZAPRET_COOLDOWN_TR="Zapret cooldown (sn) [or: 120]:"
 TXT_HM_PROMPT_ZAPRET_COOLDOWN_EN="Zapret cooldown (sec) [e.g. 120]:"
-
 TXT_HM_PROMPT_ZAPRET_AUTORESTART_TR="Zapret otomatik yeniden baslatma? (0/1) [or: 0]:"
 TXT_HM_PROMPT_ZAPRET_AUTORESTART_EN="Zapret auto-restart? (0/1) [e.g. 0]:"
-
 TXT_HM_PROMPT_INTERVAL_TR="Kontrol araligi (sn) [or: 30]:"
 TXT_HM_PROMPT_INTERVAL_EN="Check interval (sec) [e.g. 30]:"
-
 TXT_HM_PROMPT_UPDATECHECK_ENABLE_TR="Guncelleme kontrolu (1=acik,0=kapali) [or: 1]:"
 TXT_HM_PROMPT_UPDATECHECK_ENABLE_EN="Update check (1=on,0=off) [e.g. 1]:"
-
 TXT_HM_PROMPT_UPDATECHECK_SEC_TR="Update check araligi (sn) [or: 21600]:"
 TXT_HM_PROMPT_UPDATECHECK_SEC_EN="Update check interval (sec) [e.g. 21600]:"
-
 TXT_UPD_ZKM_NEW_TR="[Guncelleme]
 📦 Paket  : KZM
 🔖 Mevcut : %CUR%
 🆕 Yeni   : %NEW%
 🔗 Link   : %URL%
-
 Simdi kur? (menu 10)"
 TXT_UPD_ZKM_NEW_EN="[Update]
 📦 Package : KZM
 🔖 Current : %CUR%
 🆕 Latest  : %NEW%
 🔗 Link    : %URL%
-
 Install now? (menu 10)"
 TXT_UPD_ZAPRET_NEW_TR="[Guncelleme]
 Zapret guncellemesi icin Ana Menu > 6 secenegi kullanin
-
 📦 Paket  : Zapret
 🔖 Kurulu : %CUR%
 🆕 Yeni   : %NEW%
 🔗 Link   : %URL%"
 TXT_UPD_ZAPRET_NEW_EN="[Update]
 Use Main Menu > Option 6 to update Zapret
-
 📦 Package  : Zapret
 🔖 Installed: %CUR%
 🆕 Latest   : %NEW%
 🔗 Link     : %URL%"
 TXT_UPD_ZAPRET_ROLLED_TR="[Uyari] Zapret geri cekilmis surum
 Ana Menu > 6 ile GitHub surumunu yeniden yukleyin
-
 📦 Paket  : Zapret
 ⚠️ Kurulu : %CUR% (geri cekilmis)
 ✅ Stabil : %NEW%"
 TXT_UPD_ZAPRET_ROLLED_EN="[Warning] Zapret pulled release
 Use Main Menu > 6 to reinstall from GitHub
-
 📦 Package  : Zapret
 ⚠️ Installed: %CUR% (pulled)
 ✅ Stable  : %NEW%"
 TXT_UPD_ZKM_AUTO_OK_TR="[OtoGuncelleme]\nKZM otomatik kurulum basarili.\nBetigi yeniden calistirin.\n\n📦 Paket  : KZM\n🔖 Mevcut : %CUR%\n🆕 Yeni   : %NEW%\n🔗 Link   : %URL%"
 TXT_UPD_ZKM_AUTO_OK_EN="[AutoUpdate]\nKZM auto install OK.\nPlease re-run the script.\n\n📦 Package  : KZM\n🔖 Current  : %CUR%\n🆕 Latest   : %NEW%\n🔗 Link     : %URL%"
-
 TXT_UPD_ZKM_UP_TO_DATE_TR="[Guncelleme]
 📦 Paket : KZM
 🔄 Durum : Guncel ✅
 🔖 Surum : %CUR%
-
 [Saglik]
 💾 Disk (/opt) : %DISK_HEALTH%"
 TXT_UPD_ZKM_UP_TO_DATE_EN="[Update]
 📦 Package : KZM
 🔄 Status  : Up to date ✅
 🔖 Version : %CUR%
-
 [Health]
 💾 Disk (/opt) : %DISK_HEALTH%"
-
 TXT_UPD_ZKM_AUTO_FAIL_TR="[OtoGuncelleme]\n❌ KZM otomatik kurulum BASARISIZ.\n⚠️ Lutfen elle guncelleyin (menu 10).\n\n📦 Paket  : KZM\n🔖 Mevcut : %CUR%\n🆕 Yeni   : %NEW%\n🔗 Link   : %URL%"
 TXT_UPD_ZKM_AUTO_FAIL_EN="[AutoUpdate]\n❌ KZM auto install FAILED.\n⚠️ Please update manually (menu 10).\n\n📦 Package : KZM\n🔖 Current : %CUR%\n🆕 Latest  : %NEW%\n🔗 Link    : %URL%"
-
 TXT_HM_PROMPT_AUTOUPDATE_MODE_TR="Otomatik guncelleme modu (0=KAPALI,1=BILDIR,2=OTO KUR) [or: 2]:"
 TXT_HM_PROMPT_AUTOUPDATE_MODE_EN="Auto update mode (0=OFF,1=Notify,2=Auto install) [e.g. 2]:"
-
 TXT_HM_AUTOUPDATE_MODE_HINT_TR="0=KAPALI,1=BILDIR,2=OTO KUR"
 TXT_HM_AUTOUPDATE_MODE_HINT_EN="0=OFF,1=Notify,2=Auto install"
-
 TXT_HM_AUTOUPDATE_WARN_TITLE_TR="UYARI:"
 TXT_HM_AUTOUPDATE_WARN_TITLE_EN="WARNING:"
-
 TXT_HM_AUTOUPDATE_WARN_L1_TR="Auto install modu betigi otomatik gunceller."
 TXT_HM_AUTOUPDATE_WARN_L1_EN="Auto install will update the script automatically."
-
 TXT_HM_AUTOUPDATE_WARN_L2_TR="Ileri seviye kullanicilar icin onerilir."
 TXT_HM_AUTOUPDATE_WARN_L2_EN="Recommended for advanced users."
-
 TXT_HM_AUTOUPDATE_WARN_L3_TR="Devam? (e/h): "
 TXT_HM_AUTOUPDATE_WARN_L3_EN="Continue? (y/n): "
-
 TXT_HM_AUTOUPDATE_SET_MSG_TR="Otomatik guncelleme modu ayarlandi: %MODE%"
 TXT_HM_AUTOUPDATE_SET_MSG_EN="Auto update mode set: %MODE%"
-
 TXT_HM_PROMPT_COOLDOWN_TR="Bildirim soguma (sn) [or: 600]:"
 TXT_HM_PROMPT_COOLDOWN_EN="Notification cooldown (sec) [e.g. 600]:"
-
-
 # Health check menu
 TXT_HEALTH_TITLE_TR="Saglik Kontrolu"
 TXT_HEALTH_TITLE_EN="Health Check"
-
 TXT_HEALTH_OVERALL_TR="Genel Durum"
 TXT_HEALTH_OVERALL_EN="Overall Status"
 TXT_HEALTH_SCORE_TR="Saglik Skoru (Health Score)"
 TXT_HEALTH_SCORE_EN="Health Score"
-
 TXT_HEALTH_RATING_EXCELLENT_TR="Mukemmel"
 TXT_HEALTH_RATING_EXCELLENT_EN="Excellent"
 TXT_HEALTH_RATING_GREAT_TR="Cok iyi"
@@ -1645,7 +1323,6 @@ TXT_HEALTH_RATING_OK_TR="Orta"
 TXT_HEALTH_RATING_OK_EN="OK"
 TXT_HEALTH_RATING_BAD_TR="Zayif"
 TXT_HEALTH_RATING_BAD_EN="Poor"
-
 TXT_HEALTH_SECTION_SUMMARY_TR="Durum Ozeti"
 TXT_HEALTH_SECTION_SUMMARY_EN="Status Summary"
 TXT_HEALTH_SECTION_NETDNS_TR="Ag & DNS"
@@ -1654,7 +1331,6 @@ TXT_HEALTH_SECTION_SYSTEM_TR="Sistem"
 TXT_HEALTH_SECTION_SYSTEM_EN="System"
 TXT_HEALTH_SECTION_SERVICES_TR="Servisler"
 TXT_HEALTH_SECTION_SERVICES_EN="Services"
-
 TXT_HEALTH_WAN_STATUS_TR="WAN durumu"
 TXT_HEALTH_WAN_STATUS_EN="WAN status"
 TXT_HEALTH_WAN_IPV4_TR="WAN IPv4 adresi"
@@ -1667,7 +1343,6 @@ TXT_HEALTH_DNS_SEC_TR="DNS Guvenlik Seviyesi"
 TXT_HEALTH_DNS_SEC_EN="DNS Security Level"
 TXT_HEALTH_DNS_PROVIDERS_TR="DNS Saglayicilar"
 TXT_HEALTH_DNS_PROVIDERS_EN="DNS Providers"
-
 TXT_DNS_MODE_DOH_TR="DoH"
 TXT_DNS_MODE_DOH_EN="DoH"
 TXT_DNS_MODE_DOT_TR="DoT"
@@ -1676,19 +1351,16 @@ TXT_DNS_MODE_PLAIN_TR="Plain"
 TXT_DNS_MODE_PLAIN_EN="Plain"
 TXT_DNS_MODE_MIXED_TR="DoH+DoT"
 TXT_DNS_MODE_MIXED_EN="DoH+DoT"
-
 TXT_DNS_SEC_HIGH_TR="YUKSEK"
 TXT_DNS_SEC_HIGH_EN="HIGH"
 TXT_DNS_SEC_LOW_TR="DUSUK"
 TXT_DNS_SEC_LOW_EN="LOW"
-
 TXT_TG_DOWN_LABEL_TR="Kapali"
 TXT_TG_DOWN_LABEL_EN="Down"
 TXT_TG_UP_LABEL_TR="Acik"
 TXT_TG_UP_LABEL_EN="Up"
 TXT_TG_DURATION_LABEL_TR="Sure"
 TXT_TG_DURATION_LABEL_EN="Duration"
-
 # TR/EN Dictionary (Telegram Bot)
 TXT_TGBOT_MENU_TITLE_TR="KZM Ana Menu"
 TXT_TGBOT_MENU_TITLE_EN="KZM Main Menu"
@@ -1752,7 +1424,6 @@ TXT_TGBOT_UPDATE_FAIL_TR="Guncelleme basarisiz."
 TXT_TGBOT_UPDATE_FAIL_EN="Update failed."
 TXT_TGBOT_ALREADY_UPTODATE_TR="KZM zaten guncel."
 TXT_TGBOT_ALREADY_UPTODATE_EN="KZM is already up to date."
-
 TXT_TGBOT_ZAP_ALREADY_UPTODATE_TR="Zapret zaten guncel."
 TXT_TGBOT_ZAP_ALREADY_UPTODATE_EN="Zapret is already up to date."
 TXT_TGBOT_ZAP_NEWER_TR="UYARI: Kurulu surum GitHub'dakinden yeni (Surum geri cekilmis olabilir)."
@@ -1845,7 +1516,6 @@ TXT_TGBOT_BOT_NOT_CONFIG_TR="Bot yapilandirilmamis. Once Telegram token ve chat 
 TXT_TGBOT_BOT_NOT_CONFIG_EN="Bot not configured. Enter Telegram token and chat ID first."
 TXT_TGBOT_BTN_WAN_RESET_TR="WAN Sureli Kapatma"
 TXT_TGBOT_BTN_WAN_RESET_EN="Timed WAN Shutdown"
-
 TXT_TGBOT_BTN_PINGCHECK_OFF_TR="Ping Kontrolu Kapat"
 TXT_TGBOT_BTN_PINGCHECK_OFF_EN="Disable Ping Check"
 TXT_TGBOT_BTN_PINGCHECK_ON_TR="Ping Kontrolu Ac"
@@ -1868,29 +1538,22 @@ TXT_TGBOT_WAN_RESET_STARTED_TR="WAN kapatildi. %MIN% dk sonra yeniden baglanacak
 TXT_TGBOT_WAN_RESET_STARTED_EN="WAN disabled. Will reconnect in %MIN% min."
 TXT_TGBOT_WAN_NO_IF_TR="WAN arayuzu bulunamadi."
 TXT_TGBOT_WAN_NO_IF_EN="WAN interface not found."
-
 TXT_TGBOT_ROUTER_ID_LABEL_TR="Router Kimlik"
 TXT_TGBOT_ROUTER_ID_LABEL_EN="Router ID"
 TXT_HEALTH_DNS_LOCAL_TR="DNS (Yerel cozucu 127.0.0.1)"
 TXT_HEALTH_DNS_LOCAL_EN="DNS (Local resolver 127.0.0.1)"
-
 TXT_HEALTH_SCRIPT_PATH_TR="Betik Konumu (Dogru yerde mi?)"
 TXT_HEALTH_SCRIPT_PATH_EN="Script location (Correct path?)"
-
 TXT_HEALTH_DNS_PUBLIC_TR="DNS (8.8.8.8)"
 TXT_HEALTH_DNS_PUBLIC_EN="DNS (8.8.8.8)"
 TXT_HEALTH_TIME_TR="Saat / NTP"
 TXT_HEALTH_TIME_EN="Time / NTP"
-
 TXT_HEALTH_GITHUB_TR="GitHub erisimi (api.github.com)"
 TXT_HEALTH_GITHUB_EN="GitHub access (api.github.com)"
-
 TXT_HEALTH_OPKG_TR="OPKG durumu"
 TXT_HEALTH_OPKG_EN="OPKG status"
-
 TXT_HEALTH_DISK_TR="Disk doluluk (/opt)"
 TXT_HEALTH_DISK_EN="Disk usage (/opt)"
-
 TXT_HEALTH_ZAPRET_TR="Zapret servis durumu"
 TXT_HEALTH_ZAPRET_EN="Zapret service status"
 TXT_HEALTH_SHA256_KZM_TR="KZM dosya butunlugu (SHA256)"
@@ -1905,35 +1568,24 @@ TXT_HEALTH_SHA256_UNKNOWN_TR="Henuz kontrol edilmedi (Menu 10)"
 TXT_HEALTH_SHA256_UNKNOWN_EN="Not checked yet (Menu 10)"
 TXT_HEALTH_SHA256_ZAP_UNKNOWN_TR="Henuz kontrol edilmedi (Menu 6)"
 TXT_HEALTH_SHA256_ZAP_UNKNOWN_EN="Not checked yet (Menu 6)"
-
 TXT_HEALTH_DNS_MATCH_TR="DNS tutarliligi"
 TXT_HEALTH_DNS_MATCH_EN="DNS consistency"
-
 TXT_HEALTH_DNS_MATCH_NOTE_TR="Farkli IP'ler normal olabilir"
 TXT_HEALTH_DNS_MATCH_NOTE_EN="Different IPs can be normal"
-
-
 TXT_HEALTH_ROUTE_TR="Varsayilan rota (default gateway)"
 TXT_HEALTH_ROUTE_EN="Default route (gateway)"
-
 TXT_HEALTH_PING_TR="Internet erisimi (ping 1.1.1.1)"
 TXT_HEALTH_PING_EN="Internet connect (ping 1.1.1.1)"
-
 TXT_HEALTH_RAM_TR="RAM durumu (MemAvailable)"
 TXT_HEALTH_RAM_EN="RAM status (MemAvailable)"
-
 TXT_HEALTH_RAM_DETAIL_TR="RAM (kullanilan/bos/toplam)"
 TXT_HEALTH_RAM_DETAIL_EN="RAM (used/free/total)"
-
 TXT_HEALTH_RAM_BUFFER_TR="RAM Buffer/Cache"
 TXT_HEALTH_RAM_BUFFER_EN="RAM Buffer/Cache"
-
 TXT_HEALTH_SWAP_TR="Swap (kullanilan/toplam)"
 TXT_HEALTH_SWAP_EN="Swap (used/total)"
-
 TXT_HEALTH_TEMP_TR="SoC Sicakligi"
 TXT_HEALTH_TEMP_EN="SoC Temperature"
-
 TXT_HEALTH_DISK_TMP_TR="Disk doluluk (/tmp)"
 TXT_HEALTH_DISK_TMP_EN="Disk usage (/tmp)"
 TXT_HEALTH_DISK_HEALTH_TR="Disk sagligi (/opt)"
@@ -1944,28 +1596,20 @@ TXT_HEALTH_DISK_IO_ERR_TR="Kritik I/O hatasi tespit edildi (dmesg)"
 TXT_HEALTH_DISK_IO_ERR_EN="Critical I/O error detected (dmesg)"
 TXT_HEALTH_DISK_OK_TR="Saglikli"
 TXT_HEALTH_DISK_OK_EN="Healthy"
-
 TXT_HEALTH_LAN_IP_TR="LAN IP"
 TXT_HEALTH_LAN_IP_EN="LAN IP"
-
 TXT_HEALTH_ENTWARE_TR="Entware (/opt)"
 TXT_HEALTH_ENTWARE_EN="Entware (/opt)"
-
 TXT_HEALTH_CURL_TR="curl"
 TXT_HEALTH_CURL_EN="curl"
-
 TXT_HEALTH_LIGHTTPD_TR="Web Panel (lighttpd)"
 TXT_HEALTH_LIGHTTPD_EN="Web Panel (lighttpd)"
-
 TXT_HEALTH_HEALTHMON_TR="HealthMon daemon"
 TXT_HEALTH_HEALTHMON_EN="HealthMon daemon"
-
 TXT_HEALTH_TGBOT_TR="Telegram Bot"
 TXT_HEALTH_TGBOT_EN="Telegram Bot"
-
 TXT_HEALTH_LOAD_TR="Sistem yuk (load avg)"
 TXT_HEALTH_LOAD_EN="System load (load avg)"
-
 TXT_MENU14_TITLE_TR="Ag Tanilama ve Sistem Kontrolu"
 TXT_MENU14_TITLE_EN="Network Diagnostics & System Check"
 TXT_MENU14_OPT1_TR="1. Kontrol Calistir"
@@ -1994,7 +1638,6 @@ TXT_MENU14_DNS_SAVED_TR="DNS yapilandirmasi kaydedildi."
 TXT_MENU14_DNS_SAVED_EN="DNS configuration saved."
 TXT_MENU14_DNS_REBIND_TR="Rebind korumasi"
 TXT_MENU14_DNS_REBIND_EN="Rebind protection"
-
 TXT_DNS_MGMT_TITLE_TR="DNS Yonetimi (DoT/DoH)"
 TXT_DNS_MGMT_TITLE_EN="DNS Management (DoT/DoH)"
 TXT_DNS_MGMT_CURRENT_TR="Mevcut Sunucular"
@@ -2033,7 +1676,6 @@ TXT_DNS_MGMT_SAVED_TR="Ayarlar kaydedildi."
 TXT_DNS_MGMT_SAVED_EN="Settings saved."
 TXT_DNS_MGMT_DELETED_TR="Silindi"
 TXT_DNS_MGMT_DELETED_EN="Deleted"
-
 TXT_DNS_MGMT_OPT4_TR="Tumunu Temizle"
 TXT_DNS_MGMT_OPT4_EN="Delete All"
 TXT_DNS_MGMT_OPT5_TR="Rebind Koruma"
@@ -2078,267 +1720,182 @@ TXT_OPKG_UPGRADED_TR="opkg upgrade tamamlandi."
 TXT_OPKG_UPGRADED_EN="opkg upgrade completed."
 TXT_OPKG_UPGRADE_FAIL_TR="opkg upgrade basarisiz oldu."
 TXT_OPKG_UPGRADE_FAIL_EN="opkg upgrade failed."
-
 TXT_ROLLBACK_TITLE_TR="Betik: Yedekten Geri Don (Rollback)"
 TXT_ROLLBACK_TITLE_EN="Script: Roll Back from Backup"
-
 # -----------------------------
 # Common UI
 # -----------------------------
 TXT_CHOICE_TR="Secim:"
 TXT_CHOICE_EN="Choice:"
-
 TXT_INVALID_CHOICE_TR="Gecersiz secim!"
 TXT_INVALID_CHOICE_EN="Invalid choice!"
-
 TXT_CANCELLED_TR="Iptal edildi."
 TXT_CANCELLED_EN="Cancelled."
-
 TXT_ERROR_TR="Hata"
 TXT_ERROR_EN="Error"
-
 TXT_RESTORE_RESTART_WARN_TR="Uyari: Yeniden baslatma gerekebilir."
 TXT_RESTORE_RESTART_WARN_EN="Warning: A restart may be required."
-
 TXT_TMPDIR_CREATE_FAIL_TR="Gecici dizin olusturulamadi!"
 TXT_TMPDIR_CREATE_FAIL_EN="Failed to create temporary directory!"
-
-
 # -----------------------------
 # Rollback / Local backups
 # -----------------------------
 TXT_ROLLBACK_NO_LOCAL_BACKUP_TR="Yerel yedek bulunamadi."
 TXT_ROLLBACK_NO_LOCAL_BACKUP_EN="No local backup found."
-
 TXT_ROLLBACK_CLEAN_LOCAL_BACKUPS_TR="Yedekleri Temizle"
 TXT_ROLLBACK_CLEAN_LOCAL_BACKUPS_EN="Clean Backups"
-
 TXT_ROLLBACK_CLEAN_DONE_TR="Temizlendi: %s yedek silindi."
 TXT_ROLLBACK_CLEAN_DONE_EN="Cleaned: %s backup(s) deleted."
-
 TXT_ROLLBACK_CLEAN_NONE_TR="Temizlenecek yerel yedek bulunamadi."
 TXT_ROLLBACK_CLEAN_NONE_EN="No local backups to clean."
-
 # -----------------------------
 # Blockcheck reports
 # -----------------------------
 TXT_BLOCKCHECK_CLEAN_DONE_TR="Temizlendi: %s test sonucu silindi."
 TXT_BLOCKCHECK_CLEAN_DONE_EN="Cleaned: %s test result(s) deleted."
-
 TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test sonucu bulunamadi."
 TXT_BLOCKCHECK_CLEAN_NONE_EN="No test results to clean."
-
 TXT_BACK_TR="Geri"
 TXT_BACK_EN="Back"
-
 TXT_ROLLBACK_NO_BACKUP_TR="Yedek bulunamadi: /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*"
 TXT_ROLLBACK_NO_BACKUP_EN="No backups found: /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*"
-
 TXT_ROLLBACK_SELECT_TR="Geri donmek istediginiz yedegi secin:"
 TXT_ROLLBACK_SELECT_EN="Select the backup you want to restore:"
-
 TXT_ROLLBACK_RESTORED_TR="Geri yukleme tamamlandi. Lutfen betigi yeniden calistirin."
 TXT_ROLLBACK_RESTORED_EN="Rollback completed. Please re-run the script."
-
 TXT_ROLLBACK_CANCELLED_TR="Islem iptal edildi."
 TXT_ROLLBACK_CANCELLED_EN="Cancelled."
-
 TXT_ROLLBACK_GH_LIST_TR="GitHub'dan surum sec (Son 10)"
 TXT_ROLLBACK_GH_LIST_EN="Pick version from GitHub (last 10)"
-
 TXT_ROLLBACK_GH_TAG_TR="Surum etiketi yaz (Orn: v26.1.24.3)"
 TXT_ROLLBACK_GH_TAG_EN="Enter a release tag (e.g. v26.1.24.3)"
-
 TXT_ROLLBACK_GH_LOADING_TR="GitHub surum listesi aliniyor..."
 TXT_ROLLBACK_GH_LOADING_EN="Fetching GitHub release list..."
-
 TXT_ROLLBACK_LOCAL_MENU_TR="Yerel Depolama (Yedekler)"
 TXT_ROLLBACK_LOCAL_MENU_EN="Local Storage (Backups)"
-
 TXT_ROLLBACK_CLEAN_TR="Yedekleri Temizle"
 TXT_ROLLBACK_CLEAN_EN="Clean Backups"
-
 TXT_ROLLBACK_CLEAN_NONE_TR="Temizlenecek yedek yok."
 TXT_ROLLBACK_CLEAN_NONE_EN="No backups to clean."
-
 TXT_ROLLBACK_CLEAN_DONE_TR="Yedek dosyalari temizlendi."
 TXT_ROLLBACK_CLEAN_DONE_EN="Backup files cleaned."
-
 TXT_ROLLBACK_MAIN_PICK_TR="Secim: "
 TXT_ROLLBACK_MAIN_PICK_EN="Choice: "
-
 TXT_ROLLBACK_GH_NONE_TR="GitHub'dan uygun release bulunamadi."
 TXT_ROLLBACK_GH_NONE_EN="No suitable releases found on GitHub."
-
 TXT_ROLLBACK_GH_SELECT_TR="Kurmak istediginiz surumu secin"
 TXT_ROLLBACK_GH_SELECT_EN="Select the version to install"
-
 TXT_ROLLBACK_GH_TAGPROMPT_TR="Surum etiketini girin (orn: v26.1.24.3):"
 TXT_ROLLBACK_GH_TAGPROMPT_EN="Enter release tag (e.g. v26.1.24.3):"
-
 TXT_ROLLBACK_GH_DOWNLOADING_TR="Secilen surum indiriliyor..."
 TXT_ROLLBACK_GH_DOWNLOADING_EN="Downloading selected version..."
-
 TXT_ROLLBACK_GH_DONE_TR="Kurulum tamamlandi. Lutfen betigi yeniden calistirin."
 TXT_ROLLBACK_GH_DONE_EN="Install completed. Please re-run the script."
-
 TXT_BACKUP_MENU_TITLE_TR="Zapret Yedekleme / Geri Yukleme"
 TXT_BACKUP_MENU_TITLE_EN="Zapret Backup / Restore"
-
 TXT_BACKUP_BASE_PATH_TR="Yedek konumu:"
 TXT_BACKUP_BASE_PATH_EN="Backup location:"
-
 TXT_ZAPRET_SETTINGS_BACKUP_DIR_TR="Yedek konumu:"
 TXT_ZAPRET_SETTINGS_BACKUP_DIR_EN="Backup location:"
-
 TXT_YES_TR="Evet"
 TXT_YES_EN="Yes"
-
 TXT_NO_TR="Hayir"
 TXT_NO_EN="No"
-
 TXT_ZAPRET_SETTINGS_CLEAN_MENU_TR="Yedekleri Temizle"
 TXT_ZAPRET_SETTINGS_CLEAN_MENU_EN="Clean Backups"
-
 # --- Backup/Restore (Zapret Settings) ---
 TXT_ZAPRET_SETTINGS_RESTORE_TITLE_TR="Zapret Ayarlari Geri Yukleme"
 TXT_ZAPRET_SETTINGS_RESTORE_TITLE_EN="Restore Zapret Settings"
-
 TXT_SELECT_BACKUP_TO_RESTORE_TR="Geri yuklemek icin yedegi secin:"
 TXT_SELECT_BACKUP_TO_RESTORE_EN="Select a backup to restore:"
-
 TXT_ZAPRET_RESTORE_SUBMENU_TITLE_TR="Zapret Yedekleme / Geri Yukleme"
 TXT_ZAPRET_RESTORE_SUBMENU_TITLE_EN="Zapret Backup / Restore"
-
 TXT_RESTORE_SCOPE_FULL_TR="Tam Yedegi Geri Yukle (Hepsi)"
 TXT_RESTORE_SCOPE_FULL_EN="Restore Full Backup (All)"
-
 TXT_RESTORE_SCOPE_DPI_TR="Sadece DPI Profili / Ayarlari Geri Yukle"
 TXT_RESTORE_SCOPE_DPI_EN="Restore DPI Profile/Settings Only"
-
 TXT_RESTORE_SCOPE_HOSTLIST_TR="Sadece Hostlist / Autohostlist Dosyalarini Geri Yukle"
 TXT_RESTORE_SCOPE_HOSTLIST_EN="Restore Hostlist/Autohostlist Files Only"
-
 TXT_RESTORE_SCOPE_IPSET_TR="Sadece IPSET Listelerini Geri Yukle"
 TXT_RESTORE_SCOPE_IPSET_EN="Restore IPSET Sets Only"
-
 TXT_RESTORE_SCOPE_NFQWS_TR="Sadece Zapret Config (nfqws) Geri Yukle"
 TXT_RESTORE_SCOPE_NFQWS_EN="Restore Zapret Config (nfqws) Only"
-
 TXT_RESTORE_SCOPE_KZM_TR="KZM Ayarlarini Geri Yukle (HealthMon + Telegram)"
 TXT_RESTORE_SCOPE_KZM_EN="Restore KZM Settings (HealthMon + Telegram)"
-
 TXT_BACKUP_NO_BACKUPS_FOUND_TR="Yedek bulunamadi."
 TXT_BACKUP_NO_BACKUPS_FOUND_EN="No backups found."
-
 TXT_BACKUP_SUB_BACKUP_TR="1. IPSET Yedekle"
 TXT_BACKUP_SUB_BACKUP_EN="1. IPSET Backup"
-
 TXT_BACKUP_SUB_RESTORE_TR="2. IPSET Geri Yukle"
 TXT_BACKUP_SUB_RESTORE_EN="2. IPSET Restore"
-
 TXT_BACKUP_SUB_SHOW_TR="3. IPSET Yedekleri Goster"
 TXT_BACKUP_SUB_SHOW_EN="3. Show IPSET Backups"
-
 TXT_BACKUP_SUB_CFG_BACKUP_TR="4. Zapret / KZM Ayarlarini Yedekle"
 TXT_BACKUP_SUB_CFG_BACKUP_EN="4. Backup Zapret / KZM Settings"
-
 TXT_BACKUP_SUB_CFG_RESTORE_TR="5. Zapret / KZM Ayarlarini Geri Yukle"
 TXT_BACKUP_SUB_CFG_RESTORE_EN="5. Restore Zapret / KZM Settings"
-
 TXT_BACKUP_SUB_CFG_SHOW_TR="6. Zapret Ayar Yedeklerini Goster"
 TXT_BACKUP_SUB_CFG_SHOW_EN="6. Show Settings Backups"
-
 TXT_BACKUP_SUB_TG_SEND_TR="7. Yedegi Telegram'a Gonder"
 TXT_BACKUP_SUB_TG_SEND_EN="7. Send Backup via Telegram"
-
 TXT_BACKUP_CFG_NO_FILES_TR="Yedeklenecek Zapret/KZM ayar dosyasi bulunamadi."
 TXT_BACKUP_CFG_NO_FILES_EN="No Zapret/KZM settings files found to backup."
-
 TXT_BACKUP_CFG_BACKED_UP_TR="Zapret/KZM ayarlari yedeklendi: %s"
 TXT_BACKUP_CFG_BACKED_UP_EN="Zapret/KZM settings backed up: %s"
-
 TXT_BACKUP_CFG_NO_BACKUPS_TR="Zapret/KZM ayar yedegi bulunamadi."
 TXT_BACKUP_CFG_NO_BACKUPS_EN="No Zapret/KZM settings backup found."
-
 TXT_BACKUP_CFG_RESTORED_TR="Zapret ayarlari geri yuklendi: %s"
 TXT_BACKUP_CFG_RESTORED_EN="Zapret settings restored: %s"
-
 TXT_BACKUP_RESTORE_SUBMENU_TITLE_TR="Zapret Ayarlarini Geri Yukle"
 TXT_BACKUP_RESTORE_SUBMENU_TITLE_EN="Restore Zapret Settings"
-
 TXT_BACKUP_RESTORE_FULL_TR="Tam Yedegi Geri Yukle (Hepsi)"
 TXT_BACKUP_RESTORE_FULL_EN="Restore Full Backup"
-
 TXT_BACKUP_RESTORE_DPI_TR="Sadece DPI Profili / Ayarlari Geri Yukle"
 TXT_BACKUP_RESTORE_DPI_EN="Restore DPI Settings Only"
-
 TXT_BACKUP_RESTORE_HOSTLIST_TR="Sadece Hostlist / Autohostlist Dosyalarini Geri Yukle"
 TXT_BACKUP_RESTORE_HOSTLIST_EN="Restore Hostlist / Autohostlist Only"
-
 TXT_BACKUP_RESTORE_IPSET_TR="Sadece IPSET Listelerini Geri Yukle"
 TXT_BACKUP_RESTORE_IPSET_EN="Restore IPSET Settings Only"
-
 TXT_BACKUP_RESTORE_NFQWS_TR="Sadece Zapret Config (nfqws) Geri Yukle"
 TXT_BACKUP_RESTORE_NFQWS_EN="Restore Zapret Config (nfqws) Only"
-
 TXT_BACKUP_RESTORE_EXTRACTING_TR="Yedek aciliyor..."
 TXT_BACKUP_RESTORE_EXTRACTING_EN="Extracting backup..."
-
 TXT_BACKUP_RESTORE_FAILED_TR="Geri yukleme basarisiz!"
 TXT_BACKUP_RESTORE_FAILED_EN="Restore failed!"
-
 TXT_BACKUP_RESTORE_DONE_TR="Geri yukleme tamamlandi."
 TXT_BACKUP_RESTORE_DONE_EN="Restore completed."
-
 TXT_BACKUP_RESTORE_NOTHING_TR="Geri yuklenecek dosya bulunamadi."
 TXT_BACKUP_RESTORE_NOTHING_EN="Nothing to restore."
-
 TXT_BACKUP_RESTORE_STATS_TR="Geri yuklenen: %s | Bulunamayan/Hata: %s"
 TXT_BACKUP_RESTORE_STATS_EN="Restored: %s | Missing/Error: %s"
-
 TXT_BACKUP_RESTORE_SCOPE_TR="Geri yukleme kapsamini secin:"
 TXT_BACKUP_RESTORE_SCOPE_EN="Select restore scope:"
-
 TXT_BACKUP_SCOPE_HOSTLISTS_TR="1. Sadece host listeleri (hostlist/autohostlist)"
 TXT_BACKUP_SCOPE_HOSTLISTS_EN="1. Host lists only (hostlist/autohostlist)"
-
 TXT_BACKUP_SCOPE_CONFIG_TR="2. Sadece ayarlar (config)"
 TXT_BACKUP_SCOPE_CONFIG_EN="2. Settings only (config)"
-
 TXT_BACKUP_SCOPE_FULL_TR="3. Tam geri yukleme (ayarlar + listeler)"
 TXT_BACKUP_SCOPE_FULL_EN="3. Full restore (settings + lists)"
-
 TXT_BACKUP_SCOPE_CANCEL_TR="0. Iptal"
 TXT_BACKUP_SCOPE_CANCEL_EN="0. Cancel"
-
 TXT_BACKUP_SUB_BACK_TR="0. Geri"
 TXT_BACKUP_SUB_BACK_EN="0. Back"
-
 TXT_BACKUP_SUB_BACK_LIST_TR="0. Geri"
 TXT_BACKUP_SUB_BACK_LIST_EN="0. Back"
-
 TXT_BACKUP_NO_SRC_TR="HATA: /opt/zapret/ipset/ altinda yedeklenecek .txt dosyasi bulunamadi."
 TXT_BACKUP_NO_SRC_EN="ERROR: No .txt files found under /opt/zapret/ipset/ to backup."
-
 TXT_BACKUP_DONE_TR="Yedekleme tamamlandi."
 TXT_BACKUP_DONE_EN="Backup completed."
-
 TXT_RESTORE_DONE_TR="Geri yukleme tamamlandi."
 TXT_RESTORE_DONE_EN="Restore completed."
-
 TXT_RESTORE_RESTARTING_TR="Zapret yeniden baslatiliyor..."
 TXT_RESTORE_RESTARTING_EN="Restarting Zapret..."
-
 TXT_RESTORE_RESTART_OK_TR="Zapret yeniden baslatildi."
 TXT_RESTORE_RESTART_OK_EN="Zapret restarted."
-
 TXT_RESTORE_RESTART_FAIL_TR="UYARI: Zapret yeniden baslatilamadi."
 TXT_RESTORE_RESTART_FAIL_EN="WARNING: Zapret could not be restarted."
-
 TXT_BACKUP_NO_BACKUP_TR="HATA: Yedek bulunamadi."
 TXT_BACKUP_NO_BACKUP_EN="ERROR: No backups found."
-
 TXT_BACKUP_TG_NO_CONFIG_TR="Telegram yapilandirilmamis. Once Menu 15'ten ayarlarin."
 TXT_BACKUP_TG_NO_CONFIG_EN="Telegram not configured. Set it up via Menu 15 first."
 TXT_BACKUP_TG_SENDING_TR="Yedek Telegram'a gonderiliyor..."
@@ -2349,165 +1906,113 @@ TXT_BACKUP_TG_FAIL_TR="HATA: Gonderim basarisiz oldu."
 TXT_BACKUP_TG_FAIL_EN="ERROR: Failed to send backup."
 TXT_BACKUP_TG_NO_FILE_TR="Gonderilecek yedek dosyasi bulunamadi. Once 4. secenekle yedek alin."
 TXT_BACKUP_TG_NO_FILE_EN="No backup file found to send. Create a backup first via option 4."
-
 TXT_SELECT_FILE_TR="Dosya secin"
 TXT_SELECT_FILE_EN="Select a file"
-
 TXT_SELECT_ACTION_TR="Seciminizi yapin"
 TXT_SELECT_ACTION_EN="Make your selection"
-
 # --- Menu strings (TR/EN) ---
 TXT_BLOCKCHECK_TEST_MENU_TR="Blockcheck Test Menusu"
 TXT_BLOCKCHECK_TEST_MENU_EN="Blockcheck Test Menu"
-
 TXT_BACKUP_BASE_PATH_TR="Yedek konumu:"
 TXT_BACKUP_BASE_PATH_EN="Backup location:"
-
 TXT_ZAPRET_SETTINGS_BACKUP_DIR_TR="Yedek konumu:"
 TXT_ZAPRET_SETTINGS_BACKUP_DIR_EN="Backup location:"
-
 TXT_YES_TR="Evet"
 TXT_YES_EN="Yes"
-
 TXT_NO_TR="Hayir"
 TXT_NO_EN="No"
-
 TXT_ROLLBACK_NO_LOCAL_BACKUP_TR="Yerel yedek bulunamadi."
 TXT_ROLLBACK_NO_LOCAL_BACKUP_EN="No local backup found."
-
 TXT_ZAPRET_SETTINGS_CLEAN_MENU_TR="Yedekleri Temizle"
 TXT_ZAPRET_SETTINGS_CLEAN_MENU_EN="Clean Backups"
-
 TXT_ZAPRET_SETTINGS_CLEAN_CONFIRM_TR="Zapret ayar yedekleri silinsin mi? (tar.gz)"
 TXT_ZAPRET_SETTINGS_CLEAN_CONFIRM_EN="Delete zapret settings backups? (tar.gz)"
-
 TXT_ZAPRET_SETTINGS_CLEAN_NONE_TR="Silinecek zapret ayar yedegi bulunamadi."
 TXT_ZAPRET_SETTINGS_CLEAN_NONE_EN="No zapret settings backups found to delete."
-
 TXT_ZAPRET_SETTINGS_CLEAN_DONE_TR="Zapret ayar yedekleri temizlendi."
 TXT_ZAPRET_SETTINGS_CLEAN_DONE_EN="Zapret settings backups have been cleaned."
-
 TXT_ZAPRET_SETTINGS_CLEAN_FAIL_TR="Yedekler silinemedi!"
 TXT_ZAPRET_SETTINGS_CLEAN_FAIL_EN="Failed to delete backups!"
-
 # -------------------------------------------------------------------
 # Hostlist / Autohostlist (Menu 11) - i18n
 # -------------------------------------------------------------------
 TXT_HL_TITLE_TR="Hostlist / Autohostlist Menusu"
 TXT_HL_TITLE_EN="Hostlist / Autohostlist Menu"
-
 TXT_SCOPE_MODE_TR="Kapsam Modu (Global/Akilli)"
 TXT_SCOPE_MODE_EN="Scope Mode (Global/Smart)"
-
 TXT_SCOPE_GLOBAL_DESC_TR="Tum Agda Aktif - Mevcut Davranis"
 TXT_SCOPE_GLOBAL_DESC_EN="Active Across the Whole Network - Current Behavior"
-
 TXT_SCOPE_SMART_DESC_TR="Sadece DPI Olan Hostlar - autohostlist"
 TXT_SCOPE_SMART_DESC_EN="Only DPI-Affected hosts - autohostlist"
-
 TXT_SCOPE_GLOBAL_TR="Global"
 TXT_SCOPE_GLOBAL_EN="Global"
-
 TXT_SCOPE_SMART_TR="Akilli"
 TXT_SCOPE_SMART_EN="Smart"
-
 TXT_SCOPE_BACK_TR="Geri"
 TXT_SCOPE_BACK_EN="Back"
-
 TXT_SCOPE_PROMPT_TR="Seciminiz (0-2): "
 TXT_SCOPE_PROMPT_EN="Select (0-2): "
-
 TXT_SCOPE_CHANGED_TR="Kapsam Modu Degistirildi: %s"
 TXT_SCOPE_CHANGED_EN="Scope Mode Changed: %s"
-
 TXT_SCOPE_INVALID_TR="Gecersiz Secim."
 TXT_SCOPE_INVALID_EN="Invalid Choice."
-
 TXT_HL_CURRENT_MODE_TR="Mevcut Mod: "
 TXT_HL_CURRENT_MODE_EN="Current Mode: "
-
 TXT_HL_COUNTS_TR="User/Exclude/Auto Sayilari: "
 TXT_HL_COUNTS_EN="User/Exclude/Auto Counts: "
-
 TXT_HL_OPT_1_TR="Filtreleme Modunu Degistir"
 TXT_HL_OPT_1_EN="Change Filtering Mode"
-
 TXT_HL_OPT_2_TR="User hostlist: Domain Ekle"
 TXT_HL_OPT_2_EN="User hostlist: Add Domain"
-
 TXT_HL_OPT_3_TR="User hostlist: Domain Sil"
 TXT_HL_OPT_3_EN="User hostlist: Remove Domain"
-
 TXT_HL_OPT_4_TR="Exclude (Domain): Ekle (Islenmesin)"
 TXT_HL_OPT_4_EN="Exclude: Add Domain (Do not Process)"
-
 TXT_HL_OPT_5_TR="Exclude (Domain): Sil"
 TXT_HL_OPT_5_EN="Exclude: Remove (Domain)"
-
 TXT_HL_OPT_6_TR="Listeleri Goster"
 TXT_HL_OPT_6_EN="Show Lists"
-
 TXT_HL_OPT_7_TR="Otomatik Listeyi Temizle"
 TXT_HL_OPT_7_EN="Clear Auto List"
-
 TXT_HL_WARN_AUTOCLEAR_1_TR="UYARI: Otomatik listeyi temizlemek tum ogrenilen domainleri silecek!"
 TXT_HL_WARN_AUTOCLEAR_1_EN="WARNING: Clearing the auto list will delete all learned domains!"
-
 TXT_HL_WARN_AUTOCLEAR_2_TR="Bu islem geri alinamaz."
 TXT_HL_WARN_AUTOCLEAR_2_EN="This action cannot be undone."
-
 TXT_HL_BULK_HINT_TR="Birden fazla domain girebilirsiniz (virgul/noktalivirgul/bosluk ile ayirin)."
 TXT_HL_BULK_HINT_EN="You can enter multiple domains (separate with comma/semicolon/space)."
-
 TXT_HL_BULK_HINT2_TR="Alt alta yapistirabilirsiniz. Yapistirma bittikten sonra bir kez daha ENTER'a basin (bos satir)."
 TXT_HL_BULK_HINT2_EN="You can paste multiple lines. After pasting, press ENTER once more on an empty line to finish."
-
 TXT_HL_CANCELLED_TR="Iptal edildi."
 TXT_HL_CANCELLED_EN="Cancelled."
-
 TXT_HL_OPT_8_TR="Kapsam Modunu Degistir (Global/Akilli)"
 TXT_HL_OPT_8_EN="Change Scope Mode (Global/Smart)"
-
 TXT_HL_OPT_0_TR="Geri"
 TXT_HL_OPT_0_EN="Back"
-
 # Hostlist / Autohostlist (MODE_FILTER) sub-menu
 TXT_HL_MODE_TITLE_TR="Hostlist / Autohostlist (MODE_FILTER)"
 TXT_HL_MODE_TITLE_EN="Hostlist / Autohostlist (MODE_FILTER)"
-
 TXT_HL_MODE_NONE_DESC_TR="Filtre Yok"
 TXT_HL_MODE_NONE_DESC_EN="No Filtering"
-
 TXT_HL_MODE_HOSTLIST_DESC_TR="Sadece Listedeki Domainler"
 TXT_HL_MODE_HOSTLIST_DESC_EN="Only Domains in List"
-
 TXT_HL_MODE_AUTO_DESC_TR="Otomatik Ogren + Liste"
 TXT_HL_MODE_AUTO_DESC_EN="Auto-Learn + List"
-
 TXT_HL_ACTIVE_MARK_TR=" [36m(AKTIF)[0m"
 TXT_HL_ACTIVE_MARK_EN=" [36m(ACTIVE)[0m"
-
 TXT_HL_PICK_TR="Secim: "
 TXT_HL_PICK_EN="Choice: "
-
 TXT_HL_WARN_EMPTY_TR="UYARI: User hostlist bos. Hostlist modunda etki goremeyebilirsiniz."
 TXT_HL_WARN_EMPTY_EN="WARNING: User hostlist is empty. Hostlist mode may have no effect."
-
 TXT_HL_SET_OK_TR="MODE_FILTER Ayarlandi:"
 TXT_HL_SET_OK_EN="MODE_FILTER Set:"
-
 TXT_HL_SET_FAIL_TR="HATA: MODE_FILTER Ayarlanamadi"
 TXT_HL_SET_FAIL_EN="ERROR: Failed to set MODE_FILTER"
-
 TXT_HL_RESTART_TR="Zapret yeniden baslatildi."
 TXT_HL_RESTART_EN="Zapret restarted."
-
 TXT_HL_DONE_TR="Tamam."
 TXT_HL_DONE_EN="Done."
-
 TXT_HL_BAD_TR="Gecersiz secim."
 TXT_HL_BAD_EN="Invalid choice."
-
 TXT_HL_NEED_TR="Gerekli: "
 TXT_HL_NEED_EN="Required: "
 TXT_HL_LIST_USER_TR="User Hostlist          "
@@ -2518,62 +2023,43 @@ TXT_HL_LIST_EXCLUDE_IP_TR="Exclude (IP/Subnet)    "
 TXT_HL_LIST_EXCLUDE_IP_EN="Exclude (IP/Subnet)    "
 TXT_HL_LIST_AUTO_TR="Auto Hostlist          "
 TXT_HL_LIST_AUTO_EN="Auto Hostlist          "
-
 TXT_HL_DOMAIN_ADD_TR="Domain eklendi: "
 TXT_HL_DOMAIN_ADD_EN="Domain added: "
-
 TXT_HL_DOMAIN_DEL_TR="Domain silindi: "
 TXT_HL_DOMAIN_DEL_EN="Domain removed: "
-
 TXT_HL_CLEARED_TR="Auto list temizlendi."
 TXT_HL_CLEARED_EN="Auto list cleared."
-
 # Hostlist prompts & messages
 TXT_HL_ERR_NOT_INSTALLED_TR="HATA: Zapret yuklu degil."
 TXT_HL_ERR_NOT_INSTALLED_EN="ERROR: Zapret is not installed."
-
 TXT_HL_PROMPT_ADD_TR="Eklenecek Domain (0=iptal): "
 TXT_HL_PROMPT_ADD_EN="Domain to Add (0=cancel): "
-
 TXT_HL_PROMPT_DEL_TR="Silinecek Domain (0=iptal): "
 TXT_HL_PROMPT_DEL_EN="Domain to Remove (0=cancel): "
-
 TXT_HL_INVALID_DOMAIN_TR="Gecersiz Domain."
 TXT_HL_INVALID_DOMAIN_EN="Invalid Domain."
-
 TXT_HL_MSG_ADDED_TR="Eklendi: "
 TXT_HL_MSG_ADDED_EN="Added: "
-
 TXT_HL_MSG_REMOVED_TR="Silindi: "
 TXT_HL_MSG_REMOVED_EN="Removed: "
-
 TXT_HL_WARN_EMPTY_STRICT_TR="UYARI: User hostlist bos. Bu durumda zapret, exclude haric tum hostlari isleyebilir. Devam etmek icin en az bir domain ekleyin veya exclude kullanin."
 TXT_HL_WARN_EMPTY_STRICT_EN="WARNING: User hostlist is empty. In this case, zapret may process all hosts except exclude. Add at least one domain or use exclude before enabling."
-
 TXT_MENU_B_TR=" B. Blockcheck Test (Otomatik DPI)"
 TXT_MENU_B_EN=" B. Blockcheck Test (Auto DPI)"
-
 TXT_BLOCKCHECK_TEST_TITLE_TR="Blockcheck Test Menusu"
 TXT_BLOCKCHECK_TEST_TITLE_EN="Blockcheck Test Menu"
-
 TXT_BLOCKCHECK_FULL_TR="Tam Test"
 TXT_BLOCKCHECK_FULL_EN="Full Test"
-
 TXT_BLOCKCHECK_SUMMARY_TR="Ozet (Sadece SUMMARY) (Otomatik DPI icin kullanilir)"
 TXT_BLOCKCHECK_SUMMARY_EN="Summary (SUMMARY only) (Used for Auto DPI)"
-
 TXT_BLOCKCHECK_CLEAN_TR="Test Sonuclarini Temizle"
 TXT_BLOCKCHECK_CLEAN_EN="Clean Test Results"
-
 TXT_BLOCKCHECK_CLEAN_NONE_TR="Temizlenecek test raporu yok."
 TXT_BLOCKCHECK_CLEAN_NONE_EN="No test reports to clean."
-
 TXT_BLOCKCHECK_CLEAN_DONE_TR="Test raporlari temizlendi."
 TXT_BLOCKCHECK_CLEAN_DONE_EN="Test reports cleaned."
-
 TXT_BLOCKCHECK_SUMMARY_SAVED_TR="Ozet rapor kaydedildi:"
 TXT_BLOCKCHECK_SUMMARY_SAVED_EN="Summary saved:"
-
 TXT_BLOCKCHECK_SUMMARY_NOT_FOUND_TR="UYARI: SUMMARY bolumu bulunamadi."
 TXT_BLOCKCHECK_SUMMARY_NOT_FOUND_EN="WARNING: SUMMARY section not found."
 TXT_BLK_HM_AUTORESTART_WARN_TR="HealthMon, Zapret'i test sirasinda otomatik baslatabilir. Gecici olarak devre disi birakilsin mi? (e/h): "
@@ -2582,27 +2068,19 @@ TXT_BLK_HM_AUTORESTART_PAUSED_TR="HealthMon otomatik baslama gecici olarak devre
 TXT_BLK_HM_AUTORESTART_PAUSED_EN="HealthMon auto-restart temporarily disabled."
 TXT_BLK_HM_AUTORESTART_RESTORED_TR="HealthMon otomatik baslama eski haline getirildi."
 TXT_BLK_HM_AUTORESTART_RESTORED_EN="HealthMon auto-restart restored."
-
-
 # Blockcheck (Summary) - action screen (i18n)
 TXT_BLOCKCHECK_FOUND_TR="Blockcheck sonucu bulundu:"
 TXT_BLOCKCHECK_FOUND_EN="Blockcheck result found:"
-
 TXT_BLOCKCHECK_MOST_STABLE_TR="Bu ISS icin en stabil parametre:"
 TXT_BLOCKCHECK_MOST_STABLE_EN="Most stable parameter for this ISP:"
-
 TXT_BLOCKCHECK_SCORE_TR="DPI Saglik Skoru:"
 TXT_BLOCKCHECK_SCORE_EN="DPI Health Score:"
-
 TXT_BLOCKCHECK_SCORE_DNS_OK_TR="DNS tutarli"
 TXT_BLOCKCHECK_SCORE_DNS_OK_EN="DNS consistent"
-
 TXT_BLOCKCHECK_SCORE_TLS12_OK_TR="TLS12 OK"
 TXT_BLOCKCHECK_SCORE_TLS12_OK_EN="TLS12 OK"
-
 TXT_BLOCKCHECK_SCORE_UDP_WEAK_TR="UDP 443 zayif"
 TXT_BLOCKCHECK_SCORE_UDP_WEAK_EN="UDP 443 weak"
-
 TXT_BLOCKCHECK_ACTION_MENU_TR="[1] Uygula
 [2] Parametreyi incele
 [3] Sadece kaydet
@@ -2611,67 +2089,45 @@ TXT_BLOCKCHECK_ACTION_MENU_EN="[1] Apply
 [2] Inspect parameter
 [3] Save only
 [0] Cancel"
-
 TXT_BLOCKCHECK_ACTION_PROMPT_TR="Secim: "
 TXT_BLOCKCHECK_ACTION_PROMPT_EN="Choice: "
-
 TXT_PROMPT_SELECTION_TR=" Secim: "
 TXT_PROMPT_SELECTION_EN=" Selection: "
-
-
 TXT_MENU_L_TR=" L. Dil Degistir (TR/EN)"
 TXT_MENU_L_EN=" L. Switch Language (TR/EN)"
-
 TXT_MENU_R_TR=" R. Zamanli Yeniden Baslat (Cron)"
 TXT_MENU_R_EN=" R. Scheduled Reboot (Cron)"
-
 TXT_MENU_U_TR=" U. KZM + Zapret Kaldir (Tam Temiz)"
 TXT_MENU_U_EN=" U. KZM + Zapret Uninstall (Full Clean)"
-
-
 TXT_MENU_0_TR=" 0. Cikis"
 TXT_MENU_0_EN=" 0. Exit"
-
 TXT_MENU_FOOT_TR="--------------------------------------------------------------------------------------------"
 TXT_MENU_FOOT_EN="--------------------------------------------------------------------------------------------"
-
 TXT_PROMPT_MAIN_TR=" Seciminizi Yapin (0-17, B, L, R, U): "
 TXT_PROMPT_MAIN_EN=" Select an Option (0-17, B, L, R, U): "
-
 TXT_LANG_NOW_TR="Dil: Turkce"
 TXT_LANG_NOW_EN="Language: English"
-
 # IPSET menu
 TXT_IPSET_TITLE_TR=" Zapret IPSET (Istemci Secimi)"
 TXT_IPSET_TITLE_EN=" Zapret IPSET (Client Selection)"
-
 TXT_IPSET_1_TR=" 1. Mevcut IP Listesini Goster"
 TXT_IPSET_1_EN=" 1. Show Current IP List"
-
 TXT_IPSET_2_TR=" 2. Tum Aga Uygula (client Filtresi Kapali)"
 TXT_IPSET_2_EN=" 2. Apply to Whole Network (Client Filter Off)"
-
 TXT_IPSET_3_TR=" 3. Secili IP'lere Uygula (IP gir)"
 TXT_IPSET_3_EN=" 3. Apply to Selected IPs (enter IPs)"
-
 TXT_IPSET_4_TR=" 4. Listeye Tek IP Ekle"
 TXT_IPSET_4_EN=" 4. Add a Single IP to list"
-
 TXT_IPSET_5_TR=" 5. Listeden Tek IP Sil"
 TXT_IPSET_5_EN=" 5. Remove a Single IP from list"
-
 TXT_IPSET_6_TR=" 6. No Zapret (Muafiyet) Yonetimi"
 TXT_IPSET_6_EN=" 6. No Zapret (Exemption) Management"
-
 TXT_IPSET_0_TR=" 0. Ana Menuye Don"
 TXT_IPSET_0_EN=" 0. Back to Main Menu"
-
 TXT_PROMPT_IPSET_TR=" Seciminizi Yapin (0-6): "
 TXT_PROMPT_IPSET_EN=" Select an Option (0-6): "
-
 TXT_PROMPT_IPSET_BASIC_TR=" Seciminizi Yapin (0-3, 6): "
 TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-3, 6): "
-
 TXT_NOZAPRET_TITLE_TR="No Zapret (Muafiyet) Yonetimi"
 TXT_NOZAPRET_TITLE_EN="No Zapret (Exemption) Management"
 TXT_NOZAPRET_DESC_TR="Bu listedeki IP'ler Zapret isleminden MUAF tutulur (ornegin IPTV kutulari)"
@@ -2712,131 +2168,91 @@ TXT_NOZAPRET_IPSET_ACTIVE_TR="  IPSET Aktif Uyeler:"
 TXT_NOZAPRET_IPSET_ACTIVE_EN="  IPSET Active Members:"
 TXT_NOZAPRET_IPSET_EMPTY_TR="  (IPSET bos veya tanimsiz)"
 TXT_NOZAPRET_IPSET_EMPTY_EN="  (IPSET empty or undefined)"
-
 # Ceviri secici
 # --- EK DIL METINLERI (TR/EN) ---
 TXT_PRESS_ENTER_TR="Devam etmek icin Enter'a basin..."
 TXT_PRESS_ENTER_EN="Press Enter to continue..."
-
 # --- Script path warning ---
 TXT_WARN_BAD_PATH_TR="UYARI: Betik beklenen dizinde degil!"
 TXT_WARN_BAD_PATH_EN="WARNING: Script is not in the expected directory!"
-
 TXT_WARN_MOVE_TR="[1] Dogru yere tasi"
 TXT_WARN_MOVE_EN="[1] Move to correct location"
-
 TXT_WARN_CONTINUE_TR="[0] Devam et"
 TXT_WARN_CONTINUE_EN="[0] Continue"
-
 TXT_WARN_CHOICE_TR="Secim: "
 TXT_WARN_CHOICE_EN="Choice: "
-
 TXT_WARN_MOVED_OK_TR="Betik dogru dizine tasindi."
 TXT_WARN_MOVED_OK_EN="Script moved to the correct location."
-
 TXT_WARN_MOVE_FAIL_TR="HATA: Betik tasinamadi."
 TXT_WARN_MOVE_FAIL_EN="ERROR: Failed to move the script."
-
 TXT_WARN_CHMOD_FAIL_TR="HATA: Calistirma izni verilemedi."
 TXT_WARN_CHMOD_FAIL_EN="ERROR: Could not set executable permission."
-
 TXT_SCRIPT_INSTALLED_TR="Kurulu Betik Surumu : "
 TXT_SCRIPT_INSTALLED_EN="Installed Script Ver : "
-
 TXT_GITHUB_LATEST_SIMPLE_TR="GitHub Guncel Surum : "
 TXT_GITHUB_LATEST_SIMPLE_EN="GitHub Latest Ver  : "
-
 TXT_GITHUB_NOINFO_TR="Bilgi alinamadi"
 TXT_GITHUB_NOINFO_EN="Unable to fetch info"
-
 TXT_REPO_LABEL_TR="Repo               : "
 TXT_REPO_LABEL_EN="Repo               : "
-
 TXT_EMPTY_TR="(bos)"
 TXT_EMPTY_EN="(empty)"
-
 TXT_IPSET_MODE_LIST_TR="Mod: Secili IP"
 TXT_IPSET_MODE_LIST_EN="Mode: Selected IPs"
-
 TXT_IPSET_MODE_ALL_TR="Mod: Tum Ag"
 TXT_IPSET_MODE_ALL_EN="Mode: Whole Network"
-
 TXT_IPSET_ALL_NETWORK_TR="Zapret tum ag genelinde aktif. Secili IP listesi kullanilmiyor."
 TXT_IPSET_ALL_NETWORK_EN="Zapret is active network-wide. Selected IP list is not in use."
-
 TXT_IP_LIST_FILE_TR="IP Listesi (dosya): "
 TXT_IP_LIST_FILE_EN="IP List (file): "
-
 TXT_IPSET_MEMBERS_TR="IPSET Uyeleri (aktif): "
 TXT_IPSET_MEMBERS_EN="IPSET Members (active): "
-
 TXT_VERSION_INSTALLED_TR="Kurulu Surum: "
 TXT_VERSION_INSTALLED_EN="Installed Version: "
-
 TXT_CHECKING_GITHUB_TR="GitHub uzerinden en guncel surum sorgulaniyor..."
 TXT_CHECKING_GITHUB_EN="Checking latest version on GitHub..."
-
 TXT_GITHUB_LATEST_TR="Guncel"
 TXT_GITHUB_LATEST_EN="Latest"
-
 TXT_DEVICE_VERSION_TR="Kurulu"
 TXT_DEVICE_VERSION_EN="Installed"
-
 TXT_UPTODATE_TR="En guncel surumu kullaniyorsunuz."
 TXT_UPTODATE_EN="You are using the latest version."
 TXT_ZAP_NEWER_LOCAL_TR="Kurulu surum GitHub'dakinden YENI (geri cekilmis olabilir). GitHub surumunu yeniden yuklemek ister misiniz? (e/h): "
 TXT_ZAP_NEWER_LOCAL_EN="Installed version is NEWER than GitHub (may have been pulled). Reinstall GitHub version? (y/n): "
 TXT_ZAP_NEWER_LOCAL_WARN_TR="UYARI: Kurulu surum GitHub'da mevcut degil veya geri cekilmis."
 TXT_ZAP_NEWER_LOCAL_WARN_EN="WARNING: Installed version is not available on GitHub or was pulled back."
-
 TXT_GITHUB_FAIL_TR="HATA: GitHub uzerinden surum bilgisi alinamadi."
 TXT_GITHUB_FAIL_EN="ERROR: Could not fetch version info from GitHub."
-
 TXT_ZAP_UPDATE_CONFIRM_TR="Guncellemek istiyor musunuz? (e/h): "
 TXT_ZAP_UPDATE_CONFIRM_EN="Do you want to update? (y/n): "
-
 TXT_ZAP_UPDATE_DOWNLOADING_TR="Zapret indiriliyor..."
 TXT_ZAP_UPDATE_DOWNLOADING_EN="Downloading Zapret..."
-
 TXT_ZAP_UPDATE_EXTRACTING_TR="Arsiv aciliyor..."
 TXT_ZAP_UPDATE_EXTRACTING_EN="Extracting archive..."
-
 TXT_ZAP_UPDATE_APPLYING_TR="Binary dosyalar yukleniyor..."
 TXT_ZAP_UPDATE_APPLYING_EN="Applying binaries..."
-
 TXT_ZAP_UPDATE_OK_TR="Zapret basariyla guncellendi."
 TXT_ZAP_UPDATE_OK_EN="Zapret updated successfully."
-
 TXT_ZAP_UPDATE_FAIL_DL_TR="HATA: Zapret indirilemedi."
 TXT_ZAP_UPDATE_FAIL_DL_EN="ERROR: Failed to download Zapret."
-
 TXT_ZAP_UPDATE_FAIL_EX_TR="HATA: Arsiv acilamadi."
 TXT_ZAP_UPDATE_FAIL_EX_EN="ERROR: Failed to extract archive."
-
 TXT_ZAP_UPDATE_FAIL_BIN_TR="HATA: Binary dosyalar kopyalanamadi."
 TXT_ZAP_UPDATE_FAIL_BIN_EN="ERROR: Failed to apply binaries."
-
 TXT_ZAP_UPDATE_SHA256_OK_TR="SHA256 dogrulamasi basarili."
 TXT_ZAP_UPDATE_SHA256_OK_EN="SHA256 verification passed."
-
 TXT_ZAP_UPDATE_SHA256_FAIL_TR="SHA256 dogrulamasi basarisiz! Dosya bozuk veya degistirilmis olabilir."
 TXT_ZAP_UPDATE_SHA256_FAIL_EN="SHA256 verification failed! File may be corrupt or tampered."
-
 TXT_ZAP_UPDATE_SHA256_SKIP_TR="SHA256 bilgisi alinamadi, dogrulama atlandi."
 TXT_ZAP_UPDATE_SHA256_SKIP_EN="SHA256 not available from GitHub, verification skipped."
-
 TXT_ZAP_UPDATE_CANCELLED_TR="Guncelleme iptal edildi."
 TXT_ZAP_UPDATE_CANCELLED_EN="Update cancelled."
-
 TXT_ZAP_UPDATE_NO_INSTALLED_TR="Zapret kurulu degil. Once kurulum yapin."
 TXT_ZAP_UPDATE_NO_INSTALLED_EN="Zapret is not installed. Please install first."
-
 TXT_ADD_IP_TR="Eklenecek IP (Enter=Vazgec): "
 TXT_ADD_IP_EN="IP to add (Enter=Cancel): "
-
 TXT_DEL_IP_TR="Silinecek IP (Enter=Vazgec): "
 TXT_DEL_IP_EN="IP to remove (Enter=Cancel): "
-
 # --- KeenDNS Izleme ---
 TXT_KEENDNS_BANNER_LABEL_TR="KeenDNS"
 TXT_KEENDNS_BANNER_LABEL_EN="KeenDNS"
@@ -2860,34 +2276,27 @@ TXT_KEENDNS_FAIL_TR="❌ KeenDNS Erisim Yok\n🔗 %s\n🚫 Domain disaridan eris
 TXT_KEENDNS_FAIL_EN="❌ KeenDNS Unreachable\n🔗 %s\n🚫 Domain is not accessible from outside."
 TXT_KEENDNS_REACH_TR="✅ KeenDNS Erisim Geri Geldi\n%s\nDomain tekrar disaridan erisilebilir."
 TXT_KEENDNS_REACH_EN="✅ KeenDNS Reachable Again\n%s\nDomain is accessible from outside again."
-
-
 # Component Check translations
 TXT_COMP_CHECK_TITLE_TR="=== Keenetic Bilesenler Kontrolu ==="
 TXT_COMP_CHECK_TITLE_EN="=== Keenetic Components Check ==="
-
 TXT_COMP_OPKG_TR="OPKG (Entware)"
 TXT_COMP_OPKG_EN="OPKG (Entware)"
 TXT_COMP_OPKG_REQ_TR="OPKG (Entware) - ZORUNLU!"
 TXT_COMP_OPKG_REQ_EN="OPKG (Entware) - REQUIRED!"
-
 TXT_COMP_IPV6_TR="IPv6 destegi (ip6tables)"
 TXT_COMP_IPV6_EN="IPv6 support (ip6tables)"
 TXT_COMP_IPV6_REQ_TR="IPv6 destegi - ZORUNLU!"
 TXT_COMP_IPV6_REQ_EN="IPv6 support - REQUIRED!"
 TXT_COMP_IPV6_SHORT_TR="IPv6 destegi"
 TXT_COMP_IPV6_SHORT_EN="IPv6 support"
-
 TXT_COMP_IPTABLES_TR="iptables"
 TXT_COMP_IPTABLES_EN="iptables"
 TXT_COMP_IPTABLES_REQ_TR="iptables - ZORUNLU!"
 TXT_COMP_IPTABLES_REQ_EN="iptables - REQUIRED!"
-
 TXT_COMP_NFQUEUE_TR="Netfilter Queue modulleri"
 TXT_COMP_NFQUEUE_EN="Netfilter Queue modules"
 TXT_COMP_NFQUEUE_WARN_TR="Netfilter kernel modulleri yuklu degil - Zapret servisi baslamaz!"
 TXT_COMP_NFQUEUE_WARN_EN="Netfilter kernel modules not installed - Zapret service will not start!"
-
 TXT_COMP_CURL_TR="curl (guncelleme icin)"
 TXT_COMP_CURL_EN="curl (for updates)"
 TXT_COMP_WGET_TR="wget (guncelleme icin)"
@@ -2896,12 +2305,10 @@ TXT_COMP_CURL_REQ_TR="curl veya wget - ZORUNLU!"
 TXT_COMP_CURL_REQ_EN="curl or wget - REQUIRED!"
 TXT_COMP_OR_TR="veya"
 TXT_COMP_OR_EN="or"
-
 TXT_COMP_IPSET_TR="ipset"
 TXT_COMP_IPSET_EN="ipset"
 TXT_COMP_IPSET_REQ_TR="ipset - ZORUNLU!"
 TXT_COMP_IPSET_REQ_EN="ipset - REQUIRED!"
-
 TXT_COMP_STORAGE_USB_TR="Harici depolama - USB (/opt bagli)"
 TXT_COMP_STORAGE_USB_EN="External storage - USB (/opt mounted)"
 TXT_COMP_STORAGE_INTERNAL_TR="Dahili depolama - eMMC/SD (/opt bagli)"
@@ -2918,7 +2325,6 @@ TXT_COMP_STORAGE_INTERNAL_SD_TR="Dahili depolama - eMMC/NAND (/opt bagli)"
 TXT_COMP_STORAGE_INTERNAL_SD_EN="Internal storage - eMMC/NAND (/opt mounted)"
 TXT_COMP_STORAGE_INTERNAL_HINT_TR="      (Not: Dahili bellegin omru kisalabilir. Harici USB kullanimi onerilir.)"
 TXT_COMP_STORAGE_INTERNAL_HINT_EN="      (Note: Internal storage wear may occur. External USB is recommended.)"
-
 TXT_COMP_CRIT_FAIL_TR="KRITIK bilesenler eksik. Zapret calismayacak!"
 TXT_COMP_CRIT_FAIL_EN="CRITICAL components missing. Zapret will NOT work!"
 TXT_COMP_MISSING_TR="Eksik bilesenler:"
@@ -2931,7 +2337,6 @@ TXT_COMP_REBOOT_WARN_TR="UYARI: Bilesenler yuklendikten sonra cihaz yeniden basl
 TXT_COMP_REBOOT_WARN_EN="WARNING: Device will restart after installing components!"
 TXT_COMP_REQUIRED_TR="Gerekli bilesenler:"
 TXT_COMP_REQUIRED_EN="Required components:"
-
 TXT_COMP_OPT_WARN_TR="Bazi OPSIYONEL bilesenler eksik. Zapret calisir ama tam fonksiyonel olmayabilir."
 TXT_COMP_OPT_WARN_EN="Some OPTIONAL components missing. Zapret will work but may not be fully functional."
 TXT_COMP_ALL_OK_TR="Tum gerekli bilesenler mevcut!"
@@ -2946,8 +2351,6 @@ TXT_COMP_TC_WARN_TR="Trafik Kontrol modulleri yuklu degil - Zapret servisi basla
 TXT_COMP_TC_WARN_EN="Traffic Control modules not installed - Zapret service will not start!"
 TXT_COMP_PRESS_ENTER_TR="Devam etmek icin Enter..."
 TXT_COMP_PRESS_ENTER_EN="Press Enter to continue..."
-
-
 T() {
     # Kullanim:
     #   T KEY                 -> sozlukten KEY_TR / KEY_EN
@@ -2956,7 +2359,6 @@ T() {
     local tr="$2"
     local en="$3"
     [ -z "$k" ] && return 0
-
     # Eger TR/EN parametreleri verilmisse onlari kullan
     if [ -n "$tr" ] || [ -n "$en" ]; then
         if [ "$LANG" = "en" ]; then
@@ -2966,7 +2368,6 @@ T() {
         fi
         return 0
     fi
-
     # Sozluk degiskenlerinden oku
     local v=""
     if [ "$LANG" = "en" ]; then
@@ -2979,7 +2380,6 @@ T() {
     [ -z "$v" ] && v="$k"
     printf '%s' "$v"
 }
-
 # Enter'a basinca devam et (TR/EN)
 press_enter_to_continue() {
     # Robust pause: always read from controlling TTY so it cannot be skipped by buffered stdin.
@@ -2988,9 +2388,6 @@ press_enter_to_continue() {
     printf '%s' "$(T press_enter "$TXT_PRESS_ENTER_TR" "$TXT_PRESS_ENTER_EN")"; read -r _ </dev/tty || exit 0
     clear
 }
-
-
-
 load_lang() {
     if [ -f "$LANG_FILE" ]; then
         LANG="$(cat "$LANG_FILE" 2>/dev/null | tr -d '\r\n\t ' )"
@@ -3000,14 +2397,12 @@ load_lang() {
         *)     LANG="tr" ;;
     esac
 }
-
 toggle_lang() {
     load_lang
     if [ "$LANG" = "en" ]; then LANG="tr"; else LANG="en"; fi
     mkdir -p /opt/zapret 2>/dev/null
     echo "$LANG" > "$LANG_FILE" 2>/dev/null
 }
-
 lang_label() {
     if [ "$LANG" = "en" ]; then
         echo "$TXT_LANG_NOW_EN"
@@ -3015,21 +2410,16 @@ lang_label() {
         echo "$TXT_LANG_NOW_TR"
     fi
 }
-
 load_lang
-
 # IPSET (istemci bazli) ayarlari
 IPSET_CLIENT_NAME="zapret_clients"
 IPSET_CLIENT_FILE="/opt/zapret/ipset_clients.txt"
 IPSET_CLIENT_MODE_FILE="/opt/zapret/ipset_clients_mode"  # all | list
-
 # No Zapret (muafiyet) ayarlari
 NOZAPRET_IPSET_NAME="nozapret"
 NOZAPRET_FILE="/opt/zapret/ipset/nozapret.txt"
-
 # WAN arayuzu (cikis) secimi / otomatik algilama
 WAN_IF_FILE="/opt/zapret/wan_if"
-
 detect_recommended_wan_if() {
     # Varsayilan route'dan arayuz algila. WireGuard/tun gibi arayuzleri mumkunse secme.
     ip route show default 2>/dev/null | awk '
@@ -3044,21 +2434,18 @@ detect_recommended_wan_if() {
         END { if(fallback!="") print fallback }
     '
 }
-
 get_wan_if() {
     local w=""
     [ -f "$WAN_IF_FILE" ] && w="$(cat "$WAN_IF_FILE" 2>/dev/null)"
     [ -z "$w" ] && w="$(detect_recommended_wan_if)"
     echo "$w"
 }
-
 # WAN arayuzu icin ifindex bilgisi (install_easy.sh arayuz secimi icin)
 get_ifindex_by_iface() {
     local ifc="$1"
     [ -z "$ifc" ] && return 1
     cat "/sys/class/net/${ifc}/ifindex" 2>/dev/null
 }
-
 # Zapret config icinde IFACE_WAN degerini secilen WAN arayuzu ile esitle
 sync_zapret_iface_wan_config() {
     local ifc="$(get_wan_if)"
@@ -3072,12 +2459,10 @@ sync_zapret_iface_wan_config() {
         echo "IFACE_WAN=${ifc}" >> /opt/zapret/config 2>/dev/null
     fi
 }
-
 # NFQUEUE kurallarinda eski/yanlis arayuz kalintilarini temizle (sadece secili WAN kalsin)
 cleanup_nfqueue_rules_except_selected_wan() {
     local WAN="$(get_wan_if)"
     [ -z "$WAN" ] && return 0
-
     # yalnizca NFQUEUE iceren kurallari tara; secili WAN disindakileri sil
     iptables -t mangle -S 2>/dev/null | grep -F ' -j NFQUEUE' | while IFS= read -r line; do
         # line: -A CHAIN ...
@@ -3090,8 +2475,6 @@ cleanup_nfqueue_rules_except_selected_wan() {
         iptables -t mangle $del 2>/dev/null
     done
 }
-
-
 select_wan_if() {
     # Kurulumda (ve gerekirse sonradan) WAN arayuzunu belirle.
     local rec="$(detect_recommended_wan_if)"
@@ -3114,12 +2497,10 @@ select_wan_if() {
     echo "$ans" > "$WAN_IF_FILE" 2>/dev/null
     echo "$(T TXT_WAN_SEL_SELECTED) $(get_wan_if)"
 }
-
 enforce_wan_if_nfqueue_rules() {
     # NFQUEUE kurallarini sadece secili WAN arayuzunde etkinlestirerek WireGuard vb. arayuzlerde sorunlari azaltir.
     local WAN="$(get_wan_if)"
     [ -z "$WAN" ] && return 0
-
     # mangle/POSTROUTING: -o WAN ekle
     iptables -t mangle -S POSTROUTING 2>/dev/null | grep -F -- " -j NFQUEUE" | grep -F -- "--queue-num 200" | while read -r rule; do
         echo "$rule" | grep -qE ' -o [^ ]+' && continue
@@ -3128,7 +2509,6 @@ enforce_wan_if_nfqueue_rules() {
         add="$(echo "$rule" | sed "s/ -j NFQUEUE/ -o $WAN -j NFQUEUE/")"
         iptables -t mangle $add 2>/dev/null
     done
-
     # filter INPUT/FORWARD: -i WAN ekle (varsa)
     for chain in INPUT FORWARD; do
         iptables -S "$chain" 2>/dev/null | grep -F -- " -j NFQUEUE" | grep -F -- "--queue-num 200" | while read -r rule; do
@@ -3141,8 +2521,6 @@ enforce_wan_if_nfqueue_rules() {
     done
     return 0
 }
-
-
 # --- Keenetic: persistently pin NFQUEUE POSTROUTING rules to real WAN (-o ppp0/wgX) ---
 create_keenetic_fw_post_up_hook() {
     # Creates /opt/zapret/keenetic_fw_post_up.sh (idempotent).
@@ -3155,24 +2533,20 @@ create_keenetic_fw_post_up_hook() {
 # Works even if default route line is "default dev ppp0 ..." (Keenetic).
 WAN="$(ip route 2>/dev/null | awk '/^default/ {for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
 [ -z "$WAN" ] && WAN="ppp0"
-
 # For each NFQUEUE rule in POSTROUTING that matches zapret ipsets but has no "-o", re-add it with "-o $WAN".
 # Keep it safe: only touch rules that contain "match-set zapret_clients src" OR "match-set nozapret".
 iptables -t mangle -S POSTROUTING 2>/dev/null | grep NFQUEUE 2>/dev/null | while IFS= read -r r; do
     echo "$r" | grep -q -- " -o " && continue
     echo "$r" | grep -Eq -- 'match-set (zapret_clients src|nozapret)' || continue
-
     del="${r/-A /-D }"
     add="$(echo "$r" | sed "s/ -j NFQUEUE/ -o $WAN -j NFQUEUE/")"
     iptables -t mangle $del >/dev/null 2>&1
     iptables -t mangle $add >/dev/null 2>&1
 done
-
 exit 0
 EOF
     chmod +x "$HOOK" >/dev/null 2>&1
 }
-
 patch_zapret_real_to_run_post_hook() {
     # zapret upstream init script does not always support config-level hooks on Keenetic builds.
     # So we patch zapret.real to execute the post-up hook right after each zapret_apply_firewall call.
@@ -3180,13 +2554,10 @@ patch_zapret_real_to_run_post_hook() {
     local HOOK="/opt/zapret/keenetic_fw_post_up.sh"
     [ -f "$REAL" ] || return 0
     [ -x "$HOOK" ] || return 0
-
     # Already patched?
     grep -q "keenetic_fw_post_up.sh" "$REAL" 2>/dev/null && return 0
-
     local BAK="${REAL}.bak_$(date +%Y%m%d_%H%M%S 2>/dev/null).sh"
     cp -a "$REAL" "$BAK" >/dev/null 2>&1 || return 0
-
     awk '
     {
         print $0
@@ -3200,14 +2571,11 @@ patch_zapret_real_to_run_post_hook() {
     }
     chmod +x "$REAL" >/dev/null 2>&1
 }
-
-
 # --- DPI PROFIL SECIMI (NFQWS_OPT) ---
 DPI_PROFILE_FILE="/opt/zapret/dpi_profile"
 DPI_PROFILE_ORIGIN_FILE="/opt/zapret/dpi_profile_origin"
 DPI_PROFILE_PARAMS_FILE="/opt/zapret/dpi_profile_params"
 BLOCKCHECK_AUTO_PARAMS_FILE="/opt/zapret/blockcheck_auto_params"
-
 get_dpi_origin() {
     local o="manual"
     [ -f "$DPI_PROFILE_ORIGIN_FILE" ] && o="$(cat "$DPI_PROFILE_ORIGIN_FILE" 2>/dev/null)"
@@ -3216,22 +2584,17 @@ get_dpi_origin() {
         *) echo "manual" ;;
     esac
 }
-
 set_dpi_origin() {
     mkdir -p "$(dirname "$DPI_PROFILE_ORIGIN_FILE")" 2>/dev/null
     echo "$1" > "$DPI_PROFILE_ORIGIN_FILE" 2>/dev/null
 }
-
 set_dpi_params() {
     mkdir -p "$(dirname "$DPI_PROFILE_PARAMS_FILE")" 2>/dev/null
     printf "%s" "$1" > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
 }
-
 get_dpi_params() {
     [ -f "$DPI_PROFILE_PARAMS_FILE" ] && cat "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
 }
-
-
 get_dpi_profile() {
     local p="tt_default"
     [ -f "$DPI_PROFILE_FILE" ] && p="$(cat "$DPI_PROFILE_FILE" 2>/dev/null)"
@@ -3240,13 +2603,10 @@ get_dpi_profile() {
         *) echo "tt_default" ;;
     esac
 }
-
 set_dpi_profile() {
     mkdir -p "$(dirname "$DPI_PROFILE_FILE")" 2>/dev/null
-
     echo "$1" > "$DPI_PROFILE_FILE" 2>/dev/null
 }
-
 dpi_profile_name_tr() {
     case "$1" in
         tt_default) echo "Turk Telekom Fiber (TTL2 fake)";;
@@ -3261,7 +2621,6 @@ dpi_profile_name_tr() {
         *) echo "$1";;
     esac
 }
-
 dpi_profile_name_en() {
     case "$1" in
         tt_default) echo "Turk Telekom Fiber (TTL2 fake)";;
@@ -3276,7 +2635,6 @@ dpi_profile_name_en() {
         *) echo "$1";;
     esac
 }
-
 show_active_dpi_info() {
     local origin="$(get_dpi_origin)"
     local origin_label=""
@@ -3285,22 +2643,18 @@ show_active_dpi_info() {
     else
         origin_label="$(T TXT_ACTIVE_DPI_DEFAULT)"
     fi
-
     printf "%s : %s
 " "$(T TXT_ACTIVE_DPI)" "$origin_label"
     if [ -s "$DPI_PROFILE_PARAMS_FILE" ]; then
         printf "%s : %s
 " "$(T TXT_ACTIVE_DPI_PARAMS)" "$(cat "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null)"
     fi
-
     # Bilgi (Auto): Blockcheck (Otomatik) aktifken listelenen 1-8 profilleri pasiftir
     # Bilgi (Auto): Blockcheck (Otomatik) aktifken listelenen 1-8 profilleri pasiftir
 if [ "$origin" = "auto" ]; then
     printf "%b\n" "${CLR_ORANGE}$(T TXT_DPI_AUTO_NOTE)${CLR_RESET}"
 fi
-
 }
-
 select_dpi_profile() {
     local cur="$(get_dpi_profile)"
     local origin="$(get_dpi_origin)"
@@ -3309,7 +2663,6 @@ select_dpi_profile() {
     print_line "-"
     local _cur_label_tr=" Su Anki"
     local _cur_label_en=" Current"
-
     if [ "$origin" = "auto" ]; then
         # Auto: show current as Blockcheck, and show base profile separately
         printf "%b%s: %s%b\n" "${CLR_GREEN}${CLR_BOLD}" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T TXT_ACTIVE_DPI_AUTO)" "${CLR_RESET}"
@@ -3319,9 +2672,7 @@ select_dpi_profile() {
     fi
 							 
 																																	  
-
     print_line "-"
-
 show_active_dpi_info
     print_line "-"
         # Menu satirlarinda:
@@ -3339,13 +2690,10 @@ show_active_dpi_info
             turkcell_mob) _num="7" ;;
             vodafone_mob) _num="8" ;;
         esac
-
         _name_tr="$(dpi_profile_name_tr "$_id")"
         _name_en="$(dpi_profile_name_en "$_id")"
-
         _suf_tr=""
         _suf_en=""
-
         # varsayilan isareti
         if [ "$_id" = "tt_default" ]; then
             _suf_tr=" (Varsayilan)"
@@ -3371,7 +2719,6 @@ else
         fi
     fi
 fi
-
         echo " ${_num}. $(T dpi_prof_${_id} "${_name_tr}${_suf_tr}" "${_name_en}${_suf_en}")"
     done
     echo " 0. $(T back_main 'Ana Menuye Don' 'Back')"
@@ -3382,8 +2729,6 @@ fi
     if [ -z "$sel" ] || [ "$sel" = "0" ]; then
         return 1
     fi
-
-
     # If auto profile is active, switching to a numbered profile disables auto (by user's choice)
     if [ "$origin" = "auto" ] && echo "$sel" | grep -Eq '^[1-8]$'; then
         local _ans
@@ -3396,7 +2741,6 @@ fi
             *) return 1 ;;
         esac
     fi
-
     case "$sel" in
         1) set_dpi_profile tt_default ;;
         2) set_dpi_profile tt_fiber ;;
@@ -3410,14 +2754,11 @@ fi
         0) return 1 ;;
         *) return 1 ;;
     esac
-
     set_dpi_origin "manual"
     : > "$DPI_PROFILE_PARAMS_FILE" 2>/dev/null
     rm -f "$BLOCKCHECK_AUTO_PARAMS_FILE" 2>/dev/null
-
     # DPI profiline gore NFQWS parametrelerini guncelle
     update_nfqws_parameters >/dev/null 2>&1
-
     print_line "-"
     echo "$(T dpi_restart_msg 'DPI profili uygulaniyor, Zapret yeniden baslatiliyor...' 'Applying DPI profile, restarting Zapret...')"
     /opt/etc/init.d/S90-zapret restart >/dev/null 2>&1
@@ -3432,10 +2773,8 @@ fi
     else
         press_enter_to_continue
     fi
-
     return 0
 }
-
 apply_dpi_profile_now() {
     if ! is_zapret_installed; then
         echo "$(T err_not_inst "HATA: Zapret yuklu degil." "ERROR: Zapret is not installed.")"
@@ -3449,14 +2788,12 @@ apply_dpi_profile_now() {
     echo "$(T dpi_applied "DPI profili uygulandi." "DPI profile applied.")"
     press_enter_to_continue
 }
-
 get_client_mode() {
     local m="all"
     [ -f "$IPSET_CLIENT_MODE_FILE" ] && m="$(cat "$IPSET_CLIENT_MODE_FILE" 2>/dev/null)"
     [ -z "$m" ] && m="all"
     echo "$m"
 }
-
 ipset_ensure_and_load_clients() {
     command -v ipset >/dev/null 2>&1 || return 1
     ipset list "$IPSET_CLIENT_NAME" >/dev/null 2>&1 || ipset create "$IPSET_CLIENT_NAME" hash:ip >/dev/null 2>&1
@@ -3467,7 +2804,6 @@ ipset_ensure_and_load_clients() {
     done
     return 0
 }
-
 add_ipset_nfqueue_rules() {
     local WAN="$(get_wan_if)"
     [ -z "$WAN" ] && WAN=""
@@ -3478,7 +2814,6 @@ add_ipset_nfqueue_rules() {
     iptables -t mangle -I POSTROUTING 1 ${WAN:+-o $WAN} -p tcp -m multiport --dports 80,443 \
         -m set --match-set "$IPSET_CLIENT_NAME" src \
         -j NFQUEUE --queue-num 200 --queue-bypass >/dev/null 2>&1
-
     iptables -I INPUT 1 ${WAN:+-i $WAN} -p tcp -m multiport --sports 80,443 \
         -m set --match-set "$IPSET_CLIENT_NAME" dst \
         -j NFQUEUE --queue-num 200 --queue-bypass >/dev/null 2>&1
@@ -3520,9 +2855,7 @@ enforce_client_mode_rules() {
     # MODE=all  ise: ipset'e bagli kurallari temizle (genel kalsin).
     local mode="$(get_client_mode)"
     local Q="200"
-
     command -v iptables >/dev/null 2>&1 || return 0
-
     if [ "$mode" = "list" ]; then
         flush_all_nfqueue_rules "$Q"
         ipset_ensure_and_load_clients || true
@@ -3532,7 +2865,6 @@ enforce_client_mode_rules() {
         del_ipset_nfqueue_rules >/dev/null 2>&1
     fi
 }
-
 # Cekirdek modulu yapilandirmasini gunceller
 # TR/EN Dictionary (WAN Interface Selection & Cleanup)
 TXT_WAN_SEL_TITLE_TR="Zapret cikis arayuzu secimi"
@@ -3551,7 +2883,6 @@ TXT_CLEANUP_REMOVING_TR="Indirilen Zapret arsivi ve gereksiz binary dosyalari si
 TXT_CLEANUP_REMOVING_EN="Removing downloaded Zapret archive and unnecessary binary files..."
 TXT_CLEANUP_REMOVED_TR="Indirilen Zapret arsivi ve gereksiz binary dosyalari silindi."
 TXT_CLEANUP_REMOVED_EN="Downloaded Zapret archive and unnecessary binary files removed."
-
 # TR/EN Dictionary (Kernel & Firewall & Zapret Service)
 TXT_KERN_MOD_ADD_FAIL_TR="HATA: Kernel modulu yukleme dosyasina eklenemedi."
 TXT_KERN_MOD_ADD_FAIL_EN="ERROR: Failed to write to kernel module load file."
@@ -3629,7 +2960,6 @@ TXT_INSTALL_CFG_RUNNING_TR="Zapret yapilandirma betigi calistiriliyor..."
 TXT_INSTALL_CFG_RUNNING_EN="Running Zapret configuration script..."
 TXT_INSTALL_KEENETIC_CFG_TR="Zapret'in Keenetic cihazlarda calisabilmesi icin gerekli yapilandirmalar yapiliyor..."
 TXT_INSTALL_KEENETIC_CFG_EN="Applying required configurations for Zapret to run on Keenetic devices..."
-
 update_kernel_module_config() {
     awk '
       BEGIN { inserted=0 }
@@ -3681,16 +3011,13 @@ update_kernel_module_config() {
         echo "$(T TXT_KERN_MOD_ADD_FAIL)"
         return 1
     }
-
     chmod +x /opt/zapret/init.d/sysv/zapret || {
         echo "$(T TXT_KERN_MOD_CHMOD_FAIL)"
         return 1
     }
-
     echo "$(T TXT_KERN_MOD_OK)"
     return 0
 }
-
 # NFQWS parametrelerini gunceller
 update_nfqws_parameters() {
     local profile="$(get_dpi_profile)"
@@ -3703,15 +3030,12 @@ update_nfqws_parameters() {
         # zapret init scripts replace <HOSTLIST> depending on MODE_FILTER
         HOST_MARKER="<HOSTLIST>"
     fi
-
-
     # Profil parametreleri (varsayilanlar)
     local DESYNC="fake"
     local TTL=""
     local AUTOTTL=""
     local FOOLING=""
     local SPLITPOS=""
-
     # blockcheck_auto: use parameters extracted from blockcheck summary (stored as raw nfqws args)
     local AUTO_PARAMS _ttl
     AUTO_PARAMS=""
@@ -3726,8 +3050,6 @@ update_nfqws_parameters() {
             fi
         fi
     fi
-
-
     case "$profile" in
         tt_default) DESYNC="fake"; TTL="2" ;;
         tt_fiber)   DESYNC="fake"; TTL="4" ;;
@@ -3739,12 +3061,10 @@ update_nfqws_parameters() {
         vodafone_mob) DESYNC="multisplit"; SPLITPOS="2" ;;
         *) DESYNC="fake"; TTL="2"; profile="tt_default" ;;
     esac
-
     build_line() {
         # $1 proto(tcp/udp) $2 port(s) $3 extra endflag(--new or empty)
         local proto="$1" ports="$2" endflag="$3"
         local line="--filter-${proto}=${ports}"
-
         # Smart modda hostlist/autohostlist marker eklenir (global modda bos)
         [ -n "$HOST_MARKER" ] && line="${line} ${HOST_MARKER}"
         if [ -n "$AUTO_PARAMS" ]; then
@@ -3756,16 +3076,13 @@ update_nfqws_parameters() {
             [ -n "$TTL" ] && line="${line} --dpi-desync-ttl=${TTL}"
             [ -n "$AUTOTTL" ] && line="${line} --dpi-desync-autottl=${AUTOTTL}"
         fi
-
         # IPv6 tarafinda TTL6 ekle (TTL varsa) - sadece sabit profillerde
         if [ -z "$AUTO_PARAMS" ] && { [ "$ipv6" = "y" ] || [ "$ipv6" = "Y" ]; }; then
             [ -n "$TTL" ] && line="${line} --dpi-desync-ttl6=${TTL}"
         fi
-
         [ -n "$endflag" ] && line="${line} ${endflag}"
         echo "$line"
     }
-
     # NFQWS_OPT blok satirlari
     local L1 L2 L3 L4 L5 L6
     if [ "$ipv6" = "y" ] || [ "$ipv6" = "Y" ]; then
@@ -3788,14 +3105,12 @@ ${L2} \\
 ${L3} \\
 \""
     fi
-
     # /opt/zapret/config icinde NFQWS_OPT blogunu guvenli sekilde guncelle
     ensure_zapret_config >/dev/null 2>&1
     if [ ! -f /opt/zapret/config ]; then
         echo "$(T nfqws_cfg_missing "UYARI: /opt/zapret/config bulunamadi." "WARNING: /opt/zapret/config not found.")"
         return 1
     fi
-
     local tmp="/tmp/zapret_config.$$"
     awk -v repl="$NFQWS_BLOCK" '
         BEGIN { cleanup=0 }
@@ -3812,7 +3127,6 @@ ${L3} \\
         }
         { print }
     ' /opt/zapret/config > "$tmp" && mv "$tmp" /opt/zapret/config
-
     if grep -q '^NFQWS_OPT="' /opt/zapret/config 2>/dev/null; then
         echo "$(T nfqws_updated "NFQWS parametreleri basariyla guncellendi." "NFQWS parameters updated successfully.")"
         echo "$(T dpi_active "Aktif DPI Profili" "Active DPI Profile"): $(T dpi_ap "$(dpi_profile_name_tr "$profile")" "$(dpi_profile_name_en "$profile")")"
@@ -3822,9 +3136,6 @@ ${L3} \\
         return 1
     fi
 }
-
-
-
 # Netfilter scriptini gunceller
 allow_firewall() {
     # Betik icerigini dosyaya yazar
@@ -3835,7 +3146,6 @@ exit 0' > /opt/etc/ndm/netfilter.d/000-zapret.sh || {
         echo "$(T TXT_FW_WRITE_FAIL)"
         return 1
     }
-
     # Dosyayi calistirilabilir yapar
     chmod +x /opt/etc/ndm/netfilter.d/000-zapret.sh || {
         echo "$(T TXT_FW_CHMOD_FAIL)"
@@ -3845,7 +3155,6 @@ exit 0' > /opt/etc/ndm/netfilter.d/000-zapret.sh || {
     echo "$(T TXT_FW_OK)"
     return 0
 }
-
 # Check Keenetic components required for Zapret
 check_keenetic_components() {
     local missing_critical=0
@@ -3853,7 +3162,6 @@ check_keenetic_components() {
     local all_components=""
     # PATH genislet: Entware ve sistem araclari her zaman erisilebilir olsun
     export PATH="/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
-
     # opkg update tek seferlik - eksik paketler kurulmadan once liste guncellenmeli
     if command -v opkg >/dev/null 2>&1; then
         opkg update >/dev/null 2>&1
@@ -3980,7 +3288,6 @@ check_keenetic_components() {
         missing_critical=1
         all_components="${all_components}  - $(T TXT_COMP_XTABLES)\n"
     fi
-
     # 8. Traffic Control kernel modules - CRITICAL (Keenetic OPKG bileseni)
     # Eksik olursa zapret servisi baslatma hatasi verir
     # Tespit sirasi: opkg kaydi > /lib/modules *.ko > lsmod > tc komutu
@@ -4000,7 +3307,6 @@ check_keenetic_components() {
     else
         print_status WARN "$(T TXT_COMP_TC_WARN)"
     fi
-
     # 9. nfqws binary - sadece Zapret kuruluysa kontrol et
     if is_zapret_installed; then
         if [ -x "/opt/zapret/nfq/nfqws" ]; then
@@ -4009,7 +3315,6 @@ check_keenetic_components() {
             print_status WARN "$(T _ 'nfqws binary bulunamadi - Zapret yeniden kurulumu onerilir' 'nfqws binary not found - Reinstalling Zapret is recommended')"
         fi
     fi
-
     # 10. Storage - OPTIONAL (for persistence)
     # Adim 1: /proc/mounts'ta /opt icin ayri bir mount satiri ara
     local _opt_line=""
@@ -4020,7 +3325,6 @@ check_keenetic_components() {
         opt_dev=$(printf '%s' "$_opt_line" | awk '{print $1}')
         opt_fstype=$(printf '%s' "$_opt_line" | awk '{print $3}')
     fi
-
     # /dev/sdX icin removable flag kontrol: 1=USB(cikabilir), 0=dahili
     _is_usb_removable() {
         local _bdev
@@ -4031,7 +3335,6 @@ check_keenetic_components() {
         fi
         [ "$_removable" = "1" ]
     }
-
     if [ -n "$opt_dev" ]; then
         # /opt ayri mount edilmis - device tipine gore karar ver
         if echo "$opt_dev" | grep -q "^/dev/sd"; then
@@ -4116,16 +3419,12 @@ check_keenetic_components() {
         return 0
     fi
 }
-
-
-
 # Zapret'in otomatik baslamasini ayarlar
 add_auto_start_zapret() {
     ln -fs /opt/zapret/init.d/sysv/zapret /opt/etc/init.d/S90-zapret && \
     echo "$(T TXT_AUTOSTART_OK)" || \
     { echo "$(T TXT_AUTOSTART_FAIL)"; return 0; }
 }
-
 # Total paket engellemeyi devre disi birakmayi ayarlar
 disable_total_packet() {
     # Betik icerigini dosyaya yazar
@@ -4152,7 +3451,6 @@ exit 0' > /opt/etc/init.d/S00fix || {
         echo "$(T TXT_TOTAL_PKT_FAIL)"
         return 1
     }
-
     # Dosyayi calistirilabilir yapar
     chmod +x /opt/etc/init.d/S00fix || {
         echo "$(T TXT_TOTAL_PKT_CHMOD_FAIL)"
@@ -4162,32 +3460,26 @@ exit 0' > /opt/etc/init.d/S00fix || {
     echo "$(T _ 'Toplam paket kontrolu devre disi birakildi.' 'Total packet check disabled.')"
     return 0
 }
-
 # Keenetic uyumlulugunu etkinlestirir
 keenetic_compatibility() {
     sed -i "s/^#WS_USER=nobody/WS_USER=nobody/" /opt/zapret/config.default && \
     echo "$(T _ 'Keenetic icin uyumlu hale getirildi.' 'Keenetic compatibility applied.')" || \
     { echo "$(T TXT_COMPAT_FAIL)"; return 1; }
 }
-
 # Keenetic UDP duzeltmesini ekler
 fix_keenetic_udp() {
     cp -af /opt/zapret/init.d/custom.d.examples.linux/10-keenetic-udp-fix /opt/zapret/init.d/sysv/custom.d/10-keenetic-udp-fix && \
     echo "$(T _ 'Keenetic UDP duzeltmesi eklendi.' 'Keenetic UDP fix applied.')" || \
     { echo "$(T TXT_UDP_FIX_FAIL)"; return 1; }
 }
-
 # -------------------------------------------------------------------
 # Zapret Calisma / Baslatma / Durdurma Yardimcilari
 # -------------------------------------------------------------------
-
 # (DURDUR modunda) otomatik yeniden baslamayi engellemek icin gecici bayrak.
 # /tmp reboot ile temizlenir, yani router reboot edince otomatik baslatma devam eder.
 ZAPRET_PAUSE_FLAG="/tmp/.zapret_paused"
-
 zapret_pause()  { : > "$ZAPRET_PAUSE_FLAG" 2>/dev/null; }
 zapret_resume() { rm -f "$ZAPRET_PAUSE_FLAG" 2>/dev/null; }
-
 install_zapret_pause_guard() {
     # /opt/zapret/init.d/sysv/zapret wrapper'ina "pause" kontrolu ekler.
     # start/start-fw/restart/restart-fw cagrilari pause varken no-op olur.
@@ -4195,18 +3487,15 @@ install_zapret_pause_guard() {
     local Z="/opt/zapret/init.d/sysv/zapret"
     local R="/opt/zapret/init.d/sysv/zapret.real"
     [ -x "$Z" ] || return 0
-
     # Daha once wrapper yapilmadiysa yedekle
     if [ ! -f "$R" ]; then
         cp -f "$Z" "$R" 2>/dev/null || return 0
         chmod +x "$R" 2>/dev/null
     fi
-
     cat > "$Z" <<'EOF'
 #!/opt/bin/sh
 REAL="/opt/zapret/init.d/sysv/zapret.real"
 PAUSE="/tmp/.zapret_paused"
-
 if [ -f "$PAUSE" ]; then
   case "$1" in
     start|start-fw|restart|restart-fw)
@@ -4214,12 +3503,10 @@ if [ -f "$PAUSE" ]; then
     ;;
     esac
 fi
-
 exec "$REAL" "$@"
 EOF
     chmod +x "$Z" 2>/dev/null
 }
-
 # NFQUEUE kurallarini (genel + ipset) temizlemek icin line-number tabanli guvenli temizleyici
 # BusyBox ortaminda awk sorun cikarmasin diye sed/head kullaniliyor.
 flush_nfqueue_by_linenum() {
@@ -4239,25 +3526,21 @@ flush_nfqueue_by_linenum() {
         fi
     done
 }
-
 flush_all_nfqueue_rules() {
     # En saglam temizlik: iptables -S uzerinden -A -> -D cevirip sil
     command -v iptables >/dev/null 2>&1 || return 0
-
     # mangle: POSTROUTING/PREROUTING/OUTPUT/INPUT/FORWARD (varsa)
     for ch in POSTROUTING PREROUTING OUTPUT INPUT FORWARD; do
         iptables -t mangle -S "$ch" 2>/dev/null | grep -F -- "-j NFQUEUE" | while read -r r; do
             iptables -t mangle $(echo "$r" | sed "s/^-A /-D /") >/dev/null 2>&1
         done
     done
-
     # filter: INPUT/FORWARD/OUTPUT (bazi kurulumlarda burada da NFQUEUE olabiliyor)
     for ch in INPUT FORWARD OUTPUT; do
         iptables -S "$ch" 2>/dev/null | grep -F -- "-j NFQUEUE" | while read -r r; do
             iptables $(echo "$r" | sed "s/^-A /-D /") >/dev/null 2>&1
         done
     done
-
     # 2. tur: bazen ilk turde hepsi kalkmayabiliyor
     for ch in POSTROUTING PREROUTING OUTPUT INPUT FORWARD; do
         iptables -t mangle -S "$ch" 2>/dev/null | grep -F -- "-j NFQUEUE" | while read -r r; do
@@ -4270,43 +3553,35 @@ flush_all_nfqueue_rules() {
         done
     done
 }
-
 # Zapret servisinin calisip calismadigini kontrol eder (nfqws prosesine gore)
 is_zapret_running() {
     pgrep -f "/opt/zapret/nfq/nfqws" >/dev/null 2>&1
 }
-
 # Zapret'in iptables kural varligini kontrol eder (filter veya mangle)
 # Process calisiyor olsa bile kural yoksa trafik islenmez
 _zapret_iptables_ok() {
     iptables -t mangle -L -n 2>/dev/null | grep -q "NFQUEUE.*200" || \
     iptables -L -n 2>/dev/null | grep -q "NFQUEUE.*200"
 }
-
 # Zapret'in yuklu olup olmadigini kontrol eder
 is_zapret_installed() {
     [ -x "/opt/zapret/init.d/sysv/zapret" ]
 }
-
 # Zapret servisini baslatir
 start_zapret() {
     if ! is_zapret_installed; then
         echo "$(T TXT_START_NOT_INSTALLED)"
         return 1
     fi
-
     # Start edilecekse pause kaldir
     zapret_resume
     install_zapret_pause_guard
-
     # Hostlist dosya izinlerini duzelt (nfqws nobody user ile calisir)
     chmod 644 /opt/zapret/ipset/*.txt 2>/dev/null || true
-
     if is_zapret_running; then
         echo "$(T TXT_START_ALREADY)"
         return 0
     fi
-
 	/opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1
 	/opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1
 	# custom.d hook'un her zaman mevcut olmasini garantile
@@ -4315,7 +3590,6 @@ start_zapret() {
 	# Burada MODE=list ise genel kurallari temizleyip sadece IPSET kurallarini birakiriz.
 	enforce_client_mode_rules >/dev/null 2>&1
 	enforce_wan_if_nfqueue_rules >/dev/null 2>&1
-
     sleep 1
     if is_zapret_running; then
         echo "$(T TXT_START_OK)"
@@ -4327,50 +3601,39 @@ start_zapret() {
         fi
         return 0
     fi
-
     echo "$(T TXT_START_FAIL)"
     return 1
 }
-
 # Zapret servisini durdurur (kalici durdurma: otomatik restart'i da engeller)
 stop_zapret() {
     if ! is_zapret_installed; then
         echo "$(T TXT_STOP_NOT_INSTALLED)"
         return 1
     fi
-
     echo "$(T TXT_STOP_STOPPING)"
-
     # Pause ON: netfilter hook/otomatik restart tetiklense bile start* no-op olur.
     zapret_pause
     install_zapret_pause_guard
-
     /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1
     /opt/zapret/init.d/sysv/zapret stop    >/dev/null 2>&1
-
     killall nfqws >/dev/null 2>&1
     killall -9 nfqws >/dev/null 2>&1
-
     # Her ihtimale karsi kalan NFQUEUE kurallarini da temizle
     flush_all_nfqueue_rules
-
     sleep 1
     if is_zapret_running; then
         echo "$(T TXT_STOP_NFQWS_WARN)"
     else
         echo "OK: NFQWS YOK"
     fi
-
     if iptables-save | grep -q "NFQUEUE"; then
         echo "$(T TXT_STOP_NFQUEUE_WARN)"
     else
         echo "OK: NFQUEUE YOK"
     fi
-
     echo "$(T TXT_STOP_OK)"
     return 0
 }
-
 # Zapret servisini yeniden baslatir (guvenli)
 restart_zapret() {
     if ! is_zapret_installed; then
@@ -4381,7 +3644,6 @@ restart_zapret() {
     zapret_resume
     start_zapret
 }
-
 # --- KURULU VERSIYONU GORUNTULE (6. MADDE) ---
 check_zapret_version() {
     if ! is_zapret_installed; then echo "$(T TXT_ZAPRET_NOT_INSTALLED)"; return 1; fi
@@ -4393,19 +3655,16 @@ check_zapret_version() {
     press_enter_to_continue
     clear
 }
-
 # --- ZAPRET GUNCELLEME (6. MADDE) ---
 update_zapret() {
     local repo="bol-van/zapret"
     local api="https://api.github.com/repos/${repo}/releases/latest"
     local tmpdir="/opt/tmp/zapret_update_$$"
-
     # GitHub API'den hem tag_name hem asset SHA256 al (tek istek)
     local api_raw latest tarball expected_sha256
     api_raw="$(curl -fsS "$api" 2>/dev/null)"
     latest="$(printf '%s\n' "$api_raw" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
     [ -z "$latest" ] && { print_status FAIL "$(T TXT_GITHUB_FAIL)"; return 1; }
-
     # Kurulu surum ile karsilastir
     local _installed_ver
     _installed_ver="$(cat /opt/zapret/version 2>/dev/null | tr -d '[:space:]')"
@@ -4418,23 +3677,18 @@ update_zapret() {
             return 3
         fi
     fi
-
     tarball="zapret-${latest}.tar.gz"
     local url="https://github.com/${repo}/releases/download/${latest}/${tarball}"
-
     # Asset SHA256 digest'ini API'den cek (format: "digest":"sha256:HASH")
     expected_sha256="$(printf '%s\n' "$api_raw" | grep -A5 "\"${tarball}\"" | \
         sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"sha256:\([^"]*\)".*/\1/p' | head -n1)"
-
     print_status INFO "$(T TXT_ZAP_UPDATE_DOWNLOADING)"
     mkdir -p "$tmpdir" || { print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_DL)"; return 1; }
-
     if ! curl -fsS -L "$url" -o "${tmpdir}/${tarball}" 2>/dev/null; then
         rm -rf "$tmpdir"
         print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_DL)"
         return 1
     fi
-
     # SHA256 dogrulamasi
     if [ -n "$expected_sha256" ]; then
         local actual_sha256
@@ -4451,14 +3705,12 @@ update_zapret() {
     else
         print_status WARN "$(T TXT_ZAP_UPDATE_SHA256_SKIP)"
     fi
-
     print_status INFO "$(T TXT_ZAP_UPDATE_EXTRACTING)"
     if ! tar -xzf "${tmpdir}/${tarball}" -C "$tmpdir" 2>/dev/null; then
         rm -rf "$tmpdir"
         print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_EX)"
         return 1
     fi
-
     print_status INFO "$(T TXT_ZAP_UPDATE_APPLYING)"
     local srcdir
     srcdir="$(find "$tmpdir" -maxdepth 1 -mindepth 1 -type d | head -n1)"
@@ -4467,22 +3719,18 @@ update_zapret() {
         print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_BIN)"
         return 1
     fi
-
     if ! cp -r "${srcdir}/binaries/." /opt/zapret/binaries/ 2>/dev/null; then
         rm -rf "$tmpdir"
         print_status FAIL "$(T TXT_ZAP_UPDATE_FAIL_BIN)"
         return 1
     fi
-
     if [ -f "${srcdir}/install_bin.sh" ]; then
         cp "${srcdir}/install_bin.sh" /opt/zapret/install_bin.sh 2>/dev/null
         sh /opt/zapret/install_bin.sh >/dev/null 2>&1 || true
     fi
-
     printf '%s\n' "$latest" > /opt/zapret/version 2>/dev/null
     rm -rf "$tmpdir"
     print_status PASS "$(T TXT_ZAP_UPDATE_OK)"
-
     # Binary surum dogrulamasi
     local nfqws_bin="/opt/zapret/nfq/nfqws"
     if [ -x "$nfqws_bin" ]; then
@@ -4490,34 +3738,28 @@ update_zapret() {
         bin_ver="$("$nfqws_bin" --version 2>&1 | head -n1)"
         [ -n "$bin_ver" ] && printf "     %s: %s\n" "$(T _ 'Binary' 'Binary')" "$bin_ver"
     fi
-
     restart_zapret >/dev/null 2>&1 || true
     printf 'ok' > /opt/etc/zkm_sha256_zapret.state 2>/dev/null
     return 0
 }
-
 check_remote_update() {
     if ! is_zapret_installed; then
         print_status FAIL "$(T TXT_ZAP_UPDATE_NO_INSTALLED)"
         press_enter_to_continue
         return 1
     fi
-
     print_status INFO "$(T TXT_CHECKING_GITHUB)"
     local repo="bol-van/zapret"
     local api="https://api.github.com/repos/${repo}/releases/latest"
     local REMOTE_VER LOCAL_VER
     REMOTE_VER="$(curl -fsS "$api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-
     if [ -z "$REMOTE_VER" ]; then
         print_status FAIL "$(T TXT_GITHUB_FAIL)"
         press_enter_to_continue
         return 1
     fi
-
     LOCAL_VER="$(cat /opt/zapret/version 2>/dev/null)"
     [ -z "$LOCAL_VER" ] && LOCAL_VER="$(T _ 'Bilinmiyor' 'Unknown')"
-
     # Renkleri duruma gore ata
     local CLR_REMOTE CLR_LOCAL
     if [ "$REMOTE_VER" = "$LOCAL_VER" ]; then
@@ -4533,7 +3775,6 @@ check_remote_update() {
     print_line "-"
     printf " %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
     printf " %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
-
     # Binary surum bilgisi
     local nfqws_bin="/opt/zapret/nfq/nfqws"
     if [ -x "$nfqws_bin" ]; then
@@ -4541,16 +3782,13 @@ check_remote_update() {
         bin_ver="$("$nfqws_bin" --version 2>&1 | head -n1)"
         [ -n "$bin_ver" ] && printf " %-10s: %s\n" "INFO" "$bin_ver"
     fi
-
     print_line "-"
-
     if [ "$REMOTE_VER" = "$LOCAL_VER" ]; then
         printf 'ok' > /opt/etc/zkm_sha256_zapret.state
         print_status PASS "$(T TXT_UPTODATE)"
         press_enter_to_continue
         return 0
     fi
-
     if ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
         # Normal guncelleme: GitHub daha yeni
         print_status WARN "$(T _ 'Yeni surum mevcut!' 'New version available!')"
@@ -4584,15 +3822,12 @@ check_remote_update() {
     fi
     press_enter_to_continue
 }
-
-
 # --- ZAPRET IPV6 DURUM KONTROLU ---
 check_zapret_ipv6_status() {
     if [ ! -f "/opt/zapret/config" ]; then
         echo "$(T ipv6_status_unknown 'Zapret IPv6 durumu: Bilinmiyor (config yok)' 'Zapret IPv6 status: Unknown (config missing)')"
         return 1
     fi
-
     if grep -q -- "--dpi-desync-ttl6" /opt/zapret/config 2>/dev/null; then
         echo "${CLR_BOLD}${CLR_GREEN}$(T ipv6_status_on 'Zapret IPv6 destegi: ACIK' 'Zapret IPv6 support: ON')${CLR_RESET}"
     else
@@ -4600,7 +3835,6 @@ check_zapret_ipv6_status() {
     fi
     return 0
 }
-
 # --- ZAPRET IPV6 DESTEGI (8. MADDE) ---
 # Not: Bu ayar "router'da IPv6 ac/kapat" degildir.
 # Zapret'in kendi kurulum sihirbazindaki "enable ipv6 support" secenegini yonetir.
@@ -4611,28 +3845,23 @@ configure_zapret_ipv6_support() {
         clear
         return 1
     fi
-
     echo "$(T ipv6_cfg_title 'Zapret icin IPv6 destegi ayarlanacak.' 'IPv6 support for Zapret will be configured.')"
     echo "$(T ipv6_cfg_desc 'Bu, zapretin IPv6 (ip6tables) tarafinda da kural/yonlendirme kurmasini saglar.' 'This enables Zapret to also set up rules/routing on the IPv6 (ip6tables) side.')"
     check_zapret_ipv6_status
     echo ""
     printf '%s' "$(T ipv6_cfg_prompt 'IPv6 destegi etkinlestirilsin mi? (e/h) [h]: ' 'Enable IPv6 support? (y/n) [n]: ')"; read -r ans
-
     IPV6_ANSWER="n"
     case "$ans" in
         [eEyY]) IPV6_ANSWER="y" ;;
         *)    IPV6_ANSWER="n" ;;
     esac
-
     # Secimi global degiskene yaz (NFQWS_OPT ttl6/ttl icin)
     ZAPRET_IPV6="$IPV6_ANSWER"
-
 # Mevcut IPv6 durumunu algila (config icinden)
 CURRENT_IPV6="n"
 if [ -f "/opt/zapret/config" ] && grep -q -- "--dpi-desync-ttl6" /opt/zapret/config 2>/dev/null; then
     CURRENT_IPV6="y"
 fi
-
 # Kullanici secimi mevcut durumla ayniysa hicbir islem yapma
 if [ "$IPV6_ANSWER" = "$CURRENT_IPV6" ]; then
     echo "$(T ipv6_no_change 'Degisiklik yok (IPv6 destegi zaten bu durumda).' 'No change (IPv6 support is already in this state).')"
@@ -4640,9 +3869,7 @@ if [ "$IPV6_ANSWER" = "$CURRENT_IPV6" ]; then
     clear
     return 0
 fi
-
 echo "$(tpl_render "$(T TXT_IPV6_WIZARD_START)" VAL "$IPV6_ANSWER")"
-
     # install_easy.sh interaktif bir sihirbazdir. Burada mevcut otomasyon akisini koruyup
     # sadece "enable ipv6 support" sorusunu secilebilir hale getiriyoruz.
     (
@@ -4666,7 +3893,6 @@ echo "$(tpl_render "$(T TXT_IPV6_WIZARD_START)" VAL "$IPV6_ANSWER")"
         clear
         return 1
     }
-
     # Bizim Keenetic-ozel dokunuslarimizi tekrar uygula
     fix_keenetic_udp
     update_kernel_module_config
@@ -4674,24 +3900,19 @@ echo "$(tpl_render "$(T TXT_IPV6_WIZARD_START)" VAL "$IPV6_ANSWER")"
     disable_total_packet
     allow_firewall
     add_auto_start_zapret
-
     # Keenetic: ensure post-up hook exists and is automatically executed after firewall applies
     create_keenetic_fw_post_up_hook
     patch_zapret_real_to_run_post_hook
-
-
     # FW kurallarini ve servisi tazele
     /opt/zapret/init.d/sysv/zapret restart-fw &> /dev/null
     restart_zapret
     /opt/zapret/keenetic_fw_post_up.sh >/dev/null 2>&1
     enforce_wan_if_nfqueue_rules >/dev/null 2>&1
-
     echo "IPv6 destegi ayari tamamlandi."
     press_enter_to_continue
     clear
     return 0
 }
-
 # --- ZAPRET ISTEMCI IPSET FILTRELEME (9. MADDE) ---
 # Amac: Zapret'in (NFQUEUE) kuralini sadece belirli LAN istemcilerine uygulamak.
 # - "Tum ag": filtre kapali, zapret herkes icin calisir.
@@ -4700,7 +3921,6 @@ IPSET_CLIENT_NAME="zapret_clients"
 IPSET_CLIENT_FILE="/opt/zapret/ipset_clients.txt"
 IPSET_CLIENT_MODE_FILE="/opt/zapret/ipset_clients_mode"  # all | list
 ZAPRET_CLIENT_HOOK="/opt/zapret/init.d/sysv/custom.d/90-keenetic-client-ipset"
-
 write_client_ipset_hook() {
     # Zapret'in custom.d mekanizmasi, start-fw / restart-fw sirasinda bu betikleri calistirir.
     # Bu hook, her FW yenilemesinde iptables NFQUEUE kurallarina ipset match ekler/kaldirir.
@@ -4710,14 +3930,11 @@ IPSET_NAME="zapret_clients"
 IPSET_FILE="/opt/zapret/ipset_clients.txt"
 MODE_FILE="/opt/zapret/ipset_clients_mode"  # all | list
 QNUM="200"
-
 command -v iptables >/dev/null 2>&1 || exit 0
 command -v ipset >/dev/null 2>&1 || exit 0
-
 MODE="all"
 [ -f "$MODE_FILE" ] && MODE="$(cat "$MODE_FILE" 2>/dev/null)"
 [ -z "$MODE" ] && MODE="all"
-
 ipset_ensure_and_maybe_sync() {
     ipset list "$IPSET_NAME" >/dev/null 2>&1 || ipset create "$IPSET_NAME" hash:ip 2>/dev/null
     # Eger dosya varsa "kaynak gercek" dosyadir -> set'i dosyaya gore senkronla.
@@ -4728,7 +3945,6 @@ ipset_ensure_and_maybe_sync() {
         done
     fi
 }
-
 # Belirli chain'de NFQUEUE kural(lar)ini guvenli bicimde sil
 del_nfqueue_chain() {
     local table="$1" chain="$2" grep_pat="$3"
@@ -4742,36 +3958,30 @@ del_nfqueue_chain() {
         done
     fi
 }
-
 # IpSet'e bagli NFQUEUE kurallarini ekle (ustten insert)
 add_ipset_rules() {
     # Keenetic'te bazen default route satiri "default dev ppp0 scope link" seklinde gelir.
     # Bu yuzden arayuzu, "dev" alanini bularak cekiyoruz.
     WAN="$(ip route 2>/dev/null | awk '/^default/ {for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
-
     iptables -t mangle -I POSTROUTING 1 ${WAN:+-o $WAN} -p tcp -m multiport --dports 80,443 \
         -m set --match-set "$IPSET_NAME" src \
         -j NFQUEUE --queue-num "$QNUM" --queue-bypass >/dev/null 2>&1
-
     iptables -t mangle -I POSTROUTING 1 ${WAN:+-o $WAN} -p udp -m multiport --dports 443 \
         -m set --match-set "$IPSET_NAME" src \
         -j NFQUEUE --queue-num "$QNUM" --queue-bypass >/dev/null 2>&1
 }
-
 # Genel NFQUEUE (qnum 200) kurallarini temizle
 del_general_nfqueue_qnum200() {
     del_nfqueue_chain mangle POSTROUTING "--queue-num $QNUM"
     del_nfqueue_chain "" INPUT "--queue-num $QNUM"
     del_nfqueue_chain "" FORWARD "--queue-num $QNUM"
 }
-
 # Sadece ipset'e bagli kurallari temizle (match-set zapret_clients)
 del_ipset_nfqueue_rules() {
     del_nfqueue_chain mangle POSTROUTING "match-set $IPSET_NAME"
     del_nfqueue_chain "" INPUT "match-set $IPSET_NAME"
     del_nfqueue_chain "" FORWARD "match-set $IPSET_NAME"
 }
-
 if [ "$MODE" = "list" ]; then
     # LIST mod: tum ag etkilenmesin diye genel NFQUEUE'leri kaldir, sadece IPSET kurallarini birak.
     del_general_nfqueue_qnum200
@@ -4781,19 +3991,15 @@ else
     # ALL mod: IPSET'e bagli ozel kurallar varsa kaldir, genel kurallar kalsin.
     del_ipset_nfqueue_rules
 fi
-
 exit 0
 EOF
-
     chmod +x "$ZAPRET_CLIENT_HOOK" 2>/dev/null
     return 0
 }
-
 show_ipset_client_status() {
     MODE="all"
     [ -f "$IPSET_CLIENT_MODE_FILE" ] && MODE="$(cat "$IPSET_CLIENT_MODE_FILE" 2>/dev/null)"
     [ -z "$MODE" ] && MODE="all"
-
     if [ "$MODE" = "list" ]; then
         print_line "="
         printf '%b%s%b\n' "${CLR_CYAN}${CLR_BOLD}" "$(T ipset_mode_list "$TXT_IPSET_MODE_LIST_TR" "$TXT_IPSET_MODE_LIST_EN")" "${CLR_RESET}"
@@ -4835,7 +4041,6 @@ show_ipset_client_status() {
         fi
         
         print_line "-"
-
         # No Zapret (Muafiyet) Uyeleri
         printf '%b%-25s:%b ' "${CLR_ORANGE}${CLR_BOLD}" "$(T nozapret_members 'No Zapret (Muafiyet)' 'No Zapret (Exempt)')" "${CLR_RESET}"
         local noz_members="$(ipset list "$NOZAPRET_IPSET_NAME" 2>/dev/null | sed -n '/^Members:/,$p' | tail -n +2)"
@@ -4850,7 +4055,6 @@ show_ipset_client_status() {
         else
             printf '%b%s%b\n' "${CLR_RED}" "$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")" "${CLR_RESET}"
         fi
-
         print_line "="
     else
         print_line "="
@@ -4858,9 +4062,7 @@ show_ipset_client_status() {
         print_line "="
         echo ""
         printf '%b%s%b\n' "${CLR_GREEN}" "$(T ipset_all_network "$TXT_IPSET_ALL_NETWORK_TR" "$TXT_IPSET_ALL_NETWORK_EN")" "${CLR_RESET}"
-
         print_line "-"
-
         # No Zapret (Muafiyet) Uyeleri - Tum Ag modunda da goster
         printf '%b%-25s:%b ' "${CLR_ORANGE}${CLR_BOLD}" "$(T nozapret_members 'No Zapret (Muafiyet)' 'No Zapret (Exempt)')" "${CLR_RESET}"
         if [ -f "$NOZAPRET_FILE" ] && [ -s "$NOZAPRET_FILE" ]; then
@@ -4874,22 +4076,17 @@ show_ipset_client_status() {
         else
             printf '%b%s%b\n' "${CLR_RED}" "$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")" "${CLR_RESET}"
         fi
-
         print_line "="
     fi
 }
-
 apply_ipset_client_settings() {
     write_client_ipset_hook >/dev/null 2>&1
-
     if [ -x "/opt/zapret/init.d/sysv/zapret" ]; then
         # restart-fw yerine stop-fw + start-fw (daha deterministik)
         /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1
         /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1
-
         # MODE all/list durumunu kesin uygula
         enforce_client_mode_rules >/dev/null 2>&1
-
         # nfqws yoksa daemonu da baslat
         if ! is_zapret_running; then
             /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1
@@ -4897,7 +4094,6 @@ apply_ipset_client_settings() {
     fi
     return 0
 }
-
 manage_ipset_clients() {
     if ! is_zapret_installed; then
         echo "$(T TXT_IPV6_NOT_INSTALLED)"
@@ -4905,22 +4101,18 @@ manage_ipset_clients() {
         clear
         return 1
     fi
-
     while true; do
         print_line "-"
         echo "$(T TXT_IPSET_TITLE)"
         print_line "-"
         MODE="$(cat "$IPSET_CLIENT_MODE_FILE" 2>/dev/null)"
         [ -z "$MODE" ] && MODE="all"
-
         if [ "$MODE" = "list" ]; then
             printf '%b%s%b\n' "${CLR_ORANGE}${CLR_BOLD}" "$(T ipset_mode 'Mod: Secili IP' 'Mode: Selected IPs')" "${CLR_RESET}"
         else
             printf '%b%s%b\n' "${CLR_GREEN}${CLR_BOLD}" "$(T ipset_mode 'Mod: Tum ag' 'Mode: Whole network')" "${CLR_RESET}"
         fi
         echo ""
-
-
         echo "$(T TXT_IPSET_1)"
         echo "$(T TXT_IPSET_2)"
         echo "$(T TXT_IPSET_3)"
@@ -4939,7 +4131,6 @@ manage_ipset_clients() {
         fi
         read -r ipset_choice || return 0
         echo ""
-
         case "$ipset_choice" in
             2)
                 echo "all" > "$IPSET_CLIENT_MODE_FILE"
@@ -4959,13 +4150,11 @@ manage_ipset_clients() {
                 echo "$(T ipset_bulk_hint 'Not: Tek IP eklemek icin menu 4u kullanin.' 'Note: To add a single IP, use option 4.')"
                 echo "Ornek: 192.168.1.10 192.168.1.20 (bosluk/virgul ile ayirabilirsiniz)"
                 printf '%s' "IP'leri girin (Enter=iptal): "; read -r ips
-
                 if [ -z "$ips" ]; then
                     echo "$(T ipset_cancelled 'Iptal edildi. Degisiklik yapilmadi.' 'Cancelled. No changes made.')"
                 else
                     tmp_ips="/tmp/ipset_clients.$$"
                     echo "$ips" | tr ',;' '  ' | tr ' ' '\n' | sed '/^$/d' > "$tmp_ips"
-
                     if [ ! -s "$tmp_ips" ]; then
                         rm -f "$tmp_ips" 2>/dev/null
                         echo "$(T ipset_invalid 'Gecersiz IP listesi. Degisiklik yapilmadi.' 'Invalid IP list. No changes made.')"
@@ -4984,7 +4173,6 @@ manage_ipset_clients() {
                         rm -f "$tmp_ips"
                         tmp_ips="$tmp_ips_valid"
                         [ "$invalid_count" -gt 0 ] && echo "$(T _ "$invalid_count gecersiz satir atildi." "$invalid_count invalid line(s) skipped.")"
-
                         if [ ! -s "$tmp_ips" ]; then
                             rm -f "$tmp_ips" 2>/dev/null
                             echo "$(T ipset_invalid 'Gecersiz IP listesi. Degisiklik yapilmadi.' 'Invalid IP list. No changes made.')"
@@ -5019,7 +4207,6 @@ manage_ipset_clients() {
                         fi  # gecersiz IP filtresi sonrasi bos kontrol
                     fi
                 fi
-
                 press_enter_to_continue
                 clear
                 ;;
@@ -5033,7 +4220,6 @@ manage_ipset_clients() {
                 press_enter_to_continue
                 clear
                 ;;
-
             4)
                 MODE="$(cat "$IPSET_CLIENT_MODE_FILE" 2>/dev/null)"
                 [ -z "$MODE" ] && MODE="all"
@@ -5070,7 +4256,6 @@ manage_ipset_clients() {
                 press_enter_to_continue
                 clear
                 ;;
-
             5)
                 MODE="$(cat "$IPSET_CLIENT_MODE_FILE" 2>/dev/null)"
                 [ -z "$MODE" ] && MODE="all"
@@ -5113,14 +4298,11 @@ manage_ipset_clients() {
         esac
         echo ""
     done
-
     return 0
 }
-
 # -------------------------------------------------------------------
 # nozapret (Muafiyet) Alt-Menusu
 # -------------------------------------------------------------------
-
 # ipset'i olusturur (yoksa) ve dosyadan yukler
 nozapret_ensure_and_load() {
     ipset list "$NOZAPRET_IPSET_NAME" >/dev/null 2>&1 || \
@@ -5134,7 +4316,6 @@ nozapret_ensure_and_load() {
         done < "$NOZAPRET_FILE"
     fi
 }
-
 # iptables RETURN kurali ekler (nozapret listesindeki IP'ler Zapret'ten muaf)
 nozapret_apply_rules() {
     local wan_if
@@ -5154,14 +4335,12 @@ nozapret_apply_rules() {
             -j RETURN 2>/dev/null
     fi
 }
-
 # iptables kurallarini temizler
 nozapret_remove_rules() {
     while iptables -t mangle -D POSTROUTING \
         -m set --match-set "$NOZAPRET_IPSET_NAME" src \
         -j RETURN 2>/dev/null; do :; done
 }
-
 # Mevcut muafiyet listesini gosterir
 nozapret_show_status() {
     print_line "-"
@@ -5189,7 +4368,6 @@ nozapret_show_status() {
         echo "$(T TXT_NOZAPRET_IPSET_EMPTY)"
     print_line "-"
 }
-
 # nozapret alt-menusu
 manage_nozapret_menu() {
     while true; do
@@ -5208,7 +4386,6 @@ manage_nozapret_menu() {
         printf "$(T TXT_NOZAPRET_PROMPT)"
         read -r noz_choice || return 0
         echo ""
-
         case "$noz_choice" in
             1)
                 nozapret_show_status
@@ -5286,11 +4463,9 @@ manage_nozapret_menu() {
         esac
     done
 }
-
 # Kurulumdan sonra gereksiz dosyalari temizler
 cleanup_files_after_extracted() {
     echo "$(T TXT_CLEANUP_REMOVING)"
-
     for file in \
         /opt/zapret/binaries/mac64 \
         /opt/zapret/binaries/linux-ppc \
@@ -5308,15 +4483,12 @@ cleanup_files_after_extracted() {
     do
         [ -e "$file" ] && rm -rf "$file"
     done
-
     echo "$(T TXT_CLEANUP_REMOVED)"
 }
-
 # Kaldirma sirasinda kalan iptables/ipset kalintilarini temizler (zapret kaldirildiktan sonra bile kural kalabiliyor)
 cleanup_zapret_firewall_leftovers() {
     command -v iptables >/dev/null 2>&1 || return 0
     local Q="200"
-
     _del_nfqueue_lines() {
         local table="$1" chain="$2" ln
         while true; do
@@ -5333,17 +4505,14 @@ cleanup_zapret_firewall_leftovers() {
             fi
         done
     }
-
     # mangle
     for c in PREROUTING INPUT FORWARD OUTPUT POSTROUTING; do
         _del_nfqueue_lines mangle "$c"
     done
-
     # filter
     for c in INPUT FORWARD OUTPUT; do
         _del_nfqueue_lines "" "$c"
     done
-
     # ipset kalintilari
     if command -v ipset >/dev/null 2>&1; then
         for s in zapret zapret_clients nozapret ipban; do
@@ -5351,23 +4520,17 @@ cleanup_zapret_firewall_leftovers() {
             ipset list "$s" >/dev/null 2>&1 && ipset destroy "$s" >/dev/null 2>&1
         done
     fi
-
     # netfilter hook kalintilari (disabled dosyalar dahil)
 rm -f /opt/etc/ndm/netfilter.d/000-zapret.sh           /opt/etc/ndm/netfilter.d/000-zapret.sh.disabled           /opt/etc/ndm/netfilter.d/001-zapret-force-nfqueue.sh           /opt/etc/ndm/netfilter.d/001-zapret-force-nfqueue.sh.disabled           /opt/etc/ndm/netfilter.d/001-zapret-force-nfqueue.sh.disabled.disabled           /opt/etc/ndm/netfilter.d/001-zapret-ipset.sh           /opt/etc/ndm/netfilter.d/001-zapret-ipset.sh.disabled           /opt/etc/ndm/netfilter.d/001-zapret-ipset.sh.disabled.disabled 2>/dev/null
-
 # autostart linkleri (varsa)
 rm -f /opt/etc/init.d/S90-zapret /opt/etc/init.d/S00fix 2>/dev/null
-
 rm -f /tmp/.zapret_paused 2>/dev/null
 return 0
 }
-
 # Kaldirmadan sonra kalan dosyalari temizler
-
 # --- UNINSTALL KALINTI TEMIZLIGI: NFQUEUE (qnum 200) ---
 remove_nfqueue_rules_200() {
     command -v iptables >/dev/null 2>&1 || return 0
-
     # mangle
     for c in PREROUTING INPUT FORWARD OUTPUT POSTROUTING; do
         while true; do
@@ -5376,7 +4539,6 @@ remove_nfqueue_rules_200() {
             iptables -t mangle -D "$c" "$ln" 2>/dev/null
         done
     done
-
     # filter
     for c in INPUT FORWARD OUTPUT; do
         while true; do
@@ -5386,7 +4548,6 @@ remove_nfqueue_rules_200() {
         done
     done
 }
-
 cleanup_files_after_uninstall() {
     cleanup_zapret_firewall_leftovers
     rm -rf /opt/zapret \
@@ -5395,36 +4556,28 @@ cleanup_files_after_uninstall() {
            /opt/etc/ndm/netfilter.d/000-zapret.sh &>/dev/null  
     return 0
 }
-
-
 # Uninstall sonrasi sistem temiz mi kontrol eder
 # Donus: 0 = temiz, 1 = kalinti var
 verify_zapret_clean() {
     local _dirty=0
-
     # nfqws hala calisiyor mu? (herhangi bir yolda)
     if pgrep -f "nfqws" >/dev/null 2>&1; then
         _dirty=1
     fi
-
     # NFQUEUE kurali kaldi mi?
     if command -v iptables >/dev/null 2>&1 && iptables-save 2>/dev/null | grep -q "NFQUEUE"; then
         _dirty=1
     fi
-
     # ipset kalintisi?
     if command -v ipset >/dev/null 2>&1; then
         for _s in zapret zapret_clients nozapret ipban; do
             ipset list "$_s" >/dev/null 2>&1 && { _dirty=1; break; }
         done
     fi
-
     # /opt/zapret hala var mi?
     [ -d /opt/zapret ] && _dirty=1
-
     return $_dirty
 }
-
 # Zapret kurulu olmasa bile (kaldirmadan sonra) NFQUEUE/IPSET kalintilarini temizler
 cleanup_only_leftovers() {
     print_line "-"
@@ -5433,25 +4586,19 @@ cleanup_only_leftovers() {
     echo "Bu islem, NFQUEUE (qnum 200) iptables kurallarini ve zapret'e ait ipset/netfilter kalintilarini temizler."
     printf '%s' "$(T _ 'Devam edilsin mi? (e/h): ' 'Continue? (y/n): ')"; read -r _c
     echo "$_c" | grep -qi '^[ey]' || { echo "$(T _ 'Iptal edildi.' 'Cancelled.')"; return 0; }
-
     cleanup_zapret_firewall_leftovers
     remove_nfqueue_rules_200
-
     # ipset mod dosyalari (opsiyonel)
     rm -f /opt/zapret/ipset_clients_mode /opt/zapret/ipset_clients.txt /opt/zapret/wan_if 2>/dev/null
-
     echo "Kalinti temizligi tamamlandi."
     press_enter_to_continue
     clear
     return 0
 }
-
-
 # Zapret'i kaldirir
 # _silent=1 ise onay sorulmaz, press_enter/clear yapilmaz (zkm_full_uninstall icin)
 uninstall_zapret() {
     local _silent="${1:-0}"
-
 if ! is_zapret_installed; then
         echo "$(T TXT_UNINSTALL_NOT_INSTALLED)"
         echo ""
@@ -5477,7 +4624,6 @@ if ! is_zapret_installed; then
         [ "$_silent" = "1" ] || clear
         return 0
     fi
-
     if [ "$_silent" != "1" ]; then
         printf "%s" "$(T _ 'Zapret kaldirilsin mi? (e/h): ' 'Remove Zapret? (y/n): ')"; read -r uninstall_confirmation
         case "$uninstall_confirmation" in
@@ -5485,13 +4631,9 @@ if ! is_zapret_installed; then
             *) echo "$(T _ 'Iptal edildi.' 'Cancelled.')"; return 0 ;;
         esac
     fi
-
     is_zapret_running && stop_zapret
-
     cleanup_zapret_firewall_leftovers
-
     echo "$(T TXT_UNINSTALL_REMOVING)"
-
     if ! echo "y" | /opt/zapret/uninstall_easy.sh >/dev/null 2>&1; then
         if [ "$_silent" = "1" ]; then
             echo "$(T _ 'Kendi kaldirma aracimiz calistiriliyor...' 'Running built-in cleanup...')"
@@ -5508,9 +4650,7 @@ if ! is_zapret_installed; then
             fi
         fi
     fi
-
     cleanup_files_after_uninstall
-
     # Verification: hala kalinti var mi? Varsa sessiz ikinci pass.
     if ! verify_zapret_clean; then
         killall -9 nfqws >/dev/null 2>&1
@@ -5518,13 +4658,11 @@ if ! is_zapret_installed; then
         cleanup_zapret_firewall_leftovers
         rm -rf /opt/zapret /opt/bin/nfqws /opt/sbin/nfqws 2>/dev/null
     fi
-
     echo "$(T TXT_UNINSTALL_OK)"
     [ "$_silent" = "1" ] || press_enter_to_continue
     [ "$_silent" = "1" ] || clear
     return 0
 }
-
 # Zapret'i kurar
 install_zapret() {
     # Component check before installation
@@ -5536,14 +4674,12 @@ install_zapret() {
         echo "$(T TXT_INSTALL_ALREADY)"
         return 1
     fi
-
     echo "$(T _ 'OPKG paketleri denetleniyor, eksik olan varsa indirilip kurulacaktir...' 'Checking OPKG packages, missing ones will be downloaded and installed...')"
     opkg update >/dev/null 2>&1
     opkg install coreutils-sort curl grep gzip ipset iptables kmod_ndms xtables-addons_legacy cron >/dev/null 2>&1 || \
     { echo "$(T TXT_INSTALL_PKG_FAIL)"; return 1; }
     
     echo "$(T TXT_INSTALL_INSTALLING)"
-
     ZAPRET_API_URL="https://api.github.com/repos/bol-van/zapret/releases/latest"
     ZAP_DATA=$(curl -s "$ZAPRET_API_URL")
     ZAPRET_ARCHIVE_URL=$(echo "$ZAP_DATA" | grep "browser_download_url.*tar.gz" | head -n1 | cut -d '"' -f4)
@@ -5551,40 +4687,29 @@ install_zapret() {
     ZAPRET_ARCHIVE_NAME=$(basename "$ZAPRET_ARCHIVE_URL")
     ARCHIVE="/opt/tmp/$ZAPRET_ARCHIVE_NAME"
     DIR="/opt/zapret"
-
     if [ -z "$ZAPRET_ARCHIVE_URL" ]; then
         echo "$(T _ 'HATA: Zapret en guncel surumu alinamadi.' 'ERROR: Could not fetch latest Zapret version.')"
         return 1
     fi
-
     curl -L -o "$ARCHIVE" "$ZAPRET_ARCHIVE_URL" >/dev/null 2>&1 || { echo "$(T _ 'HATA: Arsiv indirilemedi.' 'ERROR: Failed to download archive.')"; return 1; }
     rm -rf "$DIR"
     mkdir -p /opt/tmp
     tar -xzf "$ARCHIVE" -C /opt/tmp >/dev/null 2>&1 || { echo "$(T _ 'HATA: Arsiv acilamadi.' 'ERROR: Failed to extract archive.')"; return 1; }
     EXTRACTED_DIR=$(tar -tzf "$ARCHIVE" | head -1 | cut -f1 -d"/")
     mv "/opt/tmp/$EXTRACTED_DIR" "$DIR" || { echo "$(T _ 'HATA: Dosya tasinamadi.' 'ERROR: Failed to move files.')"; return 1; }
-
     # Surum bilgisini kaydet
     echo "$ZAPRET_VER" > /opt/zapret/version
-
     echo "$(T TXT_INSTALL_OK)"
-
     cleanup_files_after_extracted
-
     keenetic_compatibility || echo "$(T TXT_INSTALL_COMPAT_WARN)"
-
     printf "%s " "$(T _ 'Zapret icin IPv6 destegi etkinlestirilsin mi? (e/h):' 'Enable IPv6 support for Zapret? (y/n):')"; read -r ipv6_ans
     if echo "$ipv6_ans" | grep -qi "^[ey]"; then
         ZAPRET_IPV6="y"
     else
         ZAPRET_IPV6="n"
     fi
-
     echo "$(T TXT_INSTALL_CFG_RUNNING)"
-
     IPV6_ANSWER="$ZAPRET_IPV6"
-
-
     # WAN arayuzunu belirle (WireGuard sorunlarini azaltmak icin)
     select_wan_if
     (
@@ -5606,20 +4731,16 @@ install_zapret() {
     { echo "$(T TXT_INSTALL_CFG_FAIL)"; return 1; }
     
     echo "$(T TXT_INSTALL_KEENETIC_CFG)"
-
     fix_keenetic_udp
     update_kernel_module_config
     update_nfqws_parameters
     disable_total_packet
     allow_firewall
     add_auto_start_zapret
-
     echo "$(T TXT_INSTALL_DONE)"
-
     sync_zapret_iface_wan_config
     restart_zapret
     cleanup_nfqueue_rules_except_selected_wan
-
     # HealthMon henuz aktif degilse kurulumda otomatik etkinlestir
     healthmon_load_config 2>/dev/null
     if [ "${HM_ENABLE:-0}" != "1" ]; then
@@ -5628,13 +4749,10 @@ install_zapret() {
         healthmon_autostart_install 2>/dev/null
         healthmon_start 2>/dev/null
     fi
-
     press_enter_to_continue
 	clear 
     return 0 
 }
-
-
 # --- Betik (Manager) Surum Kontrolu (GitHub Releases) ---
 get_manager_latest_version() {
     # GitHub API: releases/latest -> tag_name
@@ -5651,8 +4769,6 @@ get_manager_latest_version() {
         echo ""
     fi
 }
-
-
 # --- Version compare helper (returns 0 if $1 > $2) ---
 ver_is_newer() {
     # usage: ver_is_newer "v26.1.24.2" "v26.1.24"
@@ -5678,7 +4794,6 @@ EOF2
     [ "$_a4" -gt "$_b4" ] && return 0
     return 1
 }
-
 download_file() {
     # usage: download_file URL OUTFILE
     _url="$1"; _out="$2"
@@ -5690,8 +4805,6 @@ download_file() {
     fi
     return 1
 }
-
-
 # Read current installed script version from disk (daemon-safe; handles manual edits)
 zkm_get_installed_script_version() {
     local v=""
@@ -5699,8 +4812,6 @@ zkm_get_installed_script_version() {
     [ -z "$v" ] && v="$SCRIPT_VERSION"
     echo "$v"
 }
-
-
 update_manager_script() {
     local _force="${1:-0}"  # 1 = SHA uyusmazligi nedeniyle zorunlu yeniden indirme
     TARGET_SCRIPT="$ZKM_SCRIPT_PATH"
@@ -5712,20 +4823,17 @@ update_manager_script() {
     LOCAL_VER="$(zkm_get_installed_script_version)"
     [ -z "$LOCAL_VER" ] && LOCAL_VER="$SCRIPT_VERSION"
     BACKUP_FILE="${TARGET_SCRIPT}.bak_${LOCAL_VER#v}_$(date +%Y%m%d_%H%M%S 2>/dev/null).sh"
-
     # GitHub API'den SHA256 digest al (tek istek)
     local api_raw expected_sha256
     api_raw="$(curl -fsS "$api" 2>/dev/null)"
     expected_sha256="$(printf '%s\n' "$api_raw" | grep -A30 "\"${script_name}\"" | \
         sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"sha256:\([^"]*\)".*/\1/p' | head -n1)"
-
     echo "$(T mgr_update_start 'Betik indiriliyor (GitHub)...' 'Downloading script (GitHub)...')"
     if ! download_file "$DL_URL" "$TMP_FILE"; then
         echo "$(T mgr_update_dl_fail 'Indirme basarisiz (curl/wget/SSL kontrol edin).' 'Download failed (check curl/wget/SSL).')"
         rm -f "$TMP_FILE" 2>/dev/null
         return 1
     fi
-
     # SHA256 dogrulamasi
     if [ -n "$expected_sha256" ]; then
         local actual_sha256
@@ -5742,14 +4850,12 @@ update_manager_script() {
     else
         print_status WARN "$(T TXT_ZAP_UPDATE_SHA256_SKIP)"
     fi
-
     # Basic sanity: should look like a shell script and include expected markers
     if ! grep -q "SCRIPT_VERSION" "$TMP_FILE" 2>/dev/null; then
         echo "$(T mgr_update_bad 'Indirilen dosya beklenen formatta degil, iptal edildi.' 'Downloaded file is not in expected format, aborting.')"
         rm -f "$TMP_FILE" 2>/dev/null
         return 1
     fi
-
     # Syntax check (best-effort)
     if sh -n "$TMP_FILE" >/dev/null 2>&1; then
         :
@@ -5758,8 +4864,6 @@ update_manager_script() {
         rm -f "$TMP_FILE" 2>/dev/null
         return 1
     fi
-
-
 # Version guard: never auto-downgrade.
 REMOTE_FILE_VER="$(grep -m1 '^SCRIPT_VERSION=' "$TMP_FILE" 2>/dev/null | cut -d'"' -f2)"
 if [ -z "$REMOTE_FILE_VER" ]; then
@@ -5767,14 +4871,12 @@ if [ -z "$REMOTE_FILE_VER" ]; then
     rm -f "$TMP_FILE" 2>/dev/null
     return 1
 fi
-
 # Allow only if remote is newer than local — force modunda SHA uyusmazligi icin atla.
 if [ "$_force" != "1" ] && ! ver_is_newer "$REMOTE_FILE_VER" "$LOCAL_VER"; then
     echo "$(T mgr_update_skip 'Guncelleme atlandi (downgrade engellendi).' 'Update skipped (downgrade blocked).') $(T _ 'Kurulu:' 'Local:') $LOCAL_VER, $(T _ 'GitHub:' 'Remote:') $REMOTE_FILE_VER"
     rm -f "$TMP_FILE" 2>/dev/null
     return 2
 fi
-
     # Backup current script if present
     if [ -f "$TARGET_SCRIPT" ]; then
         # Backup limit: keep max 3, remove oldest if exceeded
@@ -5790,35 +4892,28 @@ fi
         cp -f "$TARGET_SCRIPT" "$BACKUP_FILE" 2>/dev/null
         echo "$(T mgr_update_backup 'Yedek alindi:' 'Backup created:') $BACKUP_FILE"
     fi
-
     # Replace
     cp -f "$TMP_FILE" "$TARGET_SCRIPT" 2>/dev/null && chmod +x "$TARGET_SCRIPT" 2>/dev/null
     rm -f "$TMP_FILE" 2>/dev/null
-
     printf 'ok' > /opt/etc/zkm_sha256_kzm.state 2>/dev/null
     echo "$(T mgr_update_done 'Guncelleme tamamlandi. Lutfen betigi yeniden calistirin.' 'Update completed. Please re-run the script.')"
     return 0
 }
-
-
 check_manager_update() {
     print_status INFO "$(T TXT_CHECKING_GITHUB)"
     local repo="RevolutionTR/keenetic-zapret-manager"
     local script_name="keenetic_zapret_otomasyon_ipv6_ipset.sh"
     local api="https://api.github.com/repos/${repo}/releases/latest"
     local REMOTE_VER LOCAL_VER api_raw CLR_REMOTE CLR_LOCAL sha256sums_url expected_sha256 actual_sha256
-    api_raw="$(curl -fsS "$api" 2>/dev/null)"
+    api_raw="$(curl -sS "$api" 2>/dev/null)"
     REMOTE_VER="$(printf '%s\n' "$api_raw" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-
     if [ -z "$REMOTE_VER" ]; then
         print_status FAIL "$(T TXT_GITHUB_FAIL)"
         press_enter_to_continue
         return 1
     fi
-
     LOCAL_VER="$(zkm_get_installed_script_version)"
     [ -z "$LOCAL_VER" ] && LOCAL_VER="$SCRIPT_VERSION"
-
     # Renkleri duruma gore ata
     if ver_is_newer "$REMOTE_VER" "$LOCAL_VER"; then
         CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_YELLOW}"
@@ -5827,16 +4922,13 @@ check_manager_update() {
     else
         CLR_REMOTE="${CLR_BOLD}${CLR_GREEN}"; CLR_LOCAL="${CLR_BOLD}${CLR_GREEN}"
     fi
-
     # SHA256SUMS dosyasini GitHub release'ten indir ve karsilastir
     sha256sums_url="https://github.com/${repo}/releases/download/${REMOTE_VER}/SHA256SUMS"
     expected_sha256="$(curl -fsSL "$sha256sums_url" 2>/dev/null | grep "${script_name}" | cut -d' ' -f1)"
     actual_sha256="$(sha256sum "$ZKM_SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1)"
-
     print_line "-"
     printf " %-10s: %b%s%b\n" "$(T TXT_GITHUB_LATEST)" "$CLR_REMOTE" "$REMOTE_VER" "${CLR_RESET}"
     printf " %-10s: %b%s%b\n" "$(T TXT_DEVICE_VERSION)" "$CLR_LOCAL" "$LOCAL_VER" "${CLR_RESET}"
-
     if [ -n "$expected_sha256" ] && [ -n "$actual_sha256" ]; then
         if [ "$actual_sha256" = "$expected_sha256" ]; then
             printf " %-10s: %b%s%b\n" "PASS" "${CLR_GREEN}${CLR_BOLD}" "$(T TXT_ZAP_UPDATE_SHA256_OK)" "${CLR_RESET}"
@@ -5851,7 +4943,6 @@ check_manager_update() {
         printf " %-10s: %s\n" "INFO" "$actual_sha256"
     fi
     print_line "-"
-
     if [ "$REMOTE_VER" = "$LOCAL_VER" ]; then
         # SHA farkliysa yeniden indirme teklif et
         if [ -n "$expected_sha256" ] && [ -n "$actual_sha256" ] && [ "$expected_sha256" != "$actual_sha256" ]; then
@@ -5873,14 +4964,12 @@ check_manager_update() {
         press_enter_to_continue
         return 0
     fi
-
     if ver_is_newer "$LOCAL_VER" "$REMOTE_VER"; then
         # Kurulu surum GitHub'dan daha yeni (gelistirici build)
         print_status INFO "$(T _ 'Kurulu surum GitHub surununden daha yeni (gelistirici build).' 'Installed version is newer than GitHub release (developer build).')"
         press_enter_to_continue
         return 0
     fi
-
     # Remote > Local: guncelleme mevcut
     print_status WARN "$(T _ 'Yeni surum mevcut!' 'New version available!')"
     echo ""
@@ -5897,9 +4986,6 @@ check_manager_update() {
     esac
     press_enter_to_continue
 }
-
-
-
 # --- Ana Menu Fonksiyonu ---
 # -------------------------------------------------------------------
 # Hostlist / Autohostlist (MODE_FILTER) Yonetimi
@@ -5912,7 +4998,6 @@ HOSTLIST_AUTO="${HOSTLIST_DIR}/zapret-hosts-auto.txt"
 HOSTLIST_MODE_FILE="/opt/zapret/hostlist_mode"
 HOSTLIST_AUTO_DEBUG="/opt/zapret/nfqws_autohostlist.log"
 SCOPE_MODE_FILE="/opt/zapret/scope_mode"
-
 ensure_hostlist_files() {
     [ -d "$HOSTLIST_DIR" ] || mkdir -p "$HOSTLIST_DIR" >/dev/null 2>&1
     [ -f "$HOSTLIST_USER" ] || : > "$HOSTLIST_USER"
@@ -5935,8 +5020,6 @@ EOF
     # AUTO dosyasi zapret tarafindan doldurulur; yoksa gosterebilmek icin olusturuyoruz
     [ -f "$HOSTLIST_AUTO" ] || : > "$HOSTLIST_AUTO"
 }
-
-
 ensure_zapret_config() {
     # zapret upstream expects /opt/zapret/config (optional). If missing, try to create it.
     if [ -f /opt/zapret/config ]; then
@@ -5949,20 +5032,16 @@ ensure_zapret_config() {
     cat > /opt/zapret/config <<'EOF'
 # this file is included from init scripts
 # change values here
-
 # filtering mode : none|ipset|hostlist|autohostlist
 MODE_FILTER=none
-
 # use <HOSTLIST> and <HOSTLIST_NOAUTO> placeholders to engage standard hostlists and autohostlist in ipset dir
 # hostlist markers are replaced to empty string if MODE_FILTER does not satisfy
 # <HOSTLIST_NOAUTO> appends ipset/zapret-hosts-auto.txt as normal list
-
 # nfqws options (filled/updated by management script)
 NFQWS_OPT=""
 EOF
     [ -f /opt/zapret/config ]
 }
-
 get_scope_mode() {
     # global|smart (default: global)
     if [ -f "$SCOPE_MODE_FILE" ]; then
@@ -5973,7 +5052,6 @@ get_scope_mode() {
     fi
     echo "global"
 }
-
 pretty_scope_mode() {
     # UI helper: keep stored values (global/smart) but show localized label
     case "$(get_scope_mode)" in
@@ -5982,8 +5060,6 @@ pretty_scope_mode() {
         *)      echo "$(get_scope_mode)" ;;
     esac
 }
-
-
 set_scope_mode() {
     # $1: global|smart
     [ -z "$1" ] && return 1
@@ -5994,7 +5070,6 @@ set_scope_mode() {
     echo "$1" > "$SCOPE_MODE_FILE" 2>/dev/null || return 1
     return 0
 }
-
 get_mode_filter() {
     # priority: state file -> zapret config -> default none
     if [ -f "$HOSTLIST_MODE_FILE" ]; then
@@ -6009,16 +5084,12 @@ get_mode_filter() {
     fi
     echo "none"
 }
-
-
 set_mode_filter() {
     # $1: none|hostlist|autohostlist|ipset
     [ -z "$1" ] && return 1
     ensure_hostlist_files
-
     # persist for this script (works even if /opt/zapret/config is absent)
     echo "$1" > "$HOSTLIST_MODE_FILE" 2>/dev/null || return 1
-
     # best-effort: also write to zapret config if present/creatable (for compatibility)
     ensure_zapret_config >/dev/null 2>&1
     if [ -f /opt/zapret/config ]; then
@@ -6030,8 +5101,6 @@ set_mode_filter() {
     fi
     return 0
 }
-
-
 normalize_domain() {
     # stdin or $1; output normalized domain or empty
     d="$1"
@@ -6045,13 +5114,11 @@ normalize_domain() {
     echo "$d" | grep -Eq '^[a-z0-9][a-z0-9.-]*[a-z0-9]$' || { echo ""; return 1; }
     echo "$d"
 }
-
 file_has_line() {
     # $1 file $2 line exact
     [ -f "$1" ] || return 1
     grep -Fxq -- "$2" "$1" 2>/dev/null
 }
-
 add_line_unique() {
     # $1 file $2 line
     [ -f "$1" ] || : > "$1"
@@ -6059,20 +5126,17 @@ add_line_unique() {
         printf "%s\n" "$2" >> "$1"
     fi
 }
-
 remove_line_exact() {
     # $1 file $2 line
     [ -f "$1" ] || return 0
     tmp="/tmp/hostlist.$$"
     grep -Fvx -- "$2" "$1" 2>/dev/null > "$tmp" && mv "$tmp" "$1"
 }
-
 hostlist_stats() {
     # $1 file
     [ -f "$1" ] || { echo "0"; return; }
     awk 'NF && $0 !~ /^[[:space:]]*#/' "$1" 2>/dev/null | wc -l | tr -d ' '
 }
-
 show_hostlist_tail() {
     # $1=file $2=title_key (TXT_HL_LIST_*)
     [ "$ZKM_PAGE_ABORT" = "1" ] && return
@@ -6101,7 +5165,6 @@ $(awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
 HLEOF
     fi
 }
-
 # ZKM_PAGE_LINES: show_hostlist_tail tarafindan kullanilan global sayac
 # zkm_page_check: her satir basilinca cagrilir, sayfa dolunca duraklar
 ZKM_PAGE_LINES=0
@@ -6124,10 +5187,8 @@ zkm_page_line() {
         ZKM_PAGE_LINES=0
     fi
 }
-
 choose_mode_filter_interactive() {
     cur="$(get_mode_filter)"
-
     # NOTE:
     # This function is used inside command substitution:
     #   mode="$(choose_mode_filter_interactive)"
@@ -6143,7 +5204,6 @@ choose_mode_filter_interactive() {
 [ "$cur" = "none" ] && _a1="$(T TXT_HL_ACTIVE_MARK)"
 [ "$cur" = "hostlist" ] && _a2="$(T TXT_HL_ACTIVE_MARK)"
 [ "$cur" = "autohostlist" ] && _a3="$(T TXT_HL_ACTIVE_MARK)"
-
 echo " 1. none     ($(T TXT_HL_MODE_NONE_DESC))${_a1}"
 echo " 2. hostlist ($(T TXT_HL_MODE_HOSTLIST_DESC))${_a2}"
 echo " 3. autohostlist ($(T TXT_HL_MODE_AUTO_DESC))${_a3}"
@@ -6151,14 +5211,12 @@ echo " 0. $(T TXT_SCOPE_BACK)"
         echo ""
         printf "%s" "$(T TXT_HL_PICK)"
     } >&2
-
     # Prefer reading from TTY (works reliably even in $(...)). Fallback to normal stdin.
     if [ -r /dev/tty ]; then
         read -r msel </dev/tty || msel=""
     else
         read -r msel || msel=""
     fi
-
     case "$msel" in
         1) echo "none" ;;
         2) echo "hostlist" ;;
@@ -6167,14 +5225,11 @@ echo " 0. $(T TXT_SCOPE_BACK)"
         *) echo "__invalid__" ;;
     esac
 }
-
-
 apply_mode_filter() {
     # $1 mode
     mode="$1"
     [ -z "$mode" ] && return 0
     ensure_hostlist_files
-
     # hostlist/autohostlist modunda, listeler BOS ise zapret "include yok" gibi davranabilir (exclude haric herseyi isler).
     # Bu sebeple kullaniciyi uyar.
     if [ "$mode" = "hostlist" ] || [ "$mode" = "autohostlist" ]; then
@@ -6184,7 +5239,6 @@ apply_mode_filter() {
             press_enter_to_continue
         fi
     fi
-
     if set_mode_filter "$mode"; then
         echo "$(T TXT_HL_SET_OK) $mode"
         restart_zapret >/dev/null 2>&1
@@ -6193,18 +5247,15 @@ apply_mode_filter() {
         echo "$(T TXT_HL_SET_FAIL)"
     fi
 }
-
 apply_scope_mode() {
     # $1 scope: global|smart
     scope="$1"
     [ -z "$scope" ] && return 0
     ensure_hostlist_files
-
     if ! set_scope_mode "$scope"; then
         echo "$(T TXT_HL_SET_FAIL)"
         return 1
     fi
-
     case "$scope" in
         global)
             # Global mod: her seye uygula (mevcut davranis). MODE_FILTER anlamsiz kalmasin diye none yap.
@@ -6215,15 +5266,12 @@ apply_scope_mode() {
             set_mode_filter autohostlist >/dev/null 2>&1
             ;;
     esac
-
     # NFQWS_OPT satirlarini kapsam moduna gore yeniden yaz
     update_nfqws_parameters >/dev/null 2>&1
     restart_zapret >/dev/null 2>&1
     echo "$(T TXT_HL_RESTART)"
     return 0
 }
-
-
 manage_hostlist_menu() {
     if ! is_zapret_installed; then
         echo "$(T TXT_HL_ERR_NOT_INSTALLED)"
@@ -6231,9 +5279,7 @@ manage_hostlist_menu() {
         clear
         return 1
     fi
-
     ensure_hostlist_files
-
     while true; do
         clear
         cur="$(get_mode_filter)"
@@ -6279,7 +5325,6 @@ manage_hostlist_menu() {
                 fi
                 clear
                 ;;
-
             3)
 echo "$(T TXT_HL_BULK_HINT)"
 echo "$(T TXT_HL_BULK_HINT2)"
@@ -6287,17 +5332,14 @@ added=0
 already=0
 invalid=0
 cancelled=0
-
 # Prompt only once so multi-line paste doesn't spam the screen.
 # Read until an empty line. "0" cancels.
 printf "%s" "$(T TXT_HL_PROMPT_ADD)"
 while :; do
     IFS= read -r d || break
-
     # Normalize input (CRLF terminals + trim)
     d="$(printf '%s' "$d" | tr -d '
 ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-
     # Cancel (0 / 00 / 000 ...) and return to menu immediately
     if [ -n "$d" ]; then
         case "$d" in
@@ -6309,9 +5351,7 @@ while :; do
                 ;;
         esac
     fi
-
     [ -z "$d" ] && break
-
     # Split current line by comma/semicolon/whitespace
     for one in $(echo "$d" | tr ',;	' '   '); do
         nd="$(normalize_domain "$one")"
@@ -6334,14 +5374,12 @@ while :; do
         added=$((added+1))
     done
 done
-
 if [ "$cancelled" -eq 1 ]; then
     # Cancel should return to menu immediately (no extra prompt)
     sleep 1
     clear
     continue
 fi
-
 echo "$(T X 'Ozet:' 'Summary:') $(T X 'Eklendi' 'Added')=$added, $(T X 'Zaten vardi' 'Already existed')=$already, $(T X 'Gecersiz' 'Invalid')=$invalid"
 if type press_enter_to_continue >/dev/null 2>&1; then
     press_enter_to_continue
@@ -6349,7 +5387,6 @@ else
     press_enter_to_continue
 fi
 clear
-
     ;;
             4)
                 printf '%s' "$(T TXT_HL_PROMPT_DEL)"; read -r d
@@ -6359,7 +5396,6 @@ clear
                 remove_line_exact "$HOSTLIST_USER" "$nd"
                 echo "$(T TXT_HL_MSG_REMOVED)$nd"
                 ;;
-
             5)
 echo "$(T TXT_HL_BULK_HINT)"
 echo "$(T TXT_HL_BULK_HINT2)"
@@ -6367,17 +5403,14 @@ added=0
 already=0
 invalid=0
 cancelled=0
-
 # Prompt only once so multi-line paste doesn't spam the screen.
 # Read until an empty line. "0" cancels.
 printf "%s" "$(T TXT_HL_PROMPT_ADD)"
 while :; do
     IFS= read -r d || break
-
     # Normalize input (CRLF terminals + trim)
     d="$(printf '%s' "$d" | tr -d '
 ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-
     # Cancel (0 / 00 / 000 ...) and return to menu immediately
     if [ -n "$d" ]; then
         case "$d" in
@@ -6389,9 +5422,7 @@ while :; do
                 ;;
         esac
     fi
-
     [ -z "$d" ] && break
-
     # Split current line by comma/semicolon/whitespace
     for one in $(echo "$d" | tr ',;	' '   '); do
         nd="$(normalize_domain "$one")"
@@ -6414,14 +5445,12 @@ while :; do
         added=$((added+1))
     done
 done
-
 if [ "$cancelled" -eq 1 ]; then
     # Cancel should return to menu immediately (no extra prompt)
     sleep 1
     clear
     continue
 fi
-
 echo "$(T X 'Ozet:' 'Summary:') $(T X 'Eklendi' 'Added')=$added, $(T X 'Zaten vardi' 'Already existed')=$already, $(T X 'Gecersiz' 'Invalid')=$invalid"
 if type press_enter_to_continue >/dev/null 2>&1; then
     press_enter_to_continue
@@ -6429,7 +5458,6 @@ else
     press_enter_to_continue
 fi
 clear
-
     ;;
             6)
                 printf '%s' "$(T TXT_HL_PROMPT_DEL)"; read -r d
@@ -6471,7 +5499,6 @@ clear
                 fi
                 clear
                 ;;
-
             8)
                 print_line "-"
                 printf '%b
@@ -6485,20 +5512,17 @@ echo " 2. $(T TXT_SCOPE_SMART)  (${sdesc})"
                 echo " 0. $(T TXT_SCOPE_BACK)"
                 echo ""
                 printf "%s" "$(T TXT_HL_PICK)"
-
                 if [ -r /dev/tty ]; then
                     read -r ssel </dev/tty || ssel=""
                 else
                     read -r ssel || ssel=""
                 fi
-
 case "$ssel" in
                     1) apply_scope_mode global ;;
                     2) apply_scope_mode smart ;;
                     0) : ;;
                     *) echo "$(T invalid_main 'Gecersiz secim!' 'Invalid choice!')" ;;
                 esac
-
                 if type press_enter_to_continue >/dev/null 2>&1; then
                     press_enter_to_continue
                 else
@@ -6506,7 +5530,6 @@ case "$ssel" in
                 fi
                 clear
                 ;;
-
             0)
                 clear
                 return 0
@@ -6518,9 +5541,7 @@ case "$ssel" in
         echo ""
     done
 }
-
 # --- Betik: Yedekten Geri Don (Rollback) ---
-
 github_fetch_release_kv_last10() {
     # outputs lines: tag|url  (tag list; not release assets)
     local API
@@ -6542,7 +5563,6 @@ github_fetch_release_kv_last10() {
         }
     '
 }
-
 github_fetch_release_url_by_tag() {
     # $1 = tag => prints raw url (may 404 if tag does not exist)
     local TAG
@@ -6550,7 +5570,6 @@ github_fetch_release_url_by_tag() {
     [ -n "$TAG" ] || return 1
     echo "https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/$TAG/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 }
-
 github_install_script_from_url() {
     # $1=tag (for backup name), $2=url
     local TAG URL TARGET TS BAK TMP
@@ -6559,14 +5578,11 @@ github_install_script_from_url() {
     TARGET="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     [ -f "$TARGET" ] || TARGET="$(readlink -f "$0" 2>/dev/null)"
     [ -n "$URL" ] || return 1
-
     TS="$(date +%Y%m%d_%H%M%S 2>/dev/null)"
     [ -z "$TS" ] && TS="$(date +%Y%m%d%H%M%S 2>/dev/null)"
     BAK="${TARGET}.bak_${TAG}_${TS}.sh"
     TMP="/tmp/keenetic_zapret_manager_dl.$$"
-
     echo "$(T TXT_ROLLBACK_GH_DOWNLOADING)"
-
     if command -v curl >/dev/null 2>&1; then
         curl -fsSL "$URL" -o "$TMP" || { rm -f "$TMP"; return 1; }
     elif command -v wget >/dev/null 2>&1; then
@@ -6574,22 +5590,17 @@ github_install_script_from_url() {
     else
         return 1
     fi
-
     head -n 1 "$TMP" 2>/dev/null | grep -q "^#!" || { rm -f "$TMP"; return 1; }
-
     if [ -f "$TARGET" ]; then
         cp -f "$TARGET" "$BAK" 2>/dev/null
         chmod +x "$BAK" 2>/dev/null
     fi
-
     cp -f "$TMP" "$TARGET" 2>/dev/null && chmod +x "$TARGET" 2>/dev/null
     rm -f "$TMP" 2>/dev/null
-
     echo "$(T TXT_ROLLBACK_GH_DONE)"
     press_enter_to_continue
     return 0
 }
-
 github_install_from_releases_last10() {
     local LIST TMP i sel line tag url
     echo "$(T TXT_ROLLBACK_GH_LOADING)"
@@ -6599,10 +5610,8 @@ github_install_from_releases_last10() {
         press_enter_to_continue
         return 0
     fi
-
     TMP="/tmp/keenetic_zapret_releases.$$"
     printf "%s\n" "$LIST" > "$TMP" 2>/dev/null
-
     print_line "-"
     i=1
     while IFS= read -r line; do
@@ -6610,19 +5619,16 @@ github_install_from_releases_last10() {
         echo " $i. $tag"
         i=$((i+1))
     done < "$TMP"
-
     echo " 0. $(T TXT_BACK)"
     print_line "-"
     printf "%s: " "$(T TXT_ROLLBACK_GH_SELECT)"
     read sel
-
     if [ "$sel" = "0" ] || [ -z "$sel" ]; then
         rm -f "$TMP" 2>/dev/null
         echo "$(T TXT_ROLLBACK_CANCELLED)"
         press_enter_to_continue
         return 0
     fi
-
     case "$sel" in
         *[!0-9]*)
             rm -f "$TMP" 2>/dev/null
@@ -6631,7 +5637,6 @@ github_install_from_releases_last10() {
             return 0
             ;;
     esac
-
     i=1
     while IFS= read -r line; do
         if [ "$i" = "$sel" ]; then
@@ -6650,13 +5655,11 @@ github_install_from_releases_last10() {
         fi
         i=$((i+1))
     done < "$TMP"
-
     rm -f "$TMP" 2>/dev/null
     echo "$(T TXT_INVALID_CHOICE)"
     press_enter_to_continue
     return 0
 }
-
 github_install_from_tag_prompt() {
     local TAG URL
     printf "%s " "$(T TXT_ROLLBACK_GH_TAGPROMPT)"
@@ -6671,14 +5674,12 @@ github_install_from_tag_prompt() {
         press_enter_to_continue
         return 0
     fi
-
     URL="$(github_fetch_release_url_by_tag "$TAG" 2>/dev/null)"
     if [ -z "$URL" ]; then
         echo "$(T TXT_ROLLBACK_GH_NONE)"
         press_enter_to_continue
         return 0
     fi
-
     github_install_script_from_url "$TAG" "$URL"
     if [ $? -ne 0 ]; then
         echo "$(T TXT_GITHUB_FAIL)"
@@ -6689,9 +5690,6 @@ github_install_from_tag_prompt() {
     press_enter_to_continue
     return 0
 }
-
-
-
 clean_backup_files() {
     local dir="/opt/lib/opkg"
     local pattern="keenetic_zapret_otomasyon_ipv6_ipset.sh.bak*"
@@ -6704,7 +5702,6 @@ clean_backup_files() {
     find "$dir" -maxdepth 1 -type f -name "$pattern" -delete 2>/dev/null
     echo "$(T TXT_ROLLBACK_CLEAN_DONE) (${count})"
 }
-
 clean_blockcheck_reports() {
     local dir="/opt/zapret"
     local pattern="blockcheck_*.txt"
@@ -6717,19 +5714,15 @@ clean_blockcheck_reports() {
     find "$dir" -maxdepth 1 -type f -name "$pattern" -delete 2>/dev/null
     echo "$(T TXT_BLOCKCHECK_CLEAN_DONE) (${count})"
 }
-
 rollback_local_storage_menu() {
     local TARGET="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     local BACKUP_PATTERN="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_*"
-
     while true; do
         clear
         print_line
         echo "$(T TXT_ROLLBACK_LOCAL_MENU)"
         print_line
-
         BACKUP_FILES="$(ls -1t $BACKUP_PATTERN 2>/dev/null)"
-
         if [ -z "$BACKUP_FILES" ]; then
             echo "$(T TXT_ROLLBACK_NO_LOCAL_BACKUP)"
         else
@@ -6739,35 +5732,29 @@ rollback_local_storage_menu() {
                 i=$((i+1))
             done
         fi
-
         print_line
         echo " c) $(T TXT_ROLLBACK_CLEAN)"
         echo " 0) $(T TXT_BACK)"
         print_line
-
         printf '%s' "$(T TXT_ROLLBACK_MAIN_PICK) "; read -r sel || return 0
         sel=$(echo "$sel" | tr -d '[:space:]')
-
         case "$sel" in
             c|C)
                 clean_backup_files
                 press_enter_to_continue
                 return
             ;;
-
             0|"")
                 echo "$(T TXT_ROLLBACK_CANCELLED)"
                 press_enter_to_continue
                 return
             ;;
         esac
-
         if [ -z "$BACKUP_FILES" ]; then
             echo "$(T TXT_INVALID_CHOICE)"
             press_enter_to_continue
             continue
         fi
-
         local found=0
         local idx=1
         for file in $BACKUP_FILES; do
@@ -6784,17 +5771,14 @@ rollback_local_storage_menu() {
             fi
             idx=$((idx+1))
         done
-
         if [ "$found" -eq 0 ]; then
             echo "$(T TXT_INVALID_CHOICE)"
             press_enter_to_continue
         fi
     done
 }
-
 script_rollback_menu() {
     local sel
-
     while :; do
         clear
         print_line "=" 
@@ -6807,7 +5791,6 @@ script_rollback_menu() {
         print_line "-"
         printf "%s" "$(T TXT_ROLLBACK_MAIN_PICK)"
         read sel
-
         case "$sel" in
             0|"")
                 echo "$(T TXT_ROLLBACK_CANCELLED)"
@@ -6833,16 +5816,12 @@ script_rollback_menu() {
         esac
     done
 }
-
-
 display_menu() {
     echo
     echo
-
     # ---- Baslik (versiyon YOK - altta zaten var) ----
     printf "  %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_MAIN_TITLE)" "${CLR_RESET}"
     print_line "-"
-
     # ---- Bilgi satirlari ----
     local _sys _wan_dev _wan_state _zap_state
     _sys="$(zkm_banner_get_system)"
@@ -6850,10 +5829,8 @@ display_menu() {
     [ -z "$_wan_dev" ] && _wan_dev="-"
     _wan_state="$(zkm_banner_get_wan_state "$_wan_dev")"
     _zap_state="$(zkm_banner_get_zapret_state)"
-
     # Etiket genisligi: EN'de 'Zapret Version' = 14 karakter
     local _lw=14
-
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_SYS_LABEL)"                        "${CLR_RESET}" "${CLR_ORANGE}" "$_sys"                                           "${CLR_RESET}"
     _fw="$(zkm_banner_get_firmware 2>/dev/null)"
     [ -n "$_fw" ] && printf "  %b%-*s%b : %b%b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'Firmware' 'Firmware')" "${CLR_RESET}" "${CLR_BOLD}" "${CLR_CYAN}" "$_fw" "${CLR_RESET}"
@@ -6961,9 +5938,7 @@ display_menu() {
     printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_BOLD}" "$_clr_kzm" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
     printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'Zapret Surum' 'Zapret Version'  )"       "${CLR_RESET}" "${CLR_BOLD}" "$_clr_zap" "$(zkm_get_zapret_version)"                       "${CLR_RESET}"
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'GitHub'       'GitHub'          )"       "${CLR_RESET}" "${CLR_DIM}"   "github.com/RevolutionTR/keenetic-zapret-manager"  "${CLR_RESET}"
-
     print_line "="
-
     # Aciklama satirlari — her biri ayri satirda, kisa
     printf "  %b%s%b\n" "${CLR_DIM}" "$(T TXT_DESC1)" "${CLR_RESET}"
     printf "  %b%s%b\n" "${CLR_DIM}" "$(T TXT_DESC2)" "${CLR_RESET}"
@@ -6972,7 +5947,6 @@ display_menu() {
     printf " %b%s%b\n" "${CLR_DIM}" "$(T TXT_OPTIMIZED)" "${CLR_RESET}"
     printf " %b%s%b\n" "${CLR_DIM}" "$(T dpi_warn "$TXT_DPI_WARNING_TR" "$TXT_DPI_WARNING_EN")" "${CLR_RESET}"
     print_line "-"
-
     # _mi: menu item — numara TURUNCU, metin dim
     _mi() {
         local _raw="$1"
@@ -6996,14 +5970,12 @@ display_menu() {
                 ;;
         esac
     }
-
     # Cizgi: terminal genisligine gore dinamik "- - - - ..." 
     local _cols _sep
     _cols="$(get_term_cols 2>/dev/null)"
     [ -z "$_cols" ] && _cols=80
     [ "$_cols" -lt 50 ] 2>/dev/null && _cols=50
     _sep="$(printf '%*s' "$_cols" '' | tr ' ' '-' | sed 's/--/- /g;s/ $//')"
-
     # ---- ZAPRET YONETIMI (1-8) ----
     printf "  %b%s%b\n" "${CLR_CYAN}" "$(T _ 'ZAPRET YONETIMI' 'ZAPRET MANAGEMENT')" "${CLR_RESET}"
     printf "%b%s%b\n"   "${CLR_DIM}"  "$_sep" "${CLR_RESET}"
@@ -7016,7 +5988,6 @@ display_menu() {
     _mi "$(T TXT_MENU_7)"
     _mi "$(T TXT_MENU_8)"
     echo
-
     # ---- SISTEM & ARACLAR (9-16) ----
     printf "  %b%s%b\n" "${CLR_CYAN}" "$(T _ 'SISTEM & ARACLAR' 'SYSTEM & TOOLS')" "${CLR_RESET}"
     printf "%b%s%b\n"   "${CLR_DIM}"  "$_sep" "${CLR_RESET}"
@@ -7030,7 +6001,6 @@ display_menu() {
     _mi "$(T TXT_MENU_16)"
     _mi "$(T TXT_MENU_17)"
     echo
-
     # ---- DIGER ----
     printf "  %b%s%b\n" "${CLR_CYAN}" "$(T _ 'DIGER' 'OTHER')" "${CLR_RESET}"
     printf "%b%s%b\n"   "${CLR_DIM}"  "$_sep" "${CLR_RESET}"
@@ -7039,13 +6009,10 @@ display_menu() {
     _mi "$(T TXT_MENU_R)"
     _mi "$(T TXT_MENU_U)"
     _mi "$(T TXT_MENU_0)"
-
     print_line "-"
     echo
     printf "$(T TXT_PROMPT_MAIN)"
 }
-
-
 # --- DNS YONETIMI ---
 # Master liste: KEY|TYPE|ADD_CMD|DEL_CMD|PAKET
 _dns_master_list() {
@@ -7059,9 +6026,6 @@ _dns_master_list() {
         "cloudflare-dns.com/dns-query|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm|no dns-proxy https upstream https://cloudflare-dns.com/dns-query|Cloudflare|Filtresiz" \
         "1.1.1.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.1.1.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.1.1.2|CF_Families|Aile" \
         "1.0.0.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.0.0.2|CF_Families|Aile" \
-        "dns.comss.one/dns-query|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm|no dns-proxy https upstream https://dns.comss.one/dns-query|Comss|Filtresiz" \
-        "83.220.169.155@dns.comss.one|DoT|dns-proxy tls upstream 83.220.169.155 sni dns.comss.one|no dns-proxy tls upstream 83.220.169.155|Comss|Filtresiz" \
-        "212.109.195.93@dns.comss.one|DoT|dns-proxy tls upstream 212.109.195.93 sni dns.comss.one|no dns-proxy tls upstream 212.109.195.93|Comss|Filtresiz" \
         "9.9.9.9@dns.quad9.net|DoT|dns-proxy tls upstream 9.9.9.9 sni dns.quad9.net|no dns-proxy tls upstream 9.9.9.9|Quad9|Gizlilik" \
         "149.112.112.112@dns.quad9.net|DoT|dns-proxy tls upstream 149.112.112.112 sni dns.quad9.net|no dns-proxy tls upstream 149.112.112.112|Quad9|Gizlilik" \
         "94.140.14.14@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.14.14 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.14.14|AdGuard|Reklam" \
@@ -7071,7 +6035,6 @@ _dns_master_list() {
         "185.228.168.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.168.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.168.9|CleanBrowsing|Aile" \
         "185.228.169.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.169.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.169.9|CleanBrowsing|Aile"
 }
-
 # Mevcut DNS sunucularini goster
 # $1: raw show dns-proxy ciktisi
 dns_show_current() {
@@ -7125,7 +6088,6 @@ MASTEREOF
     print_line "-"
     return "$_found"
 }
-
 # Hazir paket ekle
 dns_add_preset_menu() {
     while true; do
@@ -7141,7 +6103,6 @@ dns_add_preset_menu() {
         printf " %b 2.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Gizlilik Odakli' 'Privacy Focused')" "Quad9 + Mullvad + dns0.eu"
         printf " %b 3.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Reklam Engelleyici' 'Ad Blocker')" "AdGuard DoT"
         printf " %b 4.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Aile Filtresi' 'Family Filter')" "CF Families + CleanBrowsing"
-        printf " %b 5.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Turkiye Optimizeli' 'Turkey Optimized')" "Comss DoH/DoT"
         printf " %b 0.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Geri' 'Back')"
         echo ""
         printf '%s ' "$(T _ 'Secim:' 'Choice:')"
@@ -7159,13 +6120,10 @@ dns_add_preset_menu() {
             4) _dns_add_package "CF_Families" "$_raw"
                _dns_add_package "CleanBrowsing" "$_raw"
                press_enter_to_continue ;;
-            5) _dns_add_package "Comss" "$_raw"
-               press_enter_to_continue ;;
             0) return 0 ;;
         esac
     done
 }
-
 # Belirli paketi ekle
 # $1: paket adi (Google|Cloudflare|CF_Families|NextDNS|Comss)
 _dns_add_package() {
@@ -7199,7 +6157,6 @@ MASTEREOF
     fi
     print_line "-"
 }
-
 # Sunucu sil - aktif bilinen sunuculari listele, secim al
 dns_delete_menu() {
     local _raw
@@ -7209,7 +6166,6 @@ dns_delete_menu() {
     printf " %b%s%b
 " "${CLR_CYAN}" "$(T TXT_DNS_MGMT_DEL_TITLE)" "${CLR_RESET}"
     print_line "-"
-
     # Aktif sunuculari numaralandirarak listele
     local _num=0 _entry _key _type _del _grep_key
     local _keys="" _dels=""
@@ -7231,20 +6187,17 @@ dns_delete_menu() {
     done << MASTEREOF
 $(_dns_master_list)
 MASTEREOF
-
     if [ "$_num" -eq 0 ]; then
         print_status INFO "$(T TXT_DNS_MGMT_DEL_NONE)"
         press_enter_to_continue
         return 0
     fi
-
     print_line "-"
     printf '%s ' "$(T _ 'Silmek istediginiz numara (0=Geri):' 'Enter number to delete (0=Back):')"
     read -r _sel </dev/tty
     case "$_sel" in
         0) return 0 ;;
     esac
-
     # Secilen numara icin del komutu bul
     local _found_del="" _found_key=""
     local _item
@@ -7264,13 +6217,11 @@ MASTEREOF
 ' | awk -F: -v n="$_sel" 'NF>=2 && $1==n {print substr($0,length($1)+2)}')"
     _found_key="$(printf '%s' "$_keys" | tr '|' '
 ' | awk -F: -v n="$_sel" 'NF>=2 && $1==n {print substr($0,length($1)+2)}')"
-
     if [ -z "$_del_cmd" ]; then
         print_status WARN "$(T _ 'Gecersiz secim.' 'Invalid selection.')"
         press_enter_to_continue
         return 0
     fi
-
     LD_LIBRARY_PATH= ndmc -c "$_del_cmd" >/dev/null 2>&1
     LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
     printf "  %s : %b%s%b
@@ -7278,7 +6229,6 @@ MASTEREOF
     print_status PASS "$(T TXT_DNS_MGMT_SAVED)"
     press_enter_to_continue
 }
-
 # Tum bilinen DNS sunucularini temizle
 dns_delete_all() {
     local _raw
@@ -7316,8 +6266,6 @@ MASTEREOF
     fi
     press_enter_to_continue
 }
-
-
 # Manuel DNS sunucusu ekle
 dns_add_manual() {
     clear
@@ -7365,7 +6313,6 @@ dns_add_manual() {
     esac
     press_enter_to_continue
 }
-
 # Rebind koruma toggle
 dns_rebind_toggle() {
     local _raw _rc
@@ -7385,7 +6332,6 @@ dns_rebind_toggle() {
     fi
     press_enter_to_continue
 }
-
 # Ana DNS yonetim menusu
 dns_management_menu() {
     while true; do
@@ -7402,7 +6348,7 @@ dns_management_menu() {
         printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_DNS_MGMT_TITLE)" "${CLR_RESET}"
         dns_show_current "$_raw"
         echo ""
-        printf " %b 1.%b $(T TXT_DNS_MGMT_OPT1) %b[Google / Cloudflare / CF Families / NextDNS / Comss]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "${CLR_DIM}" "${CLR_RESET}"
+        printf " %b 1.%b $(T TXT_DNS_MGMT_OPT1) %b[Google / Cloudflare / CF Families / NextDNS]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "${CLR_DIM}" "${CLR_RESET}"
         printf " %b 2.%b $(T TXT_DNS_MGMT_OPT2) %b[IP + SNI veya DoH URL]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "${CLR_DIM}" "${CLR_RESET}"
         printf " %b 3.%b $(T TXT_DNS_MGMT_OPT3)\n" "${CLR_BOLD}" "${CLR_RESET}"
         printf " %b 4.%b $(T TXT_DNS_MGMT_OPT4)\n" "${CLR_BOLD}" "${CLR_RESET}"
@@ -7423,20 +6369,16 @@ dns_management_menu() {
         esac
     done
 }
-
-
 # --- OPKG GUNCELLEME ---
 configure_secure_dns() {
     clear
     print_line "="
     printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_MENU14_DNS_TITLE)" "${CLR_RESET}"
     print_line "="
-
     # Mevcut durumu al
     local _raw _rc
     _raw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
     _rc="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
-
     # Internet Filtresi aktif mi kontrol et
     local _filter_active=0
     if echo "$_raw" | grep -qiE "filter.engine|filter.assign"; then
@@ -7445,12 +6387,9 @@ configure_secure_dns() {
     if [ "$_filter_active" -eq 1 ]; then
         print_status WARN "$(T TXT_MENU14_DNS_FILTER_WARN)"
     fi
-
     print_line "-"
-
     # Oncelikle mevcut durumu goster
     local _need_add=0
-
     # rebind-protect
     if echo "$_raw" | grep -q "norebind_ctl = on" || echo "$_rc" | grep -q "rebind-protect"; then
         printf " %-45s %b%-5s%b: %b%s%b\n" "$(T TXT_MENU14_DNS_REBIND)" \
@@ -7462,7 +6401,6 @@ configure_secure_dns() {
             "${CLR_ORANGE}" "$(T _ 'Eksik' 'Missing')" "${CLR_RESET}"
         _need_add=1
     fi
-
     local _entry _key _type
     for _entry in \
         "8.8.8.8@dns.google|DoT|dns-proxy tls upstream 8.8.8.8 sni dns.google" \
@@ -7470,7 +6408,6 @@ configure_secure_dns() {
         "1.1.1.1|DoT|dns-proxy tls upstream 1.1.1.1" \
         "1.0.0.1@one.one.one.one|DoT|dns-proxy tls upstream 1.0.0.1 sni one.one.one.one" \
         "cloudflare-dns.com/dns-query@dnsm|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm" \
-        "dns.comss.one/dns-query@dnsm|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm" \
         "dns.google/dns-query@dnsm|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm"
     do
         _key="${_entry%%|*}"
@@ -7486,21 +6423,17 @@ configure_secure_dns() {
             _need_add=1
         fi
     done
-
     print_line "-"
-
     # VPN DNS leak uyarisi - her zaman goster
     echo ""
     printf " %b%s%b\n" "${CLR_ORANGE}" "$(T TXT_MENU14_DNS_VPN_WARN)" "${CLR_RESET}"
     echo ""
-
     # Hepsi mevcutsa bitir
     if [ "$_need_add" -eq 0 ]; then
         print_status INFO "$(T TXT_MENU14_DNS_ALREADY)"
         press_enter_to_continue
         return 0
     fi
-
     # Onay al
     printf '%s ' "$(T TXT_MENU14_DNS_CONFIRM)"
     read -r _ans
@@ -7509,10 +6442,8 @@ configure_secure_dns() {
         press_enter_to_continue
         return 0
     fi
-
     print_line "-"
     local _changed=0
-
     # rebind-protect ekle
     if ! echo "$_raw" | grep -q "norebind_ctl = on" && ! echo "$_rc" | grep -q "rebind-protect"; then
         LD_LIBRARY_PATH= ndmc -c "dns-proxy rebind-protect auto" >/dev/null 2>&1
@@ -7521,7 +6452,6 @@ configure_secure_dns() {
             "${CLR_GREEN}" "$(T TXT_MENU14_DNS_ADDED)" "${CLR_RESET}"
         _changed=1
     fi
-
     # Upstream'leri ekle
     local _cmd
     for _entry in \
@@ -7530,7 +6460,6 @@ configure_secure_dns() {
         "1.1.1.1|DoT|dns-proxy tls upstream 1.1.1.1" \
         "1.0.0.1@one.one.one.one|DoT|dns-proxy tls upstream 1.0.0.1 sni one.one.one.one" \
         "cloudflare-dns.com/dns-query@dnsm|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm" \
-        "dns.comss.one/dns-query@dnsm|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm" \
         "dns.google/dns-query@dnsm|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm"
     do
         _key="${_entry%%|*}"
@@ -7544,19 +6473,15 @@ configure_secure_dns() {
             _changed=1
         fi
     done
-
     print_line "-"
-
     if [ "$_changed" -eq 1 ]; then
         LD_LIBRARY_PATH= ndmc -c "system configuration save" >/dev/null 2>&1
         print_status PASS "$(T TXT_MENU14_DNS_SAVED)"
     else
         print_status INFO "$(T TXT_MENU14_DNS_ALREADY)"
     fi
-
     press_enter_to_continue
 }
-
 run_opkg_update() {
     print_line "-"
     print_status INFO "$(T TXT_OPKG_UPDATING)"
@@ -7567,7 +6492,6 @@ run_opkg_update() {
         press_enter_to_continue
         return 1
     fi
-
     local _upgradable
     _upgradable="$(opkg list-upgradable 2>/dev/null)"
     if [ -z "$_upgradable" ]; then
@@ -7575,7 +6499,6 @@ run_opkg_update() {
         press_enter_to_continue
         return 0
     fi
-
     local _count
     _count="$(printf '%s\n' "$_upgradable" | grep -c .)"
     print_status INFO "${_count} $(T TXT_OPKG_UPGRADABLE)"
@@ -7604,7 +6527,6 @@ run_opkg_update() {
     esac
     press_enter_to_continue
 }
-
 # --- AG TANILAMA ALT MENUSU ---
 network_diag_menu() {
     while true; do
@@ -7630,20 +6552,16 @@ network_diag_menu() {
         esac
     done
 }
-
 # --- SAGLIK KONTROLU (HEALTH CHECK) ---
 run_health_check() {
     clear
     printf "\n %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_TITLE)" "${CLR_RESET}"
     print_line "="
-
     local HC_NET="/tmp/healthcheck_net.$$"
     local HC_SYS="/tmp/healthcheck_sys.$$"
     local HC_SVC="/tmp/healthcheck_svc.$$"
     : > "$HC_NET"; : > "$HC_SYS"; : > "$HC_SVC"
-
     local total_n=0 pass_n=0 warn_n=0 fail_n=0 info_n=0
-
     add_line() {
         local file="$1" label="$2" value="$3" status="$4"
         printf " %-35s : %s%s\n" "$label" "$(hc_word "$status")" "$value" >> "$file"
@@ -7655,7 +6573,6 @@ run_health_check() {
             INFO) info_n=$((info_n+1)) ;;
         esac
     }
-
     # ----------------------------
     # WAN STATUS (counts as a check)
     # ----------------------------
@@ -7663,11 +6580,9 @@ run_health_check() {
     WAN_IF="$(get_wan_if 2>/dev/null)"
     [ -z "$WAN_IF" ] && WAN_IF="$(healthmon_detect_wan_iface_ndm 2>/dev/null)"
     [ -z "$WAN_IF" ] && WAN_IF="PPPoE0"
-
     local wan_link="" wan_conn="" wan_state=""
     wan_link="$(hm_ndmc_cmd "show interface $WAN_IF" 2>/dev/null | awk '/^[ \t]*link:/ {print $2; exit}')"
     wan_conn="$(hm_ndmc_cmd "show interface $WAN_IF" 2>/dev/null | awk '/^[ \t]*connected:/ {print $2; exit}')"
-
     if [ -z "$wan_link" ] && [ -z "$wan_conn" ]; then
         # fallback (best-effort)
         if ip link show "$WAN_IF" >/dev/null 2>&1; then
@@ -7678,14 +6593,12 @@ run_health_check() {
             wan_conn="no"
         fi
     fi
-
     if [ "$wan_link" = "up" ] && [ "$wan_conn" = "yes" ]; then
         wan_state="PASS"
     else
         wan_state="FAIL"
     fi
     add_line "$HC_NET" "$(T TXT_HEALTH_WAN_STATUS)" " ($WAN_IF)" "$wan_state"
-
     # WAN IP adresleri
     local wan_ipv4 wan_ipv6 wan_ip_type wan_ip_label
     wan_ipv4="$(ip -4 addr show "$WAN_IF" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
@@ -7700,7 +6613,6 @@ run_health_check() {
         add_line "$HC_NET" "$(T TXT_HEALTH_WAN_IPV4)" " ${wan_ipv4}${wan_ip_label}" "INFO"
     fi
     [ -n "$wan_ipv6" ] && add_line "$HC_NET" "$(T TXT_HEALTH_WAN_IPV6)" " ${wan_ipv6}" "INFO"
-
     # ----------------------------
     # DNS MODE / SECURITY / PROVIDERS (meta lines, NOT counted)
     # ----------------------------
@@ -7714,7 +6626,6 @@ run_health_check() {
             print r
           }
         }' | sort -u 2>/dev/null | tr "\n" "," | sed 's/,$//')"
-
     # Keenetic dns-proxy'den tum saglayicilari oku
     local _dns_proxy_raw
     _dns_proxy_raw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
@@ -7729,13 +6640,11 @@ run_health_check() {
     # Ikisini birlestir ve tekrarlananlar temizle
     dot_list="$(printf '%s\n%s\n' "$_dot_providers" "$_doh_providers" | \
         sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')"
-
     if netstat -lntp 2>/dev/null | grep -qE ':[[:space:]]*853[[:space:]]'; then
         dot_on="1"
     else
         dot_on="0"
     fi
-
     # Tum saglayicilari birlestir (https_dns_proxy + dns-proxy)
     local all_providers=""
     [ -n "$doh_list" ] && all_providers="$doh_list"
@@ -7747,7 +6656,6 @@ run_health_check() {
         fi
     fi
     all_providers="$(printf '%s\n' "$all_providers" | tr ',' '\n' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')"
-
     if [ -n "$doh_list" ] && [ "$dot_on" = "1" ]; then
         dns_mode="$(T TXT_DNS_MODE_MIXED)"
     elif [ -n "$doh_list" ]; then
@@ -7757,18 +6665,15 @@ run_health_check() {
     else
         dns_mode="$(T TXT_DNS_MODE_PLAIN)"
     fi
-
     if [ -n "$doh_list" ] || [ "$dot_on" = "1" ]; then
         dns_sec="$(T TXT_DNS_SEC_HIGH)"
     else
         dns_sec="$(T TXT_DNS_SEC_LOW)"
     fi
-
     dns_providers="${all_providers:-unknown}"
     if [ -n "$all_providers" ]; then
         dns_providers="$(printf '%s\n' "$all_providers" | tr ',' '\n' | sed '/^$/d' | head -n 8 | tr '\n' ',' | sed 's/,$//')"
     fi
-
     # DNS checks (existing behavior)
     local dns_local_ok="PASS"
     if check_dns_local; then
@@ -7776,28 +6681,24 @@ run_health_check() {
     else
         dns_local_ok="FAIL"
     fi
-
     local dns_8888_ok="PASS"
     if check_dns_external; then
         dns_8888_ok="PASS"
     else
         dns_8888_ok="FAIL"
     fi
-
     local dns_cons_ok="INFO"
     local dns_cons_msg="($(T TXT_HEALTH_DNS_MATCH_NOTE))"
     if check_dns_consistency; then
         dns_cons_ok="PASS"
         dns_cons_msg=""
     fi
-
     local route_ok="PASS"
     local route_msg="($(ip route | awk '/default/ {print $3; exit}'))"
     if [ -z "$route_msg" ] || [ "$route_msg" = "()" ]; then
         route_ok="FAIL"
         route_msg="(yok)"
     fi
-
     local script_ok="PASS"
     local SCRIPT_PATH_EXPECTED="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
     local SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
@@ -7806,7 +6707,6 @@ run_health_check() {
         script_ok="WARN"
         script_msg="(Beklenen: ${SCRIPT_PATH_EXPECTED} | Su an: ${SCRIPT_PATH})"
     fi
-
     local ping_ok="PASS"
     local ping_msg=""
     if ping -c 1 -W 1 1.1.1.1 >/dev/null 2>&1; then
@@ -7815,7 +6715,6 @@ run_health_check() {
         ping_ok="FAIL"
         ping_msg="(ping 1.1.1.1)"
     fi
-
     local ram_ok="PASS"
     local ram_avail_kb="$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}')"
     local ram_avail_mb="$((ram_avail_kb/1024))"
@@ -7823,7 +6722,6 @@ run_health_check() {
     if [ "$ram_avail_mb" -lt 100 ]; then
         ram_ok="WARN"
     fi
-
     local load_ok="PASS"
     local load_val load_val5 load_val15
     read -r load_val load_val5 load_val15 _ < /proc/loadavg 2>/dev/null
@@ -7864,23 +6762,19 @@ run_health_check() {
         fi
     done
     [ -n "$temp_val" ] && temp_msg="$temp_val $(T _ 'Santigrat Derece' 'Degrees Celsius')"
-
     local ntp_ok="PASS"
     local ntp_msg="($(date '+%Y-%m-%d %H:%M:%S'))"
     if ! check_ntp; then
         ntp_ok="WARN"
     fi
-
     local gh_ok="PASS"
     local gh_msg="(HTTP 200)"
     if ! check_github; then
         gh_ok="WARN"
         gh_msg="(fail)"
     fi
-
     local opkg_ok="PASS"
     if ! check_opkg; then opkg_ok="WARN"; fi
-
     local disk_ok="PASS"
     local disk_pct="$(healthmon_disk_used_pct /opt)"
     local disk_free="$(df -k /opt 2>/dev/null | awk 'NR==2 {print $4}')"
@@ -7897,7 +6791,6 @@ run_health_check() {
     if [ "$disk_pct" != "<1" ] && [ -n "$disk_pct" ] && [ "$disk_pct" -gt 90 ] 2>/dev/null; then
         disk_ok="WARN"
     fi
-
     # /opt disk sagligi: read-only ve kritik I/O hatasi kontrolu
     local disk_health_ok="PASS" disk_health_msg
     disk_health_msg="$(T TXT_HEALTH_DISK_OK)"
@@ -7916,7 +6809,6 @@ run_health_check() {
             fi
         fi
     fi
-
     # RAM detay
     local ram_total_kb ram_free_kb ram_used_kb ram_buf_kb
     ram_total_kb="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
@@ -7929,7 +6821,6 @@ run_health_check() {
     local ram_used_mb2=$(( ram_used_kb / 1024 ))
     local ram_buf_mb=$(( (ram_buf_kb + ram_cached_kb) / 1024 ))
     local ram_detail_msg="${ram_used_mb2}MB / ${ram_avail_mb}MB $(T _ 'bos' 'free') / ${ram_total_mb}MB $(T _ 'toplam' 'total')"
-
     # Swap
     local swap_total_kb swap_free_kb swap_used_kb swap_msg swap_ok="PASS"
     swap_total_kb="$(grep SwapTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
@@ -7938,9 +6829,7 @@ run_health_check() {
     local swap_total_mb=$(( swap_total_kb / 1024 ))
     local swap_used_mb=$(( swap_used_kb / 1024 ))
     swap_msg="${swap_used_mb}MB / ${swap_total_mb}MB"
-
     # Disk /tmp
-
     local disk_tmp_pct disk_tmp_free disk_tmp_free_mb disk_tmp_ok="PASS"
     disk_tmp_pct="$(df -k /tmp 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
     disk_tmp_free="$(df -k /tmp 2>/dev/null | awk 'NR==2 {print $4}')"
@@ -7955,13 +6844,11 @@ run_health_check() {
         _dt_total="$(awk -v v="$_dt_total_kb" 'BEGIN{printf "%.1fMB", v/1024}')"
     fi
     local disk_tmp_msg="${_dt_used}MB / ${_dt_total} (${disk_tmp_pct:-?}%)"
-
     # LAN IP
     local lan_ip lan_ip_msg="—"
     lan_ip="$(ip -4 addr show br0 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
     [ -z "$lan_ip" ] && lan_ip="$(ip -4 addr show eth0 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
     [ -n "$lan_ip" ] && lan_ip_msg="$lan_ip"
-
     # Entware /opt
     local entware_ok="PASS" entware_msg
     if [ -f /opt/bin/opkg ] || [ -d /opt/etc ]; then
@@ -7970,7 +6857,6 @@ run_health_check() {
         entware_ok="FAIL"
         entware_msg="$(T _ 'Bulunamadi' 'Not found')"
     fi
-
     # curl
     local curl_ok="PASS" curl_msg
     if command -v curl >/dev/null 2>&1; then
@@ -7979,7 +6865,6 @@ run_health_check() {
         curl_ok="WARN"
         curl_msg="$(T _ 'Bulunamadi' 'Not found')"
     fi
-
     # lighttpd / Web Panel
     local lighttpd_ok="INFO" lighttpd_msg
     if pgrep lighttpd >/dev/null 2>&1; then
@@ -7991,7 +6876,6 @@ run_health_check() {
     else
         lighttpd_msg="$(T _ 'Kurulu degil' 'Not installed')"
     fi
-
     # HealthMon
     local hm_ok="INFO" hm_msg
     healthmon_load_config 2>/dev/null
@@ -8004,7 +6888,6 @@ run_health_check() {
     else
         hm_msg="$(T _ 'Kapali' 'Disabled')"
     fi
-
     # Telegram Bot
     local tgbot_ok="INFO" tgbot_msg
     local _tg_en
@@ -8018,10 +6901,8 @@ run_health_check() {
     else
         tgbot_msg="$(T _ 'Kapali / Yapilandirilmamis' 'Disabled / Not configured')"
     fi
-
     local zap_ok="PASS"
     if ! is_zapret_running; then zap_ok="FAIL"; fi
-
     # ----------------------------
     # SECTION: Network & DNS
     # ----------------------------
@@ -8029,13 +6910,11 @@ run_health_check() {
     printf " %-35s : %s\n" "$(T TXT_HEALTH_DNS_MODE)" "$dns_mode" >> "$HC_NET"
     printf " %-35s : %s\n" "$(T TXT_HEALTH_DNS_SEC)" "$dns_sec" >> "$HC_NET"
     printf " %-35s : %s\n" "$(T TXT_HEALTH_DNS_PROVIDERS)" "$dns_providers" >> "$HC_NET"
-
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_LOCAL)" "" "$dns_local_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_PUBLIC)" "" "$dns_8888_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_MATCH)" " $dns_cons_msg" "$dns_cons_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_ROUTE)" " $route_msg" "$route_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_LAN_IP)" " $lan_ip_msg" "INFO"
-
     # ----------------------------
     # SECTION: System
     # ----------------------------
@@ -8051,7 +6930,6 @@ run_health_check() {
     add_line "$HC_SYS" "$(T TXT_HEALTH_DISK_HEALTH)" " $disk_health_msg" "$disk_health_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_DISK_TMP)" " $disk_tmp_msg" "$disk_tmp_ok"
     add_line "$HC_SYS" "$(T TXT_HEALTH_TIME)" " $ntp_msg" "$ntp_ok"
-
     # ----------------------------
     # SECTION: Services
     # ----------------------------
@@ -8063,7 +6941,6 @@ run_health_check() {
     add_line "$HC_SVC" "$(T TXT_HEALTH_GITHUB)" " $gh_msg" "$gh_ok"
     add_line "$HC_SVC" "$(T TXT_HEALTH_OPKG)" "" "$opkg_ok"
     add_line "$HC_SVC" "$(T TXT_HEALTH_ZAPRET)" "" "$zap_ok"
-
     # KeenDNS durumu (ndns varsa goster, yoksa INFO)
     local kdns_raw kdns_name kdns_domain kdns_access kdns_can_direct
     kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
@@ -8098,14 +6975,12 @@ run_health_check() {
             add_line "$HC_SVC" "KeenDNS" " (${kdns_fqdn} - ${CLR_YELLOW}$(T TXT_KEENDNS_CLOUD)${CLR_RESET})" "INFO"
         fi
     fi
-
     # ----------------------------
     # SHA256 DOSYA BUTUNLUGU (state dosyasindan, hizli)
     # ----------------------------
     local _sha_kzm _sha_zap _sha_kzm_status _sha_zap_status
     _sha_kzm="$(cat /opt/etc/zkm_sha256_kzm.state 2>/dev/null)"
     _sha_zap="$(cat /opt/etc/zkm_sha256_zapret.state 2>/dev/null)"
-
     case "$_sha_kzm" in
         ok)   _sha_kzm_status="PASS"; _sha_kzm_msg=" $(T TXT_HEALTH_SHA256_OK)" ;;
         fail) _sha_kzm_status="WARN"; _sha_kzm_msg=" $(T TXT_HEALTH_SHA256_FAIL)" ;;
@@ -8116,17 +6991,14 @@ run_health_check() {
         fail) _sha_zap_status="WARN"; _sha_zap_msg=" $(T TXT_HEALTH_SHA256_FAIL)" ;;
         *)    _sha_zap_status="INFO"; _sha_zap_msg=" $(T TXT_HEALTH_SHA256_ZAP_UNKNOWN)" ;;
     esac
-
     add_line "$HC_SVC" "$(T TXT_HEALTH_SHA256_KZM)" "$_sha_kzm_msg" "$_sha_kzm_status"
     add_line "$HC_SVC" "$(T TXT_HEALTH_SHA256_ZAP)" "$_sha_zap_msg" "$_sha_zap_status"
-
     # ----------------------------
     # SCORE + SUMMARY
     # ----------------------------
     local ok_n=$((pass_n+info_n))
     local score rating_key rating_txt
     score="$(awk -v ok="$ok_n" -v total="$total_n" 'BEGIN{ if(total<=0){printf "0.0"} else {printf "%.1f", (ok/total)*10} }')"
-
     rating_key="TXT_HEALTH_RATING_OK"
     if awk -v s="$score" 'BEGIN{exit (s>=9.5)?0:1}'; then
         rating_key="TXT_HEALTH_RATING_EXCELLENT"
@@ -8140,7 +7012,6 @@ run_health_check() {
         rating_key="TXT_HEALTH_RATING_BAD"
     fi
     rating_txt="$(T "$rating_key")"
-
     # Skora gore renk ve etiket sec
     local score_clr score_emoji
     if awk -v s="$score" 'BEGIN{exit (s>=9.5)?0:1}'; then
@@ -8154,7 +7025,6 @@ run_health_check() {
     else
         score_clr="${CLR_RED}"; score_emoji="KOTU"
     fi
-
     printf "\n %-35s : %b%b%s / 10%b  [%b%s%b]   %b(%d/%d OK)%b\n" \
         "$(T TXT_HEALTH_SCORE)" \
         "${CLR_BOLD}" "$score_clr" "$score" "${CLR_RESET}" \
@@ -8164,25 +7034,19 @@ run_health_check() {
     printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_NETDNS)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_NET"
-
     print_line "-"
     printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_SYSTEM)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_SYS"
-
     print_line "-"
     printf " %b%s%b\n" "${CLR_CYAN}" "$(T TXT_HEALTH_SECTION_SERVICES)" "${CLR_RESET}"
     print_line "-"
     cat "$HC_SVC"
-
     print_line "-"
     press_enter_to_continue
-
     rm -f "$HC_NET" "$HC_SYS" "$HC_SVC" 2>/dev/null
     clear
 }
-
-
 # --- BLOCKCHECK (DPI TEST) ---
 run_blockcheck() {
     # $1 - scan level: 1=quick, 2=standard (default), 3=force
@@ -8193,18 +7057,15 @@ run_blockcheck() {
     local _scan_level="${1:-2}"
     hm_was_autorestart=0
     hm_pause_done=0
-
     print_line "-"
     echo "$(T blk_title 'Blockcheck (DPI Test Raporu)' 'Blockcheck (DPI Test Report)')"
     print_line "-"
-
     if [ ! -x "$BLOCKCHECK" ]; then
         echo "$(T blk_missing 'HATA: /opt/zapret/blockcheck.sh bulunamadi veya calistirilabilir degil.' 'ERROR: /opt/zapret/blockcheck.sh not found or not executable.')"
         press_enter_to_continue
         clear
         return 1
     fi
-
     # Domain(ler)
     printf '%s' "$(T blk_domain 'Test edilecek domain(ler) (Enter=pastebin.com, 0=Iptal): ' 'Domain(s) to test (Enter=pastebin.com, 0=Cancel): ')"; read -r domains
     if [ "$domains" = "0" ]; then
@@ -8212,12 +7073,9 @@ run_blockcheck() {
         return 0
     fi
     [ -z "$domains" ] && domains="$DEF_DOMAIN"
-
 	now="$(date +%Y%m%d%H%M 2>/dev/null)"
 	[ -z "$now" ] && now="000000000000"
 	report="/opt/zapret/blockcheck_${now}.txt"
-
-
 	LAST_BLOCKCHECK_REPORT="$report"
     # Zapret calisiyorsa blockcheck genelde "bypass kapali olmali" diye uyarir.
     was_running=0
@@ -8236,7 +7094,6 @@ run_blockcheck() {
             stopped_by_us=1
         fi
     fi
-
     # HealthMon autorestart kontrolu
     healthmon_load_config 2>/dev/null
     if [ "${HM_ZAPRET_AUTORESTART:-0}" = "1" ]; then
@@ -8252,11 +7109,9 @@ run_blockcheck() {
                 ;;
         esac
     fi
-
     echo
     echo "$(T blk_running2 "Calistiriliyor... (Rapor: ${report})" "Running... (Report: ${report})")"
     print_line "-"
-
     # blockcheck kendi icinde domain prompt'u aciyor; stdin'e domainleri basarak takilmasini engelliyoruz.
     # stdout+stderr rapora yazilsin diye tee kullan.
     # (tee yoksa sadece > ile yazar)
@@ -8287,17 +7142,14 @@ run_blockcheck() {
     unset SECURE_DNS
     export PATH="$(printf '%s' "$PATH" | sed "s|$_kzm_path_dir:||")"
     rm -rf "$_kzm_path_dir"
-
     print_line "-"
     echo "$(T blk_done "Bitti. Rapor dosyasi: ${report}" "Done. Report file: ${report}")"
-
     # HealthMon autorestart eski haline getir
     if [ "$hm_pause_done" -eq 1 ]; then
         HM_ZAPRET_AUTORESTART="$hm_was_autorestart"
         healthmon_write_config 2>/dev/null
         echo "$(T TXT_BLK_HM_AUTORESTART_RESTORED)"
     fi
-
     # Daha once calisiyorduysa ve biz durdurduysak geri ac
     if [ "$was_running" -eq 1 ] && [ "$stopped_by_us" -eq 1 ]; then
         echo "$(T blk_restarting 'Zapret tekrar baslatiliyor...' 'Starting Zapret again...')"
@@ -8308,45 +7160,36 @@ run_blockcheck() {
             echo "$(T blk_startfail 'UYARI: Zapret tekrar baslatilamadi. Elle baslatmaniz gerekebilir.' 'WARNING: Could not restart Zapret. You may need to start it manually.')"
         fi
     fi
-
     press_enter_to_continue
     clear
     return 0
 }
-
-
 run_blockcheck_save_summary() {
     # Run the full interactive test exactly like "Tam Test", then save only * SUMMARY * to a separate file.
     run_blockcheck 1
-
     local src_report ts summary_file
     src_report="${LAST_BLOCKCHECK_REPORT}"
     if [ -z "$src_report" ] || [ ! -f "$src_report" ]; then
         src_report="$(ls -1t /opt/zapret/blockcheck_[0-9]*.txt 2>/dev/null | head -n 1)"
-
     # Guard: avoid using an already-summarized file as the source report
     case "$src_report" in
         */blockcheck_summary_*.txt)
             src_report="$(ls -1t /opt/zapret/blockcheck_[0-9]*.txt 2>/dev/null | head -n 1)"
         ;;
     esac
-
     fi
     if [ -z "$src_report" ] || [ ! -f "$src_report" ]; then
         echo "$(T TXT_BLOCKCHECK_SUMMARY_NOT_FOUND)"
         press_enter_to_continue
         return 1
     fi
-
     ts="$(date +%Y%m%d%H%M%S 2>/dev/null)"
     [ -z "$ts" ] && ts="$(date +%Y%m%d%H%M%S)"
     summary_file="/opt/zapret/blockcheck_summary_${ts}.txt"
-
 # Build a compact summary file:
 # 1) Keep the last "working strategy found ..." line (if any)
 # 2) Append the * SUMMARY section (if present)
 : > "$summary_file" 2>/dev/null || true
-
 # Find the LAST "working strategy found" line (prefer the one before "clearing nfqws redirection" when possible)
 clear_ln="$(grep -ni 'clearing nfqws redirection' "$src_report" 2>/dev/null | tail -n 1 | cut -d: -f1)"
 ws_ln="0"
@@ -8355,41 +7198,34 @@ if [ -n "$clear_ln" ] && [ "$clear_ln" -gt 1 ] 2>/dev/null; then
 else
     ws_ln="$(grep -ni 'working strategy found' "$src_report" 2>/dev/null | tail -n 1 | cut -d: -f1)"
 fi
-
 if [ -n "$ws_ln" ] && [ "$ws_ln" -gt 0 ] 2>/dev/null; then
     ws_line="$(sed -n "${ws_ln}p" "$src_report" 2>/dev/null)"
     [ -n "$ws_line" ] && printf "%s
 " "$ws_line" >> "$summary_file"
 fi
-
 sum_ln="$(grep -ni '^\* SUMMARY' "$src_report" 2>/dev/null | tail -n 1 | cut -d: -f1)"
 if [ -n "$sum_ln" ] && [ "$sum_ln" -gt 0 ] 2>/dev/null; then
     sed -n "${sum_ln},\$p" "$src_report" 2>/dev/null >> "$summary_file"
 fi
-
 if [ ! -s "$summary_file" ]; then
     echo "$(T TXT_BLOCKCHECK_SUMMARY_NOT_FOUND)" > "$summary_file"
 fi
     # Optional: extract nfqws parameters from the summary and apply as special DPI profile "blockcheck_auto"
     local chosen_line raw_params params_filtered ans
-
     chosen_line=""
     # Prefer the "working strategy found ..." line if it contains nfqws/tpws
     chosen_line="$(grep -i 'working strategy found' "$summary_file" 2>/dev/null | tail -n 1)"
-
     if [ -z "$chosen_line" ]; then
         # Fall back to * SUMMARY block candidates (prefer https_tls12, then tls13, then http)
         chosen_line="$(grep -i 'curl_test_https_tls12' "$summary_file" 2>/dev/null | grep -i ' nfqws ' | grep -i -- '--dpi-desync=' | tail -n 1)"
         [ -z "$chosen_line" ] && chosen_line="$(grep -i 'curl_test_https_tls13' "$summary_file" 2>/dev/null | grep -i ' nfqws ' | grep -i -- '--dpi-desync=' | tail -n 1)"
         [ -z "$chosen_line" ] && chosen_line="$(grep -i 'curl_test_http' "$summary_file" 2>/dev/null | grep -i ' nfqws ' | grep -i -- '--dpi-desync=' | tail -n 1)"
     fi
-
     if echo "$chosen_line" | grep -qi ': *tpws '; then
         # For safety, we do not auto-apply tpws yet.
         echo "$(T blockcheck_tpws_warn "$TXT_BLOCKCHECK_TPWS_WARN_TR" "$TXT_BLOCKCHECK_TPWS_WARN_EN")"
     elif echo "$chosen_line" | grep -qi ': *nfqws '; then
         raw_params="$(echo "$chosen_line" | sed -n 's/^.*:[[:space:]]*nfqws[[:space:]]*//p' | sed 's/!//g; s/[[:space:]]\+$//')"
-
         # Keep only safe nfqws flags we support writing (avoid accidental config corruption)
         params_filtered=""
         for tok in $raw_params; do
@@ -8400,7 +7236,6 @@ fi
             esac
         done
         params_filtered="$(echo "$params_filtered" | sed 's/^ *//; s/ *$//')"
-
         
 if [ -z "$params_filtered" ]; then
     echo "$(T TXT_BLOCKCHECK_NO_STRAT)"
@@ -8421,24 +7256,20 @@ else
     [ -n "$total_tests" ] || total_tests=0
     [ -n "$success_tests" ] || success_tests=0
     [ "$total_tests" -gt 0 ] || total_tests=1
-
     dns_ok=1
     grep -qi "POSSIBLE DNS HIJACK" "$REPORT" 2>/dev/null && dns_ok=0
-
     # Simple score (0-10) - informative only
     score=10
     [ "$dns_ok" = "0" ] && score=$((score-2))
     [ "${tls12_ok:-0}" = "0" ] && score=$((score-1))
     [ "$score" -lt 0 ] && score=0
     [ "$score" -gt 10 ] && score=10
-
     # GUI icin blockcheck sonucunu JSON olarak kaydet
     local _bcts
     _bcts="$(date +%s 2>/dev/null)"
     printf '{\n  "score": %s,\n  "dns_ok": %s,\n  "tls12_ok": %s,\n  "udp_weak": %s,\n  "ts": %s\n}\n' \
         "$score" "$dns_ok" "${tls12_ok:-0}" "${udp_weak:-1}" "$_bcts" \
         > /opt/zapret/blockcheck_result.json 2>/dev/null
-
     echo
     echo "$(T TXT_BLOCKCHECK_FOUND)"
     echo " $params_filtered"
@@ -8457,7 +7288,6 @@ else
     [ "${tls12_ok:-0}" = "1" ] && printf "  %s %s\n" "$_sym_ok" "$(T TXT_BLOCKCHECK_SCORE_TLS12_OK)" || printf "  %s TLS12\n" "$_sym_warn"
     [ "${udp_weak:-1}" = "1" ] && printf "  %s %s\n" "$_sym_warn" "$(T TXT_BLOCKCHECK_SCORE_UDP_WEAK)"
     echo
-
     while :; do
         echo "$(T TXT_BLOCKCHECK_ACTION_MENU)"
         printf '%s' "$(T TXT_BLOCKCHECK_ACTION_PROMPT) "; read -r ans
@@ -8495,18 +7325,14 @@ else
         esac
     done
 fi
-
     fi
-
     # Summary mode: keep only the summary file (avoid creating an extra large report file) (avoid creating an extra large report file)
     if [ -n "$src_report" ] && [ -f "$src_report" ]; then
         rm -f "$src_report" >/dev/null 2>&1
     fi
-
     echo "$(T TXT_BLOCKCHECK_SUMMARY_SAVED) $summary_file"
     press_enter_to_continue
 }
-
 blockcheck_test_menu() {
     while true; do
         clear
@@ -8528,9 +7354,6 @@ blockcheck_test_menu() {
         esac
     done
 }
-
-
-
 # --------------------------------------------------
 # Zapret backup/restore (.txt) - /opt/zapret/ipset -> /opt/zapret_backups
 # --------------------------------------------------
@@ -8540,9 +7363,7 @@ backup_restore_menu() {
     SRC_DIR="/opt/zapret/ipset"
     CUR_DIR="${BACKUP_BASE}/current"
     HIST_DIR="${BACKUP_BASE}/history"
-
     mkdir -p "$CUR_DIR" "$HIST_DIR" 2>/dev/null
-
     while true; do
         clear
 print_line "="
@@ -8564,7 +7385,6 @@ print_line "="
         print_line "-"
         printf "%s: " "$(T TXT_SELECT_ACTION)"
         read -r CH || return 0
-
         case "$CH" in
             1)
                 # Backup: copy all existing .txt files to current + history timestamp
@@ -8677,14 +7497,12 @@ print_line "="
         esac
     done
 }
-
 restore_single_from_current() {
     # $1: current backup dir, $2: src dir
     local CUR_DIR SRC_DIR i f files sel
     CUR_DIR="$1"
     SRC_DIR="$2"
     mkdir -p "$SRC_DIR" 2>/dev/null
-
     # build file list
     files=""
     for f in "$CUR_DIR"/*.txt; do
@@ -8692,13 +7510,11 @@ restore_single_from_current() {
         files="${files}${f}
 "
     done
-
     if [ -z "$files" ]; then
         echo "$(T TXT_BACKUP_NO_BACKUP)"
         press_enter_to_continue
         return 0
     fi
-
     while true; do
         clear
 print_line "="
@@ -8717,7 +7533,6 @@ print_line "="
         printf "%s: " "$(T TXT_SELECT_ACTION)"
         read -r sel || return 0
         [ "$sel" = "0" ] && return 0
-
         i=1
         for f in $files; do
             [ -f "$f" ] || continue
@@ -8746,10 +7561,8 @@ backup_zapret_settings() {
     BACKUP_BASE="${1:-/opt/zapret_backups}"
     DEST_DIR="$BACKUP_BASE/zapret_settings"
     mkdir -p "$DEST_DIR" 2>/dev/null
-
     TS="$(date +%Y%m%d_%H%M%S)"
     ARCHIVE="$DEST_DIR/zapret_settings_${TS}.tar.gz"
-
     # Build relative path list safely (only include existing files/dirs)
     RELS=""
     add_rel() {
@@ -8758,7 +7571,6 @@ backup_zapret_settings() {
         RELS="$RELS ${_p#/}"
         return 0
     }
-
     add_rel "/opt/zapret/config"
     add_rel "/opt/zapret/wan_if"
     add_rel "/opt/zapret/lang"
@@ -8777,20 +7589,17 @@ backup_zapret_settings() {
     add_rel "/opt/zapret/init.d/sysv/zapret.real"
     add_rel "/opt/zapret/init.d/sysv/custom.d/90-keenetic-client-ipset"
     add_rel "/opt/etc/init.d/S99zkm_healthmon"
-
     # include all .txt files from ipset dir (nozapret, zapret-hosts-*, future files)
     for f in /opt/zapret/ipset/*.txt; do
         [ -e "$f" ] || break
         add_rel "$f"
     done
-
     # nothing to back up?
     if [ -z "$(echo "$RELS" | tr -d ' ')" ]; then
         print_status WARN "$(T TXT_BACKUP_CFG_NO_FILES)"
         press_enter_to_continue
         return 0
     fi
-
     # create archive (busybox tar is usually available)
     tar -C / -czf "$ARCHIVE" $RELS 2>/dev/null
     if [ $? -ne 0 ] || [ ! -s "$ARCHIVE" ]; then
@@ -8799,22 +7608,17 @@ backup_zapret_settings() {
         press_enter_to_continue
         return 1
     fi
-
     print_status PASS "$(printf "$(T TXT_BACKUP_CFG_BACKED_UP)" "$ARCHIVE")"
     press_enter_to_continue
     return 0
 }
-
-
 clean_zapret_settings_backups() {
     BACKUP_BASE="${1:-$BACKUP_BASE}"
-
     # Backward compatible:
     # - Newer builds:   $BACKUP_BASE/zapret_settings/zapret_settings_*.tar.gz
     # - Older builds:   $BACKUP_BASE/zapret_settings_*.tar.gz
     local DIR_NEW="$BACKUP_BASE/zapret_settings"
     local DIR_OLD="$BACKUP_BASE"
-
     # Screen
     command -v clear >/dev/null 2>&1 && clear || true
     echo "==========================================================="
@@ -8824,19 +7628,15 @@ clean_zapret_settings_backups() {
     echo "==========================================================="
     echo "$(T TXT_ZAPRET_SETTINGS_CLEAN_CONFIRM)"
     print_line
-
     echo " 1) $(T TXT_YES)"
     echo " 0) $(T TXT_NO)"
     print_line
     printf "%s " "$(T TXT_CHOICE)"
-
     local ans
     read -r ans
-
     case "$ans" in
         1|y|Y|e|E)
             local removed=0
-
             # Delete in both possible locations.
             # shellcheck disable=SC2039
             if [ -d "$DIR_NEW" ]; then
@@ -8845,11 +7645,9 @@ clean_zapret_settings_backups() {
                     rm -f "$DIR_NEW"/zapret_settings_*.tar.gz 2>/dev/null && removed=1
                 fi
             fi
-
             if ls "$DIR_OLD"/zapret_settings_*.tar.gz >/dev/null 2>&1; then
                 rm -f "$DIR_OLD"/zapret_settings_*.tar.gz 2>/dev/null && removed=1
             fi
-
             if [ "$removed" -eq 1 ]; then
                 print_status PASS "$(T TXT_ZAPRET_SETTINGS_CLEAN_DONE)"
             else
@@ -8860,20 +7658,14 @@ clean_zapret_settings_backups() {
             print_status INFO "$(T TXT_CANCELLED)"
             ;;
     esac
-
     press_enter_to_continue
 }
-
-
-
-
 list_zapret_settings_backups() {
     BACKUP_BASE="${1:-/opt/zapret_backups}"
     DIR="$BACKUP_BASE/zapret_settings"
     [ -d "$DIR" ] || return 1
     ls -1 "$DIR"/zapret_settings_*.tar.gz 2>/dev/null | sort -r
 }
-
 show_zapret_settings_backups() {
     BACKUP_BASE="${1:-/opt/zapret_backups}"
     DIR="$BACKUP_BASE/zapret_settings"
@@ -8917,12 +7709,10 @@ print_line "="
     esac
     return 0
 }
-
 restore_zapret_settings() {
     # $1 = BACKUP_BASE (root folder that contains zapret_settings/)
     local BACKUP_BASE="${1:-/opt/zapret_backups}"
     local SETTINGS_DIR="${BACKUP_BASE%/}/zapret_settings"
-
     clear_screen
     print_line "="
     printf "%s\n" "$(T TXT_ZAPRET_SETTINGS_RESTORE_TITLE)"
@@ -8930,13 +7720,11 @@ restore_zapret_settings() {
     printf "%s\n" "$(T TXT_BACKUP_BASE_PATH) ${BACKUP_BASE}"
     print_line "-"
     printf "\n"
-
     if [ ! -d "$SETTINGS_DIR" ]; then
         print_status WARN "$(T TXT_BACKUP_NO_BACKUPS_FOUND)"
         press_enter_to_continue
         return 1
     fi
-
     # List backups (newest first). Expected: zapret_settings_YYYYmmdd_HHMMSS.tar.gz
     local backups
     backups="$(ls -1t "$SETTINGS_DIR"/zapret_settings_*.tar.gz 2>/dev/null)"
@@ -8945,10 +7733,8 @@ restore_zapret_settings() {
         press_enter_to_continue
         return 1
     fi
-
     printf "%s\n" "$(T TXT_SELECT_BACKUP_TO_RESTORE)"
     print_line "-"
-
     local i=0 b
     for b in $backups; do
         i=$((i+1))
@@ -8970,7 +7756,6 @@ restore_zapret_settings() {
         press_enter_to_continue
         return 1
     fi
-
     local chosen=""
     i=0
     for b in $backups; do
@@ -8986,7 +7771,6 @@ restore_zapret_settings() {
         press_enter_to_continue
         return 1
     fi
-
     clear_screen
     printf "%s\n" "$(T TXT_ZAPRET_RESTORE_SUBMENU_TITLE)"
     print_line "-"
@@ -9005,11 +7789,9 @@ restore_zapret_settings() {
     if [ "$scope" = "0" ]; then
         return 0
     fi
-
     local tmp="/tmp/zapret_settings_restore.$$"
     rm -rf "$tmp" 2>/dev/null
     mkdir -p "$tmp" || { print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"; press_enter_to_continue; return 1; }
-
     # Extract to temp first (safer), then copy selected paths
     if ! tar -xzf "$chosen" -C "$tmp" >/dev/null 2>&1; then
         rm -rf "$tmp" 2>/dev/null
@@ -9017,7 +7799,6 @@ restore_zapret_settings() {
         press_enter_to_continue
         return 1
     fi
-
     local src="$tmp"
     # Some archives may include leading ./ or an extra top folder. Normalize:
     if [ -d "$tmp/opt" ]; then
@@ -9029,29 +7810,24 @@ restore_zapret_settings() {
             if [ -d "$d/opt" ]; then src="$d"; break; fi
         done
     fi
-
     # Helper: copy a path if present (dir -> merge contents; file -> overwrite)
     _copy_if_exists() {
         local p="$1"
         local src_path="$src/$p"
         local dst_path="/$p"
-
         if [ -d "$src_path" ]; then
             mkdir -p "$dst_path" 2>/dev/null
             # Copy directory contents to avoid nested dir like /opt/zapret/ipset/ipset
             cp -a "$src_path/." "$dst_path/" 2>/dev/null || return 1
             return 0
         fi
-
         if [ -e "$src_path" ]; then
             mkdir -p "/$(dirname "$p")" 2>/dev/null
             cp -a "$src_path" "$dst_path" 2>/dev/null || return 1
             return 0
         fi
-
         return 1
     }
-
     # Varsayilan: islem basarili kabul edilir. Zorunlu parcalar yoksa/basarisizsa ok=1 yapilir.
     local ok=0
     case "$scope" in
@@ -9095,9 +7871,7 @@ restore_zapret_settings() {
             return 1
             ;;
     esac
-
     rm -rf "$tmp" 2>/dev/null
-
     if [ "$ok" -eq 0 ]; then
         print_status PASS "$(T TXT_BACKUP_RESTORE_DONE)"
 		# Restore sonrasi zapret'i yeniden baslat (kurallar tekrar uygulansin)
@@ -9114,20 +7888,14 @@ restore_zapret_settings() {
     fi
     press_enter_to_continue
 }
-
 zapret_restore_menu() {
     local BACKUP_BASE="$1"
     restore_zapret_settings "$BACKUP_BASE"
 }
-
-
-
-
 # -------------------------------------------------------------------
 # TELEGRAM NOTIFICATIONS (CONFIG + TEST)
 # -------------------------------------------------------------------
 TG_CONF_FILE="/opt/etc/telegram.conf"
-
 telegram_load_config() {
     TG_BOT_TOKEN=""
     TG_CHAT_ID=""
@@ -9145,7 +7913,6 @@ telegram_load_config() {
     [ -n "$TG_BOT_TOKEN" ] && [ -n "$TG_CHAT_ID" ] || return 1
     return 0
 }
-
 telegram_mask_token() {
     # prints masked token (first 6 ... last 4)
     local t="$1"
@@ -9157,7 +7924,6 @@ telegram_mask_token() {
         echo "$(echo "$t" | cut -c1-6)....$(echo "$t" | rev | cut -c1-4 | rev)"
     fi
 }
-
 # -------------------------------------------------------------------
 # Telegram: Device identity header (hostname / IP / model)
 # Purpose: When multiple routers use the same bot, make it obvious which
@@ -9168,7 +7934,6 @@ TG_DEVICE_NAME=""
 TG_DEVICE_LAN_IP=""
 TG_DEVICE_WAN_IP=""
 TG_DEVICE_MODEL=""
-
 telegram_device_info_init() {
     # Cache device identity once per run
     [ -n "$TG_DEVICE_NAME" ] && [ -n "$TG_DEVICE_LAN_IP" ] && [ -n "$TG_DEVICE_MODEL" ] && {
@@ -9181,12 +7946,10 @@ telegram_device_info_init() {
         [ -z "$TG_DEVICE_WAN_IP" ] && TG_DEVICE_WAN_IP="unknown"
         return 0
     }
-
     # Hostname (Keenetic "System Name")
     TG_DEVICE_NAME="$(hostname 2>/dev/null)"
     [ -z "$TG_DEVICE_NAME" ] && TG_DEVICE_NAME="$(cat /proc/sys/kernel/hostname 2>/dev/null)"
     [ -z "$TG_DEVICE_NAME" ] && TG_DEVICE_NAME="keenetic"
-
     # -------------------------
     # LAN IP (prefer bridge/br0)
     # -------------------------
@@ -9201,7 +7964,6 @@ telegram_device_info_init() {
             awk '/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/ {print; exit}')"
     fi
     [ -z "$TG_DEVICE_LAN_IP" ] && TG_DEVICE_LAN_IP="unknown"
-
     # -------------------------
     # WAN IP (best-effort)
     # - PPPoE users: ppp0 is the most reliable
@@ -9223,13 +7985,11 @@ telegram_device_info_init() {
         TG_DEVICE_WAN_IP="$(ip -4 addr show "$_wan_if" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
     fi
     [ -z "$TG_DEVICE_WAN_IP" ] && TG_DEVICE_WAN_IP="unknown"
-
     # -------------------------
     # Model (Keenetic / ndmc varies by firmware)
     # Try several sources in order.
     # -------------------------
     TG_DEVICE_MODEL=""
-
     _ver="$(LD_LIBRARY_PATH= ndmc -c show version 2>/dev/null)"
     if [ -n "$_ver" ]; then
         # 1) Once description: ara — tam isim burada
@@ -9262,7 +8022,6 @@ telegram_device_info_init() {
             ' | sed 's/^[ \t]*//;s/[ \t]*$//')"
         fi
     fi
-
     # 4) ndmc show system (some firmwares keep product name there)
     if [ -z "$TG_DEVICE_MODEL" ]; then
         _sys="$(LD_LIBRARY_PATH= ndmc -c show system 2>/dev/null)"
@@ -9286,7 +8045,6 @@ telegram_device_info_init() {
         esac
         [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="$(printf '%s\n' "$_sys" | grep -Eo 'KN-[0-9]{3,5}' | head -n 1)"
     fi
-
     # 5) Device-tree model (varies by platform)
     if [ -z "$TG_DEVICE_MODEL" ]; then
         for _f in /proc/device-tree/model /sys/firmware/devicetree/base/model; do
@@ -9296,9 +8054,7 @@ telegram_device_info_init() {
             fi
         done
     fi
-
     [ -z "$TG_DEVICE_MODEL" ] && TG_DEVICE_MODEL="Keenetic"
-
     # KN-xxxx kodunu tam ada cevir - sadece tam "KN-xxxx" veya "Keenetic KN-xxxx" formatindaysa
     # Keenetic ile baslamiyorsa ekle
     case "$TG_DEVICE_MODEL" in
@@ -9316,46 +8072,36 @@ telegram_device_info_init() {
     esac
     return 0
 }
-
-
 telegram_build_msg() {
     # Wrap plain messages into a consistent, multi-router friendly format.
     # $1: event text (may contain newlines)
     local event="$1"
     telegram_device_info_init
-
     # If it's a single line, prefix with a neutral label for backward compat.
     if [ "$(printf '%s' "$event" | wc -l 2>/dev/null)" -le 1 ]; then
         event="📣 $(T TXT_TG_EVENT_LABEL) :
 $event"
     fi
-
     cat <<EOF
 📡 $(T TXT_TG_DEVICE_LABEL) : $TG_DEVICE_NAME
 🏠 $(T TXT_TG_LAN_LABEL) : $TG_DEVICE_LAN_IP
 🌍 $(T TXT_TG_WAN_LABEL) : $TG_DEVICE_WAN_IP
 🔧 $(T TXT_TG_MODEL_LABEL) : $TG_DEVICE_MODEL
-
 $event
 🕒 $(T TXT_TG_TIME_LABEL) : $(date '+%Y-%m-%d %H:%M:%S')
 EOF
 }
-
 telegram_ready() {
     # Ensure Telegram is configured (token + chat id). Best-effort device header init.
     telegram_load_config || return 1
     telegram_device_info_init >/dev/null 2>&1
     return 0
 }
-
-
 telegram_send() {
     # $1 message (UTF-8)
     [ -n "$1" ] || return 1
-
     # Telegram basic pre-req
     telegram_ready || return 1
-
     # Optional: include device header + timestamp (same format as other TG alerts)
     local _tg_msg="$1"
     if [ "${TG_INCLUDE_DEVICE_HEADER:-1}" = "1" ]; then
@@ -9363,7 +8109,6 @@ telegram_send() {
         _tg_msg="$(telegram_build_msg "$_tg_msg" 2>/dev/null)"
         [ -n "$_tg_msg" ] || _tg_msg="$1"
     fi
-
     # Find curl in daemon PATH too
     local CURL_BIN=""
     CURL_BIN="$(command -v curl 2>/dev/null)"
@@ -9374,7 +8119,6 @@ telegram_send() {
         healthmon_log "$(healthmon_now) | telegram | curl not found"
         return 127
     fi
-
     # After WAN flaps, DNS may not be ready immediately (curl rc=6).
     # We wait a bit and retry with exponential backoff.
     local try=1 max_try=6 rc=0
@@ -9390,7 +8134,6 @@ telegram_send() {
         else
             host_ok=1  # no resolver tool; skip precheck
         fi
-
         if [ "$host_ok" -ne 1 ]; then
             healthmon_log "$(healthmon_now) | telegram | dns not ready try=$try"
             sleep "$backoff" 2>/dev/null
@@ -9398,7 +8141,6 @@ telegram_send() {
             try=$((try+1))
             continue
         fi
-
         "$CURL_BIN" -sS \
             --connect-timeout 5 --max-time 15 \
             --retry 3 --retry-delay 1 --retry-all-errors \
@@ -9408,19 +8150,14 @@ telegram_send() {
             -d "disable_web_page_preview=true" \
             >/dev/null 2>&1
         rc=$?
-
         [ "$rc" -eq 0 ] && return 0
-
         healthmon_log "$(healthmon_now) | telegram | send failed rc=$rc try=$try"
         sleep "$backoff" 2>/dev/null
         backoff=$((backoff*2)); [ "$backoff" -gt 8 ] && backoff=8
         try=$((try+1))
     done
-
     return "$rc"
 }
-
-
 # Compatibility: old code may call tg_send
 tg_send() { telegram_send "$@"; }
 tpl_render() {
@@ -9439,7 +8176,6 @@ tpl_render() {
     done
     printf "%b" "$tpl"
 }
-
 telegram_write_config() {
     # $1 token, $2 chatid, $3 bot_enable (opt), $4 poll_sec (opt)
     local token="$1"
@@ -9457,7 +8193,6 @@ TG_BOT_POLL_SEC="$poll_sec"
 EOF
     chmod 600 "$TG_CONF_FILE" 2>/dev/null
 }
-
 telegram_notifications_menu() {
     while true; do
         clear
@@ -9494,7 +8229,6 @@ telegram_notifications_menu() {
                 read -r token
                 echo "$(T TXT_TG_ENTER_CHATID)"
                 read -r chatid
-
                 # simple validation
                 case "$token" in
                     *:*) : ;;
@@ -9504,7 +8238,6 @@ telegram_notifications_menu() {
                     -[0-9]*|[0-9]*) : ;;
                     *) print_status FAIL "$(T TXT_TG_ERR_CHATID_NUM)" ; press_enter_to_continue ; continue ;;
                 esac
-
                 telegram_write_config "$token" "$chatid"
                 if telegram_send "$(T TXT_TG_TEST_SAVED_MSG)"; then
                     print_status PASS "$(T TXT_TG_SAVED_AND_TEST_OK)"
@@ -9532,7 +8265,6 @@ telegram_notifications_menu() {
         esac
     done
 }
-
 # -------------------------------------------------------------------
 # TELEGRAM BOT (INTERACTIVE)
 # -------------------------------------------------------------------
@@ -9540,7 +8272,6 @@ TG_BOT_PID_FILE="/tmp/zkm_telegram_bot.pid"
 TG_BOT_LOG_FILE="/tmp/zkm_telegram_bot.log"
 TG_BOT_AUTOSTART="/opt/etc/init.d/S98zkm_telegram"
 _TGBOT_TMP="/tmp/zkm_tgbot_resp.json"
-
 # Low-level: call Telegram Bot API, save response to tmp file
 # $1=method, $2=JSON body
 # returns 0 on success, response in $_TGBOT_TMP
@@ -9556,13 +8287,10 @@ _tgbot_api() {
         -H "Content-Type: application/json" \
         -d "$body" > "$_TGBOT_TMP" 2>/dev/null
 }
-
 # Safe text: escape backslash and double-quote for JSON string
 _tgbot_escape() {
     printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/ /g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//'
 }
-
-
 # Send file as document
 # $1=chat_id, $2=filepath, $3=caption (optional)
 tgbot_send_document() {
@@ -9587,7 +8315,6 @@ tgbot_send_document() {
             "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" >/dev/null 2>&1
     fi
 }
-
 # Send new message with optional inline keyboard
 # $1=chat_id, $2=text, $3=keyboard_json (optional, empty string = no keyboard)
 tgbot_send() {
@@ -9607,7 +8334,6 @@ tgbot_send() {
             printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | send failed: $(head -c 120 "$_TGBOT_TMP" 2>/dev/null)" >> "$TG_BOT_LOG_FILE"
     fi
 }
-
 # Edit existing message
 # $1=chat_id, $2=message_id, $3=text, $4=keyboard_json (optional)
 tgbot_edit() {
@@ -9625,13 +8351,11 @@ tgbot_edit() {
     fi
     _tgbot_api "editMessageText" "$body" >/dev/null 2>&1
 }
-
 # Answer callback query (dismiss spinner)
 # $1=callback_query_id
 tgbot_ack() {
     _tgbot_api "answerCallbackQuery" "{\"callback_query_id\":\"$1\"}" >/dev/null 2>&1
 }
-
 # Keyboards
 tgbot_kb_main() {
     local rid="${TG_ROUTER_ID:-default}"
@@ -9642,17 +8366,14 @@ tgbot_kb_main() {
         "$(T TXT_TGBOT_BTN_ZAPRET)" "$rid" \
         "$(T TXT_TGBOT_BTN_LOGS)" "$rid"
 }
-
 tgbot_kb_zapret() {
     local rid="${TG_ROUTER_ID:-default}"
     printf '[[{"text":"▶️ %s","callback_data":"%s:zap_start"},{"text":"⏹ %s","callback_data":"%s:zap_stop"}],[{"text":"🔄 %s","callback_data":"%s:zap_restart"}],[{"text":"⬆️ %s","callback_data":"%s:zap_update"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]'         "$(T TXT_TGBOT_BTN_START)" "$rid"         "$(T TXT_TGBOT_BTN_STOP)" "$rid"         "$(T TXT_TGBOT_BTN_RESTART)" "$rid"         "$(T TXT_TGBOT_BTN_ZAP_UPDATE)" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
-
 tgbot_kb_zapret_force() {
     local rid="${TG_ROUTER_ID:-default}"
     printf '[[{"text":"⚠️ %s","callback_data":"%s:zap_force_update"},{"text":"❌ %s","callback_data":"%s:menu_zapret"}]]'         "$(T _ 'Zorla Guncelle' 'Force Update')" "$rid"         "$(T TXT_TGBOT_BTN_CANCEL)" "$rid"
 }
-
 tgbot_kb_kzm() {
     local rid="${TG_ROUTER_ID:-default}"
     printf '[[{"text":"⬆️ %s","callback_data":"%s:sys_kzm_update"},{"text":"💾 %s","callback_data":"%s:sys_kzm_backup"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
@@ -9660,12 +8381,10 @@ tgbot_kb_kzm() {
         "$(T TXT_TGBOT_BTN_KZM_BACKUP)" "$rid" \
         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
-
 tgbot_kb_reboot_confirm() {
     local rid="${TG_ROUTER_ID:-default}"
     printf '[[{"text":"✅ %s","callback_data":"%s:sys_reboot_do"},{"text":"❌ %s","callback_data":"%s:sys_device_detail"}]]'         "$(T TXT_TGBOT_BTN_REBOOT_CONFIRM)" "$rid"         "$(T TXT_TGBOT_BTN_CANCEL)" "$rid"
 }
-
 tgbot_kb_wan_reset_time() {
     local rid="${TG_ROUTER_ID:-default}"
     printf '[[{"text":"5 dk","callback_data":"%s:wan_rc_5"},{"text":"10 dk","callback_data":"%s:wan_rc_10"},{"text":"15 dk","callback_data":"%s:wan_rc_15"}],[{"text":"20 dk","callback_data":"%s:wan_rc_20"},{"text":"25 dk","callback_data":"%s:wan_rc_25"},{"text":"30 dk","callback_data":"%s:wan_rc_30"}],[{"text":"⬅️ %s","callback_data":"%s:menu_sistem"}]]' \
@@ -9673,7 +8392,6 @@ tgbot_kb_wan_reset_time() {
         "$rid" "$rid" "$rid" \
         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
-
 tgbot_kb_wan_reset_confirm() {
     local min="$1"
     local rid="${TG_ROUTER_ID:-default}"
@@ -9681,7 +8399,6 @@ tgbot_kb_wan_reset_confirm() {
         "$(T TXT_TGBOT_BTN_CONFIRM)" "$rid" "$min" \
         "$(T TXT_TGBOT_BTN_CANCEL)" "$rid"
 }
-
 tgbot_kb_sistem() {
     local rid="${TG_ROUTER_ID:-default}"
     local _dev_label
@@ -9704,13 +8421,11 @@ tgbot_kb_sistem() {
         "$_dev_label" "$rid" \
         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
-
 # Cihaz detay klavyesi: Reboot / KZM Log + Sistem Log / Selftest / Geri
 tgbot_kb_device() {
     local rid="${TG_ROUTER_ID:-default}"
     printf '[[{"text":"🔁 %s","callback_data":"%s:sys_reboot_confirm"}],[{"text":"📋 %s","callback_data":"%s:sys_kzmlog"},{"text":"📄 %s","callback_data":"%s:sys_syslog"}],[{"text":"🧪 %s","callback_data":"%s:sys_selftest"}],[{"text":"⬅️ %s","callback_data":"%s:menu_sistem"}]]'         "$(T TXT_TGBOT_BTN_REBOOT)" "$rid"         "$(T TXT_TGBOT_BTN_KZMLOG)" "$rid"         "$(T TXT_TGBOT_BTN_SYSLOG)" "$rid"         "$(T TXT_TGBOT_BTN_SELFTEST)" "$rid"         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
-
 # Log alt menu klavyesi
 tgbot_kb_logs() {
     local rid="${TG_ROUTER_ID:-default}"
@@ -9719,7 +8434,6 @@ tgbot_kb_logs() {
         "$(T TXT_TGBOT_BTN_SYSLOG)" "$rid" \
         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
-
 # Ag cihazlari: ndmc show ip hotspot ile aktif hostlari inline keyboard olarak listele
 # $1=offset (sayfalama, varsayilan 0)
 tgbot_net_devices_kb() {
@@ -9791,21 +8505,18 @@ NEOF
     kb="${kb},[{\"text\":\"⬅️ $(T TXT_TGBOT_BTN_BACK)\",\"callback_data\":\"${rid}:menu_sistem\"}]]"
     printf '%s' "$kb"
 }
-
 # Wifi segmentlerini inline keyboard JSON olarak olustur
 # Her AP icin bireysel show interface sorgusu - link durumu kesin dogru
 tgbot_wifi_kb() {
     local rid="${TG_ROUTER_ID:-default}"
     local back_btn
     back_btn="$(T TXT_TGBOT_BTN_BACK)"
-
     local rc_raw _tmprc _apfile
     rc_raw="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
     _tmprc="/tmp/_zkm_rc_$$.txt"
     _apfile="/tmp/_zkm_aps_$$.txt"
     printf '%s\n' "$rc_raw" > "$_tmprc"
     : > "$_apfile"
-
     local _cur_id _cur_name _cur_ssid _in_ap
     _cur_id=""; _cur_name=""; _cur_ssid=""; _in_ap=0
     while IFS= read -r _rc_line; do
@@ -9842,7 +8553,6 @@ tgbot_wifi_kb() {
         printf '%s|%s|%s\n' "$_cur_id" "$_cur_name" "$_cur_ssid" >> "$_apfile"
     fi
     rm -f "$_tmprc" 2>/dev/null
-
     local out="" cnt=0
     while IFS="|" read -r _apid _apname _apssid; do
         [ -z "$_apid" ] || [ -z "$_apname" ] && continue
@@ -9874,7 +8584,6 @@ tgbot_wifi_kb() {
         cnt=$((cnt+1))
     done < "$_apfile"
     rm -f "$_apfile" 2>/dev/null
-
     if [ "$cnt" -eq 0 ]; then
         printf '[[{"text":"(bos)","callback_data":"%s:noop"}],[{"text":"⬅️ %s","callback_data":"%s:menu_sistem"}]]' \
             "$rid" "$back_btn" "$rid"
@@ -9897,7 +8606,6 @@ _tgbot_fmt_bytes() {
         else printf "%d B", b
     }'
 }
-
 # WAN arayuzunden rx/tx bytes oku (/proc/net/dev)
 _tgbot_wan_traffic() {
     local wan_if="$1"
@@ -9909,7 +8617,6 @@ _tgbot_wan_traffic() {
     [ -z "$tx" ] && tx=0
     printf '⬇️%s ⬆️%s' "$(_tgbot_fmt_bytes "$rx")" "$(_tgbot_fmt_bytes "$tx")"
 }
-
 # Belirli bir MAC adresine ait hotspot host bilgisini parse eder
 # Cikti: satirlar halinde key=value
 _tgbot_parse_client() {
@@ -9965,7 +8672,6 @@ _tgbot_parse_client() {
         }
     '
 }
-
 # Istemci detay mesaj metni
 tgbot_client_detail_text() {
     local mac="$1"
@@ -10000,7 +8706,6 @@ tgbot_client_detail_text() {
         "$(T _ 'Indir' 'Down')" "$(_tgbot_fmt_bytes "$rxbytes")" \
         "$(T _ 'Yukle' 'Up')" "$(_tgbot_fmt_bytes "$txbytes")"
 }
-
 # Istemci detay klavyesi
 tgbot_kb_client() {
     local mac="$1"
@@ -10021,7 +8726,6 @@ tgbot_kb_client() {
         "$(T TXT_TGBOT_CLIENT_RENAME)" "$rid" "$mac_enc" \
         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
-
 # Cihaz detay metni (resim 2 gibi)
 tgbot_device_detail_text() {
     telegram_device_info_init >/dev/null 2>&1
@@ -10058,14 +8762,10 @@ tgbot_device_detail_text() {
 KeenDNS: ${kdns_str}
 Release: ${fw}
 CPU: ${cpu_val}%  MEM: ${mem_val}
-
 $(T TXT_TGBOT_DEVICE_TRAFFIC_LABEL)
 → $traffic_str"
     printf '%s' "$out"
 }
-
-
-
 # System status text
 tgbot_status_text() {
     local zapret_st profile_name wan_if wan_ip lan_ip cpu_val ram_val disk_val uptime_val hm_st
@@ -10126,7 +8826,6 @@ tgbot_status_text() {
         "$cpu_val" "$ram_val" "$disk_val" "$uptime_val" "$disk_health_val" "$hm_st" \
         "$kzm_ver" "$zapret_ver"
 }
-
 # Handle callback query action
 # $1=callback_data, $2=chat_id, $3=message_id, $4=callback_id
 tgbot_handle_callback() {
@@ -10134,7 +8833,6 @@ tgbot_handle_callback() {
     local chat_id="$2"
     local msg_id="$3"
     local cb_id="$4"
-
     # Router ID prefix kontrolu: "rid:action" formatinda
     local cb_rid cb_action
     cb_rid="$(printf '%s' "$cb_data" | cut -d':' -f1)"
@@ -10148,9 +8846,7 @@ tgbot_handle_callback() {
         tgbot_ack "$cb_id"
         return 0
     fi
-
     tgbot_ack "$cb_id"
-
     case "$cb_action" in
         menu_main)
             tgbot_edit "$chat_id" "$msg_id" \
@@ -10498,7 +9194,6 @@ tgbot_handle_callback() {
             ;;
     esac
 }
-
 # setMyCommands - Telegram komut listesini ayarla
 tgbot_set_commands() {
     local _token="$1"
@@ -10510,54 +9205,42 @@ tgbot_set_commands() {
         -d "{\"commands\":${_cmds}}" 2>&1)"
     printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | setMyCommands: ${_sc_result}" >> "$TG_BOT_LOG_FILE"
 }
-
 # Main bot polling loop
 telegram_bot_daemon() {
     telegram_load_config || return 1
     [ "${TG_BOT_ENABLE:-0}" != "1" ] && return 1
-
     local offset=0
     local raw ids update_id blk
     local cb_id cb_data cb_chat cb_msg_id msg_chat msg_text
-
     printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | started" >> "$TG_BOT_LOG_FILE"
     # Eski pending dosyalarini temizle
     rm -f /tmp/tgbot_pending_* 2>/dev/null
     tgbot_set_commands "$TG_BOT_TOKEN"
-
     while true; do
         # getUpdates
         _tgbot_api "getUpdates" \
             "{\"offset\":${offset},\"timeout\":${TG_BOT_POLL_SEC:-5},\"allowed_updates\":[\"message\",\"callback_query\"]}"
-
         if [ ! -s "$_TGBOT_TMP" ]; then
             sleep "${TG_BOT_POLL_SEC:-5}"
             continue
         fi
-
         raw="$(cat "$_TGBOT_TMP" 2>/dev/null)"
-
         # ok:true kontrolu
         printf '%s' "$raw" | grep -q '"ok":true' || {
             printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | api error: $(printf '%s' "$raw" | head -c 120)" >> "$TG_BOT_LOG_FILE"
             sleep "${TG_BOT_POLL_SEC:-5}"
             continue
         }
-
         # update_id listesi
         ids="$(printf '%s' "$raw" | grep -o '"update_id":[0-9]*' | sed 's/"update_id"://')"
         [ -z "$ids" ] && { sleep "${TG_BOT_POLL_SEC:-5}"; continue; }
-
         # Tum newline'lari kaldir - tek satir yap
         raw="$(printf '%s' "$raw" | tr -d '\n\r')"
-
         for update_id in $ids; do
             offset=$((update_id + 1))
-
             # Bu update'e ait bolumu kes
             # update_id sonrasindaki ilk 800 karakteri al
             blk="$(printf '%s' "$raw" | sed "s/.*\"update_id\":${update_id}//" | cut -c1-2000)"
-
             # Tip: callback_query
             if printf '%s' "$blk" | grep -q '"callback_query"'; then
                 cb_id="$(printf '%s' "$blk" | grep -o '"id":"[0-9]*"' | head -1 | cut -d'"' -f4)"
@@ -10568,7 +9251,6 @@ telegram_bot_daemon() {
                 if [ -n "$cb_chat" ] && [ "$cb_chat" = "$TG_CHAT_ID" ] && [ -n "$cb_data" ]; then
                     tgbot_handle_callback "$cb_data" "$cb_chat" "$cb_msg_id" "$cb_id"
                 fi
-
             # Tip: message
             elif printf '%s' "$blk" | grep -q '"message"'; then
                 msg_chat="$(printf '%s' "$blk" | grep -o '"chat":{"id":[0-9-]*' | head -1 | sed 's/.*://')"
@@ -10671,42 +9353,30 @@ $(tgbot_client_detail_text "$_rn_mac")" \
                         /help|/yardim)
                             tgbot_send "$msg_chat" \
                                 "$(T _ '📖 KZM Yardim
-
 📊 /durum — Sistemin anlik durumu
   Zapret, HealthMon, WAN, IP bilgilerini gosterir.
-
 🔧 /zapret — Zapret yonetimi
   Zapreti baslat, durdur, yeniden baslat veya guncelle.
   DPI tabanli internet kisitlamalarini asmak icin kullanilir.
-
 ⚙️ /sistem — Sistem ve router
   Bagli cihazlari gor, WiFi ac/kapat, routeri yeniden baslat.
-
 🛠️ /kzm — KZM yonetimi
   Betigi guncelle, self-test calistir.
-
 📋 /loglar — Log goruntulemek
   KZM ve sistem loglarini Telegramdan oku.
-
 💡 Ipucu: Butonlara basarak da tum menulere ulasabilirsin.
   Komutlar sadece hizli erisim icindir.' '📖 KZM Help
-
 📊 /durum — Live system status
   Shows Zapret, HealthMon, WAN and IP info.
-
 🔧 /zapret — Zapret management
   Start, stop, restart or update Zapret.
   Used to bypass DPI-based internet restrictions.
-
 ⚙️ /sistem — System and router
   View connected devices, toggle WiFi, reboot router.
-
 🛠️ /kzm — KZM management
   Update the script, run self-test.
-
 📋 /loglar — View logs
   Read KZM and system logs from Telegram.
-
 💡 Tip: You can also use the buttons to access all menus.
   Commands are just for quick access.')" \
                                 ""
@@ -10715,11 +9385,9 @@ $(tgbot_client_detail_text "$_rn_mac")" \
                 fi
             fi
         done
-
         # long-poll timeout handles delay, no extra sleep needed
     done
 }
-
 telegram_bot_start() {
     telegram_load_config || { print_status FAIL "$(T TXT_TGBOT_BOT_NOT_CONFIG)"; return 1; }
     [ "${TG_BOT_ENABLE:-0}" != "1" ] && { print_status WARN "$(T TXT_TGBOT_BOT_NOT_CONFIG)"; return 1; }
@@ -10735,7 +9403,6 @@ telegram_bot_start() {
     echo $! > "$TG_BOT_PID_FILE"
     print_status PASS "$(T TXT_TGBOT_BOT_STARTED)"
 }
-
 # Bot'u durdur
 telegram_bot_stop() {
     if [ -f "$TG_BOT_PID_FILE" ]; then
@@ -10754,13 +9421,11 @@ telegram_bot_stop() {
         while read -r _p; do kill -9 "$_p" 2>/dev/null || true; done
     print_status PASS "$(T TXT_TGBOT_BOT_STOPPED)"
 }
-
 # Autostart - HealthMon watchdog tarafindan yonetilir, ayri init.d gerekmez
 telegram_bot_setup_autostart() {
     # Eski init.d script varsa temizle — watchdog halleder
     rm -f "$TG_BOT_AUTOSTART" 2>/dev/null
 }
-
 # Bot yonetim menusu
 telegram_bot_menu() {
     while true; do
@@ -10824,7 +9489,6 @@ telegram_bot_menu() {
         esac
     done
 }
-
 # -------------------------------------------------------------------
 # SYSTEM HEALTH MONITOR (MOD B): CPU/RAM/DISK/LOAD + ZAPRET WATCHDOG
 # -------------------------------------------------------------------
@@ -10832,7 +9496,6 @@ HM_CONF_FILE="/opt/etc/healthmon.conf"
 HM_PID_FILE="/tmp/healthmon.pid"
 HM_LOCKDIR="/tmp/healthmon.lock"
 HM_LOG_FILE="/tmp/healthmon.log"
-
 HM_AUTOSTART_FILE="/opt/etc/init.d/S99zkm_healthmon"
 # defaults (used if config missing)
 HM_ENABLE="0"
@@ -10854,17 +9517,13 @@ HM_UPDATECHECK_REPO_ZKM="RevolutionTR/keenetic-zapret-manager"
 HM_UPDATECHECK_REPO_ZAPRET="bol-van/zapret"
 HM_COOLDOWN_SEC="600"
 HM_ZAPRET_COOLDOWN_SEC="120"
-
 # NFQUEUE qlen watchdog (qnum=200)
 # qlen > HM_QLEN_WARN_TH olan ardisik tur sayisi HM_QLEN_CRIT_TURNS'e ulasirsa -> restart_zapret
 HM_QLEN_WATCHDOG="1"          # 0=disable, 1=enable
 HM_QLEN_WARN_TH="50"          # paket esigi: bu degeri asarsa sayac artar
 HM_QLEN_CRIT_TURNS="3"        # kac ardisik tur ust uste yuksekse aksiyon alinir
-
 # KeenDNS curl throttle: her dongu degil, bu kadar saniyede bir curl cek
 HM_KEENDNS_CURL_SEC="120"     # 0 = her dongude (eski davranis)
-
-
 healthmon_print_autoupdate_warning() {
     # Show a single WARN header, then plain indented lines (less noisy)
     print_status WARN "$(T TXT_HM_AUTOUPDATE_WARN_TITLE)"
@@ -10873,9 +9532,6 @@ healthmon_print_autoupdate_warning() {
     printf "  %s
 " "$(T TXT_HM_AUTOUPDATE_WARN_L2)"
 }
-
-
-
 healthmon_load_config() {
     HM_ENABLE="0"
     HM_INTERVAL="60"
@@ -10894,7 +9550,6 @@ healthmon_load_config() {
     HM_UPDATECHECK_REPO_ZKM="RevolutionTR/keenetic-zapret-manager"
     HM_UPDATECHECK_REPO_ZAPRET="bol-van/zapret"
     HM_AUTOUPDATE_MODE="2"
-
     HM_WANMON_ENABLE="1"
     HM_WANMON_FAIL_TH="3"
     HM_WANMON_OK_TH="2"
@@ -10904,7 +9559,6 @@ healthmon_load_config() {
     HM_QLEN_CRIT_TURNS="3"
     HM_KEENDNS_CURL_SEC="120"
     HM_ZAPRET_AUTORESTART="1"
-
     [ -f "$HM_CONF_FILE" ] && . "$HM_CONF_FILE" 2>/dev/null
     # Sayi gerektiren degerler icin float/bos sanitize
     _hm_int() { eval "_v=\$$1"; case "${_v:-}" in *[!0-9]*|'') eval "$1=${2}";; esac; }
@@ -10914,7 +9568,6 @@ healthmon_load_config() {
     _hm_int HM_QLEN_CRIT_TURNS 3
     unset -f _hm_int 2>/dev/null
 }
-
 healthmon_write_config() {
     mkdir -p /opt/etc 2>/dev/null
     umask 077
@@ -10948,7 +9601,6 @@ HM_KEENDNS_CURL_SEC="$HM_KEENDNS_CURL_SEC"
 EOF
     chmod 600 "$HM_CONF_FILE" 2>/dev/null
 }
-
 healthmon_cpu_pct() {
     # /proc/stat delta - 0.3s aralikli iki olcum, integer sonuc
     local _c1 _c2
@@ -10963,12 +9615,10 @@ healthmon_cpu_pct() {
         if(dt>0) printf "%d", (dt-di)*100/dt; else print "0"
     }'
 }
-
 healthmon_loadavg() {
     # returns "1m 5m 15m"
     uptime 2>/dev/null | awk -F'load average: ' '{print $2}' | tr -d '\r'
 }
-
 healthmon_disk_used_pct() {
     # $1 mountpoint
     # df -P Use% sutunu 0 dondururse (buyuk disk, az kullanim), MB bazli kontrol yap
@@ -10984,7 +9634,6 @@ healthmon_disk_used_pct() {
     fi
     printf '%s\n' "${_pct:-0}"
 }
-
 healthmon_mem_free_mb() {
     # approximated available = MemFree+Buffers+Cached (kB) -> MB
     awk '
@@ -10994,16 +9643,13 @@ healthmon_mem_free_mb() {
         END { printf "%d\n", (mf+b+c)/1024 }
     ' /proc/meminfo 2>/dev/null
 }
-
 healthmon_now() { date +%s; }
-
 # -------------------------------
 # WAN Monitor (NDM/ndmc based, no ping)
 # Uses: HM_WANMON_ENABLE, HM_WANMON_IFACE, HM_WANMON_FAIL_TH, HM_WANMON_OK_TH
 # Requires ndmc but isolates Entware LD_LIBRARY_PATH conflicts.
 # -------------------------------
 hm_ndmc_cmd() { LD_LIBRARY_PATH= ndmc -c "$1" 2>/dev/null; }
-
 hm_wanmon_get_iface() {
     # Priority:
     # 1) cached runtime iface (linux netdev)
@@ -11012,24 +9658,19 @@ hm_wanmon_get_iface() {
     # 4) last resort: NDM PPPoE name -> map to ppp0 if present
     local cache="/tmp/wanmon.ndm_iface"
     local ifc=""
-
     if [ -f "$cache" ]; then
         ifc="$(cat "$cache" 2>/dev/null)"
     fi
-
     [ -z "$ifc" ] && ifc="$HM_WANMON_IFACE"
-
     if [ -z "$ifc" ]; then
         # Prefer existing helpers used elsewhere (Menu 14 / Health)
         ifc="$(get_wan_if 2>/dev/null)"
         [ -z "$ifc" ] && ifc="$(healthmon_detect_wan_iface_ndm 2>/dev/null)"
-
         # Fallback: parse default route robustly (avoid returning 'link')
         if [ -z "$ifc" ]; then
             ifc="$(ip route 2>/dev/null | awk '$1=="default"{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
         fi
     fi
-
     # If we still don't have a linux iface, try NDM PPPoE name and map to ppp0 if possible
     if [ -n "$ifc" ] && ! ip link show "$ifc" >/dev/null 2>&1; then
         local ndm_if=""
@@ -11053,27 +9694,21 @@ hm_wanmon_get_iface() {
             ifc=""
         fi
     fi
-
     # Cache only valid linux netdev
     if [ -n "$ifc" ] && ip link show "$ifc" >/dev/null 2>&1; then
         echo "$ifc" >"$cache" 2>/dev/null
         chmod 600 "$cache" 2>/dev/null
     fi
-
     echo "$ifc"
 }
-
-
 hm_wanmon_is_linux_iface() {
     local ifc="$1"
     [ -z "$ifc" ] && return 1
     ip link show "$ifc" >/dev/null 2>&1
 }
-
 hm_wanmon_is_up() {
     local ifc="$1"
     [ -z "$ifc" ] && return 1
-
     # Linux netdev ise:
     # - PPP/IPOe gibi sanal WAN arayuzlerinde LOWER_UP tek basina yeterli degil (WAN kapali iken de UP kalabilir).
     #   Bu nedenle IPv4 adresi + default route varligini kontrol ediyoruz.
@@ -11091,7 +9726,6 @@ hm_wanmon_is_up() {
                 ;;
         esac
     fi
-
     # ndmc fallback
     hm_ndmc_cmd "show interface $ifc" | awk '
         $1=="link:"      && l=="" {l=$2}
@@ -11102,12 +9736,10 @@ hm_wanmon_is_up() {
 hm_wanmon_iface_exists() {
 local ifc="$1"
 [ -z "$ifc" ] && return 1
-
 # Linux netdev ise direkt gecerlidir (ppp0, ipoe0, ethX, vb.)
 if ip link show "$ifc" >/dev/null 2>&1; then
     return 0
 fi
-
 # ndmc fallback (varsa)
 hm_ndmc_cmd "show interface $ifc" 2>/dev/null | grep -qE '^[[:space:]]*link:'
 }
@@ -11120,27 +9752,22 @@ hm_fmt_hms() {
     local ss=$((s%60))
     printf "%02d:%02d:%02d" "$hh" "$mm" "$ss"
 }
-
 hm_wanmon_tick() {
     [ "${HM_WANMON_ENABLE:-0}" = "1" ] || return 0
-
     local state_f="/tmp/wanmon.state"
     local down_ts_f="/tmp/wanmon.down_ts"
     local down_hms_f="/tmp/wanmon.down_hms"
     local fails_f="/tmp/wanmon.fails"
     local oks_f="/tmp/wanmon.oks"
-
     local ifc conf_disp
     ifc="$(hm_wanmon_get_iface)"
     conf_disp="${HM_WANMON_IFACE:-auto}"
-
     # one-time init log
     if [ ! -f /tmp/wanmon.inited ]; then
         healthmon_log "$(healthmon_now) | wanmon | init iface=${ifc:-N/A} conf=${conf_disp}"
         echo 1 >/tmp/wanmon.inited 2>/dev/null
         chmod 600 /tmp/wanmon.inited 2>/dev/null
     fi
-
     if [ -z "$ifc" ]; then
         if [ ! -f /tmp/wanmon.iface_warned ]; then
             healthmon_log "$(healthmon_now) | wanmon | iface not set, skipping"
@@ -11149,7 +9776,6 @@ hm_wanmon_tick() {
         fi
         return 0
     fi
-
     if ! hm_wanmon_iface_exists "$ifc"; then
         if [ ! -f /tmp/wanmon.iface_bad_warned ]; then
             healthmon_log "$(healthmon_now) | wanmon | iface invalid ($ifc), skipping"
@@ -11158,14 +9784,11 @@ hm_wanmon_tick() {
         fi
         return 0
     fi
-
     rm -f /tmp/wanmon.iface_warned /tmp/wanmon.iface_bad_warned 2>/dev/null
-
     # defaults
     [ -f "$fails_f" ] || echo 0 >"$fails_f"
     [ -f "$oks_f" ] || echo 0 >"$oks_f"
     chmod 600 "$fails_f" "$oks_f" 2>/dev/null
-
     local state now fails oks
     state="$(cat "$state_f" 2>/dev/null)"
     # CRITICAL FIX: Default to DOWN on first boot/startup so we can detect UP transition
@@ -11176,38 +9799,30 @@ hm_wanmon_tick() {
         echo "DOWN" >"$state_f" 2>/dev/null
         chmod 600 "$state_f" 2>/dev/null
     fi
-
     fails="$(cat "$fails_f" 2>/dev/null)"; case "$fails" in ''|*[!0-9]*) fails=0;; esac
     oks="$(cat "$oks_f" 2>/dev/null)"; case "$oks" in ''|*[!0-9]*) oks=0;; esac
-
     now="$(healthmon_now)"
-
     if hm_wanmon_is_up "$ifc"; then
         # observed UP
         fails=0
         oks=$((oks+1))
         echo "$fails" >"$fails_f" 2>/dev/null
         echo "$oks" >"$oks_f" 2>/dev/null
-
         if [ "$state" = "DOWN" ] && [ "$oks" -ge "${HM_WANMON_OK_TH:-2}" ]; then
             # transition DOWN -> UP, send single rich UP message with duration
             local down_ts down_hms up_hms dur wan_disp
             down_ts="$(cat "$down_ts_f" 2>/dev/null)"; case "$down_ts" in ''|*[!0-9]*) down_ts="$now";; esac
             down_hms="$(cat "$down_hms_f" 2>/dev/null)"
             [ -z "$down_hms" ] && down_hms="$(date '+%H:%M:%S' 2>/dev/null)"
-
             up_hms="$(date '+%H:%M:%S' 2>/dev/null)"
             dur="$(hm_fmt_hms $((now - down_ts)))"
-
             wan_disp="$conf_disp"
             if [ -z "$wan_disp" ] || [ "$wan_disp" = "auto" ]; then
                 wan_disp="$ifc"
             fi
-
             echo "UP" >"$state_f" 2>/dev/null
             chmod 600 "$state_f" 2>/dev/null
             rm -f "$down_ts_f" "$down_hms_f" 2>/dev/null
-
             telegram_send "$(printf '%s
 %s : %s
 %s : %s
@@ -11220,13 +9835,11 @@ hm_wanmon_tick() {
         fi
         return 0
     fi
-
     # observed DOWN
     oks=0
     fails=$((fails+1))
     echo "$fails" >"$fails_f" 2>/dev/null
     echo "$oks" >"$oks_f" 2>/dev/null
-
     if [ "$state" = "UP" ] && [ "$fails" -ge "${HM_WANMON_FAIL_TH:-3}" ]; then
         echo "DOWN" >"$state_f" 2>/dev/null
         chmod 600 "$state_f" 2>/dev/null
@@ -11238,9 +9851,6 @@ hm_wanmon_tick() {
         # NOTE: No Telegram on DOWN. We notify only when it comes back UP (with duration).
     fi
 }
-
-
-
 healthmon_log() {
     # $1 line
     # Epoch timestamp prefix varsa okunabilir formata cevir (BusyBox date -d @ destekliyor)
@@ -11288,7 +9898,6 @@ healthmon_should_alert() {
     echo "$now" >"$f" 2>/dev/null
     return 0
 }
-
 healthmon_update_state_load() {
     # state to avoid repeated notifications
     HM_UPD_STATE_FILE="/opt/etc/healthmon_update.state"
@@ -11297,7 +9906,6 @@ healthmon_update_state_load() {
     ZKM_LAST_AUTO_ATTEMPTED=""
     [ -f "$HM_UPD_STATE_FILE" ] && . "$HM_UPD_STATE_FILE" 2>/dev/null
 }
-
 healthmon_update_state_save() {
     mkdir -p /opt/etc 2>/dev/null
     umask 077
@@ -11308,7 +9916,6 @@ ZKM_LAST_AUTO_ATTEMPTED="$ZKM_LAST_AUTO_ATTEMPTED"
 EOF
     chmod 600 "$HM_UPD_STATE_FILE" 2>/dev/null
 }
-
 github_latest_release_tag() {
     # $1 = owner/repo
     local repo="$1"
@@ -11361,12 +9968,9 @@ zkm_ver_cmp() {
         }'
 }
 zkm_ver_gt() { [ "$(zkm_ver_cmp "$1" "$2")" = "1" ]; }
-
-
 healthmon_updatecheck_do() {
     # Update check master switch
     [ "${HM_UPDATECHECK_ENABLE:-0}" = "1" ] || return 0
-
     # Auto update mode:
     # 0 = OFF (no checks)
     # 1 = Notify only
@@ -11377,33 +9981,27 @@ healthmon_updatecheck_do() {
         1|2) : ;;
         *) upd_mode="1" ;;
     esac
-
     local now last_ts f sec
     f="/tmp/healthmon_updatecheck.ts"
     now="$(healthmon_now)"
     sec="${HM_UPDATECHECK_SEC:-21600}"   # default 6h
-
     # Throttle: only run the GitHub API check every HM_UPDATECHECK_SEC seconds.
     last_ts="$(cat "$f" 2>/dev/null)"
     if [ -n "$last_ts" ] && [ $((now - last_ts)) -lt "$sec" ] 2>/dev/null; then
         : > /tmp/healthmon_updatecheck.defer 2>/dev/null
         return 0
     fi
-
     # clear defer marker and stamp last check time early to avoid tight loops on failures
     rm -f /tmp/healthmon_updatecheck.defer 2>/dev/null
     echo "$now" > "$f" 2>/dev/null
-
     # --- Zapret surum kontrolu (sadece bildirim, otomatik kurulum yok) ---
     local zap_repo zap_api zap_latest zap_cur zap_url
     zap_repo="${HM_UPDATECHECK_REPO_ZAPRET:-bol-van/zapret}"
     zap_api="https://api.github.com/repos/${zap_repo}/releases/latest"
     zap_cur="$(cat /opt/zapret/version 2>/dev/null)"
-
     if [ -n "$zap_cur" ]; then
         zap_latest="$(curl -fsS "$zap_api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zapret | cur=$zap_cur latest=${zap_latest:-N/A}"
-
         if [ -n "$zap_latest" ]; then
             if ver_is_newer "$zap_latest" "$zap_cur"; then
                 # Normal guncelleme: yeni surum mevcut
@@ -11417,18 +10015,14 @@ healthmon_updatecheck_do() {
             fi
         fi
     fi
-
     # --- KZM surum kontrolu ---
     local repo api latest cur
     repo="${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}"
     api="https://api.github.com/repos/${repo}/releases/latest"
-
     cur="$(zkm_get_installed_script_version)"; [ -z "$cur" ] && cur="$SCRIPT_VERSION"
     latest="$(curl -fsS "$api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-
     # Always log what we saw, so "ran but did nothing" is visible.
     healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | cur=$cur latest=${latest:-N/A} mode=$upd_mode"
-
     if [ -z "$latest" ]; then
         # GitHub unreachable: only log, do NOT send Telegram (network may be temporarily unavailable)
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | github_unreachable cur=$cur"
@@ -11436,7 +10030,6 @@ healthmon_updatecheck_do() {
         rm -f "$f" 2>/dev/null
         return 0
     fi
-
     # Never downgrade: skip if remote is not newer than local (dev builds like v26.2.5.1 must not be replaced by v26.2.5).
     if ! ver_is_newer "$latest" "$cur"; then
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | up_to_date cur=$cur latest=$latest"
@@ -11455,18 +10048,15 @@ healthmon_updatecheck_do() {
         telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_UP_TO_DATE)" CUR "$cur" DISK_HEALTH "$_dh_val")"
         return 0
     fi
-
     # New version exists
     local url msg
     url="https://github.com/${repo}/releases/latest"
-
     if [ "$upd_mode" = "1" ]; then
         msg="$(tpl_render "$(T TXT_UPD_ZKM_NEW)" NEW "$latest" CUR "$cur" URL "$url")"
         telegram_send "$msg"
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | notified cur=$cur latest=$latest"
         return 0
     fi
-
     # upd_mode=2 -> auto install
     if [ "$upd_mode" = "2" ]; then
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_start cur=$cur latest=$latest"
@@ -11482,27 +10072,21 @@ healthmon_updatecheck_do() {
             healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_fail cur=$cur latest=$latest"
         fi
     fi
-
     return 0
 }
-
-
 ndmc_cmd() {
     # Important: prevent Entware /opt libs from breaking ndmc
     LD_LIBRARY_PATH= ndmc -c "$1" 2>/dev/null
 }
-
 healthmon_detect_wan_iface_ndm() {
     # Prefer explicit user config if set
     if [ -n "${HM_WANMON_IFACE:-}" ]; then
         echo "$HM_WANMON_IFACE"
         return 0
     fi
-
     # Prefer zapret-selected WAN info (single source of truth)
     local zif
     zif="$(cat /opt/zapret/wan_if 2>/dev/null)"
-
     # If PPP-based WAN is used (ppp0/ppp1), map to first PPPoE interface known by NDM (e.g., PPPoE0)
     if echo "$zif" | grep -Eq '^ppp[0-9]*$'; then
         ndmc_cmd "show interface" | awk '
@@ -11518,7 +10102,6 @@ healthmon_detect_wan_iface_ndm() {
             }'
         return 0
     fi
-
     # Generic fallback: pick first interface marked public=yes or having "Internet" trait
     ndmc_cmd "show interface" | awk '
         BEGIN{RS="Interface, name = "; FS="\n"}
@@ -11535,7 +10118,6 @@ healthmon_detect_wan_iface_ndm() {
             if(pub=="yes" || inet=="yes"){print name; exit}
         }'
 }
-
 healthmon_wan_is_up() {
     local ifc="$1"
     [ -n "$ifc" ] || return 1
@@ -11545,12 +10127,9 @@ healthmon_wan_is_up() {
         END { exit ! (l=="up" && c=="yes") }
     '
 }
-
-
 healthmon_wan_tick() {
     hm_wanmon_tick
 }
-
 healthmon_loop() {
     trap '' HUP 2>/dev/null
     # Stale-state cleanup on daemon start (keep PID/log intact)
@@ -11576,10 +10155,8 @@ healthmon_loop() {
     fi
     echo "$$" >"$HM_PID_FILE" 2>/dev/null
     healthmon_log "$(date +%s) | started"
-
     # Load config early
     healthmon_load_config
-
     # CRITICAL FIX: Wait for network on startup (especially after power loss/reboot)
     # This must happen BEFORE any WAN monitoring or GitHub checks
     local net_wait=0
@@ -11604,7 +10181,6 @@ healthmon_loop() {
     if [ $net_wait -ge $net_max ]; then
         healthmon_log "$(date +%s) | startup | WARNING: network not ready after ${net_max}s, continuing anyway"
     fi
-
     # If script version changed since last run, force an early update check.
     # NOTE: This runs AFTER network wait so the forced check can actually reach GitHub.
     if [ -n "$SCRIPT_VERSION" ]; then
@@ -11615,14 +10191,12 @@ healthmon_loop() {
             rm -f /tmp/healthmon_updatecheck.ts /tmp/healthmon_updatecheck.defer 2>/dev/null
         fi
     fi
-
     # NOW that network is ready, run initial WAN monitoring tick
     # This will detect WAN UP state and send notification if needed
     if [ "$HM_ENABLE" = "1" ] && [ "${HM_WANMON_ENABLE:-0}" = "1" ]; then
         healthmon_log "$(date +%s) | startup | running initial WAN check"
         hm_wanmon_tick
     fi
-
     # state files for duration tracking
     local cpu_warn_start="/tmp/healthmon_cpu_warn.start"
     local cpu_crit_start="/tmp/healthmon_cpu_crit.start"
@@ -11633,11 +10207,9 @@ healthmon_loop() {
     local zapret_restart_flag="/tmp/healthmon_zapret_restart.tried"
     local disk_health_flag="/tmp/healthmon_disk_health.flag"
     local hb_ts="/tmp/healthmon_heartbeat.ts"
-
     while true; do
         healthmon_load_config
         [ "$HM_ENABLE" = "1" ] || break
-
         local now cpu load disk ram
         now=$(healthmon_now)
         cpu=$(healthmon_cpu_pct)
@@ -11645,7 +10217,6 @@ healthmon_loop() {
         disk=$(healthmon_disk_used_pct /opt)
         disk_num="${disk%%<*}"; [ -z "$disk_num" ] && disk_num=0
         ram=$(healthmon_mem_free_mb)
-
         # ---- CPU WARN ----
         if [ "$cpu" -ge "$HM_CPU_WARN" ]; then
             [ -f "$cpu_warn_start" ] || echo "$now" >"$cpu_warn_start"
@@ -11661,7 +10232,6 @@ healthmon_loop() {
         else
             rm -f "$cpu_warn_start" 2>/dev/null
         fi
-
         # ---- CPU CRIT ----
         if [ "$cpu" -ge "$HM_CPU_CRIT" ]; then
             [ -f "$cpu_crit_start" ] || echo "$now" >"$cpu_crit_start"
@@ -11677,7 +10247,6 @@ healthmon_loop() {
         else
             rm -f "$cpu_crit_start" 2>/dev/null
         fi
-
         # ---- DISK ----
         if [ -n "$disk_num" ] && [ "$disk_num" -ge "$HM_DISK_WARN" ]; then
             [ -f "$disk_start" ] || echo "$now" >"$disk_start"
@@ -11693,7 +10262,6 @@ healthmon_loop() {
         else
             rm -f "$disk_start" 2>/dev/null
         fi
-
         # ---- DISK HEALTH (read-only + I/O error) ----
         local _dh_down=0 _dh_reason=""
         if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
@@ -11720,7 +10288,6 @@ healthmon_loop() {
                 rm -f "$disk_health_flag" 2>/dev/null
             fi
         fi
-
         # ---- RAM ----
         if [ -n "$ram" ] && [ "$ram" -le "$HM_RAM_WARN_MB" ]; then
             [ -f "$ram_start" ] || echo "$now" >"$ram_start"
@@ -11736,7 +10303,6 @@ healthmon_loop() {
         else
             rm -f "$ram_start" 2>/dev/null
         fi
-
         # ---- Zapret watchdog ----
         if [ "$HM_ZAPRET_WATCHDOG" = "1" ]; then
             local _zap_down=0 _zap_reason=""
@@ -11776,7 +10342,6 @@ healthmon_loop() {
                             continue
                         fi
                     fi
-
                     # If still down here, notify only when cooldown allows
                     if [ "$restart_ok" != "1" ]; then
                         if healthmon_should_alert "zapret_down" "$HM_ZAPRET_COOLDOWN_SEC"; then
@@ -11800,7 +10365,6 @@ healthmon_loop() {
                 rm -f "$zapret_start" 2>/dev/null
             fi
         fi
-
         # ---- NFQUEUE qlen watchdog (qnum=200) ----
         # nfqws calisiyor gorunse de kuyruk tikanirsa (zombie working) tespit eder ve restart atar.
         # Spike/stall ayrimi: qlen esigi asildiktan sonra dusuyorsa spike (sayac sifirla),
@@ -11811,22 +10375,18 @@ healthmon_loop() {
             qlen_turns="${HM_QLEN_CRIT_TURNS:-3}"
             qlen_cnt_f="/tmp/healthmon_qlen.cnt"
             qlen_prev_f="/tmp/healthmon_qlen.prev"
-
             # /proc/net/netfilter/nfnetlink_queue formati:
             # queue_num  portid  qlen  copy_mode  copy_range  ...
             # Alan 3 = qlen (0-indexed: $3)
             qlen_val="$(awk '$1 == 200 { print $3; exit }' /proc/net/netfilter/nfnetlink_queue 2>/dev/null)"
             case "$qlen_val" in ''|*[!0-9]*) qlen_val=0 ;; esac
-
             # Onceki qlen degerini oku
             qlen_prev="$(cat "$qlen_prev_f" 2>/dev/null)"
             case "$qlen_prev" in ''|*[!0-9]*) qlen_prev=0 ;; esac
             echo "$qlen_val" > "$qlen_prev_f" 2>/dev/null
-
             if [ "$qlen_val" -gt "$qlen_th" ]; then
                 qlen_cnt="$(cat "$qlen_cnt_f" 2>/dev/null)"
                 case "$qlen_cnt" in ''|*[!0-9]*) qlen_cnt=0 ;; esac
-
                 if [ "$qlen_val" -lt "$qlen_prev" ]; then
                     # Kuyruk dusiyor: spike, sayaci sifirla
                     healthmon_log "$now | qlen_relief | qnum=200 qlen=$qlen_val prev=$qlen_prev cnt_reset"
@@ -11836,7 +10396,6 @@ healthmon_loop() {
                     qlen_cnt=$((qlen_cnt + 1))
                     echo "$qlen_cnt" > "$qlen_cnt_f" 2>/dev/null
                     healthmon_log "$now | qlen_high | qnum=200 qlen=$qlen_val prev=$qlen_prev cnt=$qlen_cnt/${qlen_turns}"
-
                     if [ "$qlen_cnt" -ge "$qlen_turns" ]; then
                         # Ardisik N tur yuksek/sabit: restart_zapret
                         healthmon_log "$now | qlen_crit | qnum=200 qlen=$qlen_val cnt=$qlen_cnt triggers=restart_zapret"
@@ -11871,8 +10430,6 @@ healthmon_loop() {
                 fi
             fi
         fi
-
-
         # ---- Heartbeat log (no Telegram) ----
         if [ -n "$HM_HEARTBEAT_SEC" ] && [ "$HM_HEARTBEAT_SEC" -gt 0 ] 2>/dev/null; then
             local last_hb=$(cat "$hb_ts" 2>/dev/null)
@@ -11898,9 +10455,7 @@ healthmon_loop() {
                 fi
             fi
         fi
-
                 # WAN monitor (NDM-based, no ping)
-
 # periodic update check (GitHub)
         healthmon_updatecheck_do
         # ---- KEENDNS MONITOR ----
@@ -11997,7 +10552,6 @@ healthmon_loop() {
             fi
             printf '%s\n' "$kdns_reach2" > "$kdns_reach_f" 2>/dev/null
         fi
-
         # ---- TELEGRAM BOT WATCHDOG ----
         if [ "${HM_TGBOT_WATCHDOG:-1}" = "1" ]; then
             _tgconf="/opt/etc/telegram.conf"
@@ -12019,10 +10573,8 @@ healthmon_loop() {
                 fi
             fi
         fi
-
         # ---- WAN MONITOR ----
         hm_wanmon_tick
-
         # ---- LOG ROTATION ----
         # Daemon stdout is redirected to HM_LOG_FILE by init.d (>> append).
         # Truncate to last 300 lines if file exceeds 500KB to protect /tmp RAM.
@@ -12033,7 +10585,6 @@ healthmon_loop() {
                 tail -n 300 "$HM_LOG_FILE" > "$_ltmp" 2>/dev/null && mv "$_ltmp" "$HM_LOG_FILE" 2>/dev/null
             fi
         fi
-
         # ---- AUTOHOSTLIST LOG ROTATION ----
         # Zapret's autohostlist log lives on /opt (persistent). Cap at 1MB.
         _ahl_log="/opt/zapret/nfqws_autohostlist.log"
@@ -12044,7 +10595,6 @@ healthmon_loop() {
                 tail -n 500 "$_ahl_log" > "$_ahl_tmp" 2>/dev/null && mv "$_ahl_tmp" "$_ahl_log" 2>/dev/null
             fi
         fi
-
         # Otomatik guncelleme sonrasi self-restart
         if [ -f /tmp/healthmon_restart_requested ]; then
             rm -f /tmp/healthmon_restart_requested 2>/dev/null
@@ -12055,14 +10605,11 @@ healthmon_loop() {
             sleep 1
             exit 0
         fi
-
         sleep "$HM_INTERVAL"
     done
-
     rm -f "$HM_PID_FILE" 2>/dev/null
     rmdir "$HM_LOCKDIR" 2>/dev/null
 }
-
 # ---------------------------------------------------------------------------
 # --cgi-action: CGI tarafindan cagrilir, dogrudan fonksiyon calistirir
 # ---------------------------------------------------------------------------
@@ -12096,7 +10643,7 @@ if [ "$1" = "--cgi-action" ]; then
             _dnsrc="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
             _items=""
             _comma=""
-            for _dkey in                 "8.8.8.8@dns.google|DoT"                 "8.8.4.4@dns.google|DoT"                 "dns.google/dns-query|DoH"                 "1.1.1.1@one.one.one.one|DoT"                 "1.0.0.1@one.one.one.one|DoT"                 "cloudflare-dns.com/dns-query|DoH"                 "1.1.1.2@security.cloudflare-dns.com|DoT"                 "1.0.0.2@security.cloudflare-dns.com|DoT"                 "dns.comss.one/dns-query|DoH"
+            for _dkey in                 "8.8.8.8@dns.google|DoT"                 "8.8.4.4@dns.google|DoT"                 "dns.google/dns-query|DoH"                 "1.1.1.1@one.one.one.one|DoT"                 "1.0.0.1@one.one.one.one|DoT"                 "cloudflare-dns.com/dns-query|DoH"                 "1.1.1.2@security.cloudflare-dns.com|DoT"                 "1.0.0.2@security.cloudflare-dns.com|DoT"
             do
                 _dk="${_dkey%%|*}"
                 _dt="${_dkey##*|}"
@@ -12117,7 +10664,7 @@ if [ "$1" = "--cgi-action" ]; then
             # $3: paket adi — exit 0: eklendi, exit 2: zaten mevcut
             _cgi_pkg="$3"
             case "$_cgi_pkg" in
-                Google|Cloudflare|CF_Families|Comss|Quad9|AdGuard|Mullvad|Dns0eu|CleanBrowsing)
+                Google|Cloudflare|CF_Families|Quad9|AdGuard|Mullvad|Dns0eu|CleanBrowsing)
                     _raw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
                     # Paketin tumu mevcut mu kontrol et
                     _all_exist=1
@@ -12226,14 +10773,11 @@ DEOF
             printf '{"running":1}\n' > "$_hc_out"
             # crash durumunda hata JSON yaz
             trap 'printf '"'"'{"ok":0,"msg":"Kontrol sirasinda hata olustu"}'"'"' > "$_hc_out"' EXIT
-
             # --- yardimci: JSON string escape ---
             _js() { printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g;s/	/ /g'; }
-
             # --- sonuc biriktirici ---
             _items=""
             _pass=0; _warn=0; _fail=0; _info=0; _total=0
-
             _add() {
                 # $1=section $2=label $3=value $4=status
                 local _s _comma
@@ -12247,7 +10791,6 @@ DEOF
                 [ -n "$_items" ] && _comma="," || _comma=""
                 _items="${_items}${_comma}{\"sec\":\"$(_js "$1")\",\"lbl\":\"$(_js "$2")\",\"val\":\"$(_js "$3")\",\"st\":\"$4\"}"
             }
-
             # --- WAN ---
             _wan_if="$(get_wan_if 2>/dev/null)"
             [ -z "$_wan_if" ] && _wan_if="$(healthmon_detect_wan_iface_ndm 2>/dev/null)"
@@ -12264,7 +10807,6 @@ DEOF
             fi
             if [ "$_wan_link" = "up" ] && [ "$_wan_conn" = "yes" ]; then _wan_st="PASS"; else _wan_st="FAIL"; fi
             _add "net" "$(T TXT_HEALTH_WAN_STATUS)" "$_wan_if" "$_wan_st"
-
             _wan_ipv4="$(ip -4 addr show "$_wan_if" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
             _wan_ipv6="$(ip -6 addr show "$_wan_if" 2>/dev/null | awk '/inet6 / && !/fe80/{print $2; exit}' | cut -d/ -f1)"
             if [ -n "$_wan_ipv4" ]; then
@@ -12277,7 +10819,6 @@ DEOF
                 _add "net" "$(T TXT_HEALTH_WAN_IPV4)" "$_ip_lbl" "INFO"
             fi
             [ -n "$_wan_ipv6" ] && _add "net" "$(T TXT_HEALTH_WAN_IPV6)" "$_wan_ipv6" "INFO"
-
             # DNS meta (INFO - sayilmaz, ayri key)
             _dns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
             _dot_p="$(printf '%s\n' "$_dns_raw" | grep 'dns_server.*@' | sed 's/.*@//;s/[[:space:]].*//' | grep -v '^dnsm$' | grep -v '^$' | sort -u)"
@@ -12291,7 +10832,6 @@ DEOF
             elif [ -n "$_doh_ps" ]; then _dns_mode="DoH"
             elif [ "$_dot_on" = "1" ]; then _dns_mode="DoT"
             else _dns_mode="Plain"; fi
-
             # DNS checks
             if check_dns_local; then _add "net" "$(T TXT_HEALTH_DNS_LOCAL)" "" "PASS"
             else _add "net" "$(T TXT_HEALTH_DNS_LOCAL)" "" "FAIL"; fi
@@ -12299,21 +10839,17 @@ DEOF
             else _add "net" "$(T TXT_HEALTH_DNS_PUBLIC)" "" "FAIL"; fi
             if check_dns_consistency; then _add "net" "$(T TXT_HEALTH_DNS_MATCH)" "" "PASS"
             else _add "net" "$(T TXT_HEALTH_DNS_MATCH)" "$(T TXT_HEALTH_DNS_MATCH_NOTE)" "INFO"; fi
-
             # Route
             _gw="$(ip route 2>/dev/null | awk '/default/ {print $3; exit}')"
             if [ -n "$_gw" ]; then _add "net" "$(T TXT_HEALTH_ROUTE)" "$_gw" "PASS"
             else _add "net" "$(T TXT_HEALTH_ROUTE)" "$(T _ 'yok' 'none')" "FAIL"; fi
-
             # --- System ---
             if ping -c 1 -W 1 1.1.1.1 >/dev/null 2>&1; then _add "sys" "$(T TXT_HEALTH_PING)" "" "PASS"
             else _add "sys" "$(T TXT_HEALTH_PING)" "" "FAIL"; fi
-
             _ram_kb="$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}')"
             _ram_mb=$((_ram_kb/1024))
             if [ "$_ram_mb" -lt 100 ]; then _add "sys" "$(T TXT_HEALTH_RAM)" "${_ram_mb}MB" "WARN"
             else _add "sys" "$(T TXT_HEALTH_RAM)" "${_ram_mb}MB" "PASS"; fi
-
             # RAM detay
             _ram_total_kb="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
             _ram_used_kb=$(( _ram_total_kb - _ram_kb ))
@@ -12329,7 +10865,6 @@ DEOF
             _add "sys" "$(T TXT_HEALTH_RAM_DETAIL)" "${_ram_used_mb}MB / ${_ram_mb}MB $(T _ 'bos' 'free') / ${_ram_total_mb}MB $(T _ 'toplam' 'total')" "INFO"
             _add "sys" "$(T TXT_HEALTH_RAM_BUFFER)" "${_ram_buf_mb}MB" "INFO"
             _add "sys" "$(T TXT_HEALTH_SWAP)" "${_swap_used_mb}MB / ${_swap_total_mb}MB" "INFO"
-
             _load="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
             _load5="$(awk '{print $2}' /proc/loadavg 2>/dev/null)"
             _load15="$(awk '{print $3}' /proc/loadavg 2>/dev/null)"
@@ -12337,7 +10872,6 @@ DEOF
             _load_status="PASS"
             awk -v l="$_load" -v n="$_nproc_hc" 'BEGIN{exit (l>=n)?0:1}' && _load_status="WARN"
             _add "sys" "$(T TXT_HEALTH_LOAD)" "$(T _ '1dk' '1min'): <b>$_load</b> | $(T _ '5dk' '5min'): <b>$_load5</b> | $(T _ '15dk' '15min'): <b>$_load15</b>  ($(T _ 'Esik' 'Threshold'): <b style='color:var(--info)'>${_nproc_hc}</b> CPU)" "$_load_status"
-
             _disk_pct="$(healthmon_disk_used_pct /opt)"
             _disk_free_mb="$(df -k /opt 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
             if [ "$_disk_pct" != "<1" ] && [ -n "$_disk_pct" ] && [ "$_disk_pct" -gt 90 ] 2>/dev/null; then _add "sys" "$(T TXT_HEALTH_DISK)" "${_disk_pct}% (${_disk_free_mb}MB $(T _ 'bos' 'free'))" "WARN"
@@ -12362,7 +10896,6 @@ DEOF
             _dt_used_mb="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%d", $3/1024}')"
             _dt_total_str="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%.1fMB", $2/1024}')"
             _add "sys" "$(T TXT_HEALTH_DISK_TMP)" "${_dt_used_mb}MB / ${_dt_total_str} (${_dt_pct}%)" "INFO"
-
             # SoC sicakligi
             _hc_temp=""
             for _tf in /sys/class/thermal/thermal_zone*/temp; do
@@ -12378,15 +10911,12 @@ DEOF
             _hc_lan="$(ip -4 addr show br0 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
             [ -z "$_hc_lan" ] && _hc_lan="$(ip -4 addr show eth0 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
             [ -n "$_hc_lan" ] && _add "net" "$(T TXT_HEALTH_LAN_IP)" "$_hc_lan" "INFO"
-
             if check_ntp; then _add "sys" "$(T TXT_HEALTH_TIME)" "$(date '+%Y-%m-%d %H:%M')" "PASS"
             else _add "sys" "$(T TXT_HEALTH_TIME)" "$(date '+%Y-%m-%d %H:%M')" "WARN"; fi
-
             _kzm_exp="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
             _kzm_real="$(readlink -f "$ZKM_SCRIPT_PATH" 2>/dev/null || echo "$ZKM_SCRIPT_PATH")"
             if [ "$_kzm_real" = "$_kzm_exp" ]; then _add "sys" "$(T TXT_HEALTH_SCRIPT_PATH)" "$_kzm_real" "PASS"
             else _add "sys" "$(T TXT_HEALTH_SCRIPT_PATH)" "$_kzm_real" "WARN"; fi
-
             # --- Services ---
             # Entware
             if [ -f /opt/bin/opkg ] || [ -d /opt/etc ]; then _add "svc" "$(T TXT_HEALTH_ENTWARE)" "$(T _ 'Kurulu' 'Installed') (/opt)" "PASS"
@@ -12411,16 +10941,12 @@ DEOF
                 _add "svc" "$(T TXT_HEALTH_TGBOT)" "$(T _ 'Calisiyor' 'Running') (PID: $(cat /tmp/zkm_telegram_bot.pid 2>/dev/null))" "PASS"
             elif [ "$_hc_tg_en" = "1" ]; then _add "svc" "$(T TXT_HEALTH_TGBOT)" "$(T _ 'Acik ama calismiyor' 'Enabled but not running')" "WARN"
             else _add "svc" "$(T TXT_HEALTH_TGBOT)" "$(T _ 'Kapali / Yapilandirilmamis' 'Disabled / Not configured')" "INFO"; fi
-
             if check_github; then _add "svc" "$(T TXT_HEALTH_GITHUB)" "" "PASS"
             else _add "svc" "$(T TXT_HEALTH_GITHUB)" "" "WARN"; fi
-
             if check_opkg; then _add "svc" "$(T TXT_HEALTH_OPKG)" "" "PASS"
             else _add "svc" "$(T TXT_HEALTH_OPKG)" "" "WARN"; fi
-
             if is_zapret_running; then _add "svc" "$(T TXT_HEALTH_ZAPRET)" "$(T _ 'Calisiyor' 'Running')" "PASS"
             else _add "svc" "$(T TXT_HEALTH_ZAPRET)" "$(T _ 'Durduruldu' 'Stopped')" "FAIL"; fi
-
             # KeenDNS
             _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
             _kdns_name="$(printf '%s
@@ -12453,18 +10979,15 @@ DEOF
                     _add "svc" "KeenDNS" "$_kdns_fqdn [$(T TXT_KEENDNS_CLOUD)]" "INFO"
                 fi
             fi
-
             # SHA256
             _sha_kzm="$(cat /opt/etc/zkm_sha256_kzm.state 2>/dev/null)"
             _sha_zap="$(cat /opt/etc/zkm_sha256_zapret.state 2>/dev/null)"
             case "$_sha_kzm" in ok) _add "svc" "$(T TXT_HEALTH_SHA256_KZM)" "$(T TXT_HEALTH_SHA256_OK)" "PASS" ;; fail) _add "svc" "$(T TXT_HEALTH_SHA256_KZM)" "$(T TXT_HEALTH_SHA256_FAIL)" "WARN" ;; *) _add "svc" "$(T TXT_HEALTH_SHA256_KZM)" "$(T TXT_HEALTH_SHA256_UNKNOWN)" "INFO" ;; esac
             case "$_sha_zap" in ok) _add "svc" "$(T TXT_HEALTH_SHA256_ZAP)" "$(T TXT_HEALTH_SHA256_OK)" "PASS" ;; fail) _add "svc" "$(T TXT_HEALTH_SHA256_ZAP)" "$(T TXT_HEALTH_SHA256_FAIL)" "WARN" ;; *) _add "svc" "$(T TXT_HEALTH_SHA256_ZAP)" "$(T TXT_HEALTH_SHA256_ZAP_UNKNOWN)" "INFO" ;; esac
-
             # Score
             _ok_n=$((_pass+_info))
             _score="$(awk -v ok="$_ok_n" -v t="$_total" 'BEGIN{if(t<=0)print "0.0"; else printf "%.1f",(ok/t)*10}')"
             _ts="$(date +%s 2>/dev/null || echo 0)"
-
             printf '{"ok":1,"ts":%s,"score":"%s","pass":%d,"warn":%d,"fail":%d,"info":%d,"total":%d,"dns_mode":"%s","dns_providers":"%s","items":[%s]}\n' \
                 "$_ts" "$_score" "$_pass" "$_warn" "$_fail" "$_info" "$_total" \
                 "$(_js "$_dns_mode")" "$(_js "$_dns_providers")" "$_items" \
@@ -12475,7 +10998,6 @@ DEOF
     esac
     exit 0
 fi
-
 healthmon_is_running() {
   # 1) PID file check
   if [ -f "$HM_PID_FILE" ]; then
@@ -12484,7 +11006,6 @@ healthmon_is_running() {
       return 0
     fi
   fi
-
   # 2) Fallback: detect an existing daemon even if PID file was lost (/tmp wiped, manual edits, etc.)
   PID="$(ps 2>/dev/null | awk -v n="$SCRIPT_NAME" 'index($0,"--healthmon-daemon")>0 && index($0,n)>0 {print $1; exit}')"
   if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
@@ -12492,12 +11013,8 @@ healthmon_is_running() {
     echo "$PID" >"$HM_PID_FILE" 2>/dev/null
     return 0
   fi
-
   return 1
 }
-
-
-
 healthmon_autostart_install() {
     # Ensure HealthMon starts after reboot when enabled
     mkdir -p /opt/etc/init.d 2>/dev/null
@@ -12510,11 +11027,9 @@ CONF="/opt/etc/healthmon.conf"
 PIDFILE="/tmp/healthmon.pid"
 LOCKDIR="/tmp/healthmon.lock"
 INITLOG="/tmp/healthmon_init.log"
-
 log_init() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$INITLOG"
 }
-
 wait_for_network() {
   local max_wait=120
   local waited=0
@@ -12540,7 +11055,6 @@ wait_for_network() {
   log_init "WARNING: Network timeout after ${max_wait}s, starting anyway"
   return 1
 }
-
 cleanup_stale() {
   if [ -f "$PIDFILE" ]; then
     local old_pid=$(cat "$PIDFILE" 2>/dev/null)
@@ -12563,7 +11077,6 @@ cleanup_stale() {
     fi
   fi
 }
-
 start() {
   log_init "=== Init start ==="
   
@@ -12602,7 +11115,6 @@ start() {
     return 1
   fi
 }
-
 stop() {
   log_init "=== Init stop ==="
   if [ -f "$PIDFILE" ]; then
@@ -12621,7 +11133,6 @@ stop() {
   rm -rf "$LOCKDIR" 2>/dev/null
   log_init "Stopped"
 }
-
 case "$1" in
   start) start ;;
   stop) stop ;;
@@ -12632,34 +11143,25 @@ exit 0
 EOF
     chmod 755 "$HM_AUTOSTART_FILE" 2>/dev/null
 }
-
 healthmon_autostart_remove() {
     rm -f "$HM_AUTOSTART_FILE" 2>/dev/null
 }
-
 healthmon_start() {
     # already running? don't spawn a 2nd daemon
     healthmon_is_running && return 0
-
-
     healthmon_load_config
     HM_ENABLE="1"
     healthmon_write_config
-
-
     healthmon_autostart_install
-
     # Clear stale state (safe)
     rm -f "$HM_PID_FILE" 2>/dev/null
     rm -rf "$HM_LOCKDIR" 2>/dev/null
-
     # Start as a detached daemon by re-invoking this script
     if command -v nohup >/dev/null 2>&1; then
         nohup "$0" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
     else
         "$0" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
     fi
-
     # Wait up to 5s for PID to appear and process to be alive (BusyBox-safe)
     # NOTE: Each iteration checks terminal liveness. If the controlling terminal
     # is gone (SSH/Telnet disconnect, Ctrl-C), we bail out immediately to prevent
@@ -12672,20 +11174,15 @@ healthmon_start() {
         fi
         sleep 1
     done
-
     # Failed to start: cleanup any stale state
     rm -f "$HM_PID_FILE" 2>/dev/null
     rm -rf "$HM_LOCKDIR" 2>/dev/null
     return 1
 }
-
-
 healthmon_stop() {
     HM_ENABLE="0"
     healthmon_write_config
-
     healthmon_autostart_remove
-
     # Stop daemon by PID file if present
     if [ -f "$HM_PID_FILE" ]; then
         kill "$(cat "$HM_PID_FILE" 2>/dev/null)" 2>/dev/null
@@ -12693,13 +11190,11 @@ healthmon_stop() {
         kill -9 "$(cat "$HM_PID_FILE" 2>/dev/null)" 2>/dev/null
         rm -f "$HM_PID_FILE" 2>/dev/null
     fi
-
     # Fallback: stop any stray daemon instances (e.g., PID file missing)
     ps 2>/dev/null | awk -v n="$SCRIPT_NAME" 'index($0,"--healthmon-daemon")>0 && index($0,n)>0 {print $1}' | while read -r p; do
         [ -n "$p" ] && kill "$p" 2>/dev/null
         [ -n "$p" ] && sleep 1 && kill -9 "$p" 2>/dev/null
     done
-
     # Clear volatile state to avoid stale counters after reboot/power loss
     rm -f /tmp/wanmon.* /tmp/healthmon_wan.* 2>/dev/null
     rm -f /tmp/healthmon.pid /tmp/healthmon_cpu_* /tmp/healthmon_disk* /tmp/healthmon_ram* 2>/dev/null
@@ -12707,14 +11202,10 @@ healthmon_stop() {
     rm -f /tmp/healthmon_updatecheck.* /tmp/healthmon_keendns* /tmp/healthmon_heartbeat* 2>/dev/null
     rm -rf "$HM_LOCKDIR" 2>/dev/null
 }
-
-
 healthmon_status() {
     healthmon_load_config
-
     local isrun=0
     healthmon_is_running && isrun=1
-
     local run_txt
     if [ "$isrun" -eq 1 ]; then
         run_txt="$(T TXT_HM_RUN_ON)"
@@ -12723,16 +11214,13 @@ healthmon_status() {
         run_txt="$(T TXT_HM_RUN_OFF)"
         run_txt="${CLR_RED}${run_txt}${CLR_RESET}"
     fi
-
     local cpu load disk ram
     cpu=$(healthmon_cpu_pct)
     load=$(healthmon_loadavg)
     disk=$(healthmon_disk_used_pct /opt)
     ram=$(healthmon_mem_free_mb)
-
     local pid=""
     [ -f "$HM_PID_FILE" ] && pid="$(cat "$HM_PID_FILE" 2>/dev/null)"
-
     # zapret state
     local zst="n/a"
     if is_zapret_installed; then
@@ -12740,7 +11228,6 @@ healthmon_status() {
     else
         zst="$(T TXT_HM_ZAPRET_NA_SHORT)"
     fi
-
     # translate auto-update mode
     local mode_txt
     case "${HM_AUTOUPDATE_MODE:-0}" in
@@ -12748,68 +11235,55 @@ healthmon_status() {
         1) mode_txt="$(T TXT_HM_MODE1)" ;;
         *) mode_txt="$(T TXT_HM_MODE0)" ;;
     esac
-
     local upd_word
     if [ "${HM_UPDATECHECK_ENABLE:-0}" = "1" ]; then
         upd_word="$(T TXT_HM_WORD_ON)"
     else
         upd_word="$(T TXT_HM_WORD_OFF)"
     fi
-
     local _w=24
     local _lbl
-
     hm_kv() {
         # $1=label, $2=value
         _lbl="$1"
         _lbl="${_lbl%:}"
         printf "  %-*s : %s\n" "$_w" "$_lbl" "$2"
     }
-
     clear_screen
     print_line "="
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_TITLE)" "${CLR_RESET}"
     print_line "="
     echo
-
     # Status line
     _lbl="$(T TXT_HM_STATUS_RUNNING)"; _lbl="${_lbl%:}"
     printf "  %-*s : %s (%s=%s%s)\n" "$_w" "$_lbl" "$run_txt" "$(T TXT_HM_ENABLE_LABEL)" "$HM_ENABLE" "${pid:+, pid=$pid}"
-
     echo
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_SETTINGS)" "${CLR_RESET}"
     print_line "-"
-
     hm_kv "$(T TXT_HM_STATUS_INTERVAL)" "${HM_INTERVAL}s"
     hm_kv "$(T TXT_HM_CFG_ITEM10)" "${HM_HEARTBEAT_SEC}s"
     hm_kv "$(T TXT_HM_CFG_ITEM9)" "${HM_COOLDOWN_SEC}s"
     hm_kv "$(T TXT_HM_STATUS_UPDATECHECK)" "${upd_word}=${HM_UPDATECHECK_ENABLE}, $(T TXT_HM_FLAG_EVERY)=${HM_UPDATECHECK_SEC}s"
     hm_kv "$(T TXT_HM_STATUS_AUTOUPDATE)" "${mode_txt} ($(T TXT_HM_FLAG_MODE)=${HM_AUTOUPDATE_MODE:-0})"
-
     echo
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_THRESH)" "${CLR_RESET}"
     print_line "-"
-
     hm_kv "$(T TXT_HM_STATUS_CPU_WARN)" "${HM_CPU_WARN}% / ${HM_CPU_WARN_DUR}s"
     hm_kv "$(T TXT_HM_STATUS_CPU_CRIT)" "${HM_CPU_CRIT}% / ${HM_CPU_CRIT_DUR}s"
     hm_kv "$(T TXT_HM_STATUS_DISK_WARN)" "${HM_DISK_WARN}%"
     hm_kv "$(T TXT_HM_STATUS_RAM_WARN)" "<= ${HM_RAM_WARN_MB} MB"
-
     echo
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_ZAPRET)" "${CLR_RESET}"
     print_line "-"
-
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_WD)" "$HM_ZAPRET_WATCHDOG"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_CD)" "${HM_ZAPRET_COOLDOWN_SEC}s"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_AR)" "$HM_ZAPRET_AUTORESTART"
     hm_kv "$(T _ 'NFQUEUE kuyruk denetimi' 'NFQUEUE qlen watchdog')" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}"
     hm_kv "$(T _ 'WAN izleme' 'WAN monitoring')" "en=${HM_WANMON_ENABLE:-0} fail=${HM_WANMON_FAIL_TH:-3} ok=${HM_WANMON_OK_TH:-2} (${HM_WANMON_IFACE:-auto})"
     hm_kv "KeenDNS curl interval" "${HM_KEENDNS_CURL_SEC}s"
-
     echo
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_NOW)" "${CLR_RESET}"
     print_line "-"
-
     local _load1 _load5 _load15 _nproc
     _load1="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
     _load5="$(awk '{print $2}' /proc/loadavg 2>/dev/null)"
@@ -12840,7 +11314,6 @@ healthmon_status() {
         printf "  %-24s : %s
 " "$(T _ 'SoC Sicakligi' 'SoC Temperature')"             "$_temp_simdi $(T _ 'Santigrat Derece' 'Degrees Celsius')"
     fi
-
     # RAM / Swap / Buffer / Disk detay
     local _st_total_kb _st_used_kb _st_buf_kb _st_cached_kb _st_swap_total _st_swap_free _st_ram_total
     _st_total_kb="$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}')"
@@ -12865,11 +11338,8 @@ healthmon_status() {
     _dt_total2="$(df -k /tmp 2>/dev/null | awk 'NR==2 {printf "%.1fMB", $2/1024}')"
     printf "  %-*s : %sMB / %s (%s%%)
 " "$_w2" "$(T _ 'Disk /tmp' 'Disk /tmp')" "${_dt_used2}" "${_dt_total2}" "${_dt_pct:-?}"
-
     echo
 }
-
-
 healthmon_test() {
     local cpu load disk ram
     cpu=$(healthmon_cpu_pct)
@@ -12878,11 +11348,8 @@ healthmon_test() {
     ram=$(healthmon_mem_free_mb)
     telegram_send "$(tpl_render "$(T TXT_HM_TEST_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")"
 }
-
-
 healthmon_config_menu() {
     healthmon_load_config
-
     # helper: ask number with current value, empty keeps current
     hm_ask_num() {
         local _label="$1" _var="$2" _cur _v _sec _readable
@@ -12926,7 +11393,6 @@ healthmon_config_menu() {
                 ;;
         esac
     }
-
     hm_ask_01() {
         local _label="$1" _var="$2" _cur _v
         eval _cur="\${$_var}"
@@ -12939,7 +11405,6 @@ healthmon_config_menu() {
             esac
         fi
     }
-
     while true; do
         clear
         print_line "="
@@ -12967,7 +11432,6 @@ echo
         printf "  %s) %s\n" "0" "$(T _ 'Geri (kaydetmeden)' 'Back (without saving)')"
         echo
         printf '%s' "$(T _ 'Secim: ' 'Choice: ')"; read -r _c || return 0
-
         case "$_c" in
             1)
                 hm_ask_num "$(T TXT_HM_PROMPT_CPU_WARN)" HM_CPU_WARN
@@ -13066,11 +11530,9 @@ esac
         esac
     done
 }
-
 # =============================================================================
 # ZAMANLI YENIDEN BASLAT (Scheduled Reboot via Cron)
 # =============================================================================
-
 # TR/EN Dictionary (Scheduled Reboot)
 TXT_SCHED_TITLE_TR="Zamanli Yeniden Baslat"
 TXT_SCHED_TITLE_EN="Scheduled Reboot"
@@ -13118,20 +11580,16 @@ TXT_SCHED_DAILY_SET_TR="Gunluk yeniden baslat: Her gun saat %HOUR%"
 TXT_SCHED_DAILY_SET_EN="Daily reboot: Every day at %HOUR%"
 TXT_SCHED_WEEKLY_SET_TR="Haftalik yeniden baslat: Her hafta saat %HOUR% (Gun: %DOW%)"
 TXT_SCHED_WEEKLY_SET_EN="Weekly reboot: Every week at %HOUR% (Day: %DOW%)"
-
 # Crontab'daki KZM reboot satirini tanimlayan etiket
 KZM_REBOOT_TAG="# KZM_REBOOT"
-
 # crond calisiyor mu kontrol et (ps -w ile)
 _sched_crond_running() {
     ps -w 2>/dev/null | awk '/cron/ && !/awk/{found=1} END{exit !found}'
 }
-
 # Mevcut KZM_REBOOT satirini oku (yoksa bos doner)
 _sched_get_current() {
     crontab -l 2>/dev/null | awk '/KZM_REBOOT/'
 }
-
 # Crontab'dan KZM_REBOOT satirini kaldir
 _sched_remove() {
     local _tmp="/tmp/kzm_cron_remove.$$"
@@ -13139,7 +11597,6 @@ _sched_remove() {
     crontab "$_tmp"
     rm -f "$_tmp"
 }
-
 # Crontab'a KZM_REBOOT satiri ekle
 # $1: min  $2: hour  $3: dow (* = her gun)
 _sched_write() {
@@ -13151,7 +11608,6 @@ _sched_write() {
     crontab "$_tmp"
     rm -f "$_tmp"
 }
-
 # Mevcut satiri okunabilir formatta goster
 _sched_show_current() {
     local _cur
@@ -13201,7 +11657,6 @@ _sched_show_current() {
         fi
     fi
 }
-
 scheduled_reboot_menu() {
     while true; do
         clear
@@ -13209,22 +11664,18 @@ scheduled_reboot_menu() {
         printf "  %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_SCHED_TITLE)" "${CLR_RESET}"
         print_line "="
         echo
-
         # crond uyarisi
         if ! _sched_crond_running; then
             print_status WARN "$(T TXT_SCHED_CROND_WARN)"
             echo
         fi
-
         # Mevcut zamanlama
         printf "  %b%s:%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_STATUS)" "${CLR_RESET}"
         _sched_show_current
         echo
-
         # Saat uyarisi
         print_status WARN "$(T TXT_SCHED_TIME_WARN)"
         echo
-
         print_line "-"
         printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_1)" "${CLR_RESET}"
         printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_2)" "${CLR_RESET}"
@@ -13233,10 +11684,8 @@ scheduled_reboot_menu() {
         printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_0)" "${CLR_RESET}"
         print_line "-"
         echo
-
         printf "%s" "$(T TXT_SCHED_PROMPT)"
         read -r _schoice
-
         case "$_schoice" in
             1)
                 clear
@@ -13337,7 +11786,6 @@ scheduled_reboot_menu() {
         esac
     done
 }
-
 health_monitor_menu() {
     while true; do
         clear
@@ -13419,12 +11867,10 @@ health_monitor_menu() {
                 fi
                 press_enter_to_continue
                 ;;
-
 4)
     healthmon_config_menu
     press_enter_to_continue
     ;;
-
 5)
     healthmon_stop
     if healthmon_start; then
@@ -13434,24 +11880,19 @@ health_monitor_menu() {
     fi
     press_enter_to_continue
     ;;
-
             0) return 0 ;;
             *) echo "$(T TXT_INVALID_CHOICE)" ; sleep 1 ;;
         esac
     done
 }
-
 check_script_location_once
-
 # ===========================================================================
 # TR/EN Dictionary (Web Panel GUI)
 # ===========================================================================
 TXT_MENU_17_TR="17. Web Panel (GUI)"
 TXT_MENU_17_EN="17. Web Panel (GUI)"
-
 TXT_GUI_TITLE_TR="Web Panel (GUI)"
 TXT_GUI_TITLE_EN="Web Panel (GUI)"
-
 TXT_GUI_OPT_1_TR="1) Web Panel Kur"
 TXT_GUI_OPT_1_EN="1) Install Web Panel"
 TXT_GUI_OPT_2_TR="2) Web Panel Kaldir"
@@ -13470,7 +11911,6 @@ TXT_GUI_PORT_INVALID_TR="Gecersiz port numarasi."
 TXT_GUI_PORT_INVALID_EN="Invalid port number."
 TXT_GUI_PORT_CHANGED_TR="Port degistirildi. Web panel yeniden baslatildi."
 TXT_GUI_PORT_CHANGED_EN="Port changed. Web panel restarted."
-
 TXT_GUI_INSTALLED_TR="Web Panel kuruldu."
 TXT_GUI_INSTALLED_EN="Web Panel installed."
 TXT_GUI_REMOVED_TR="Web Panel kaldirildi."
@@ -13519,12 +11959,9 @@ TXT_GUI_OPKG_UPD_TR="opkg guncelleniyor..."
 TXT_GUI_OPKG_UPD_EN="Running opkg update..."
 TXT_GUI_CRON_OK_TR="Cron        : OK"
 TXT_GUI_CRON_OK_EN="Cron        : OK"
-
-
 # ===========================================================================
 # KZM GUI — Fonksiyonlar
 # ===========================================================================
-
 KZM_GUI_DIR="/opt/www/kzm"
 KZM_GUI_CGI_DIR="/opt/www/kzm/cgi-bin"
 KZM_GUI_HTML="$KZM_GUI_DIR/index.html"
@@ -13539,21 +11976,18 @@ KZM_GUI_PORT="8088"
     [ -n "$_p" ] && KZM_GUI_PORT="$_p"
     unset _p
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_is_installed: lighttpd ve HTML dosyasi var mi?
 # ---------------------------------------------------------------------------
 kzm_gui_is_installed() {
     [ -f "$KZM_GUI_HTML" ] && command -v lighttpd >/dev/null 2>&1
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_is_running: lighttpd sureci calisiyor mu?
 # ---------------------------------------------------------------------------
 kzm_gui_is_running() {
     pgrep -x lighttpd >/dev/null 2>&1
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_get_lan_ip: LAN IP adresini dinamik al
 # ---------------------------------------------------------------------------
@@ -13567,7 +12001,6 @@ kzm_gui_get_lan_ip() {
     [ -z "$_ip" ] && _ip="192.168.1.1"
     printf '%s' "$_ip"
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_gen_status: /opt/var/run/kzm_status.json uret (hafif, ndmc yok)
 # ---------------------------------------------------------------------------
@@ -13576,11 +12009,9 @@ kzm_gui_gen_status() {
     mkdir -p "$_dir" 2>/dev/null
     # JSON /tmp'ye yazilir, symlink /opt/var/run altinda kalir (USB write azaltmak icin)
     ln -sf /tmp/kzm_status.json "$_dir/kzm_status.json" 2>/dev/null
-
     # Zapret calisiyor mu?
     local _zap_run=0
     pgrep -x nfqws >/dev/null 2>&1 && _zap_run=1
-
     # HealthMon calisiyor mu?
     local _hm_run=0
     local _hm_pid_file="/tmp/healthmon.pid"
@@ -13589,11 +12020,9 @@ kzm_gui_gen_status() {
         _hm_pid="$(cat "$_hm_pid_file" 2>/dev/null)"
         [ -n "$_hm_pid" ] && kill -0 "$_hm_pid" 2>/dev/null && _hm_run=1
     fi
-
     # HealthMon etkin mi? (config)
     local _hm_enabled=0
     [ "$(grep -s '^HM_ENABLE=' /opt/etc/healthmon.conf | cut -d= -f2 | tr -d '"')" = "1" ] && _hm_enabled=1
-
     # Telegram bot etkin/calisiyor mu?
     local _tg_enabled=0 _tg_run=0 _tg_configured=0
     [ "$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')" = "1" ] && _tg_enabled=1
@@ -13607,14 +12036,12 @@ kzm_gui_gen_status() {
         _tg_pid="$(cat "/tmp/zkm_telegram_bot.pid" 2>/dev/null)"
         [ -n "$_tg_pid" ] && kill -0 "$_tg_pid" 2>/dev/null && _tg_run=1
     fi
-
     # CPU load
     local _load1 _load5 _load15
     _load1="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
     _load5="$(awk '{print $2}' /proc/loadavg 2>/dev/null)"
     _load15="$(awk '{print $3}' /proc/loadavg 2>/dev/null)"
     [ -z "$_load1" ] && _load1="0.00"
-
     # RAM (KB)
     local _ram_total=0 _ram_free=0 _ram_used_mb=0 _ram_total_mb=0
     _ram_total="$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null)"
@@ -13624,7 +12051,6 @@ kzm_gui_gen_status() {
     [ -z "$_ram_free"  ] && _ram_free=0
     _ram_total_mb=$(( _ram_total / 1024 ))
     _ram_used_mb=$(( (_ram_total - _ram_free) / 1024 ))
-
     # Disk /opt
     local _disk_used_pct=0 _disk_total_mb=0 _disk_used_mb=0
     if [ -d /opt ]; then
@@ -13639,7 +12065,6 @@ kzm_gui_gen_status() {
     [ -z "$_disk_used_pct" ] && _disk_used_pct=0
     [ -z "$_disk_total_mb" ] && _disk_total_mb=0
     [ -z "$_disk_used_mb" ] && _disk_used_mb=0
-
     # Zapret version
     local _zap_ver="Unknown"
     if [ -f /opt/zapret/ip2net/ip2net ]; then
@@ -13647,7 +12072,6 @@ kzm_gui_gen_status() {
     fi
     [ -z "$_zap_ver" ] && _zap_ver="$(cat /opt/zapret/VERSION 2>/dev/null | head -n1 | tr -d '\n')"
     [ -z "$_zap_ver" ] && _zap_ver="Unknown"
-
     # WAN bilgisi
     local _wan_dev _wan_ip
     _wan_dev="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '\n')"
@@ -13655,21 +12079,18 @@ kzm_gui_gen_status() {
     [ -z "$_wan_dev" ] && _wan_dev="Unknown"
     _wan_ip="$(ip -4 addr show "$_wan_dev" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
     [ -z "$_wan_ip" ] && _wan_ip="Unknown"
-
     # Model ve firmware: statik dosyadan oku (kurulumda yazildi)
     local _model _firmware
     _model="$(cat /opt/var/run/kzm_hw_model 2>/dev/null | tr -d '\n')"
     _firmware="$(cat /opt/var/run/kzm_hw_firmware 2>/dev/null | tr -d '\n')"
     [ -z "$_model"    ] && _model="Keenetic"
     [ -z "$_firmware" ] && _firmware="Unknown"
-
     # DPI profil bilgisi
     local _dpi_profile _dpi_origin
     _dpi_profile="$(cat /opt/zapret/dpi_profile 2>/dev/null | tr -d '\n')"
     _dpi_origin="$(cat /opt/zapret/dpi_profile_origin 2>/dev/null | tr -d '\n')"
     [ -z "$_dpi_profile" ] && _dpi_profile="Unknown"
     [ -z "$_dpi_origin"  ] && _dpi_origin="manual"
-
     # Blockcheck sonucu
     local _bc_score=0 _bc_dns_ok=0 _bc_tls12_ok=0 _bc_udp_weak=1 _bc_ts=0
     if [ -f /opt/zapret/blockcheck_result.json ]; then
@@ -13684,7 +12105,6 @@ kzm_gui_gen_status() {
         [ -z "$_bc_udp_weak" ] && _bc_udp_weak=1
         [ -z "$_bc_ts"       ] && _bc_ts=0
     fi
-
     # KeenDNS bilgisi
     local _kdns_raw _kdns_access _kdns_fqdn
     _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
@@ -13698,12 +12118,10 @@ kzm_gui_gen_status() {
     fi
     [ -z "$_kdns_access" ] && _kdns_access="none"
     [ -z "$_kdns_fqdn"   ] && _kdns_fqdn=""
-
     # Timestamp
     local _ts
     _ts="$(date +%s 2>/dev/null)"
     [ -z "$_ts" ] && _ts=0
-
     # JSON yaz (jq yok, elle compose)
     cat > /tmp/kzm_status.json << EOF
 {
@@ -13741,7 +12159,6 @@ kzm_gui_gen_status() {
 }
 EOF
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_write_status_script: /opt/bin/kzm_status_gen.sh olustur
 # ---------------------------------------------------------------------------
@@ -13752,12 +12169,10 @@ kzm_gui_write_status_script() {
 # kzm_status_gen.sh — KZM Web Panel JSON durum uretici (standalone)
 # Cron: */1 * * * * /opt/bin/kzm_status_gen.sh >/dev/null 2>&1
 # NOT: Bu dosya KZM script tarafindan otomatik uretilmistir.
-
 export PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 mkdir -p /opt/var/run 2>/dev/null
 # JSON /tmp'ye yazilir, /opt/var/run altinda symlink kalir (USB write azaltmak icin)
 ln -sf /tmp/kzm_status.json /opt/var/run/kzm_status.json 2>/dev/null
-
 _zap=0; pgrep nfqws >/dev/null 2>&1 && _zap=1
 _hm=0
 _hmpid="$(cat /tmp/healthmon.pid 2>/dev/null)"
@@ -13773,16 +12188,13 @@ _tg_configured=0
 _tg_tok="$(grep -s '^TG_BOT_TOKEN=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
 _tg_chat="$(grep -s '^TG_CHAT_ID=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
 [ -n "$_tg_tok" ] && [ -n "$_tg_chat" ] && _tg_configured=1
-
 _load1="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"; [ -z "$_load1" ] && _load1="0.00"
 _load5="$(awk '{print $2}' /proc/loadavg 2>/dev/null)"; [ -z "$_load5" ] && _load5="0.00"
 _load15="$(awk '{print $3}' /proc/loadavg 2>/dev/null)"; [ -z "$_load15" ] && _load15="0.00"
-
 _rtotal="$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null)"; [ -z "$_rtotal" ] && _rtotal=0
 _rfree="$(awk '/^MemAvailable:/{print $2}' /proc/meminfo 2>/dev/null)"; [ -z "$_rfree" ] && _rfree=0
 _rtmb=$(( _rtotal / 1024 ))
 _rumb=$(( (_rtotal - _rfree) / 1024 ))
-
 _dpct=0; _dtmb=0; _dumb=0
 if [ -d /opt ]; then
     _dpct="$(healthmon_disk_used_pct /opt)"
@@ -13793,7 +12205,6 @@ if [ -d /opt ]; then
     [ -z "$_dtmb" ] && _dtmb=0
     [ -z "$_dumb" ] && _dumb=0
 fi
-
 # RAM detay
 _rbuf="$(awk '/^Buffers:/{print $2}' /proc/meminfo 2>/dev/null)"; [ -z "$_rbuf" ] && _rbuf=0
 _rcached="$(awk '/^Cached:/{print $2}' /proc/meminfo 2>/dev/null | head -1)"; [ -z "$_rcached" ] && _rcached=0
@@ -13827,19 +12238,15 @@ _lan_ip="$(ip -4 addr show br0 2>/dev/null | awk '/inet /{print $2;exit}' | cut 
 _lighttpd=0; pgrep lighttpd >/dev/null 2>&1 && _lighttpd=1
 # curl
 _curl_ok=0; command -v curl >/dev/null 2>&1 && _curl_ok=1
-
 _wan="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '\n')"
 [ -z "$_wan" ] && _wan="$(ip -4 route show default 2>/dev/null | awk '/^default/{print $5;exit}')"
 [ -z "$_wan" ] && _wan="Unknown"
 _wip="$(ip -4 addr show "$_wan" 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
 [ -z "$_wip" ] && _wip="Unknown"
-
 _zver="$(cat /opt/zapret/version 2>/dev/null | head -n1 | tr -d '\n')"
 [ -z "$_zver" ] && _zver="Unknown"
-
 _kzmver="$(grep '^SCRIPT_VERSION=' /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh 2>/dev/null | head -n1 | cut -d= -f2 | tr -d '"')"
 [ -z "$_kzmver" ] && _kzmver="Unknown"
-
 _model="$(cat /opt/var/run/kzm_hw_model 2>/dev/null | tr -d '\n')"
 if [ -z "$_model" ] || [ "$_model" = "Keenetic" ]; then
     _model="$(. /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh 2>/dev/null; zkm_banner_get_system 2>/dev/null)"
@@ -13848,7 +12255,6 @@ fi
 [ -z "$_model" ] && _model="Keenetic"
 _fw="$(cat /opt/var/run/kzm_hw_firmware 2>/dev/null | tr -d '\n')"; [ -z "$_fw" ] && _fw="Unknown"
 _ts="$(date +%s 2>/dev/null)"; [ -z "$_ts" ] && _ts=0
-
 _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
 _kdns_access="$(printf '%s\n' "$_kdns_raw" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
 _kdns_fqdn=""
@@ -13858,17 +12264,14 @@ if [ -n "$_kdns_access" ]; then
     _kdns_fqdn="${_kdns_name}.${_kdns_domain}"
 fi
 [ -z "$_kdns_access" ] && _kdns_access="none"
-
 _dpi_profile="$(cat /opt/zapret/dpi_profile 2>/dev/null | tr -d '\n')"
 _dpi_origin="$(cat /opt/zapret/dpi_profile_origin 2>/dev/null | tr -d '\n')"
 [ -z "$_dpi_profile" ] && _dpi_profile="Unknown"
 [ -z "$_dpi_origin"  ] && _dpi_origin="manual"
-
 _sha_kzm="$(cat /opt/etc/zkm_sha256_kzm.state 2>/dev/null | tr -d '[:space:]')"
 [ -z "$_sha_kzm" ] && _sha_kzm="unknown"
 _sha_zapret="$(cat /opt/etc/zkm_sha256_zapret.state 2>/dev/null | tr -d '[:space:]')"
 [ -z "$_sha_zapret" ] && _sha_zapret="unknown"
-
 _bc_score=0; _bc_dns_ok=0; _bc_tls12_ok=0; _bc_udp_weak=1; _bc_ts=0
 if [ -f /opt/zapret/blockcheck_result.json ]; then
     _bc_score="$(grep '"score"'    /opt/zapret/blockcheck_result.json | grep -o '[0-9]*' | head -1)"
@@ -13882,7 +12285,6 @@ if [ -f /opt/zapret/blockcheck_result.json ]; then
     [ -z "$_bc_udp_weak" ] && _bc_udp_weak=1
     [ -z "$_bc_ts"       ] && _bc_ts=0
 fi
-
 printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
     "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$_kzmver" "$_model" "$_fw" "$_wan" "$_wip" "$_lan_ip" \
     "$_kdns_fqdn" "$_kdns_access" \
@@ -13899,7 +12301,6 @@ printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s"
 STATEOF
     chmod +x "$KZM_GUI_STATUS_SCRIPT"
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_write_cgi: /opt/www/kzm/cgi-bin/action.sh olustur
 # ---------------------------------------------------------------------------
@@ -13910,35 +12311,28 @@ kzm_gui_write_cgi() {
 # kzm-cgi-version: __KZM_VER__
 export PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 printf 'Content-Type: application/json\r\n\r\n'
-
 CONTENT_LENGTH="${CONTENT_LENGTH:-0}"
 if [ "$CONTENT_LENGTH" -gt 0 ] 2>/dev/null; then
     POST_BODY=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null)
 else
     read -r POST_BODY
 fi
-
 ACTION=$(printf '%s' "$POST_BODY" | sed 's/.*action=\([^&]*\).*/\1/' | tr -d '"'\''[:space:]')
 get_param() { printf '%s' "$POST_BODY" | sed "s/.*$1=\([^&]*\).*/\1/" | sed 's/%2F/\//g;s/%2C/,/g;s/%20/ /g;s/%2E/./g;s/%2D/-/g;s/%3A/:/g;s/%40/@/g;s/+/ /g' | tr -d '\n'; }
-
 ok()      { printf '{"ok":1,"msg":"%s"}' "$1"; }
 ok_data() { printf '{"ok":1,"data":%s}' "$1"; }
 ok_str()  { printf '{"ok":1,"data":"%s"}' "$1"; }
 fail()    { printf '{"ok":0,"msg":"%s"}' "$1"; }
-
 HL_USER="/opt/zapret/ipset/zapret-hosts-user.txt"
 HL_EXCL="/opt/zapret/ipset/zapret-hosts-user-exclude.txt"
 IPSET_FILE="/opt/zapret/ipset_clients.txt"
 DPI_FILE="/opt/zapret/dpi_profile"
 SCHED_TAG="# KZM_REBOOT"
-
 json_arr() {
     [ -f "$1" ] || { printf '[]'; return; }
     awk 'BEGIN{printf "["} NF{if(NR>1)printf ","; printf "\"%s\"",$0} END{print "]"}' "$1" 2>/dev/null || printf '[]'
 }
-
 refresh() { sh /opt/bin/kzm_status_gen.sh >/dev/null 2>&1; }
-
 wait_zapret() {
     # $1: "up" veya "down" — beklenen durum; max 8 saniye
     local _want="$1" _i=0
@@ -13951,7 +12345,6 @@ wait_zapret() {
         sleep 1; _i=$(( _i + 1 ))
     done
 }
-
 case "$ACTION" in
     zapret_start)
         rm -f /tmp/.zapret_paused 2>/dev/null
@@ -14481,9 +12874,6 @@ case "$ACTION" in
             "cloudflare-dns.com/dns-query|DoH|Filtresiz" \
             "1.1.1.2@security.cloudflare-dns.com|DoT|Aile" \
             "1.0.0.2@security.cloudflare-dns.com|DoT|Aile" \
-            "dns.comss.one/dns-query|DoH|Filtresiz" \
-            "83.220.169.155@dns.comss.one|DoT|Filtresiz" \
-            "212.109.195.93@dns.comss.one|DoT|Filtresiz" \
             "9.9.9.9@dns.quad9.net|DoT|Gizlilik" \
             "149.112.112.112@dns.quad9.net|DoT|Gizlilik" \
             "94.140.14.14@dns.adguard-dns.com|DoT|Reklam" \
@@ -14507,7 +12897,7 @@ case "$ACTION" in
 ' "$_items" "$_rebind" ;;
     dns_add_preset)
         _pkg=$(get_param pkg)
-        case "$_pkg" in Google|Cloudflare|CF_Families|Comss|Quad9|AdGuard|Mullvad|Dns0eu|CleanBrowsing) ;; *) fail "Gecersiz paket"; exit 0 ;; esac
+        case "$_pkg" in Google|Cloudflare|CF_Families|Quad9|AdGuard|Mullvad|Dns0eu|CleanBrowsing) ;; *) fail "Gecersiz paket"; exit 0 ;; esac
         _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
         [ -f "$_kzm" ] || { fail "KZM bulunamadi"; exit 0; }
         # Zaten mevcut mu inline kontrol et
@@ -14517,7 +12907,6 @@ case "$ACTION" in
             Google)        _pkg_keys="8.8.8.8 8.8.4.4 dns.google" ;;
             Cloudflare)    _pkg_keys="1.1.1.1 1.0.0.1 cloudflare-dns.com" ;;
             CF_Families)   _pkg_keys="1.1.1.2 1.0.0.2" ;;
-            Comss)         _pkg_keys="dns.comss.one 83.220.169.155 212.109.195.93" ;;
             Quad9)         _pkg_keys="9.9.9.9 149.112.112.112" ;;
             AdGuard)       _pkg_keys="94.140.14.14 94.140.15.15" ;;
             Mullvad)       _pkg_keys="dns.mullvad.net" ;;
@@ -14552,7 +12941,6 @@ CGIEOF
     sed -i "s/__KZM_VER__/${SCRIPT_VERSION}/g" "$KZM_GUI_CGI" 2>/dev/null
     chmod +x "$KZM_GUI_CGI"
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_write_lighttpd_conf: lighttpd.conf olustur
 # ---------------------------------------------------------------------------
@@ -14563,15 +12951,12 @@ server.document-root = "/opt/www/kzm"
 server.port          = $KZM_GUI_PORT
 server.bind          = "0.0.0.0"
 server.pid-file      = "/opt/var/run/lighttpd.pid"
-
 server.modules = (
   "mod_alias",
   "mod_cgi",
   "mod_setenv"
 )
-
 index-file.names = ( "index.html" )
-
 mimetype.assign = (
   ".html" => "text/html; charset=utf-8",
   ".js"   => "application/javascript",
@@ -14579,21 +12964,17 @@ mimetype.assign = (
   ".css"  => "text/css",
   ".ico"  => "image/x-icon"
 )
-
 setenv.add-response-header = (
   "Cache-Control" => "no-cache, no-store, must-revalidate",
   "Pragma"        => "no-cache",
   "Expires"       => "0"
 )
-
 alias.url = ( "/run/" => "/opt/var/run/" )
-
 \$HTTP["url"] =~ "^/cgi-bin/" {
   cgi.assign = ( ".sh" => "/bin/sh" )
 }
 CONFEOF
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_write_html: /opt/www/kzm/index.html yaz
 # NOT: Turkce karakterler HTML entity olarak yazilmistir (self-test uyumu)
@@ -14786,7 +13167,6 @@ select option{background:#111f3d}
   </nav>
   <div class="fnote">KZM Web Panel<br/><small id="atick"><span id="atickLabel">Otomatik yenileme</span>: 15s</small></div>
 </aside>
-
 <main>
   <header>
     <div class="title"><h2 id="pTitle">Dashboard</h2><small id="pSub">Canl&#305; sistem &#246;zeti.</small></div>
@@ -14803,10 +13183,8 @@ select option{background:#111f3d}
 </main>
 </div>
 <div class="toast" id="toast"></div>
-
 <script>
 var S=null,curV='dash',aTimer=null;
-
 function sbToggle(){
   var a=document.getElementById('kzmApp');
   var collapsed=a.classList.toggle('sb-off');
@@ -14826,13 +13204,11 @@ document.addEventListener('mouseover',function(e){
   tip.style.top=(r.top+r.height/2-14)+'px';
   tip.style.left=(r.right+6)+'px';
 });
-
 function toast(msg,ok){
   var t=document.getElementById('toast');
   t.textContent=msg;t.className='toast '+(ok?'ok':'err')+' show';
   clearTimeout(t._t);t._t=setTimeout(function(){t.className='toast';},3000);
 }
-
 function fetchS(){
   return fetch('/run/kzm_status.json?t='+Date.now())
     .then(function(r){return r.json();})
@@ -14846,9 +13222,7 @@ function fetchS(){
         '<div style="padding:40px;color:var(--bad);text-align:center">Status JSON okunamad&#305;. kzm_status_gen.sh &#231;al&#305;&#351;&#305;yor mu?</div>';
     });
 }
-
 function startAuto(){clearInterval(aTimer);aTimer=setInterval(fetchS,15000);}
-
 function quickPoll(times,interval){
   var n=0;
   var t=setInterval(function(){
@@ -14856,7 +13230,6 @@ function quickPoll(times,interval){
     if(n>=times){clearInterval(t);startAuto();}
   },interval);
 }
-
 function act(action,btn,msg){
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
   fetch('/cgi-bin/action.sh',{method:'POST',
@@ -14877,7 +13250,6 @@ function act(action,btn,msg){
   })
   .catch(function(){toast('Ba&#287;lant&#305; hatas&#305;',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
-
 function actD(action,data,btn,msg){
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
   fetch('/cgi-bin/action.sh',{method:'POST',
@@ -14890,7 +13262,6 @@ function actD(action,data,btn,msg){
   })
   .catch(function(){toast('Ba&#287;lant&#305; hatas&#305;',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
-
 function getD(action,cb){
   fetch('/cgi-bin/action.sh',{method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -14898,7 +13269,6 @@ function getD(action,cb){
   .then(function(r){return r.json();}).then(cb)
   .catch(function(e){cb({ok:0,msg:''+e});});
 }
-
 function updHdr(){
   if(!S)return;
   document.getElementById('hWan').textContent=S.wan_ip||'—';
@@ -14907,7 +13277,6 @@ function updHdr(){
   var z=document.getElementById('hZap');
   z.innerHTML=S.zapret_running?'<span class="good">'+(L?'ACTIVE':'AKT&#304;F')+'</span>':'<span class="bad">'+(L?'INACTIVE':'PAS&#304;F')+'</span>';
 }
-
 function bdg(on,a,b){return on?'<span class="badge good">'+(a||'AKT&#304;F')+'</span>':'<span class="badge bad">'+(b||'PAS&#304;F')+'</span>';}
 function bdgO(on,a,b){return on?'<span class="badge good">'+(a||'AKT&#304;F')+'</span>':'<span class="badge off">'+(b||'KAPALI')+'</span>';}
 function brr(p){var c=p>85?'bad':p>60?'warn':'good';return '<div class="progress"><div class="bar '+c+'" style="width:'+p+'%"></div></div>';}
@@ -14918,7 +13287,6 @@ function fmtKeenDns(a){var d=L?'Direct':'Do&#287;rudan';var c=L?'Cloud':'Cloud';
 var opkgState={status:null,count:0,upgraded:false};
 var hmConfCache=null;
 var dnsCache=null;
-
 function fmtOpkgCard(){
   var statusHtml=L?'Press the button to refresh the package list.':'Paket listesini yenilemek i&#231;in butona bas&#305;n.';
   var upgradeShow='none';
@@ -14948,7 +13316,6 @@ function fmtOpkgCard(){
     '</div>'+
   '</div>';
 }
-
 function dnsRender(r){
   var el=document.getElementById('dnsListArea');
   var rb=document.getElementById('dnsRebindStatus');
@@ -15000,8 +13367,7 @@ function dnsPresetHtml(){
     ['Standard','Standard (No Filter)','Standart (Filtresiz)','Google + Cloudflare DoT/DoH'],
     ['Privacy','Privacy Focused','Gizlilik Odakl&#305;','Quad9 + Mullvad + dns0.eu'],
     ['AdGuard','Ad Blocker','Reklam Engelleyici','AdGuard DoT'],
-    ['Family','Family Filter','Aile Filtresi','CF Families + CleanBrowsing DoT'],
-    ['Turkiye','T&#252;rkiye Optimize','T&#252;rkiye Optimizeli','Comss DoH/DoT']
+    ['Family','Family Filter','Aile Filtresi','CF Families + CleanBrowsing DoT']
   ];
   var h='<div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">';
   rows.forEach(function(r){
@@ -15016,8 +13382,7 @@ function dnsAddPreset(pkg,btn){
     'Standard':['Google','Cloudflare'],
     'Privacy':['Quad9','Mullvad','Dns0eu'],
     'AdGuard':['AdGuard'],
-    'Family':['CF_Families','CleanBrowsing'],
-    'Turkiye':['Comss']
+    'Family':['CF_Families','CleanBrowsing']
   };
   var pkgs=profiles[pkg]||[pkg];
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
@@ -15057,7 +13422,6 @@ function dnsRebindToggle(btn){
     dnsCache=null;setTimeout(dnsLoad,2500);
   }).catch(function(){if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
-
 function opkgUpdate(btn){
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> '+(L?'Refreshing...':'Yenileniyor...');
   document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> '+(L?'Running opkg update...':'opkg update &#231;al&#305;&#351;t&#305;r&#305;l&#305;yor...');
@@ -15093,12 +13457,10 @@ function opkgUpdate(btn){
     document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; '+(L?'Connection error':'Ba&#287;lant&#305; hatas&#305;')+'</span>';
   });
 }
-
 function opkgUpgrade(btn){
   btn.style.display='none';
   document.getElementById('opkgWarn').style.display='';
 }
-
 function opkgUpgradeConfirm(btn){
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Y&#252;kseltiliyor...';
   document.getElementById('opkgStatus').innerHTML='<span class="spinner"></span> opkg upgrade &#231;al&#305;&#351;t&#305;r&#305;l&#305;yor, l&#252;tfen bekleyin...';
@@ -15125,7 +13487,6 @@ function opkgUpgradeConfirm(btn){
     document.getElementById('opkgStatus').innerHTML='<span style="color:var(--bad)">&#10007; Ba&#287;lant&#305; hatas&#305;</span>';
   });
 }
-
 function fmtBcCard(S){
   var profileNames={
     'tt_default':'Turk Telekom Fiber (TTL2 fake)',
@@ -15169,7 +13530,6 @@ function fmtBcCard(S){
     '<div style="color:var(--muted);font-size:11px">'+(L?'Last blockcheck: ':'Son blockcheck: ')+dtStr+'</div>'+
   '</div>';
 }
-
 var V={
   dash:{title:'Dashboard',titleEn:'Dashboard',sub:'Canl&#305; sistem &#246;zeti.',subEn:'Live system overview.',html:function(){
     if(!S)return nd();
@@ -15227,7 +13587,6 @@ var V={
         ir('GitHub','<a href="https://github.com/RevolutionTR/keenetic-zapret-manager" target="_blank" style="color:var(--accent)">github.com/RevolutionTR/keenetic-zapret-manager</a>')+
       '</div></div></div></div>';
   }},
-
   zapret:{title:'Zapret Kontrol',titleEn:'Zapret Control',sub:'Zapret servisini y&#246;net.',subEn:'Manage Zapret service.',html:function(){
     if(!S)return nd();
     return '<div class="grid" style="grid-template-columns:1fr 1fr">'+
@@ -15244,7 +13603,6 @@ var V={
         '<div class="hint" style="margin-top:8px">'+(L?'If HealthMon AUTORESTART=1, stop is not permanent.':'HealthMon AUTORESTART=1 ise durdurma kal&#305;c&#305; olmaz.')+'</div>'+
       '</div></div>';
   }},
-
   dpi:{title:'DPI Profili',titleEn:'DPI Profile',sub:'Mevcut DPI profilini g&#246;r&#252;nt&#252;le ve de&#287;i&#351;tir.',subEn:'View and change current DPI profile.',html:function(){
     var h='<div class="grid" style="grid-template-columns:1fr 1fr">'+
       '<div class="card"><h3>'+(L?'Current Profile':'Mevcut Profil')+'</h3>'+
@@ -15290,7 +13648,6 @@ var V={
       '</div></div>';
     return h;
   }},
-
   hostlist:{title:'Hostlist Y&#246;netimi',titleEn:'Hostlist Management',sub:'Domain ekle, sil, listele.',subEn:'Add, remove, list domains.',html:function(){
     var h='<div class="grid">'+
       '<div class="card"><h3>'+(L?'Add Domain':'Domain Ekle')+'</h3>'+
@@ -15310,7 +13667,6 @@ var V={
       '</div></div>';
     setTimeout(hlLoad,100);return h;
   }},
-
   ipset:{title:'IPSET Y&#246;netimi',titleEn:'IPSET Management',sub:'Statik IP tabanl&#305; filtreleme.',subEn:'Static IP-based filtering.',html:function(){
     var h='<div class="grid">'+
       '<div class="card"><h3>'+(L?'Add IP':'IP Ekle')+'</h3>'+
@@ -15331,7 +13687,6 @@ var V={
       '</div>';
     setTimeout(ipLoad,100);return h;
   }},
-
   healthmon:{title:'Sistem &#304;zleme',titleEn:'System Monitor',sub:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',subEn:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
@@ -15365,18 +13720,15 @@ var V={
     }
     return h;
   }},
-
   compcheck:{title:'Bile&#351;en Kontrol&#252;',titleEn:'Component Check',sub:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC kontrol&#252;.',subEn:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC check.',html:function(){
     setTimeout(function(){ccRun();},100);
     return '<div id="ccResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.4s"></div></div><div style="font-size:1.1em;color:var(--fg)">'+(L?'Checking components...':'Bile&#351;enler kontrol ediliyor...')+'</div></div></div>';
   }},
-
   healthcheck:{title:'A&#287; Tan&#305;lama',titleEn:'Network Diagnostics',sub:'DNS/NTP/GitHub/OPKG/Disk/Zapret kontrol&#252; (Menu 14).',subEn:'DNS/NTP/GitHub/OPKG/Disk/Zapret check (Menu 14).',html:function(){
     if(!S)return nd();
     setTimeout(function(){hcRun();},50);
     return '<div id="hcResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.4s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.5s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.6s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.7s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.8s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0.9s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:1.0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:1.1s"></div></div><div style="font-size:1.1em;color:var(--fg)">'+(L?'Running diagnostics...':'Kontrol yap&#305;l&#305;yor...')+'</div><div style="font-size:0.85em;color:var(--muted)">'+(L?'Please wait':'L&#252;tfen bekleyin')+'</div></div></div>';
   }},
-
   telegram:{title:'Telegram',titleEn:'Telegram',sub:'Bildirim ve interaktif bot.',subEn:'Notifications and interactive bot.',html:function(){
     if(!S)return nd();
     var cfg=!!S.telegram_configured;
@@ -15432,7 +13784,6 @@ var V={
     },100);
     return h;
   }},
-
   mon:{title:'Sistem &#304;zleme',titleEn:'System Monitor',sub:'Canl&#305; kaynak kullan&#305;m&#305;.',subEn:'Live resource usage.',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
@@ -15451,7 +13802,6 @@ var V={
         '</div></div>'+
       '</div>';
   }},
-
   sched:{title:'Zamanl&#305; Reboot',titleEn:'Scheduled Reboot',sub:'Cron tabanl&#305; yeniden ba&#351;latma.',subEn:'Cron-based scheduled restart.',html:function(){
     var h='<div class="grid">'+
       '<div class="card" id="schedC"><h3>'+(L?'Current Schedule':'Mevcut Zamanlama')+'</h3><div class="sub">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div>'+
@@ -15506,7 +13856,6 @@ var V={
     },100);
     return h;
   }},
-
   dns:{title:'DNS Y&#246;netimi',titleEn:'DNS Management',sub:'DoT/DoH sunucu y&#246;netimi.',subEn:'DoT/DoH server management.',html:function(){
     var h='<div class="grid">';
     // Mevcut sunucular
@@ -15527,11 +13876,9 @@ var V={
     setTimeout(function(){dnsLoad();},100);
     return h;
   }},
-
   backup:{title:'Yedekle / Geri Y&#252;kle',titleEn:'Backup / Restore',sub:'Zapret ayarlar&#305; yedekleme ve geri y&#252;kleme.',subEn:'Zapret settings backup and restore.',html:function(){
     setTimeout(function(){bkLoad();},100);
     return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
-
       '<div class="card"><h3>&#128190; '+(L?'Backup Zapret Settings':'Zapret Ayarlar&#305; Yedekle')+'</h3>'+
         '<div class="sub">'+(L?'Backs up config, hostlist, IPSET, DPI profile, healthmon, telegram as tar.gz.':'config, hostlist, IPSET, DPI profili, healthmon, telegram ayarlar&#305; tar.gz olarak yedekler.')+'</div>'+
         '<div class="btns" style="margin-top:8px">'+
@@ -15542,7 +13889,6 @@ var V={
         '<div class="hint" style="margin-top:8px">'+(L?'Location:':'Konum:')+' /opt/zapret_backups/zapret_settings/</div>'+
         '<div id="bkSetList" style="margin-top:8px"></div>'+
       '</div>'+
-
       '<div class="card"><h3>&#9850; '+(L?'Restore Zapret Settings':'Zapret Ayarlar&#305; Geri Y&#252;kle')+'</h3>'+
         '<div class="sub">'+(L?'Restore from backup by scope. Zapret restarts automatically.':'Kapsam se&#231;erek yedekten geri y&#252;kle. Zapret otomatik yeniden ba&#351;lar.')+'</div>'+
         '<div style="margin-top:8px">'+
@@ -15555,7 +13901,6 @@ var V={
           '<div id="bkSetRestore" style="margin-top:4px"><div class="sub">&#8593; '+(L?'Click View Backups first':'Once Yedekleri G&#246;r\'e t&#305;klay&#305;n')+'</div></div>'+
         '</div>'+
       '</div>'+
-
       '<div class="card"><h3>&#128190; '+(L?'Backup IPSET':'IPSET Yedekle')+'</h3>'+
         '<div class="sub">'+(L?'Copies current IPSET .txt files to current + history folders.':'Mevcut IPSET .txt dosyalar&#305;n&#305; current + history klas&#246;rlerine kopyalar.')+'</div>'+
         '<div class="btns" style="margin-top:8px">'+
@@ -15566,15 +13911,12 @@ var V={
         '<div class="hint" style="margin-top:8px">'+(L?'Location:':'Konum:')+' /opt/zapret_backups/current/</div>'+
         '<div id="bkIpList" style="margin-top:8px"></div>'+
       '</div>'+
-
       '<div class="card"><h3>&#9850; '+(L?'Restore IPSET':'IPSET Geri Y&#252;kle')+'</h3>'+
         '<div class="sub">'+(L?'Select and restore files from the current folder.':'Current klas&#246;r&#252;ndeki dosyalar&#305; se&#231;erek geri y&#252;kle.')+'</div>'+
         '<div id="bkIpRestore" style="margin-top:8px"><div class="sub">&#8593; '+(L?'Click View Backups first':'Once Yedekleri G&#246;r\'e t&#305;klay&#305;n')+'</div></div>'+
       '</div>'+
-
     '</div>';
   }},
-
   changelog:{title:'KZM — S&#252;r&#252;m Notlar&#305;',titleEn:'KZM — Release Notes',sub:'KZM g&#252;ncelleme ge&#231;mi&#351;i.',subEn:'KZM update history.',noPrefix:true,html:function(){
     setTimeout(function(){clLoad();},100);
     return '<div class="grid" style="grid-template-columns:200px 1fr;gap:14px">'+
@@ -15585,7 +13927,6 @@ var V={
     '</div>';
   }}
 };
-
 function hlLoad(){
   getD('hl_get',function(r){
     var el=document.getElementById('hlL'),ec=document.getElementById('hlCnt');
@@ -15650,7 +13991,6 @@ function schedSet(){
   setTimeout(function(){render('sched');},1800);
 }
 function schedDel(btn){act('sched_del',btn,'Kaldirildi');setTimeout(function(){render('sched');},1500);}
-
 var _hcTimer=null;
 var _hcAttempts=0;
 var _hcMaxAttempts=60;
@@ -15872,7 +14212,6 @@ function tgRestart(btn){
     .then(function(){render('telegram');});
   }).catch(function(){toast('Ba&#287;lant&#305; hatas&#305;',false);if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
-
 function bkDoSettingsBackup(btn){
   if(btn){btn._o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
   fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=backup_settings'})
@@ -16102,14 +14441,12 @@ function render(k){
   document.getElementById('pSub').innerHTML=(L&&v.subEn)?v.subEn:(v.sub||'');
   document.getElementById('view').innerHTML=v.html?v.html():'<div class="empty">Yap&#305;m a&#351;amas&#305;nda...</div>';
 }
-
 document.querySelectorAll('.item').forEach(function(el){
   el.addEventListener('click',function(){
     document.querySelectorAll('.item').forEach(function(i){i.classList.remove('active');});
     el.classList.add('active');curV=el.getAttribute('data-view');render(curV);
   });
 });
-
 // Sayfa acilisinda: once eski JSON'u goster, arka planda taze uret, gelince yenile
 fetchS();startAuto();
 fetch('/cgi-bin/action.sh',{method:'POST',
@@ -16124,7 +14461,6 @@ HTMLEOF
     sed -i "s/__KZM_PORT__/${KZM_GUI_PORT}/g" "$KZM_GUI_HTML" 2>/dev/null
     sed -i "s/__KZM_VER__/${SCRIPT_VERSION}/g" "$KZM_GUI_HTML" 2>/dev/null
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_add_cron: status_gen.sh icin cron satiri ekle
 # ---------------------------------------------------------------------------
@@ -16138,7 +14474,6 @@ kzm_gui_add_cron() {
     } | crontab -
     rm -f "$_tmp"
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_save_hw_info: model ve firmware bilgisini dosyaya kaydet
 # ---------------------------------------------------------------------------
@@ -16147,7 +14482,6 @@ kzm_gui_save_hw_info() {
     zkm_banner_get_system  2>/dev/null > /opt/var/run/kzm_hw_model  || true
     zkm_banner_get_firmware 2>/dev/null > /opt/var/run/kzm_hw_firmware || true
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_remove_cron: status_gen cron satirini kaldir
 # ---------------------------------------------------------------------------
@@ -16157,7 +14491,6 @@ kzm_gui_remove_cron() {
     crontab - < "$_tmp"
     rm -f "$_tmp"
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_install: Web Panel kurulumu
 # ---------------------------------------------------------------------------
@@ -16165,17 +14498,14 @@ kzm_gui_install() {
     clear
     printf "\n %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_GUI_TITLE)" "${CLR_RESET}"
     print_line "="
-
     # /opt kontrolu
     if [ ! -d /opt ]; then
         print_status FAIL "$(T TXT_GUI_ERR_OPT)"
         press_enter_to_continue
         return 1
     fi
-
     print_status INFO "$(T TXT_GUI_OPKG_UPD)"
     opkg update >/dev/null 2>&1
-
     # lighttpd kur
     if ! command -v lighttpd >/dev/null 2>&1; then
         print_status INFO "$(T _ 'lighttpd kuruluyor...' 'Installing lighttpd...')"
@@ -16185,7 +14515,6 @@ kzm_gui_install() {
             return 1
         fi
     fi
-
     # lighttpd-mod-cgi kur
     if ! opkg list-installed 2>/dev/null | grep -q 'lighttpd-mod-cgi'; then
         print_status INFO "$(T _ 'lighttpd-mod-cgi kuruluyor...' 'Installing lighttpd-mod-cgi...')"
@@ -16195,34 +14524,26 @@ kzm_gui_install() {
             return 1
         fi
     fi
-
     # lighttpd-mod-setenv kur (Cache-Control header icin)
     if ! opkg list-installed 2>/dev/null | grep -q 'lighttpd-mod-setenv'; then
         print_status INFO "$(T _ 'lighttpd-mod-setenv kuruluyor...' 'Installing lighttpd-mod-setenv...')"
         opkg install lighttpd-mod-setenv >/dev/null 2>&1 || true
     fi
-
     print_status INFO "$(T _ 'Dosyalar olusturuluyor...' 'Creating files...')"
-
     # Dizinler
     mkdir -p "$KZM_GUI_DIR" "$KZM_GUI_CGI_DIR" /opt/var/run /opt/var/log 2>/dev/null
-
     # Dosyalar
     kzm_gui_write_lighttpd_conf
     kzm_gui_write_html
     kzm_gui_write_cgi
     kzm_gui_write_status_script
-
     # HW bilgisi kaydet
     kzm_gui_save_hw_info
-
     # Ilk status JSON uret
     kzm_gui_gen_status
-
     # Cron ekle
     kzm_gui_add_cron
     print_status PASS "$(T TXT_GUI_CRON_OK)"
-
     # Init.d autostart scripti olustur
     cat > /opt/etc/init.d/S80lighttpd << 'INITEOF'
 #!/bin/sh
@@ -16231,24 +14552,20 @@ kzm_gui_install() {
 [ "$1" = "restart" ] && { kill $(cat /opt/var/run/lighttpd.pid 2>/dev/null) 2>/dev/null; sleep 1; lighttpd -f /opt/etc/lighttpd/lighttpd.conf >/dev/null 2>&1; }
 INITEOF
     chmod +x /opt/etc/init.d/S80lighttpd
-
     # lighttpd baslat
     /opt/etc/init.d/S80lighttpd restart >/dev/null 2>&1 || \
         lighttpd -f "$KZM_GUI_CONF" >/dev/null 2>&1
-
     sleep 1
     if kzm_gui_is_running; then
         print_status PASS "$(T TXT_GUI_LIGHTTPD_OK)"
     else
         print_status WARN "$(T TXT_GUI_LIGHTTPD_OFF)"
     fi
-
     print_status PASS "$(T TXT_GUI_INSTALLED)"
     echo
     kzm_gui_show_url
     press_enter_to_continue
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_uninstall: Web Panel kaldirma
 # ---------------------------------------------------------------------------
@@ -16256,13 +14573,11 @@ kzm_gui_uninstall() {
     clear
     printf "\n %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_GUI_TITLE)" "${CLR_RESET}"
     print_line "="
-
     if ! kzm_gui_is_installed; then
         print_status WARN "$(T TXT_GUI_NOT_INSTALLED)"
         press_enter_to_continue
         return 0
     fi
-
     printf "%b%s%b" "${CLR_ORANGE}" "$(T TXT_GUI_CONFIRM_REMOVE)" "${CLR_RESET}"
     local _ans
     read -r _ans
@@ -16270,14 +14585,11 @@ kzm_gui_uninstall() {
         e|E|y|Y) ;;
         *) printf '%s\n' "$(T _ 'Iptal edildi.' 'Cancelled.')"; press_enter_to_continue; return 0 ;;
     esac
-
     print_status INFO "$(T TXT_GUI_REMOVING)"
-
     # lighttpd durdur ve autostart kaldir
     kill $(pgrep lighttpd) 2>/dev/null
     /opt/etc/init.d/S80lighttpd stop >/dev/null 2>&1
     rm -f /opt/etc/init.d/S80lighttpd
-
     # Dosyalari kaldir
     rm -rf "$KZM_GUI_DIR"
     rm -rf /opt/etc/lighttpd
@@ -16288,21 +14600,16 @@ kzm_gui_uninstall() {
     rm -f  /opt/var/log/lighttpd_error.log
     rm -f  /opt/var/log/lighttpd_access.log
     rm -f  /opt/var/run/lighttpd.pid
-
     # iptables kuralini kaldir
     iptables -D INPUT -p tcp --dport "$KZM_GUI_PORT" -j ACCEPT 2>/dev/null
-
     # opkg ile lighttpd paketlerini kaldir
     opkg remove lighttpd lighttpd-mod-cgi 2>/dev/null | grep -v "^$" || true
-
     # Cron kaldir
     kzm_gui_remove_cron
     rm -f "$KZM_GUI_CONF_CUSTOM"
-
     print_status PASS "$(T TXT_GUI_REMOVED)"
     press_enter_to_continue
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_update: Web Panel guncelle (dosyalari yeniden yaz + restart)
 # ---------------------------------------------------------------------------
@@ -16310,14 +14617,12 @@ kzm_gui_update() {
     clear
     printf "\n %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_GUI_TITLE)" "${CLR_RESET}"
     print_line "="
-
     if ! kzm_gui_is_installed; then
         print_status WARN "$(T TXT_GUI_NOT_INSTALLED)"
         print_status INFO "$(T _ 'Once kurulum yapin (Secim 1).' 'Please install first (Option 1).')"
         press_enter_to_continue
         return 1
     fi
-
     print_status INFO "$(T _ 'Dosyalar guncelleniyor...' 'Updating files...')"
     kzm_gui_write_lighttpd_conf
     kzm_gui_write_html
@@ -16325,13 +14630,10 @@ kzm_gui_update() {
     kzm_gui_write_status_script
     kzm_gui_save_hw_info
     kzm_gui_gen_status
-
     /opt/etc/init.d/S80lighttpd restart >/dev/null 2>&1
-
     print_status PASS "$(T TXT_GUI_UPDATED)"
     press_enter_to_continue
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_status: Durum goster
 # ---------------------------------------------------------------------------
@@ -16339,39 +14641,32 @@ kzm_gui_status() {
     clear
     printf "\n %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_GUI_TITLE)" "${CLR_RESET}"
     print_line "="
-
     if kzm_gui_is_running; then
         print_status PASS "$(T TXT_GUI_STATUS_ON)"
     else
         print_status WARN "$(T TXT_GUI_STATUS_OFF)"
     fi
-
     if [ -f "$KZM_GUI_HTML" ]; then
         print_status PASS "$(T TXT_GUI_HTML_OK)"
     else
         print_status WARN "$(T TXT_GUI_HTML_MISS)"
     fi
-
     if [ -f "$KZM_GUI_CGI" ]; then
         print_status PASS "$(T TXT_GUI_CGI_OK)"
     else
         print_status WARN "$(T TXT_GUI_CGI_MISS)"
     fi
-
     if [ -f "$KZM_GUI_STATUS_JSON" ]; then
         print_status PASS "$(T TXT_GUI_JSON_OK)"
     else
         print_status WARN "$(T TXT_GUI_JSON_MISS)"
     fi
-
     echo
     if kzm_gui_is_running; then
         kzm_gui_show_url
     fi
-
     press_enter_to_continue
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_change_port: GUI portunu degistir
 # ---------------------------------------------------------------------------
@@ -16411,7 +14706,6 @@ kzm_gui_change_port() {
     kzm_gui_show_url
     press_enter_to_continue
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_show_url: URL goster
 # ---------------------------------------------------------------------------
@@ -16422,7 +14716,6 @@ kzm_gui_show_url() {
         "${CLR_BOLD}" "$(T TXT_GUI_URL_LABEL)" "${CLR_RESET}" \
         "${CLR_CYAN}${CLR_BOLD}" "http://${_ip}:${KZM_GUI_PORT}/" "${CLR_RESET}"
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_toggle: lighttpd ac/kapat
 # ---------------------------------------------------------------------------
@@ -16445,7 +14738,6 @@ kzm_gui_toggle() {
     fi
     press_enter_to_continue
 }
-
 # ---------------------------------------------------------------------------
 # kzm_gui_menu: Ana GUI alt menusu
 # ---------------------------------------------------------------------------
@@ -16455,7 +14747,6 @@ kzm_gui_menu() {
         clear
         printf "\n %b%s%b\n" "${CLR_BOLD}${CLR_CYAN}" "$(T TXT_GUI_TITLE)" "${CLR_RESET}"
         print_line "="
-
         # Durum satiri
         if kzm_gui_is_running; then
             printf " %b%s%b\n" "${CLR_GREEN}" "$(T TXT_GUI_STATUS_ON)" "${CLR_RESET}"
@@ -16464,7 +14755,6 @@ kzm_gui_menu() {
         else
             printf " %b%s%b\n" "${CLR_RED}" "$(T TXT_GUI_STATUS_OFF)" "${CLR_RESET}"
         fi
-
         print_line "-"
         printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_1)" "${CLR_RESET}"
         printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_2)" "${CLR_RESET}"
@@ -16488,11 +14778,9 @@ kzm_gui_menu() {
         esac
     done
 }
-
 # ---------------------------------------------------------------------------
 # --cgi-action argumani: CGI tarafindan cagrilir, dogrudan fonksiyon calistirir
 # ---------------------------------------------------------------------------
-
 main_menu_loop() {
     while true; do
     clear  # clear_on_start_main_loop
@@ -16541,8 +14829,6 @@ R|r) scheduled_reboot_menu ;;
         echo ""
     done
 }
-
-
 # Internal: run health monitor loop as a detached daemon
 if [ "$1" = "--healthmon-daemon" ]; then
     # ignore hangup when parent shell exits
@@ -16550,7 +14836,6 @@ if [ "$1" = "--healthmon-daemon" ]; then
     healthmon_loop
     exit 0
 fi
-
 if [ "$1" = "--update-gui" ]; then
     if [ -d "$KZM_GUI_DIR" ]; then
         kzm_gui_write_html
@@ -16559,21 +14844,18 @@ if [ "$1" = "--update-gui" ]; then
     fi
     exit 0
 fi
-
 if [ "$1" = "--telegram-daemon" ]; then
     trap '' HUP 2>/dev/null
     telegram_load_config 2>/dev/null
     telegram_bot_daemon
     exit 0
 fi
-
 # --- Betigin Baslangic Noktasi ---
 # Kullanim: ./script.sh cleanup  -> Zapret kurulu olmasa bile kalintilari temizler
 if [ "$1" = "cleanup" ]; then
     cleanup_only_leftovers
     exit 0
 fi
-
 # curl kontrolu (daemon ve cleanup modlarinda atla)
 if [ "$1" != "--healthmon-daemon" ] && [ "$1" != "--telegram-daemon" ] && [ "$1" != "cleanup" ]; then
     if ! command -v curl >/dev/null 2>&1; then
@@ -16590,7 +14872,6 @@ if [ "$1" != "--healthmon-daemon" ] && [ "$1" != "--telegram-daemon" ] && [ "$1"
         fi
     fi
 fi
-
 # Web GUI versiyon kontrolu: HTML veya CGI surumu eslesmiyor ise sessizce guncelle
 if [ -d "$KZM_GUI_DIR" ]; then
     _gui_ver="$(grep -o 'kzm-version" content="[^"]*"' "$KZM_GUI_HTML" 2>/dev/null | sed 's/.*content="//;s/"//')"
@@ -16600,14 +14881,11 @@ if [ -d "$KZM_GUI_DIR" ]; then
         kzm_gui_write_cgi
     fi
 fi
-
 # rc.unslung patch: /opt/bin/find yerine BusyBox find kullan (Entware binary bozulmasina karsi)
 if grep -q '/opt/bin/find' /opt/etc/init.d/rc.unslung 2>/dev/null; then
     sed -i 's|/opt/bin/find|find|g' /opt/etc/init.d/rc.unslung 2>/dev/null
 fi
-
 main_menu_loop
-
 # WAN IP detection (best-effort)
 WAN_IP="$(ip -4 addr show ppp0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)"
 [ -z "$WAN_IP" ] && WAN_IP="$(ip -4 addr show eth0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)"
