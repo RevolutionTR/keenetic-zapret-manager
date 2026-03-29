@@ -39,7 +39,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.29"
+SCRIPT_VERSION="v26.3.29.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -7026,23 +7026,25 @@ display_menu() {
 _dns_master_list() {
     printf '%s
 ' \
-        "8.8.8.8@dns.google|DoT|dns-proxy tls upstream 8.8.8.8 sni dns.google|no dns-proxy tls upstream 8.8.8.8|Google" \
-        "8.8.4.4@dns.google|DoT|dns-proxy tls upstream 8.8.4.4 sni dns.google|no dns-proxy tls upstream 8.8.4.4|Google" \
-        "dns.google/dns-query|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm|no dns-proxy https upstream https://dns.google/dns-query|Google" \
-        "1.1.1.1@one.one.one.one|DoT|dns-proxy tls upstream 1.1.1.1 sni one.one.one.one|no dns-proxy tls upstream 1.1.1.1|Cloudflare" \
-        "1.0.0.1@one.one.one.one|DoT|dns-proxy tls upstream 1.0.0.1 sni one.one.one.one|no dns-proxy tls upstream 1.0.0.1|Cloudflare" \
-        "cloudflare-dns.com/dns-query|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm|no dns-proxy https upstream https://cloudflare-dns.com/dns-query|Cloudflare" \
-        "1.1.1.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.1.1.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.1.1.2|CF_Families" \
-        "1.0.0.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.0.0.2|CF_Families" \
-        "dns.comss.one/dns-query|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm|no dns-proxy https upstream https://dns.comss.one/dns-query|Comss" \
-        "9.9.9.9@dns.quad9.net|DoT|dns-proxy tls upstream 9.9.9.9 sni dns.quad9.net|no dns-proxy tls upstream 9.9.9.9|Quad9" \
-        "149.112.112.112@dns.quad9.net|DoT|dns-proxy tls upstream 149.112.112.112 sni dns.quad9.net|no dns-proxy tls upstream 149.112.112.112|Quad9" \
-        "94.140.14.14@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.14.14 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.14.14|AdGuard" \
-        "94.140.15.15@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.15.15 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.15.15|AdGuard" \
-        "dns.mullvad.net/dns-query|DoH|dns-proxy https upstream https://dns.mullvad.net/dns-query dnsm|no dns-proxy https upstream https://dns.mullvad.net/dns-query|Mullvad" \
-        "dns.dns0.eu/dns-query|DoH|dns-proxy https upstream https://dns.dns0.eu/dns-query dnsm|no dns-proxy https upstream https://dns.dns0.eu/dns-query|Dns0eu" \
-        "185.228.168.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.168.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.168.9|CleanBrowsing" \
-        "185.228.169.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.169.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.169.9|CleanBrowsing"
+        "8.8.8.8@dns.google|DoT|dns-proxy tls upstream 8.8.8.8 sni dns.google|no dns-proxy tls upstream 8.8.8.8|Google|Filtresiz" \
+        "8.8.4.4@dns.google|DoT|dns-proxy tls upstream 8.8.4.4 sni dns.google|no dns-proxy tls upstream 8.8.4.4|Google|Filtresiz" \
+        "dns.google/dns-query|DoH|dns-proxy https upstream https://dns.google/dns-query dnsm|no dns-proxy https upstream https://dns.google/dns-query|Google|Filtresiz" \
+        "1.1.1.1@one.one.one.one|DoT|dns-proxy tls upstream 1.1.1.1 sni one.one.one.one|no dns-proxy tls upstream 1.1.1.1|Cloudflare|Filtresiz" \
+        "1.0.0.1@one.one.one.one|DoT|dns-proxy tls upstream 1.0.0.1 sni one.one.one.one|no dns-proxy tls upstream 1.0.0.1|Cloudflare|Filtresiz" \
+        "cloudflare-dns.com/dns-query|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm|no dns-proxy https upstream https://cloudflare-dns.com/dns-query|Cloudflare|Filtresiz" \
+        "1.1.1.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.1.1.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.1.1.2|CF_Families|Aile" \
+        "1.0.0.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.0.0.2|CF_Families|Aile" \
+        "dns.comss.one/dns-query|DoH|dns-proxy https upstream https://dns.comss.one/dns-query dnsm|no dns-proxy https upstream https://dns.comss.one/dns-query|Comss|Filtresiz" \
+        "83.220.169.155@dns.comss.one|DoT|dns-proxy tls upstream 83.220.169.155 sni dns.comss.one|no dns-proxy tls upstream 83.220.169.155|Comss|Filtresiz" \
+        "212.109.195.93@dns.comss.one|DoT|dns-proxy tls upstream 212.109.195.93 sni dns.comss.one|no dns-proxy tls upstream 212.109.195.93|Comss|Filtresiz" \
+        "9.9.9.9@dns.quad9.net|DoT|dns-proxy tls upstream 9.9.9.9 sni dns.quad9.net|no dns-proxy tls upstream 9.9.9.9|Quad9|Gizlilik" \
+        "149.112.112.112@dns.quad9.net|DoT|dns-proxy tls upstream 149.112.112.112 sni dns.quad9.net|no dns-proxy tls upstream 149.112.112.112|Quad9|Gizlilik" \
+        "94.140.14.14@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.14.14 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.14.14|AdGuard|Reklam" \
+        "94.140.15.15@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.15.15 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.15.15|AdGuard|Reklam" \
+        "dns.mullvad.net/dns-query|DoH|dns-proxy https upstream https://dns.mullvad.net/dns-query dnsm|no dns-proxy https upstream https://dns.mullvad.net/dns-query|Mullvad|Gizlilik" \
+        "dns.dns0.eu/dns-query|DoH|dns-proxy https upstream https://dns.dns0.eu/dns-query dnsm|no dns-proxy https upstream https://dns.dns0.eu/dns-query|Dns0eu|Gizlilik" \
+        "185.228.168.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.168.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.168.9|CleanBrowsing|Aile" \
+        "185.228.169.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.169.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.169.9|CleanBrowsing|Aile"
 }
 
 # Mevcut DNS sunucularini goster
@@ -7050,7 +7052,8 @@ _dns_master_list() {
 dns_show_current() {
     local _raw="$1"
     local _found=0
-    local _entry _key _type
+    local _entry _key _type _pkg _grp
+    local _groups=""
     print_line "-"
     printf " %b%s:%b
 " "${CLR_BOLD}" "$(T TXT_DNS_MGMT_CURRENT)" "${CLR_RESET}"
@@ -7058,13 +7061,26 @@ dns_show_current() {
         _key="${_entry%%|*}"
         _rest="${_entry#*|}"
         _type="${_rest%%|*}"
-        # DoT: IP@SNI formatinda grep
+        _rest2="${_rest#*|}"; _rest3="${_rest2#*|}"; _rest4="${_rest3#*|}"
+        _pkg="${_rest4%%|*}"
+        _grp="${_rest4##*|}"
         local _grep_key
         _grep_key="${_key%%@*}"
         if echo "$_raw" | grep -qF "$_grep_key"; then
-            printf "  %b%-5s%b %-40s
-" "${CLR_GREEN}" "[$_type]" "${CLR_RESET}" "$_key"
+            # Grup rengi
+            local _gc
+            case "$_grp" in
+                Filtresiz) _gc="${CLR_GREEN}" ;;
+                Gizlilik)  _gc="${CLR_CYAN}" ;;
+                Reklam)    _gc="${CLR_ORANGE}" ;;
+                Aile)      _gc="${CLR_YELLOW}" ;;
+                *)         _gc="${CLR_DIM}" ;;
+            esac
+            printf "  %b%-5s%b %-42s %b(%s)%b
+" "${CLR_GREEN}" "[$_type]" "${CLR_RESET}" "$_key" "$_gc" "$_grp" "${CLR_RESET}"
             _found=$((_found+1))
+            # Aktif gruplari topla
+            echo "$_groups" | grep -qF "$_grp" || _groups="${_groups}${_grp} "
         fi
     done << MASTEREOF
 $(_dns_master_list)
@@ -7072,6 +7088,14 @@ MASTEREOF
     if [ "$_found" -eq 0 ]; then
         printf "  %b%s%b
 " "${CLR_DIM}" "$(T TXT_DNS_MGMT_NONE)" "${CLR_RESET}"
+    fi
+    # Karisik grup uyarisi
+    local _gcount
+    _gcount=$(printf '%s' "$_groups" | wc -w)
+    if [ "$_gcount" -gt 1 ]; then
+        printf "
+  %b[!] %s%b
+" "${CLR_ORANGE}" "$(T _ 'Farkli filtre gruplari aktif! DNS karisikligi yasanabilir.' 'Multiple filter groups active! DNS conflicts may occur.')" "${CLR_RESET}"
     fi
     print_line "-"
     return "$_found"
@@ -7092,7 +7116,7 @@ dns_add_preset_menu() {
         printf " %b 2.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Gizlilik Odakli' 'Privacy Focused')" "Quad9 + Mullvad + dns0.eu"
         printf " %b 3.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Reklam Engelleyici' 'Ad Blocker')" "AdGuard DoT"
         printf " %b 4.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Aile Filtresi' 'Family Filter')" "CF Families + CleanBrowsing"
-        printf " %b 5.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Turkiye Optimizeli' 'Turkey Optimized')" "Comss DoH"
+        printf " %b 5.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Turkiye Optimizeli' 'Turkey Optimized')" "Comss DoH/DoT"
         printf " %b 0.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Geri' 'Back')"
         echo ""
         printf '%s ' "$(T _ 'Secim:' 'Choice:')"
@@ -13870,7 +13894,7 @@ else
 fi
 
 ACTION=$(printf '%s' "$POST_BODY" | sed 's/.*action=\([^&]*\).*/\1/' | tr -d '"'\''[:space:]')
-get_param() { printf '%s' "$POST_BODY" | sed "s/.*$1=\([^&]*\).*/\1/" | sed 's/%2F/\//g;s/%2C/,/g;s/%20/ /g;s/%2E/./g;s/%2D/-/g;s/%3A/:/g;s/+/ /g' | tr -d '\n'; }
+get_param() { printf '%s' "$POST_BODY" | sed "s/.*$1=\([^&]*\).*/\1/" | sed 's/%2F/\//g;s/%2C/,/g;s/%20/ /g;s/%2E/./g;s/%2D/-/g;s/%3A/:/g;s/%40/@/g;s/+/ /g' | tr -d '\n'; }
 
 ok()      { printf '{"ok":1,"msg":"%s"}' "$1"; }
 ok_data() { printf '{"ok":1,"data":%s}' "$1"; }
@@ -14423,13 +14447,34 @@ case "$ACTION" in
         printf '%s' "$_dnsraw" | grep -q "norebind_ctl = on" && _rebind="on"
         _items=""
         _comma=""
-        for _dkey in             "8.8.8.8@dns.google|DoT"             "8.8.4.4@dns.google|DoT"             "dns.google/dns-query|DoH"             "1.1.1.1@one.one.one.one|DoT"             "1.0.0.1@one.one.one.one|DoT"             "cloudflare-dns.com/dns-query|DoH"             "1.1.1.2@security.cloudflare-dns.com|DoT"             "1.0.0.2@security.cloudflare-dns.com|DoT"            "dns.comss.one/dns-query|DoH"
+        for _dkey in \
+            "8.8.8.8@dns.google|DoT|Filtresiz" \
+            "8.8.4.4@dns.google|DoT|Filtresiz" \
+            "dns.google/dns-query|DoH|Filtresiz" \
+            "1.1.1.1@one.one.one.one|DoT|Filtresiz" \
+            "1.0.0.1@one.one.one.one|DoT|Filtresiz" \
+            "cloudflare-dns.com/dns-query|DoH|Filtresiz" \
+            "1.1.1.2@security.cloudflare-dns.com|DoT|Aile" \
+            "1.0.0.2@security.cloudflare-dns.com|DoT|Aile" \
+            "dns.comss.one/dns-query|DoH|Filtresiz" \
+            "83.220.169.155@dns.comss.one|DoT|Filtresiz" \
+            "212.109.195.93@dns.comss.one|DoT|Filtresiz" \
+            "9.9.9.9@dns.quad9.net|DoT|Gizlilik" \
+            "149.112.112.112@dns.quad9.net|DoT|Gizlilik" \
+            "94.140.14.14@dns.adguard-dns.com|DoT|Reklam" \
+            "94.140.15.15@dns.adguard-dns.com|DoT|Reklam" \
+            "dns.mullvad.net/dns-query|DoH|Gizlilik" \
+            "dns.dns0.eu/dns-query|DoH|Gizlilik" \
+            "185.228.168.9@family-filter-dns.cleanbrowsing.org|DoT|Aile" \
+            "185.228.169.9@family-filter-dns.cleanbrowsing.org|DoT|Aile"
         do
             _dk="${_dkey%%|*}"
-            _dt="${_dkey##*|}"
+            _rest="${_dkey#*|}"
+            _dt="${_rest%%|*}"
+            _dgrp="${_rest##*|}"
             _gk="${_dk%%@*}"
             if printf '%s' "$_dnsraw" | grep -qF "$_gk"; then
-                _items="${_items}${_comma}{\"key\":\"${_dk}\",\"type\":\"${_dt}\"}"
+                _items="${_items}${_comma}{\"key\":\"${_dk}\",\"type\":\"${_dt}\",\"group\":\"${_dgrp}\"}"
                 _comma=","
             fi
         done
@@ -14447,7 +14492,7 @@ case "$ACTION" in
             Google)        _pkg_keys="8.8.8.8 8.8.4.4 dns.google" ;;
             Cloudflare)    _pkg_keys="1.1.1.1 1.0.0.1 cloudflare-dns.com" ;;
             CF_Families)   _pkg_keys="1.1.1.2 1.0.0.2" ;;
-            Comss)         _pkg_keys="dns.comss.one" ;;
+            Comss)         _pkg_keys="dns.comss.one 83.220.169.155 212.109.195.93" ;;
             Quad9)         _pkg_keys="9.9.9.9 149.112.112.112" ;;
             AdGuard)       _pkg_keys="94.140.14.14 94.140.15.15" ;;
             Mullvad)       _pkg_keys="dns.mullvad.net" ;;
@@ -14468,8 +14513,8 @@ case "$ACTION" in
         [ -z "$_dkey" ] && { fail "Key bos"; exit 0; }
         _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
         [ -f "$_kzm" ] || { fail "KZM bulunamadi"; exit 0; }
-        ZKM_SKIP_LOCK=1 sh "$_kzm" --cgi-action dns_del "$_dkey" >/dev/null 2>&1 &
-        sleep 1; ok "Silindi: $_dkey" ;;
+        ZKM_SKIP_LOCK=1 sh "$_kzm" --cgi-action dns_del "$_dkey" >/dev/null 2>&1
+        ok "Silindi: $_dkey" ;;
     dns_rebind_toggle)
         _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
         [ -f "$_kzm" ] || { fail "KZM bulunamadi"; exit 0; }
@@ -14885,16 +14930,30 @@ function dnsRender(r){
   if(!el)return;
   if(!r||!r.ok){el.innerHTML='<span class="sub">Hata</span>';return;}
   if(r.items&&r.items.length>0){
+    var grpColor={'Filtresiz':'good','Gizlilik':'info','Reklam':'warn','Aile':'off'};
+    var groups={};
     var rows='<table style="width:100%;border-collapse:collapse;font-size:12.5px">';
     for(var i=0;i<r.items.length;i++){
       var itm=r.items[i];
-      rows+='<tr>'+
-        '<td style="padding:4px 0;width:50px"><span class="badge '+(itm.type==='DoT'?'good':'info')+'">'+itm.type+'</span></td>'+
-        '<td style="padding:4px 6px;font-family:monospace">'+itm.key+'</td>'+
-        '<td style="padding:4px 0;text-align:right"><button style="padding:2px 8px;font-size:11px" onclick="dnsDel(this.getAttribute(\'data-key\'),this)" data-key="'+itm.key+'">'+(L?'Delete':'Sil')+'</button></td>'+
+      var bg=i%2===0?'':'background:rgba(255,255,255,0.03);';
+      var grpCls=grpColor[itm.group]||'off';
+      groups[itm.group]=1;
+      rows+='<tr style="'+bg+'border-bottom:1px solid rgba(255,255,255,0.05)">'+
+        '<td style="padding:5px 0;width:50px"><span class="badge '+(itm.type==='DoT'?'good':'info')+'">'+itm.type+'</span></td>'+
+        '<td style="padding:5px 6px;font-family:monospace">'+itm.key+'</td>'+
+        '<td style="padding:5px 4px;width:70px"><span class="badge '+grpCls+'" style="font-size:10px">'+itm.group+'</span></td>'+
+        '<td style="padding:5px 0;text-align:right;width:50px"><button class="danger" style="padding:2px 8px;font-size:11px" onclick="dnsDel(this.getAttribute(\'data-key\'),this)" data-key="'+itm.key+'">'+(L?'Del':'Sil')+'</button></td>'+
       '</tr>';
     }
     rows+='</table>';
+    var grpKeys=Object.keys(groups);
+    if(grpKeys.length>1){
+      rows+='<div style="margin-top:8px;background:#2a1f00;border:1px solid var(--warn);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px">'+
+        '<span style="font-size:1.3em">&#9888;</span>'+
+        '<span style="color:var(--warn);font-size:14px;font-weight:500">'+
+          (L?'Multiple filter groups active! DNS conflicts may occur.':'Farkl&#305; filtre gruplar&#305; aktif! DNS kar&#305;&#351;&#305;kl&#305;&#287;&#305; ya&#351;anabilir.')+
+        '</span></div>';
+    }
     el.innerHTML=rows;
   } else {
     el.innerHTML='<div class="sub">'+(L?'No secure DNS servers configured.':'Guvenli DNS sunucusu yapilandirilmamis.')+'</div>';
@@ -14916,7 +14975,7 @@ function dnsPresetHtml(){
     ['Privacy','Privacy Focused','Gizlilik Odakl&#305;','Quad9 + Mullvad + dns0.eu'],
     ['AdGuard','Ad Blocker','Reklam Engelleyici','AdGuard DoT'],
     ['Family','Family Filter','Aile Filtresi','CF Families + CleanBrowsing DoT'],
-    ['Turkiye','T&#252;rkiye Optimize','T&#252;rkiye Optimizeli','Comss DoH']
+    ['Turkiye','T&#252;rkiye Optimize','T&#252;rkiye Optimizeli','Comss DoH/DoT']
   ];
   var h='<div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">';
   rows.forEach(function(r){
@@ -14958,7 +15017,7 @@ function dnsDel(key,btn){
   .then(function(res){
     toast(res.msg||(L?'Deleted':'Silindi'),!!res.ok);
     if(btn){btn.disabled=false;btn.innerHTML=btn._o;}
-    dnsCache=null;setTimeout(dnsLoad,1500);
+    dnsCache=null;setTimeout(dnsLoad,2500);
   }).catch(function(){if(btn){btn.disabled=false;btn.innerHTML=btn._o;}});
 }
 function dnsRebindToggle(btn){
