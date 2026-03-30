@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.29.2"
+SCRIPT_VERSION="v26.3.30"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -162,6 +162,72 @@ zkm_self_test() {
         fi
     else
         _warn "healthmon: /opt/etc/healthmon.conf not found (optional)"
+    fi
+    # 7) Zapret installation
+    if [ -x "/opt/zapret/init.d/sysv/zapret" ]; then
+        local _nfqws="/opt/zapret/nfq/nfqws"
+        local _init="/opt/etc/init.d/S90-zapret"
+        if [ ! -x "$_nfqws" ]; then
+            _fail "zapret: nfqws binary missing ($_nfqws)"
+        elif [ ! -e "$_init" ]; then
+            _warn "zapret: S90-zapret init link missing"
+        else
+            _pass "zapret: installed (nfqws OK, S90-zapret OK)"
+        fi
+    else
+        _pass "zapret: not installed (skipped)"
+    fi
+    # 8) Telegram bot process (only if bot enabled)
+    local _tg_bot_en
+    _tg_bot_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
+    if [ "$_tg_bot_en" = "1" ]; then
+        local _bot_pid
+        _bot_pid="$(cat /tmp/zkm_telegram_bot.pid 2>/dev/null)"
+        if [ -n "$_bot_pid" ] && kill -0 "$_bot_pid" 2>/dev/null; then
+            _pass "telegram bot: enabled and running (pid=$_bot_pid)"
+        else
+            _warn "telegram bot: enabled but not running"
+        fi
+    else
+        _pass "telegram bot: disabled (skipped)"
+    fi
+    # 9) Web Panel (only if installed)
+    if [ -f "/opt/www/kzm/index.html" ] && command -v lighttpd >/dev/null 2>&1; then
+        # cron kaydi
+        if crontab -l 2>/dev/null | grep -q 'kzm_status_gen.sh'; then
+            _pass "webpanel: cron entry present"
+        else
+            _warn "webpanel: kzm_status_gen.sh cron entry missing"
+        fi
+        # kzm_status_gen.sh binary
+        if [ -x "/opt/bin/kzm_status_gen.sh" ]; then
+            _pass "webpanel: kzm_status_gen.sh present"
+        else
+            _warn "webpanel: kzm_status_gen.sh missing"
+        fi
+        # kzm_status.json tazelik (2 dakika = 120 saniye)
+        local _json="/opt/var/run/kzm_status.json"
+        local _json_real="/tmp/kzm_status.json"
+        [ -f "$_json_real" ] || _json_real="$_json"
+        if [ -f "$_json_real" ]; then
+            local _now _mtime _age
+            _now="$(date +%s 2>/dev/null)"
+            _mtime="$(date -r "$_json_real" +%s 2>/dev/null)"
+            if [ -n "$_now" ] && [ -n "$_mtime" ]; then
+                _age=$((_now - _mtime))
+                if [ "$_age" -le 300 ]; then
+                    _pass "webpanel: kzm_status.json fresh (${_age}s ago)"
+                else
+                    _warn "webpanel: kzm_status.json stale (${_age}s ago, cron may be stopped)"
+                fi
+            else
+                _pass "webpanel: kzm_status.json present"
+            fi
+        else
+            _warn "webpanel: kzm_status.json missing (cron not yet run?)"
+        fi
+    else
+        _pass "webpanel: not installed (skipped)"
     fi
     echo "=== Summary: FAIL=$fail WARN=$warn ==="
     [ "$fail" -eq 0 ]
@@ -802,8 +868,12 @@ zkm_banner_get_firmware() {
 }
 zkm_banner_get_wan_dev() {
     local dev=""
-    # Prefer existing WAN detection helpers (used elsewhere in the script)
     dev="$(get_wan_if 2>/dev/null)"
+    if [ -z "$dev" ] && [ -f "$WAN_IF_FILE" ]; then
+        # Dosya var ama bos = kullanici tum arayuzler secmis
+        printf "%s" "$(T _ 'Tum Arayuzler' 'All Interfaces')"
+        return 0
+    fi
     [ -z "$dev" ] && dev="$(healthmon_detect_wan_iface_ndm 2>/dev/null)"
     # Fallback: parse default route robustly (avoid returning 'link')
     if [ -z "$dev" ]; then
@@ -814,7 +884,9 @@ zkm_banner_get_wan_dev() {
 zkm_banner_get_wan_state() {
     local dev="$1"
     local up
-    [ -n "$dev" ] || { echo "DOWN"; return 0; }
+    # Bos veya "Tum Arayuzler" = tum arayuzler modu, durum kontrolu yapma
+    [ -z "$dev" ] && { echo "UP"; return 0; }
+    echo "$dev" | grep -qE "Arayuz|Interfaces" && { echo "UP"; return 0; }
     up="$(ip link show "$dev" 2>/dev/null | head -n 1)"
     echo "$up" | grep -q 'LOWER_UP' && { echo "UP"; return 0; }
     echo "$up" | grep -q '<.*UP' && { echo "UP"; return 0; }
@@ -933,8 +1005,8 @@ TXT_MENU_7_TR=" 7. Zapret IPv6 Destegi (Sihirbaz)"
 TXT_MENU_7_EN=" 7. Zapret IPv6 support (Wizard)"
 TXT_MENU_8_TR=" 8. Zapret / KZM Yedekle / Geri Yukle"
 TXT_MENU_8_EN=" 8. Zapret / KZM Backup / Restore"
-TXT_MENU_9_TR=" 9. DPI Profilini Degistir"
-TXT_MENU_9_EN=" 9. Change DPI profile"
+TXT_MENU_9_TR=" 9. DPI Profili / WAN Arayuzu"
+TXT_MENU_9_EN=" 9. DPI Profile / WAN Interface"
 TXT_ACTIVE_DPI_TR=" Aktif DPI Profili"
 TXT_ACTIVE_DPI_EN=" Active DPI Profile"
 TXT_ACTIVE_DPI_AUTO_TR=" Blockcheck (Otomatik)"
@@ -1280,12 +1352,14 @@ TXT_UPD_ZKM_UP_TO_DATE_TR="[Guncelleme]
 📦 Paket : KZM
 🔄 Durum : Guncel ✅
 🔖 Surum : %CUR%
+
 [Saglik]
 💾 Disk (/opt) : %DISK_HEALTH%"
 TXT_UPD_ZKM_UP_TO_DATE_EN="[Update]
 📦 Package : KZM
 🔄 Status  : Up to date ✅
 🔖 Version : %CUR%
+
 [Health]
 💾 Disk (/opt) : %DISK_HEALTH%"
 TXT_UPD_ZKM_AUTO_FAIL_TR="[OtoGuncelleme]\n❌ KZM otomatik kurulum BASARISIZ.\n⚠️ Lutfen elle guncelleyin (menu 10).\n\n📦 Paket  : KZM\n🔖 Mevcut : %CUR%\n🆕 Yeni   : %NEW%\n🔗 Link   : %URL%"
@@ -2436,9 +2510,14 @@ detect_recommended_wan_if() {
 }
 get_wan_if() {
     local w=""
-    [ -f "$WAN_IF_FILE" ] && w="$(cat "$WAN_IF_FILE" 2>/dev/null)"
-    [ -z "$w" ] && w="$(detect_recommended_wan_if)"
-    echo "$w"
+    if [ -f "$WAN_IF_FILE" ]; then
+        w="$(cat "$WAN_IF_FILE" 2>/dev/null | tr -d '\n')"
+        # Dosya var ama bos = kullanici "tum arayuzler" secmis, bos don
+        echo "$w"
+    else
+        # Dosya yok = henuz secilmemis, onerilen don
+        detect_recommended_wan_if
+    fi
 }
 # WAN arayuzu icin ifindex bilgisi (install_easy.sh arayuz secimi icin)
 get_ifindex_by_iface() {
@@ -2448,10 +2527,8 @@ get_ifindex_by_iface() {
 }
 # Zapret config icinde IFACE_WAN degerini secilen WAN arayuzu ile esitle
 sync_zapret_iface_wan_config() {
-    local ifc="$(get_wan_if)"
-    [ -z "$ifc" ] && return 0
+    local ifc="$(cat "$WAN_IF_FILE" 2>/dev/null)"  # get_wan_if degil, ham oku
     [ ! -d /opt/zapret ] && return 0
-    # config dosyasi yoksa dokunma (zapret kurulu degilse)
     [ ! -f /opt/zapret/config ] && return 0
     if grep -q '^IFACE_WAN=' /opt/zapret/config 2>/dev/null; then
         sed -i "s/^IFACE_WAN=.*/IFACE_WAN=${ifc}/" /opt/zapret/config 2>/dev/null
@@ -2488,11 +2565,12 @@ select_wan_if() {
     printf "${CLR_GREEN}%s${CLR_RESET}" "$(tpl_render "$(T TXT_WAN_SEL_PROMPT)" REC "$rec")"
     read -r ans
     [ -z "$ans" ] && ans="$rec"
+    # "any" veya "0" girilirse tum arayuzler = bos birak
+    [ "$ans" = "any" ] || [ "$ans" = "0" ] && ans=""
     # bazen kopyala-yapistir ile sonuna nokta gelebiliyor (ppp0.)
     if [ -n "$ans" ] && [ ! -d "/sys/class/net/$ans" ] && [ -d "/sys/class/net/${ans%\.}" ]; then
         ans="${ans%.}"
     fi
-    [ -z "$ans" ] && return 0
     mkdir -p /opt/zapret 2>/dev/null
     echo "$ans" > "$WAN_IF_FILE" 2>/dev/null
     echo "$(T TXT_WAN_SEL_SELECTED) $(get_wan_if)"
@@ -3586,11 +3664,11 @@ start_zapret() {
 	/opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1
 	# custom.d hook'un her zaman mevcut olmasini garantile
 	write_client_ipset_hook >/dev/null 2>&1
+	sleep 1
 	# start-fw, moddan bagimsiz olarak genel NFQUEUE kurallarini basabilir.
 	# Burada MODE=list ise genel kurallari temizleyip sadece IPSET kurallarini birakiriz.
 	enforce_client_mode_rules >/dev/null 2>&1
 	enforce_wan_if_nfqueue_rules >/dev/null 2>&1
-    sleep 1
     if is_zapret_running; then
         echo "$(T TXT_START_OK)"
         # Autohostlist bos ise NFQUEUE kurali olmayabilir, uyar
@@ -5834,9 +5912,15 @@ display_menu() {
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T TXT_MAIN_SYS_LABEL)"                        "${CLR_RESET}" "${CLR_ORANGE}" "$_sys"                                           "${CLR_RESET}"
     _fw="$(zkm_banner_get_firmware 2>/dev/null)"
     [ -n "$_fw" ] && printf "  %b%-*s%b : %b%b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'Firmware' 'Firmware')" "${CLR_RESET}" "${CLR_BOLD}" "${CLR_CYAN}" "$_fw" "${CLR_RESET}"
-    local _wan_ipv4 _wan_ipv6 _wan_ip_str
-    _wan_ipv4="$(ip -4 addr show "$_wan_dev" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
-    _wan_ipv6="$(ip -6 addr show "$_wan_dev" 2>/dev/null | awk '/inet6 / && !/fe80/{print $2; exit}' | cut -d/ -f1)"
+    local _wan_ipv4 _wan_ipv6 _wan_ip_str _wan_ip_dev
+    # Tum Arayuzler modunda gercek WAN arayuzunu bul
+    if [ -z "$(cat "$WAN_IF_FILE" 2>/dev/null | tr -d '\n')" ] && [ -f "$WAN_IF_FILE" ]; then
+        _wan_ip_dev="$(ip -4 route show default 2>/dev/null | awk '/^default/{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+    else
+        _wan_ip_dev="$_wan_dev"
+    fi
+    _wan_ipv4="$(ip -4 addr show "$_wan_ip_dev" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+    _wan_ipv6="$(ip -6 addr show "$_wan_ip_dev" 2>/dev/null | awk '/inet6 / && !/fe80/{print $2; exit}' | cut -d/ -f1)"
     _wan_ip_str=""
     [ -n "$_wan_ipv4" ] && _wan_ip_str=" | $(zkm_fmt_ip "$_wan_ipv4")"
     [ -n "$_wan_ipv6" ] && _wan_ip_str="${_wan_ip_str} | ${CLR_CYAN}${_wan_ipv6}${CLR_RESET}"
@@ -7883,6 +7967,22 @@ restore_zapret_settings() {
 				print_status WARN "$(T TXT_RESTORE_RESTART_WARN)"
 			fi
 		fi
+        # Web Panel kuruluysa dosyalari guncelle (restore'dan eski versiyon gelmis olabilir)
+        if [ -d "$KZM_GUI_DIR" ]; then
+            print_status INFO "$(T _ 'Web Panel dosyalari guncelleniyor...' 'Updating Web Panel files...')"
+            kzm_gui_write_html
+            kzm_gui_write_cgi
+            kzm_gui_write_status_script
+            print_status PASS "$(T _ 'Web Panel guncellendi.' 'Web Panel updated.')"
+            # crond calismiyorsa baslat
+            if ! pgrep crond >/dev/null 2>&1; then
+                crond 2>/dev/null || true
+                sleep 1
+                pgrep crond >/dev/null 2>&1 && \
+                    print_status PASS "$(T _ 'crond baslatildi' 'crond started')" || \
+                    print_status WARN "$(T _ 'crond baslatilamadi' 'crond could not be started')"
+            fi
+        fi
     else
         print_status FAIL "$(T TXT_BACKUP_RESTORE_FAILED)"
     fi
@@ -8087,6 +8187,7 @@ $event"
 🏠 $(T TXT_TG_LAN_LABEL) : $TG_DEVICE_LAN_IP
 🌍 $(T TXT_TG_WAN_LABEL) : $TG_DEVICE_WAN_IP
 🔧 $(T TXT_TG_MODEL_LABEL) : $TG_DEVICE_MODEL
+
 $event
 🕒 $(T TXT_TG_TIME_LABEL) : $(date '+%Y-%m-%d %H:%M:%S')
 EOF
@@ -8762,6 +8863,7 @@ tgbot_device_detail_text() {
 KeenDNS: ${kdns_str}
 Release: ${fw}
 CPU: ${cpu_val}%  MEM: ${mem_val}
+
 $(T TXT_TGBOT_DEVICE_TRAFFIC_LABEL)
 → $traffic_str"
     printf '%s' "$out"
@@ -12073,12 +12175,22 @@ kzm_gui_gen_status() {
     [ -z "$_zap_ver" ] && _zap_ver="$(cat /opt/zapret/VERSION 2>/dev/null | head -n1 | tr -d '\n')"
     [ -z "$_zap_ver" ] && _zap_ver="Unknown"
     # WAN bilgisi
-    local _wan_dev _wan_ip
-    _wan_dev="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '\n')"
-    [ -z "$_wan_dev" ] && _wan_dev="$(ip -4 route show default 2>/dev/null | awk '/^default/{print $5; exit}')"
-    [ -z "$_wan_dev" ] && _wan_dev="Unknown"
-    _wan_ip="$(ip -4 addr show "$_wan_dev" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
-    [ -z "$_wan_ip" ] && _wan_ip="Unknown"
+    local _wan_dev _wan_ip _wan_raw
+    _wan_raw="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '\n')"
+    if [ -f /opt/zapret/wan_if ] && [ -z "$_wan_raw" ]; then
+        # Kullanici tum arayuzler secmis
+        _wan_dev="All Interfaces"
+        local _def_iface
+        _def_iface="$(ip -4 route show default 2>/dev/null | awk '/^default/{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+        _wan_ip="$(ip -4 addr show "$_def_iface" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+        [ -z "$_wan_ip" ] && _wan_ip="—"
+    else
+        _wan_dev="$_wan_raw"
+        [ -z "$_wan_dev" ] && _wan_dev="$(ip -4 route show default 2>/dev/null | awk '/^default/{print $5; exit}')"
+        [ -z "$_wan_dev" ] && _wan_dev="Unknown"
+        _wan_ip="$(ip -4 addr show "$_wan_dev" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)"
+        [ -z "$_wan_ip" ] && _wan_ip="Unknown"
+    fi
     # Model ve firmware: statik dosyadan oku (kurulumda yazildi)
     local _model _firmware
     _model="$(cat /opt/var/run/kzm_hw_model 2>/dev/null | tr -d '\n')"
@@ -12132,6 +12244,7 @@ kzm_gui_gen_status() {
   "firmware": "$_firmware",
   "wan_dev": "$_wan_dev",
   "wan_ip": "$_wan_ip",
+  "lan_ip": "$(ip -4 addr show br0 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)",
   "keendns_fqdn": "$_kdns_fqdn",
   "keendns_access": "$_kdns_access",
   "zapret_running": $_zap_run,
@@ -12197,8 +12310,9 @@ _rtmb=$(( _rtotal / 1024 ))
 _rumb=$(( (_rtotal - _rfree) / 1024 ))
 _dpct=0; _dtmb=0; _dumb=0
 if [ -d /opt ]; then
-    _dpct="$(healthmon_disk_used_pct /opt)"
-    [ "$_dpct" = "<1" ] && _dpct=0
+    _dpct="$(df -P /opt 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
+    [ "${_dpct:-0}" -eq 0 ] 2>/dev/null && \
+        [ "$(df -P /opt 2>/dev/null | awk 'NR==2{print $3}')" -gt 0 ] 2>/dev/null && _dpct=1
     [ -z "$_dpct" ] && _dpct=0
     _dtmb="$(df /opt 2>/dev/null | awk 'NR==2{printf "%.0f",$2/1024}')"
     _dumb="$(df /opt 2>/dev/null | awk 'NR==2{printf "%.0f",$3/1024}')"
@@ -12239,10 +12353,16 @@ _lighttpd=0; pgrep lighttpd >/dev/null 2>&1 && _lighttpd=1
 # curl
 _curl_ok=0; command -v curl >/dev/null 2>&1 && _curl_ok=1
 _wan="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '\n')"
-[ -z "$_wan" ] && _wan="$(ip -4 route show default 2>/dev/null | awk '/^default/{print $5;exit}')"
-[ -z "$_wan" ] && _wan="Unknown"
-_wip="$(ip -4 addr show "$_wan" 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
-[ -z "$_wip" ] && _wip="Unknown"
+if [ -f /opt/zapret/wan_if ] && [ -z "$_wan" ]; then
+    _wan_display="All Interfaces"
+    _def_iface="$(ip -4 route show default 2>/dev/null | awk '/^default/{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+    _wip="$(ip -4 addr show "$_def_iface" 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
+    [ -z "$_wip" ] && _wip=""
+else
+    _wan_display="$_wan"
+    _wip="$(ip -4 addr show "$_wan" 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)"
+    [ -z "$_wip" ] && _wip="Unknown"
+fi
 _zver="$(cat /opt/zapret/version 2>/dev/null | head -n1 | tr -d '\n')"
 [ -z "$_zver" ] && _zver="Unknown"
 _kzmver="$(grep '^SCRIPT_VERSION=' /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh 2>/dev/null | head -n1 | cut -d= -f2 | tr -d '"')"
@@ -12286,7 +12406,7 @@ if [ -f /opt/zapret/blockcheck_result.json ]; then
     [ -z "$_bc_ts"       ] && _bc_ts=0
 fi
 printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
-    "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$_kzmver" "$_model" "$_fw" "$_wan" "$_wip" "$_lan_ip" \
+    "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$_kzmver" "$_model" "$_fw" "$_wan_display" "$_wip" "$_lan_ip" \
     "$_kdns_fqdn" "$_kdns_access" \
     "$_zap" "$_zver" "$_hm" "$_hm_en" "$_tg_en" "$_tg" "$_tg_configured" \
     "$_lighttpd" "$_curl_ok" \
@@ -12338,9 +12458,9 @@ wait_zapret() {
     local _want="$1" _i=0
     while [ "$_i" -lt 8 ]; do
         if [ "$_want" = "up" ]; then
-            pgrep -x nfqws >/dev/null 2>&1 && break
+            ps 2>/dev/null | grep -q "[n]fqws" && break
         else
-            pgrep -x nfqws >/dev/null 2>&1 || break
+            ps 2>/dev/null | grep -q "[n]fqws" || break
         fi
         sleep 1; _i=$(( _i + 1 ))
     done
@@ -12355,9 +12475,10 @@ case "$ACTION" in
         sh /opt/etc/init.d/S90-zapret stop >/dev/null 2>&1
         wait_zapret down; refresh; ok "Zapret durduruldu" ;;
     zapret_restart)
-        rm -f /tmp/.zapret_paused 2>/dev/null
-        sh /opt/etc/init.d/S90-zapret restart >/dev/null 2>&1
-        wait_zapret down; wait_zapret up; refresh; ok "Zapret yeniden baslatildi" ;;
+        _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+        [ -f "$_kzm" ] || { ok "Zapret yeniden baslatildi"; exit 0; }
+        ZKM_SKIP_LOCK=1 sh "$_kzm" --cgi-action restart_zapret >/dev/null 2>&1
+        sleep 2; wait_zapret up; sleep 2; refresh; ok "Zapret yeniden baslatildi" ;;
     healthmon_start)
         CONF=/opt/etc/healthmon.conf
         SCRIPT="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
@@ -13083,6 +13204,7 @@ header{display:flex;align-items:center;justify-content:space-between;flex-wrap:w
 .badge.bad{background:rgba(231,76,60,.15);color:var(--bad);border:1px solid rgba(231,76,60,.3)}
 .badge.warn{background:rgba(241,196,15,.12);color:var(--warn);border:1px solid rgba(241,196,15,.25)}
 .badge.off{background:rgba(169,183,214,.1);color:var(--muted);border:1px solid var(--line)}
+.svc-badges .badge{width:100%;text-align:center;box-sizing:border-box}
 .badge.info{background:rgba(52,152,219,.15);color:#3498db;border:1px solid rgba(52,152,219,.3)}
 .btns{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
 button{font-size:12px;padding:6px 13px;border-radius:7px;border:none;cursor:pointer;
@@ -13540,7 +13662,7 @@ var V={
         '<div class="card"><h3>'+(L?'Zapret Version':'Zapret S&#252;r&#252;m')+'</h3><div class="big" style="color:'+(S.sha_zapret==='ok'?'var(--good)':S.sha_zapret==='fail'?'var(--warn)':'var(--text)')+'">'+fixTR(S.zapret_version||'—')+'</div></div>'+
         '<div class="card" style="grid-column:span 2"><h3>'+(L?'Zapret Status':'Zapret Durumu')+'</h3>'+
           '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
-            ' <span class="pill">'+(S.wan_dev||'—')+'</span>'+
+            ' <span class="pill">'+(L?S.wan_dev:fixTR(S.wan_dev||'—'))+'</span>'+
             ' <span class="pill">'+(S.wan_ip||'—')+'</span></div>'+
           '<div class="btns">'+
             '<button class="danger" onclick="zapretAct(\'zapret_restart\',this,\'Restart OK\')">&#8635; '+(L?'Restart':'Yeniden Ba&#351;lat')+'</button>'+
@@ -13567,15 +13689,19 @@ var V={
         '</table>'+
       '</div>'+
       '<div class="card" style="grid-column:span 2"><h3>'+(L?'Services':'Servisler')+'</h3>'+
-        '<div class="row">'+bdg(S.healthmon_running,'Health Mon OK',L?'Health Mon INACTIVE':'Health Mon PAS&#304;F')+'</div>'+
-        '<div class="row" style="margin-top:6px">'+bdgO(S.telegram_enabled&&S.telegram_running,L?'Telegram ACTIVE':'Telegram AKT&#304;F',L?'Telegram OFF':'Telegram KAPALI')+'</div>'+
+        '<div class="svc-badges" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'+
+          '<div>'+bdg(S.healthmon_running,'Health Mon OK',L?'Health Mon INACTIVE':'Health Mon PAS&#304;F')+'</div>'+
+          '<div>'+bdgO(S.telegram_enabled&&S.telegram_running,L?'Telegram ACTIVE':'Telegram AKT&#304;F',L?'Telegram OFF':'Telegram KAPALI')+'</div>'+
+          '<div>'+bdg(S.zapret_running,L?'Zapret ACTIVE':'Zapret AKT&#304;F',L?'Zapret INACTIVE':'Zapret PAS&#304;F')+'</div>'+
+          '<div>'+bdg(S.lighttpd_running,L?'Web Panel ACTIVE':'Web Panel AKT&#304;F',L?'Web Panel OFF':'Web Panel KAPALI')+'</div>'+
+        '</div>'+
       '</div>'+
       fmtBcCard(S)+
       fmtOpkgCard()+
       '</div>'+
       '<div class="card wide"><h3>'+(L?'System Info':'Sistem Bilgisi')+'</h3><div class="info-grid">'+
         ir('Model',S.model||'—')+ir('Firmware',(L?fixTR(S.firmware||'—').replace('&#214;nizleme','Preview').replace('&#214;nizleme','Preview'):fixTR(S.firmware||'—')))+
-        ir('WAN',(S.wan_dev||'—')+' | '+(S.wan_ip||'—'))+
+        ir('WAN',(L?S.wan_dev:fixTR(S.wan_dev||'—'))+' | '+(S.wan_ip||'—'))+
         ir('LAN IP',(S.lan_ip||'—'))+
         (S.keendns_fqdn ? ir('KeenDNS',S.keendns_fqdn+' | '+fmtKeenDns(S.keendns_access)) : '')+
         ir('Zapret',bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
@@ -13592,7 +13718,7 @@ var V={
     return '<div class="grid" style="grid-template-columns:1fr 1fr">'+
       '<div class="card"><h3>'+(L?'Status':'Durum')+'</h3>'+
         '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
-          ' <span class="pill">WAN: '+(S.wan_dev||'—')+'</span>'+
+          ' <span class="pill">WAN: '+(L?S.wan_dev:fixTR(S.wan_dev||'—'))+'</span>'+
           ' <span class="pill">'+fixTR(S.zapret_version||'—')+'</span></div></div>'+
       '<div class="card"><h3>'+(L?'Control':'Kontrol')+'</h3>'+
         '<div class="btns">'+
@@ -14102,6 +14228,8 @@ function fixTR(s){if(!s)return s;
           .replace(/Dogru yerde mi/g,'Do&#287;ru yerde mi')
           .replace(/Kararli/g,'Kararl&#305;').replace(/kararli/g,'kararl&#305;')
           .replace(/Kararsiz/g,'Karars&#305;z').replace(/kararsiz/g,'karars&#305;z')
+          .replace(/All Interfaces/g,'T&#252;m Aray&#252;zler')
+          .replace(/Tum Arayuzler/g,'T&#252;m Aray&#252;zler')
 }
 function hcRender(d){
   var el=document.getElementById('hcResult');
@@ -14544,6 +14672,16 @@ kzm_gui_install() {
     # Cron ekle
     kzm_gui_add_cron
     print_status PASS "$(T TXT_GUI_CRON_OK)"
+    # crond calismiyorsa baslat
+    if ! pgrep crond >/dev/null 2>&1; then
+        crond 2>/dev/null || true
+        sleep 1
+        if pgrep crond >/dev/null 2>&1; then
+            print_status PASS "$(T _ 'crond baslatildi' 'crond started')"
+        else
+            print_status WARN "$(T _ 'crond baslatilamadi - JSON her dakika yenilenmiyor olabilir' 'crond could not be started - JSON may not refresh every minute')"
+        fi
+    fi
     # Init.d autostart scripti olustur
     cat > /opt/etc/init.d/S80lighttpd << 'INITEOF'
 #!/bin/sh
@@ -14805,11 +14943,90 @@ main_menu_loop() {
 			8) backup_restore_menu ;;
 			9)
             while true; do
-                if select_dpi_profile; then
-                    apply_dpi_profile_now
-                else
-                    break
-                fi
+                clear
+                print_line "="
+                printf " %b%s%b\n" "${CLR_CYAN}" "$(T _ '9. DPI Profili / WAN Arayuzu' '9. DPI Profile / WAN Interface')" "${CLR_RESET}"
+                print_line "="
+                printf " %b 1.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'DPI Profilini Degistir' 'Change DPI Profile')"
+                printf " %b 2.%b %s  %b[$(T _ 'Mevcut' 'Current'): $([ -z "$(get_wan_if)" ] && printf "%b%s%b" "${CLR_CYAN}" "$(T _ 'Tum Arayuzler' 'All Interfaces')" "${CLR_DIM}" || get_wan_if)]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'WAN Arayuzunu Degistir' 'Change WAN Interface')" "${CLR_DIM}" "${CLR_RESET}"
+                printf " %b 0.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Geri' 'Back')"
+                print_line "-"
+                printf "%s" "$(T _ 'Secim: ' 'Choice: ')"
+                read -r _m9
+                case "$_m9" in
+                    1)
+                        clear
+                        if select_dpi_profile; then
+                            apply_dpi_profile_now
+                        fi
+                        ;;
+                    2)
+                        clear
+                        print_line "="
+                        printf " %b%s%b\n" "${CLR_CYAN}" "$(T _ 'WAN Arayuzu Secimi' 'WAN Interface Selection')" "${CLR_RESET}"
+                        print_line "-"
+                        local _rec="$(detect_recommended_wan_if)"
+                        [ -z "$_rec" ] && _rec="ppp0"
+                        local _cur_wan_lbl
+                        if [ -z "$(get_wan_if)" ]; then
+                            _cur_wan_lbl="${CLR_CYAN}$(T _ 'Tum Arayuzler' 'All Interfaces')${CLR_RESET}"
+                        else
+                            _cur_wan_lbl="${CLR_GREEN}$(get_wan_if)${CLR_RESET}"
+                        fi
+                        local _lbl_cur _lbl_rec _lw
+                        _lbl_cur="$(T _ 'Mevcut' 'Current')"
+                        _lbl_rec="$(T _ 'Onerilen' 'Recommended')"
+                        [ ${#_lbl_cur} -gt ${#_lbl_rec} ] && _lw=${#_lbl_cur} || _lw=${#_lbl_rec}
+                        printf " %b%-*s:%b %s\n" "${CLR_BOLD}" "$_lw" "$_lbl_cur" "${CLR_RESET}" "$_cur_wan_lbl"
+                        printf " %b%-*s:%b %b%s%b\n" "${CLR_BOLD}" "$_lw" "$_lbl_rec" "${CLR_RESET}" "${CLR_GREEN}" "${_rec}" "${CLR_RESET}"
+                        echo ""
+                        printf " %b%s%b\n" "${CLR_ORANGE}" "$(T _ '[!] Hatali arayuz secimi trafiginizi ve VPN erisimini durdurabilir!' '[!] Wrong interface may cut your traffic and VPN access!')" "${CLR_RESET}"
+                        printf " %b%s%b\n" "${CLR_ORANGE}" "$(T _ '[!] KZM - Zapret kurulurken otomatik sectigi WAN arayuzu en duzgun calisacak arayuzdur.' '[!] KZM - The WAN interface auto-selected during Zapret installation works best.')" "${CLR_RESET}"
+                        printf " %b%s%b\n" "${CLR_ORANGE}" "$(T _ '[!] Zorunlu olmadikca WAN arayuzunu DEGISTIRMEYIN!' '[!] Do NOT change the WAN interface unless absolutely necessary!')" "${CLR_RESET}"
+                        echo ""
+                        printf " %s %b%s%b %s %b%s%b %s %b%s%b\n" \
+                            "$(T _ 'Not: Tum cikislar icin' 'Note: For all interfaces type')" \
+                            "${CLR_CYAN}" "any" "${CLR_RESET}" \
+                            "$(T _ ', iptal icin' ', to cancel type')" \
+                            "${CLR_ORANGE}" "q" "${CLR_RESET}" \
+                            "$(T _ ', onerilen:' ', recommended:')" \
+                            "${CLR_GREEN}" "$_rec" "${CLR_RESET}"
+                        print_line "-"
+                        while true; do
+                            printf "%b%s%b%b%s%b" "${CLR_BOLD}" "$(T _ 'Yeni WAN' 'New WAN')" "${CLR_RESET}" "${CLR_GREEN}" "$(T _ ' (q=iptal): ' ' (q=cancel): ')" "${CLR_RESET}"
+                            read -r _wans
+                            case "$_wans" in
+                                q|Q) break ;;
+                                "")
+                                    printf " %b%s%b\n" "${CLR_ORANGE}" "$(T _ 'Gecersiz giris. Bir arayuz adi girin (ornek: ppp0) veya any / q.' 'Invalid input. Enter an interface name (e.g. ppp0) or any / q.')" "${CLR_RESET}"
+                                    continue ;;
+                                *)
+                                    # any/ANY ozel durum, diger girislerde arayuz var mi kontrol et
+                                    if [ "$_wans" != "any" ] && [ "$_wans" != "ANY" ] && [ ! -d "/sys/class/net/$_wans" ]; then
+                                        printf " %b%s %b%s%b %s%b\n" "${CLR_ORANGE}" "$(T _ '[!] Arayuz bulunamadi:' '[!] Interface not found:')" "${CLR_BOLD}" "$_wans" "${CLR_ORANGE}" "$(T _ '— Gecerli bir arayuz adi girin.' '— Enter a valid interface name.')" "${CLR_RESET}"
+                                        continue
+                                    fi
+                                    [ "$_wans" = "any" ] || [ "$_wans" = "ANY" ] || [ "$_wans" = "0" ] && _wans_display="${CLR_CYAN}$(T _ 'Tum Arayuzler' 'All Interfaces')${CLR_RESET}" || _wans_display="${CLR_GREEN}${_wans}${CLR_RESET}"
+                                    printf " %b%s:%b %b%s%b — %s" "${CLR_BOLD}" "$(T _ 'Secilen' 'Selected')" "${CLR_RESET}" "" "$_wans_display" "" "$(T _ 'Onayliyor musunuz? (e/h): ' 'Confirm? (y/n): ')"
+                                    read -r _wans_confirm
+                                    case "$_wans_confirm" in
+                                        e|E|y|Y)
+                                            [ "$_wans" = "any" ] || [ "$_wans" = "ANY" ] || [ "$_wans" = "0" ] && _wans=""
+                                            mkdir -p /opt/zapret 2>/dev/null
+                                            echo "$_wans" > "$WAN_IF_FILE" 2>/dev/null
+                                            print_status INFO "$(T _ 'WAN degistirildi:' 'WAN changed:') $([ -z "$_wans" ] && T _ 'Tum Arayuzler' 'All Interfaces' || echo "$_wans")"
+                                            sync_zapret_iface_wan_config
+                                            restart_zapret
+                                            press_enter_to_continue
+                                            break ;;
+                                        *) continue ;;
+                                    esac ;;
+                            esac
+                        done
+                        ;;
+                    0) break ;;
+                    *) ;;
+                esac
             done
             ;;
 			11) manage_hostlist_menu ;;
