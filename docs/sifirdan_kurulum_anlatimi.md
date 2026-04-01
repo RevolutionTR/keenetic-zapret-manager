@@ -141,7 +141,7 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 ```
 
   
-İşlem tamamlandıktan sonra kurulu betiği komut satırına "keenetic" veya "keenetic-zapret" yazıp onaylayarak kullanmaya başlayabilirsiniz.
+İşlem tamamlandıktan sonra kurulu betiği komut satırına "kzm" , "KZM" , "keenetic" veya "keenetic-zapret" yazıp onaylayarak kullanmaya başlayabilirsiniz.
 
 <img src="/docs/images/KZM8.png" width="800">
   
