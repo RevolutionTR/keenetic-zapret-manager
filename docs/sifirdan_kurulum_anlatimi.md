@@ -112,14 +112,6 @@ root@192.168.1.1’s password: keenetic
   
 Sistem sırayla eski parolayı (keenetic) girmenizi isteyecek. Sonraki adımda yeni parolayı girin ve parolayı doğrulayın.
   
-Başlıca opkg komutları:  
-(update, upgrade komutlarını SHH bağlantısı yaptığınız her fırsatta yapmaya çalışın ki OPKG güncellemeleri kontrol edilip güncelleme yapılsın)
-  
-~ # opkg update  
-~ # opkg upgrade  
-~ # opkg install <paket_adı>
-  
-  
 ## === Keenetic Zapret Manager betiği’nin kurulumu ===
   
 Yöntem 1 (pratik):  
