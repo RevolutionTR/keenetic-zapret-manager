@@ -13,6 +13,8 @@ ISS’larının en güncel sofistike erişim engelleme metodu DPI’dır. Bazı 
 2-    Cloudflare DNS: 1.1.1.1 ve 1.0.0.1  
 3-    Quad9 DNS: 9.9.9.9 ve 149.112.112.112  
 4-    OpenDNS: 208.67.222.222 ve 208.67.220.220
+
+Bu DNS adreslerini DoT veya DoH olarak KZM'de Menü 14 - 3'ten ayrıca Keenetic cihazınıza otomatik ekleyebilirsiniz.
   
 ## Neden özelleştirilmiş betiğe ihtiyaç var; güvenilir mi?
 Zapret kurulumu düz kullanıcılar için oldukça karmaşıktır. Betikler aracılığı ile kurulum ve yönetimler kolaylıkla yapılabilmektedir. Sayfamızda paylaştığımız Keenetic Zapret Manager betiğinin geliştiricisi DH forum üyesi de olan @Revolution_TR arkadaşımızdır. Bu betik ile Zapret kurulumu ve yönetimi oldukça basittir; Türk Telekom başta olmak üzere yaygın ISS’ler için hazır profillerin seçimi, cihaz bazlı çalıştırma, yedek alma, güncelleme gibi pek çok pratik işlevi barındırmakta olup halen geliştirilmektedir. Betik, GitHub üzerinden açık kaynak kodlu olarak dağıtılmaktadır; dolayısı ile güvenlidir.
