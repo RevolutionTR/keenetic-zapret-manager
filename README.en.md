@@ -38,7 +38,7 @@
 
 This script has been tested on the following Keenetic OS versions:
 
-- **Keenetic OS 5.0.7**
+- **Keenetic OS 5.0.8**
 - **Keenetic OS 4.3.6.3**
 
 > Not tested on older Keenetic OS versions.  
