@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.3.30"
+SCRIPT_VERSION="v26.4.3"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1452,6 +1452,8 @@ TXT_TGBOT_BTN_KZMLOG_TR="KZM Log"
 TXT_TGBOT_BTN_KZMLOG_EN="KZM Log"
 TXT_TGBOT_BTN_SYSLOG_TR="Sistem Log"
 TXT_TGBOT_BTN_SYSLOG_EN="System Log"
+TXT_TGBOT_BTN_TGBOTLOG_TR="TG Bot Log"
+TXT_TGBOT_BTN_TGBOTLOG_EN="TG Bot Log"
 TXT_TGBOT_BTN_BACK_TR="Geri"
 TXT_TGBOT_BTN_BACK_EN="Back"
 TXT_TGBOT_BTN_START_TR="Baslat"
@@ -5031,6 +5033,18 @@ check_manager_update() {
                 e|E|y|Y)
                     echo ""
                     update_manager_script "1"
+                    if [ $? -eq 0 ]; then
+                        [ -d "$KZM_GUI_DIR" ] && (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
+                        [ -f "$HM_PID_FILE" ] && touch /tmp/healthmon_restart_requested 2>/dev/null && print_status INFO "$(T _ 'HealthMon yeniden baslatiliyor.' 'HealthMon restarting.')"
+                        _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
+                        if [ "$_tg_en" = "1" ] && [ -f "$TG_BOT_PID_FILE" ]; then
+                            _tgpid="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
+                            [ -n "$_tgpid" ] && kill "$_tgpid" 2>/dev/null || true
+                            sleep 1
+                            (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &)
+                            print_status INFO "$(T _ 'Telegram Bot yeniden baslatildi.' 'Telegram Bot restarted.')"
+                        fi
+                    fi
                     ;;
                 *)
                     print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
@@ -5057,6 +5071,18 @@ check_manager_update() {
         e|E|y|Y)
             echo ""
             update_manager_script
+            if [ $? -eq 0 ]; then
+                [ -d "$KZM_GUI_DIR" ] && (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
+                [ -f "$HM_PID_FILE" ] && touch /tmp/healthmon_restart_requested 2>/dev/null && print_status INFO "$(T _ 'HealthMon yeniden baslatiliyor.' 'HealthMon restarting.')"
+                _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
+                if [ "$_tg_en" = "1" ] && [ -f "$TG_BOT_PID_FILE" ]; then
+                    _tgpid="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
+                    [ -n "$_tgpid" ] && kill "$_tgpid" 2>/dev/null || true
+                    sleep 1
+                    (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &)
+                    print_status INFO "$(T _ 'Telegram Bot yeniden baslatildi.' 'Telegram Bot restarted.')"
+                fi
+            fi
             ;;
         *)
             print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
@@ -8530,9 +8556,10 @@ tgbot_kb_device() {
 # Log alt menu klavyesi
 tgbot_kb_logs() {
     local rid="${TG_ROUTER_ID:-default}"
-    printf '[[{"text":"📋 %s","callback_data":"%s:sys_kzmlog"},{"text":"📄 %s","callback_data":"%s:sys_syslog"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
+    printf '[[{"text":"📋 %s","callback_data":"%s:sys_kzmlog"},{"text":"📄 %s","callback_data":"%s:sys_syslog"}],[{"text":"🤖 %s","callback_data":"%s:sys_tgbotlog"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
         "$(T TXT_TGBOT_BTN_KZMLOG)" "$rid" \
         "$(T TXT_TGBOT_BTN_SYSLOG)" "$rid" \
+        "$(T TXT_TGBOT_BTN_TGBOTLOG)" "$rid" \
         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
 # Ag cihazlari: ndmc show ip hotspot ile aktif hostlari inline keyboard olarak listele
@@ -8857,12 +8884,12 @@ tgbot_device_detail_text() {
     traffic_str="$(_tgbot_wan_traffic "$wan_if")"
     # Cikti
     local out
-    out="Name:  ${name}"
+    out="📡 $(T TXT_TG_DEVICE_LABEL) : ${name}"
     [ -n "$model" ] && out="${out} (${model})"
     out="${out}
-KeenDNS: ${kdns_str}
-Release: ${fw}
-CPU: ${cpu_val}%  MEM: ${mem_val}
+🌐 KeenDNS : ${kdns_str}
+🖥 $(T _ 'Surum' 'Release') : ${fw}
+💻 CPU : ${cpu_val}%  MEM: ${mem_val}
 
 $(T TXT_TGBOT_DEVICE_TRAFFIC_LABEL)
 → $traffic_str"
@@ -8870,29 +8897,20 @@ $(T TXT_TGBOT_DEVICE_TRAFFIC_LABEL)
 }
 # System status text
 tgbot_status_text() {
-    local zapret_st profile_name wan_if wan_ip lan_ip cpu_val ram_val disk_val uptime_val hm_st
-    if is_zapret_running 2>/dev/null; then
-        zapret_st="$(T TXT_TGBOT_STATUS_RUNNING)"
-    else
-        zapret_st="$(T TXT_TGBOT_STATUS_STOPPED)"
-    fi
+    local zapret_st profile_name wan_if cpu_val ram_val disk_val uptime_val hm_st tgbot_st
+    # Device info header
+    telegram_device_info_init >/dev/null 2>&1
+    # DPI profili
     local _cur_profile
     _cur_profile="$(get_dpi_profile 2>/dev/null)"
     if [ -n "$_cur_profile" ]; then
         profile_name="$(T dpi_pname "$(dpi_profile_name_tr "$_cur_profile" 2>/dev/null)" "$(dpi_profile_name_en "$_cur_profile" 2>/dev/null)")"
     fi
     [ -z "$profile_name" ] && profile_name="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    # WAN arayuzu
     wan_if="$(cat /opt/zapret/wan_if 2>/dev/null)"
-    if [ -n "$wan_if" ]; then
-        wan_ip="$(ip -4 addr show "$wan_if" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d'/' -f1)"
-    fi
-    [ -z "$wan_ip" ] && wan_ip="$(T TXT_TGBOT_STATUS_UNKNOWN)"
-    lan_ip=""
-    for _lan_if in br0 bridge0 home0; do
-        lan_ip="$(ip -4 addr show "$_lan_if" 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d'/' -f1)"
-        [ -n "$lan_ip" ] && break
-    done
-    [ -z "$lan_ip" ] && lan_ip="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    [ -z "$wan_if" ] && wan_if="$(T _ 'Tum' 'All')"
+    # CPU / RAM / Disk / Uptime
     cpu_val="$(top -bn1 2>/dev/null | awk '/CPU:/{gsub(/%/,""); print int($2+$4); exit}')"
     [ -z "$cpu_val" ] && cpu_val="-"
     ram_val="$(free 2>/dev/null | awk '/Mem:/{printf "%d/%d MB", ($3/1024), ($2/1024)}')"
@@ -8901,16 +8919,7 @@ tgbot_status_text() {
     [ -z "$disk_val" ] && disk_val="-"
     uptime_val="$(uptime 2>/dev/null | sed 's/.*up //' | cut -d',' -f1)"
     [ -z "$uptime_val" ] && uptime_val="-"
-    if [ -f /tmp/healthmon.pid ] && kill -0 "$(cat /tmp/healthmon.pid 2>/dev/null)" 2>/dev/null; then
-        hm_st="$(T TXT_TGBOT_STATUS_RUNNING)"
-    else
-        hm_st="$(T TXT_TGBOT_STATUS_STOPPED)"
-    fi
-    local kzm_ver zapret_ver
-    kzm_ver="$(zkm_get_installed_script_version 2>/dev/null)"
-    [ -z "$kzm_ver" ] && kzm_ver="$SCRIPT_VERSION"
-    zapret_ver="$(cat /opt/zapret/version 2>/dev/null)"
-    [ -z "$zapret_ver" ] && zapret_ver="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    # Disk sagligi
     local disk_health_val
     if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
         disk_health_val="$(T _ 'Salt okunur!' 'Read-only!')"
@@ -8923,9 +8932,61 @@ tgbot_status_text() {
             disk_health_val="OK"
         fi
     fi
-    printf "Zapret: %s\nDPI: %s\nWAN IP: %s\nLAN IP: %s\nCPU: %s%% | RAM: %s\nDisk: %s | Uptime: %s\nDisk Sagligi: %s\nHealthMon: %s\nKZM: %s | Zapret: %s" \
-        "$zapret_st" "$profile_name" "$wan_ip" "$lan_ip" \
-        "$cpu_val" "$ram_val" "$disk_val" "$uptime_val" "$disk_health_val" "$hm_st" \
+    # HealthMon
+    if [ -f /tmp/healthmon.pid ] && kill -0 "$(cat /tmp/healthmon.pid 2>/dev/null)" 2>/dev/null; then
+        hm_st="$(T TXT_TGBOT_STATUS_RUNNING)"
+    else
+        hm_st="$(T TXT_TGBOT_STATUS_STOPPED)"
+    fi
+    # Telegram bot
+    local _tgpid
+    _tgpid="$(cat /tmp/zkm_telegram_bot.pid 2>/dev/null)"
+    if [ -n "$_tgpid" ] && kill -0 "$_tgpid" 2>/dev/null; then
+        tgbot_st="$(T TXT_TGBOT_STATUS_RUNNING)"
+    else
+        tgbot_st="$(T TXT_TGBOT_STATUS_STOPPED)"
+    fi
+    # Zapret
+    if is_zapret_running 2>/dev/null; then
+        zapret_st="$(T TXT_TGBOT_STATUS_RUNNING)"
+    else
+        zapret_st="$(T TXT_TGBOT_STATUS_STOPPED)"
+    fi
+    # KeenDNS
+    local keendns_val
+    local _kdns_raw
+    _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
+    if [ -n "$_kdns_raw" ]; then
+        local _kdns_name _kdns_domain _kdns_access
+        _kdns_name="$(printf '%s\n' "$_kdns_raw" | awk '/name:/{print $2; exit}')"
+        _kdns_domain="$(printf '%s\n' "$_kdns_raw" | awk '/domain:/{print $2; exit}')"
+        _kdns_access="$(printf '%s\n' "$_kdns_raw" | awk '/access:/{print $2; exit}')"
+        if [ -n "$_kdns_name" ] && [ -n "$_kdns_domain" ]; then
+            keendns_val="${_kdns_name}.${_kdns_domain} | ${_kdns_access:-$(T TXT_TGBOT_STATUS_UNKNOWN)}"
+        fi
+    fi
+    [ -z "$keendns_val" ] && keendns_val="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    # Versiyon
+    local kzm_ver zapret_ver
+    kzm_ver="$(zkm_get_installed_script_version 2>/dev/null)"
+    [ -z "$kzm_ver" ] && kzm_ver="$SCRIPT_VERSION"
+    zapret_ver="$(cat /opt/zapret/version 2>/dev/null)"
+    [ -z "$zapret_ver" ] && zapret_ver="$(T TXT_TGBOT_STATUS_UNKNOWN)"
+    printf "📡 $(T TXT_TG_DEVICE_LABEL) : %s\n🏠 $(T TXT_TG_LAN_LABEL) : %s\n🌍 $(T TXT_TG_WAN_LABEL) : %s\n🔧 $(T TXT_TG_MODEL_LABEL) : %s\n\n" \
+        "${TG_DEVICE_NAME:-$(T TXT_TGBOT_STATUS_UNKNOWN)}" \
+        "${TG_DEVICE_LAN_IP:-$(T TXT_TGBOT_STATUS_UNKNOWN)}" \
+        "${TG_DEVICE_WAN_IP:-$(T TXT_TGBOT_STATUS_UNKNOWN)}" \
+        "${TG_DEVICE_MODEL:-$(T TXT_TGBOT_STATUS_UNKNOWN)}"
+    printf "📊 DPI : %s\n💻 CPU : %s%% | RAM: %s\n💾 Disk : %s | Uptime: %s\n🩺 Disk Sagligi : %s\n❤️ HMon : %s\n🤖 TGBot : %s\n⚡ Zapret : %s\n🌐 KeenDNS : %s\n🔌 WAN : %s\n📦 KZM : %s | Zapret: %s" \
+        "$profile_name" \
+        "$cpu_val" "$ram_val" \
+        "$disk_val" "$uptime_val" \
+        "$disk_health_val" \
+        "$hm_st" \
+        "$tgbot_st" \
+        "$zapret_st" \
+        "$keendns_val" \
+        "$wan_if" \
         "$kzm_ver" "$zapret_ver"
 }
 # Handle callback query action
@@ -9005,6 +9066,19 @@ tgbot_handle_callback() {
             ;;
         menu_logs)
             tgbot_edit "$chat_id" "$msg_id" \
+                "$(T TXT_TGBOT_LOG_MENU_TITLE)" "$(tgbot_kb_logs)"
+            ;;
+        sys_tgbotlog)
+            local _tglog_tmp="/tmp/tgbot_tgbotlog_$$.txt"
+            if [ -f "$TG_BOT_LOG_FILE" ] && [ -s "$TG_BOT_LOG_FILE" ]; then
+                cp "$TG_BOT_LOG_FILE" "$_tglog_tmp" 2>/dev/null
+                tgbot_send_document "$chat_id" "$_tglog_tmp" \
+                    "🤖 TG Bot Log | ${TG_ROUTER_ID:-router}"
+                rm -f "$_tglog_tmp" 2>/dev/null
+            else
+                tgbot_send "$chat_id" "$(T TXT_TGBOT_NO_LOGS)" ""
+            fi
+            tgbot_send "$chat_id" \
                 "$(T TXT_TGBOT_LOG_MENU_TITLE)" "$(tgbot_kb_logs)"
             ;;
         zap_start)
@@ -9300,7 +9374,7 @@ tgbot_handle_callback() {
 tgbot_set_commands() {
     local _token="$1"
     local _cmds
-    _cmds='[{"command":"start","description":"Ana menuyu ac"},{"command":"durum","description":"Sistem durumunu goster"},{"command":"zapret","description":"Zapret yonetimi"},{"command":"sistem","description":"Sistem ve router"},{"command":"kzm","description":"KZM yonetimi"},{"command":"help","description":"Yardim"}]'
+    _cmds='[{"command":"start","description":"Ana menuyu ac"},{"command":"durum","description":"Sistem durumunu goster"},{"command":"zapret","description":"Zapret yonetimi"},{"command":"sistem","description":"Sistem ve router"},{"command":"kzm","description":"KZM yonetimi"},{"command":"loglar","description":"Log goruntule"},{"command":"help","description":"Yardim"}]'
     local _sc_result
     _sc_result="$(curl -fsSL -X POST "https://api.telegram.org/bot${_token}/setMyCommands" \
         -H "Content-Type: application/json" \
@@ -9315,6 +9389,7 @@ telegram_bot_daemon() {
     local raw ids update_id blk
     local cb_id cb_data cb_chat cb_msg_id msg_chat msg_text
     printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | started" >> "$TG_BOT_LOG_FILE"
+    echo "$SCRIPT_VERSION" >"/opt/etc/tgbot_running_ver" 2>/dev/null
     # Eski pending dosyalarini temizle
     rm -f /tmp/tgbot_pending_* 2>/dev/null
     tgbot_set_commands "$TG_BOT_TOKEN"
@@ -9452,6 +9527,11 @@ $(tgbot_client_detail_text "$_rn_mac")" \
                                 "$(T TXT_TGBOT_BTN_KZM)" \
                                 "$(tgbot_kb_kzm)"
                             ;;
+                        /loglar|/logs)
+                            tgbot_send "$msg_chat" \
+                                "$(T TXT_TGBOT_LOG_MENU_TITLE)" \
+                                "$(tgbot_kb_logs)"
+                            ;;
                         /help|/yardim)
                             tgbot_send "$msg_chat" \
                                 "$(T _ '📖 KZM Yardim
@@ -9502,8 +9582,13 @@ telegram_bot_start() {
     else
         "$0" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &
     fi
-    echo $! > "$TG_BOT_PID_FILE"
-    print_status PASS "$(T TXT_TGBOT_BOT_STARTED)"
+    sleep 1
+    local _real_pid
+    _real_pid="$(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | head -1)"
+    [ -n "$_real_pid" ] && echo "$_real_pid" > "$TG_BOT_PID_FILE" || echo $! > "$TG_BOT_PID_FILE"
+    local _pid_show
+    _pid_show="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
+    print_status PASS "$(T TXT_TGBOT_BOT_STARTED)${_pid_show:+ (PID: $_pid_show)}"
 }
 # Bot'u durdur
 telegram_bot_stop() {
@@ -9514,13 +9599,22 @@ telegram_bot_stop() {
             kill "$pid" 2>/dev/null || true
             sleep 2
             kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
-            sleep 1
         fi
         rm -f "$TG_BOT_PID_FILE" 2>/dev/null
     fi
+    # PID dosyasi disinda kalan tum --telegram-daemon processleri oldur
     ps 2>/dev/null | awk -v n="$SCRIPT_NAME" \
         'index($0,"--telegram-daemon")>0 && index($0,n)>0 {print $1}' | \
         while read -r _p; do kill -9 "$_p" 2>/dev/null || true; done
+    # Process gercekten olene kadar bekle (max 5 saniye)
+    local _wait=0
+    while [ "$_wait" -lt 5 ]; do
+        if ! ps 2>/dev/null | grep -q '[t]elegram-daemon'; then
+            break
+        fi
+        sleep 1
+        _wait=$((_wait+1))
+    done
     print_status PASS "$(T TXT_TGBOT_BOT_STOPPED)"
 }
 # Autostart - HealthMon watchdog tarafindan yonetilir, ayri init.d gerekmez
@@ -9581,10 +9675,12 @@ telegram_bot_menu() {
                 press_enter_to_continue
                 ;;
             3)
+                print_status INFO "$(T _ 'Bot durduruluyor...' 'Stopping bot...')"
                 telegram_bot_stop >/dev/null 2>&1
                 sleep 1
+                print_status INFO "$(T _ 'Bot baslatiliyor...' 'Starting bot...')"
                 telegram_bot_start
-                press_enter_to_continue
+                sleep 1
                 ;;
             0) return 0 ;;
             *) echo "$(T TXT_INVALID_CHOICE)" ; sleep 1 ;;
@@ -10256,6 +10352,7 @@ healthmon_loop() {
         fi
     fi
     echo "$$" >"$HM_PID_FILE" 2>/dev/null
+    echo "$SCRIPT_VERSION" >"/opt/etc/healthmon_running_ver" 2>/dev/null
     healthmon_log "$(date +%s) | started"
     # Load config early
     healthmon_load_config
@@ -10425,17 +10522,25 @@ healthmon_loop() {
                     if [ "$HM_ZAPRET_AUTORESTART" = "1" ] && [ ! -f "$zapret_restart_flag" ]; then
                         echo "1" >"$zapret_restart_flag" 2>/dev/null
                         if [ "$_zap_reason" = "iptables_missing" ]; then
-                            restart_zapret >/dev/null 2>&1
+                            # Once sadece firewall kurallarini yenile (process'e dokunma)
+                            /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1
+                            sleep 1
+                            # start-fw yetmediyse tam restart
+                            _zapret_iptables_ok || restart_zapret >/dev/null 2>&1
                         else
                             start_zapret >/dev/null 2>&1
                         fi
                         sleep 1
                         if is_zapret_running && _zapret_iptables_ok; then
                             restart_ok="1"
-                            # Notify "UP" immediately to reduce panic
-                            if healthmon_should_alert "zapret_up" "$HM_ZAPRET_COOLDOWN_SEC"; then
-                                telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
-                                healthmon_log "$now | zapret_autorestart_ok | reason=$_zap_reason cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                            # iptables_missing start-fw ile sessizce duzeltildi, Telegram gonderme
+                            if [ "$_zap_reason" != "iptables_missing" ]; then
+                                if healthmon_should_alert "zapret_up" "$HM_ZAPRET_COOLDOWN_SEC"; then
+                                    telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_UP_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk")" &
+                                    healthmon_log "$now | zapret_autorestart_ok | reason=$_zap_reason cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
+                                fi
+                            else
+                                healthmon_log "$now | zapret_fw_restore | reason=iptables_missing cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                             fi
                             # clear state to allow future down events to re-attempt restart
                             rm -f "$zapret_flag" 2>/dev/null
@@ -10701,6 +10806,17 @@ healthmon_loop() {
         if [ -f /tmp/healthmon_restart_requested ]; then
             rm -f /tmp/healthmon_restart_requested 2>/dev/null
             healthmon_log "$(date +%s 2>/dev/null) | healthmon | self_restart | yeni surum icin yeniden baslatiliyor"
+            # Telegram bot aktifse yeni surum icin restart et
+            _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
+            if [ "$_tg_en" = "1" ]; then
+                _tgpid="$(cat /tmp/zkm_telegram_bot.pid 2>/dev/null)"
+                [ -n "$_tgpid" ] && kill "$_tgpid" 2>/dev/null || true
+                ps 2>/dev/null | grep -- '--telegram-daemon' | grep -v grep | \
+                    awk '{print $1}' | while read -r _p; do kill "$_p" 2>/dev/null || true; done
+                sleep 1
+                (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"/tmp/zkm_telegram_bot.log" 2>&1 &)
+                healthmon_log "$(date +%s 2>/dev/null) | healthmon | tgbot_restart | yeni surum icin yeniden baslatildi"
+            fi
             rm -f "$HM_PID_FILE" 2>/dev/null
             rmdir "$HM_LOCKDIR" 2>/dev/null
             (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &)
@@ -12649,7 +12765,9 @@ case "$ACTION" in
         else
             sh "$_kzm" --telegram-daemon </dev/null >>"$_log" 2>&1 &
         fi
-        echo $! > "$_pid_f"
+        sleep 1
+        _real_pid="$(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | head -1)"
+        [ -n "$_real_pid" ] && echo "$_real_pid" > "$_pid_f" || echo $! > "$_pid_f"
         ok "Bot baslatildi" ;;
     tg_stop)
         _pid_f="/tmp/zkm_telegram_bot.pid"
@@ -12657,6 +12775,7 @@ case "$ACTION" in
             _pid="$(cat "$_pid_f" 2>/dev/null)"
             if [ -n "$_pid" ]; then
                 kill "$_pid" 2>/dev/null || true
+                sleep 1
                 kill -9 "$_pid" 2>/dev/null || true
             fi
             rm -f "$_pid_f" 2>/dev/null
@@ -12664,6 +12783,12 @@ case "$ACTION" in
         # PID dosyasi disinda kalan --telegram-daemon processleri de temizle
         ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | \
             while IFS= read -r _p; do kill -9 "$_p" 2>/dev/null || true; done
+        # Process gercekten olene kadar bekle (max 5 saniye)
+        _w=0
+        while [ "$_w" -lt 5 ]; do
+            ps 2>/dev/null | grep -q '[t]elegram-daemon' || break
+            sleep 1; _w=$((_w+1))
+        done
         ok "Bot durduruldu" ;;
     tg_restart)
         _kzm="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
@@ -12681,6 +12806,12 @@ case "$ACTION" in
         for _kp in $(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}'); do
             kill -9 "$_kp" 2>/dev/null || true
         done
+        # Process gercekten olene kadar bekle (max 5 saniye)
+        _w=0
+        while [ "$_w" -lt 5 ]; do
+            ps 2>/dev/null | grep -q '[t]elegram-daemon' || break
+            sleep 1; _w=$((_w+1))
+        done
         # tg_start ile ayni kontrol
         _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
         [ "$_tg_en" != "1" ] && { ok "Bot durduruldu (yapilandirilmamis)"; exit 0; }
@@ -12691,7 +12822,9 @@ case "$ACTION" in
         else
             sh "$_kzm" --telegram-daemon </dev/null >>"$_log" 2>&1 &
         fi
-        echo $! > "$_pid_f"
+        sleep 1
+        _real_pid="$(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | head -1)"
+        [ -n "$_real_pid" ] && echo "$_real_pid" > "$_pid_f" || echo $! > "$_pid_f"
         ok "Bot yeniden baslatildi" ;;
     tg_info)
         _tok="$(grep -s '^TG_BOT_TOKEN=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
@@ -13126,23 +13259,23 @@ kzm_gui_write_html() {
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
   background:radial-gradient(1200px 600px at 20% -10%,rgba(75,125,255,.22),transparent 55%),
              linear-gradient(180deg,#081022,#070d18);
-  color:var(--text);min-height:100vh;}
+  color:var(--text);min-height:100vh;overflow-x:hidden;}
 .app{display:grid;grid-template-columns:var(--sw) 1fr;min-height:100vh;transition:grid-template-columns var(--str);}
 .app.sb-off{grid-template-columns:var(--swc) 1fr;}
 aside{border-right:1px solid var(--line);
   background:linear-gradient(180deg,rgba(15,27,51,.97),rgba(12,23,48,.97));
-  padding:12px 8px;position:sticky;top:0;height:100vh;overflow:hidden;
+  padding:12px 8px;position:sticky;top:0;height:100vh;overflow:visible;
   display:flex;flex-direction:column;gap:2px;
   width:var(--sw);transition:width var(--str);position:relative;}
 .app.sb-off aside{width:var(--swc);}
-.sb-toggle{position:absolute;top:14px;right:-11px;width:22px;height:22px;border-radius:50%;
-  background:var(--accent);border:1px solid rgba(75,125,255,.5);display:grid;place-items:center;
-  cursor:pointer;color:#fff;font-size:13px;font-weight:700;z-index:50;
+.sb-toggle{position:absolute;top:10px;right:-18px;transform:none;width:20px;height:50px;border-radius:0 14px 14px 0;
+  background:linear-gradient(180deg,#5d88ff,#3f67e8);border:1px solid rgba(75,125,255,.50);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#fff;font-size:22px;font-weight:800;z-index:50;
   transition:background .15s,transform var(--str),box-shadow .15s;line-height:1;user-select:none;
-  box-shadow:0 0 8px rgba(75,125,255,.5);}
-.sb-toggle:hover{background:rgba(75,125,255,.8);box-shadow:0 0 14px rgba(75,125,255,.7);}
+  box-shadow:0 0 14px rgba(75,125,255,.50);padding:0;}
+.sb-toggle:hover{background:linear-gradient(180deg,#6b93ff,#4d74ef);box-shadow:0 0 18px rgba(75,125,255,.65);}
 .app.sb-off .sb-toggle{transform:rotate(180deg);}
-.brand{display:flex;gap:10px;align-items:center;padding:6px 4px 12px;
+.brand{display:flex;gap:10px;align-items:center;padding:6px 4px 22px;
   border-bottom:1px solid var(--line);margin-bottom:8px;overflow:hidden;}
 .logo{width:32px;height:32px;border-radius:9px;flex-shrink:0;
   display:grid;place-items:center;
@@ -13204,9 +13337,17 @@ header{display:flex;align-items:center;justify-content:space-between;flex-wrap:w
 .badge.bad{background:rgba(231,76,60,.15);color:var(--bad);border:1px solid rgba(231,76,60,.3)}
 .badge.warn{background:rgba(241,196,15,.12);color:var(--warn);border:1px solid rgba(241,196,15,.25)}
 .badge.off{background:rgba(169,183,214,.1);color:var(--muted);border:1px solid var(--line)}
-.svc-badges .badge{width:100%;text-align:center;box-sizing:border-box}
+.svc-badges .badge{width:100%;text-align:center;box-sizing:border-box;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge.info{background:rgba(52,152,219,.15);color:#3498db;border:1px solid rgba(52,152,219,.3)}
 .btns{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.dash-zapret-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.dash-zapret-actions button{width:140px;min-width:140px;text-align:center;justify-content:center;box-sizing:border-box}
+.zapret-control-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.zapret-control-actions button{width:140px;min-width:140px;max-width:140px;text-align:center;justify-content:center;box-sizing:border-box;display:inline-flex;align-items:center}
+.healthmon-actions{display:flex;flex-wrap:wrap;gap:12px}
+.healthmon-actions button{width:140px;min-width:140px;max-width:140px;text-align:center;justify-content:center;box-sizing:border-box;display:inline-flex;align-items:center}
+@media (max-width:768px){.healthmon-actions{display:flex;flex-wrap:wrap;gap:12px}.healthmon-actions button{width:calc(50% - 6px);min-width:calc(50% - 6px);max-width:calc(50% - 6px)}}
+.bk-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
 button{font-size:12px;padding:6px 13px;border-radius:7px;border:none;cursor:pointer;
   font-weight:600;transition:.13s;background:var(--accent);color:#fff;}
 button:hover{opacity:.85}button:disabled{opacity:.35;cursor:not-allowed}
@@ -13226,6 +13367,51 @@ button.ok:hover{background:rgba(46,204,113,.28)}
 .info-row:last-child{border-bottom:none}
 .info-row .lbl{padding:8px 11px;color:var(--muted);font-size:14px}
 .info-row .val{padding:8px 11px;font-size:14px}
+.dash-stack{display:flex;flex-direction:column;gap:16px}
+.dash-top-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
+.dash-card-span-2{grid-column:span 2}
+.dash-services-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.bk-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.dpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.dpi-action-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.dpi-action-row select{flex:1 1 220px;min-width:0;max-width:100%}
+.cl-grid{display:grid;grid-template-columns:160px 1fr;gap:14px}
+.mob-toggle{display:none;position:fixed;top:14px;left:14px;width:36px;height:36px;border-radius:10px;background:rgba(0,151,220,.18),.18);border:1px solid rgba(75,125,255,.35);color:#fff;cursor:pointer;z-index:90;place-items:center;font-size:18px;transform:translate(-1px,-1px);backdrop-filter:blur(10px)}
+.mob-backdrop{display:none;position:fixed;inset:0;background:rgba(4,10,20,.55);z-index:55}
+@media (max-width: 900px){
+  .app,.app.sb-off{grid-template-columns:1fr}
+  main{min-width:0}
+  aside{position:fixed;left:0;top:0;bottom:0;width:min(84vw,280px);height:100vh;z-index:120;transform:translateX(-105%);transition:transform var(--str),width var(--str);box-shadow:0 12px 40px rgba(0,0,0,.45)}
+  .app.sb-off aside{width:min(84vw,280px)}
+  .app.mob-open aside{transform:translateX(0)}
+  .sb-toggle{display:none}
+  .mob-toggle{display:grid}
+  .mob-backdrop{display:block;opacity:0;pointer-events:none;transition:opacity var(--str)}
+  .app.mob-open + .mob-backdrop{opacity:1;pointer-events:auto}
+  .brand-text,.sec,.item-label,.pill,.fnote{opacity:1;max-width:none;width:auto;padding:initial;border:initial;margin:initial}
+  #view{padding:14px}
+  header{padding:12px 14px 12px 60px}
+  .dash-top-grid{grid-template-columns:1fr 1fr}
+}
+@media (max-width: 640px){
+  header{padding:12px 14px 12px 60px}
+  .title h2{font-size:15px}
+  .meta{gap:8px;font-size:11px}
+  .grid{grid-template-columns:1fr}
+  .dash-top-grid{grid-template-columns:1fr}
+  .dash-card-span-2{grid-column:auto}
+  .dash-services-grid{grid-template-columns:1fr}
+  .bk-grid{grid-template-columns:1fr}
+  .bk-actions{flex-direction:column}
+  .bk-actions button{width:100%}
+  .dpi-grid{grid-template-columns:1fr}
+  .dpi-action-row{align-items:stretch}
+  .dpi-action-row button{width:100%}
+  .cl-grid{grid-template-columns:120px 1fr}
+  .info-row{grid-template-columns:1fr}
+  .info-row .lbl{padding-bottom:4px}
+  .info-row .val{padding-top:0}
+}
 @keyframes hcBar{0%,100%{height:4px}50%{height:36px}}.spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.25);
   border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin-right:5px;vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -13254,6 +13440,7 @@ select option{background:#111f3d}
 </style>
 </head>
 <body>
+<button class="mob-toggle" id="mobToggle" onclick="sbToggle()" aria-label="Menu">&#9776;</button>
 <div class="app" id="kzmApp">
 <aside>
   <div class="sb-toggle" onclick="sbToggle()" title="Sidebar">&#8249;</div>
@@ -13297,6 +13484,7 @@ select option{background:#111f3d}
       <span><span id="hLoadLabel">CPU Y&#252;k&#252;: </span><b id="hLoad">&#8212;</b></span>
       <span>KZM: <b id="hVer">&#8212;</b></span>
       <span>Zapret: <b id="hZap">&#8212;</b></span>
+      <span>HealthMon: <b id="hHm">&#8212;</b></span>
       <button class="rbtn" onclick="act('status_refresh',null,'');setTimeout(fetchS,800);">&#8635; <span id="refreshBtnLabel">Yenile</span></button>
       <span class="ts" id="tsLbl"></span>
     </div>
@@ -13304,17 +13492,28 @@ select option{background:#111f3d}
   <div id="view"><div style="padding:40px;color:var(--muted);text-align:center">Y&#252;kleniyor...</div></div>
 </main>
 </div>
+<div class="mob-backdrop" id="mobBackdrop" onclick="closeMobMenu()"></div>
 <div class="toast" id="toast"></div>
 <script>
 var S=null,curV='dash',aTimer=null;
+function isMob(){return window.matchMedia('(max-width: 900px)').matches;}
+function closeMobMenu(){
+  var a=document.getElementById('kzmApp');
+  a.classList.remove('mob-open');
+}
 function sbToggle(){
   var a=document.getElementById('kzmApp');
+  if(isMob()){
+    a.classList.toggle('mob-open');
+    return;
+  }
   var collapsed=a.classList.toggle('sb-off');
   try{localStorage.setItem('kzm_sb',collapsed?'0':'1');}catch(e){}
 }
 (function(){
-  try{if(localStorage.getItem('kzm_sb')==='0')document.getElementById('kzmApp').classList.add('sb-off');}catch(e){}
+  try{if(localStorage.getItem('kzm_sb')==='0' && !isMob())document.getElementById('kzmApp').classList.add('sb-off');}catch(e){}
 })();
+window.addEventListener('resize',function(){if(!isMob())closeMobMenu();});
 document.addEventListener('mouseover',function(e){
   var item=e.target.closest('.item');
   if(!item)return;
@@ -13398,6 +13597,8 @@ function updHdr(){
   document.getElementById('hVer').textContent=S.kzm_version||'—';
   var z=document.getElementById('hZap');
   z.innerHTML=S.zapret_running?'<span class="good">'+(L?'ACTIVE':'AKT&#304;F')+'</span>':'<span class="bad">'+(L?'INACTIVE':'PAS&#304;F')+'</span>';
+  var h=document.getElementById('hHm');
+  if(h) h.innerHTML=S.healthmon_running?'<span class="good">'+(L?'ACTIVE':'AKT&#304;F')+'</span>':'<span class="bad">'+(L?'INACTIVE':'PAS&#304;F')+'</span>';
 }
 function bdg(on,a,b){return on?'<span class="badge good">'+(a||'AKT&#304;F')+'</span>':'<span class="badge bad">'+(b||'PAS&#304;F')+'</span>';}
 function bdgO(on,a,b){return on?'<span class="badge good">'+(a||'AKT&#304;F')+'</span>':'<span class="badge off">'+(b||'KAPALI')+'</span>';}
@@ -13447,17 +13648,17 @@ function dnsRender(r){
     var grpColor={'Filtresiz':'good','Gizlilik':'info','Reklam':'warn','Aile':'off'};
     var grpLabel={'Filtresiz':L?'Unfiltered':'Filtresiz','Gizlilik':L?'Privacy':'Gizlilik','Reklam':L?'Ad Block':'Reklam','Aile':L?'Family':'Aile'};
     var groups={};
-    var rows='<table style="width:100%;border-collapse:collapse;font-size:12.5px">';
+    var rows='<table style="width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed">';
     for(var i=0;i<r.items.length;i++){
       var itm=r.items[i];
       var bg=i%2===0?'':'background:rgba(255,255,255,0.03);';
       var grpCls=grpColor[itm.group]||'off';
       groups[itm.group]=1;
       rows+='<tr style="'+bg+'border-bottom:1px solid rgba(255,255,255,0.05)">'+
-        '<td style="padding:5px 0;width:50px"><span class="badge '+(itm.type==='DoT'?'good':'info')+'">'+itm.type+'</span></td>'+
-        '<td style="padding:5px 6px;font-family:monospace">'+itm.key+'</td>'+
-        '<td style="padding:5px 4px;width:70px"><span class="badge '+grpCls+'" style="font-size:10px">'+(grpLabel[itm.group]||itm.group)+'</span></td>'+
-        '<td style="padding:5px 0;text-align:right;width:50px"><button class="danger" style="padding:2px 8px;font-size:11px" onclick="dnsDel(this.getAttribute(\'data-key\'),this)" data-key="'+itm.key+'">'+(L?'Del':'Sil')+'</button></td>'+
+        '<td style="padding:5px 0;width:46px"><span class="badge '+(itm.type==='DoT'?'good':'info')+'" style="min-width:0;width:40px;text-align:center">'+itm.type+'</span></td>'+
+        '<td style="padding:5px 6px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+itm.key+'</td>'+
+        '<td style="padding:5px 4px;width:64px"><span class="badge '+grpCls+'" style="min-width:0;width:58px;font-size:10px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(grpLabel[itm.group]||itm.group)+'</span></td>'+
+        '<td style="padding:5px 0;text-align:right;width:44px"><button class="danger" style="padding:2px 6px;font-size:11px" onclick="dnsDel(this.getAttribute(\'data-key\'),this)" data-key="'+itm.key+'">'+(L?'Del':'Sil')+'</button></td>'+
       '</tr>';
     }
     rows+='</table>';
@@ -13623,7 +13824,7 @@ function fmtBcCard(S){
   };
   var profLabel=profileNames[S.dpi_profile]||S.dpi_profile||'—';
   if(!S.bc_ts){
-    return '<div class="card" style="grid-column:span 2"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
+    return '<div class="card dash-card-span-2"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
       '<div style="color:var(--muted);font-size:13px;margin:10px 0 6px">'+(L?'Blockcheck has not been run yet.':'Blockcheck hen&#252;z &#231;al&#305;&#351;t&#305;r&#305;lmad&#305;.')+'</div>'+
       '<div style="font-size:12px;color:var(--muted)">'+(L?'Active Profile: ':'Aktif Profil: ')+'<span style="color:var(--text)">'+profLabel+'</span></div>'+
       '<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">'+(L?'Run SSH &rarr; Menu <b>B</b> (Blockcheck) to see score.':'Score g&#246;rmek i&#231;in SSH ile ba&#287;lan&#305;p<br><span style="color:var(--accent);font-family:monospace">kzm</span> &rarr; Men&#252; <b>B</b> (Blockcheck) &#231;al&#305;&#351;t&#305;r&#305;n.')+'</div>'+
@@ -13639,7 +13840,7 @@ function fmtBcCard(S){
   if(!S.bc_dns_ok) warns+='<span class="badge bad" style="font-size:10px">DNS: WARN</span> ';
   if(!S.bc_tls12_ok) warns+='<span class="badge bad" style="font-size:10px">TLS12: WARN</span> ';
   if(S.bc_udp_weak) warns+='<span class="badge warn" style="font-size:10px">UDP 443: WARN</span>';
-  return '<div class="card" style="grid-column:span 2"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
+  return '<div class="card dash-card-span-2"><h3>'+(L?'DPI Health Score':'DPI Sa&#287;l&#305;k Skoru')+'</h3>'+
     '<div style="display:flex;align-items:flex-end;gap:8px;margin:8px 0 4px">'+
       '<span style="font-size:2.4em;font-weight:800;color:'+clr+'">'+sc+'</span>'+
       '<span style="color:var(--muted);font-size:13px;padding-bottom:6px">/ 10 ('+rat+')</span>'+
@@ -13656,20 +13857,20 @@ var V={
   dash:{title:'Dashboard',titleEn:'Dashboard',sub:'Canl&#305; sistem &#246;zeti.',subEn:'Live system overview.',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
-    return '<div style="display:flex;flex-direction:column;gap:16px">'+
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">'+
+    return '<div class="dash-stack">'+
+      '<div class="dash-top-grid">'+
         '<div class="card"><h3>'+(L?'KZM Version':'KZM S&#252;r&#252;m')+'</h3><div class="big" style="color:'+(S.sha_kzm==='ok'?'var(--good)':S.sha_kzm==='fail'?'var(--warn)':'var(--text)')+'">'+  (S.kzm_version||'—')+'</div></div>'+
         '<div class="card"><h3>'+(L?'Zapret Version':'Zapret S&#252;r&#252;m')+'</h3><div class="big" style="color:'+(S.sha_zapret==='ok'?'var(--good)':S.sha_zapret==='fail'?'var(--warn)':'var(--text)')+'">'+fixTR(S.zapret_version||'—')+'</div></div>'+
-        '<div class="card" style="grid-column:span 2"><h3>'+(L?'Zapret Status':'Zapret Durumu')+'</h3>'+
+        '<div class="card dash-card-span-2"><h3>'+(L?'Zapret Status':'Zapret Durumu')+'</h3>'+
           '<div class="row">'+bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F')+
             ' <span class="pill">'+(L?S.wan_dev:fixTR(S.wan_dev||'—'))+'</span>'+
             ' <span class="pill">'+(S.wan_ip||'—')+'</span></div>'+
-          '<div class="btns">'+
+          '<div class="dash-zapret-actions">'+
             '<button class="danger" onclick="zapretAct(\'zapret_restart\',this,\'Restart OK\')">&#8635; '+(L?'Restart':'Yeniden Ba&#351;lat')+'</button>'+
             '<button class="ghost" onclick="zapretAct(\'zapret_stop\',this,\'Stop OK\')">&#9646;&#9646; '+(L?'Stop':'Durdur')+'</button>'+
             '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Start OK\')">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>'+
           '</div></div>'+
-        '<div class="card" style="grid-column:span 2"><h3>CPU / RAM / Disk</h3>'+
+        '<div class="card dash-card-span-2"><h3>CPU / RAM / Disk</h3>'+
         '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px">'+
           '<tr><td style="color:var(--muted);padding:3px 0;width:38%">'+(L?'CPU Load (1/5/15min)':'CPU Y&#252;k&#252; (1/5/15dk)')+'</td>'+
               '<td style="padding:3px 0"><b>'+S.load1+'</b> / '+S.load5+' / '+S.load15+'</td>'+
@@ -13688,12 +13889,12 @@ var V={
           '</tr>'+
         '</table>'+
       '</div>'+
-      '<div class="card" style="grid-column:span 2"><h3>'+(L?'Services':'Servisler')+'</h3>'+
-        '<div class="svc-badges" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'+
-          '<div>'+bdg(S.healthmon_running,'Health Mon OK',L?'Health Mon INACTIVE':'Health Mon PAS&#304;F')+'</div>'+
-          '<div>'+bdgO(S.telegram_enabled&&S.telegram_running,L?'Telegram ACTIVE':'Telegram AKT&#304;F',L?'Telegram OFF':'Telegram KAPALI')+'</div>'+
-          '<div>'+bdg(S.zapret_running,L?'Zapret ACTIVE':'Zapret AKT&#304;F',L?'Zapret INACTIVE':'Zapret PAS&#304;F')+'</div>'+
-          '<div>'+bdg(S.lighttpd_running,L?'Web Panel ACTIVE':'Web Panel AKT&#304;F',L?'Web Panel OFF':'Web Panel KAPALI')+'</div>'+
+      '<div class="card dash-card-span-2"><h3>'+(L?'Services':'Servisler')+'</h3>'+
+        '<div class="svc-badges dash-services-grid">'+
+          '<div style="min-width:0">'+bdg(S.healthmon_running,'Health Mon','Health Mon')+'</div>'+
+          '<div style="min-width:0">'+bdgO(S.telegram_enabled&&S.telegram_running,'Telegram','Telegram')+'</div>'+
+          '<div style="min-width:0">'+bdg(S.zapret_running,'Zapret','Zapret')+'</div>'+
+          '<div style="min-width:0">'+bdg(S.lighttpd_running,'Web Panel','Web Panel')+'</div>'+
         '</div>'+
       '</div>'+
       fmtBcCard(S)+
@@ -13721,7 +13922,7 @@ var V={
           ' <span class="pill">WAN: '+(L?S.wan_dev:fixTR(S.wan_dev||'—'))+'</span>'+
           ' <span class="pill">'+fixTR(S.zapret_version||'—')+'</span></div></div>'+
       '<div class="card"><h3>'+(L?'Control':'Kontrol')+'</h3>'+
-        '<div class="btns">'+
+        '<div class="zapret-control-actions">'+
           '<button class="ok" onclick="zapretAct(\'zapret_start\',this,\'Baslatildi\')">&#9654; '+(L?'Start':'Ba&#351;lat')+'</button>'+
           '<button class="danger" onclick="zapretAct(\'zapret_stop\',this,\'Durduruldu\')">&#9646;&#9646; '+(L?'Stop':'Durdur')+'</button>'+
           '<button class="ghost" onclick="zapretAct(\'zapret_restart\',this,\'Yeniden ba&#351;lat&#305;ld&#305;\')">&#8635; '+(L?'Restart':'Yeniden Ba&#351;lat')+'</button>'+
@@ -13730,7 +13931,7 @@ var V={
       '</div></div>';
   }},
   dpi:{title:'DPI Profili',titleEn:'DPI Profile',sub:'Mevcut DPI profilini g&#246;r&#252;nt&#252;le ve de&#287;i&#351;tir.',subEn:'View and change current DPI profile.',html:function(){
-    var h='<div class="grid" style="grid-template-columns:1fr 1fr">'+
+    var h='<div class="dpi-grid">'+
       '<div class="card"><h3>'+(L?'Current Profile':'Mevcut Profil')+'</h3>'+
         '<div class="big" id="dpiVal">'+(function(){
             var p=S.dpi_profile||'';
@@ -13748,7 +13949,7 @@ var V={
             return names[p]||p||'—';
           })()+'</div></div>'+
       '<div class="card"><h3>'+(L?'Select Profile':'Profil Se&#231;')+'</h3>'+
-        '<div class="irow">'+
+        '<div class="dpi-action-row">'+
           (function(){
             var cp=S.dpi_profile||'tt_default';
             var opts=[
@@ -13827,7 +14028,7 @@ var V={
         '<div id="hmDiskBar">'+brr(S.disk_used_pct)+'</div></div>'+
       '<div class="card"><h3>HealthMon</h3>'+
         '<div class="row" id="hmHmBdg">'+bdg(S.healthmon_running,'HealthMon OK',L?'HealthMon INACTIVE':'HealthMon PAS&#304;F')+'</div>'+
-        '<div class="btns" style="margin-top:10px" id="hmBtn">';
+        '<div class="healthmon-actions" id="hmBtn">';
     h+='<button class="danger" onclick="hmRestart(this)">'+'&#8635; '+(L?'Restart HM':'HM Yeniden Ba&#351;lat')+'</button>';
     h+=S.healthmon_running
       ?'<button class="ghost" onclick="act(\'healthmon_stop\',this,'+(L?'\'HM stopped\'':'\'HM durduruldu\'')+')">'+'&#9646;&#9646; '+(L?'Stop HM':'HM Durdur')+'</button>'
@@ -14004,10 +14205,10 @@ var V={
   }},
   backup:{title:'Yedekle / Geri Y&#252;kle',titleEn:'Backup / Restore',sub:'Zapret ayarlar&#305; yedekleme ve geri y&#252;kleme.',subEn:'Zapret settings backup and restore.',html:function(){
     setTimeout(function(){bkLoad();},100);
-    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'+
+    return '<div class="bk-grid">'+
       '<div class="card"><h3>&#128190; '+(L?'Backup Zapret Settings':'Zapret Ayarlar&#305; Yedekle')+'</h3>'+
         '<div class="sub">'+(L?'Backs up config, hostlist, IPSET, DPI profile, healthmon, telegram as tar.gz.':'config, hostlist, IPSET, DPI profili, healthmon, telegram ayarlar&#305; tar.gz olarak yedekler.')+'</div>'+
-        '<div class="btns" style="margin-top:8px">'+
+        '<div class="bk-actions" style="margin-top:8px">'+
           '<button onclick="bkDoSettingsBackup(this)">'+'&#128190; '+(L?'Backup':'Yedekle')+'</button>'+
           '<button onclick="bkSettingsList(this)" style="background:#444">&#128220; '+(L?'View Backups':'Yedekleri G&#246;r')+'</button>'+
           '<button onclick="bkSettingsClean(this)" style="background:#5a1a1a">&#128465; '+(L?'Clean Backups':'Yedekleri Temizle')+'</button>'+
@@ -14029,7 +14230,7 @@ var V={
       '</div>'+
       '<div class="card"><h3>&#128190; '+(L?'Backup IPSET':'IPSET Yedekle')+'</h3>'+
         '<div class="sub">'+(L?'Copies current IPSET .txt files to current + history folders.':'Mevcut IPSET .txt dosyalar&#305;n&#305; current + history klas&#246;rlerine kopyalar.')+'</div>'+
-        '<div class="btns" style="margin-top:8px">'+
+        '<div class="bk-actions" style="margin-top:8px">'+
           '<button onclick="bkDoIpsetBackup(this)">'+'&#128190; '+(L?'Backup':'Yedekle')+'</button>'+
           '<button onclick="bkIpsetList(this)" style="background:#444">&#128220; '+(L?'View Backups':'Yedekleri G&#246;r')+'</button>'+
           '<button onclick="bkIpsetClean(this)" style="background:#5a1a1a">&#128465; '+(L?'Clean History':'Ge&#231;mi&#351;i Temizle')+'</button>'+
@@ -14045,7 +14246,7 @@ var V={
   }},
   changelog:{title:'KZM — S&#252;r&#252;m Notlar&#305;',titleEn:'KZM — Release Notes',sub:'KZM g&#252;ncelleme ge&#231;mi&#351;i.',subEn:'KZM update history.',noPrefix:true,html:function(){
     setTimeout(function(){clLoad();},100);
-    return '<div class="grid" style="grid-template-columns:200px 1fr;gap:14px">'+
+    return '<div class="cl-grid">'+
       '<div class="card" id="clList" style="max-height:70vh;overflow-y:auto"><div class="sub">Y&#252;kleniyor...</div></div>'+
       '<div class="card" id="clBody" style="max-height:70vh;overflow-y:auto"><div class="sub">'+
         (L?'Select a version from the list.':'Listeden bir s&#252;r&#252;m se&#231;in.')+
@@ -14246,12 +14447,12 @@ function hcRender(d){
     '<div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">'+
       '<div style="height:100%;width:'+(sc*10)+'%;background:'+scClr+';border-radius:4px"></div>'+
     '</div>'+
-    '<div style="display:flex;gap:16px;margin-top:8px;font-size:0.82em;color:var(--muted)">'+
-      '<span style="color:var(--good)">&#10003; PASS: '+d.pass+'</span>'+
-      '<span style="color:var(--warn)">&#9888; WARN: '+d.warn+'</span>'+
-      '<span style="color:var(--bad)">&#10007; FAIL: '+d.fail+'</span>'+
-      '<span>INFO: '+d.info+'</span>'+
-      (d.dns_mode?'<span style="margin-left:auto">DNS: <b>'+d.dns_mode+'</b>'+(d.dns_providers?' \u2022 '+d.dns_providers:'')+'</span>':'')+
+    '<div style="display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:8px;font-size:0.82em;color:var(--muted)">'+
+      '<span style="color:var(--good);white-space:nowrap">&#10003; PASS: '+d.pass+'</span>'+
+      '<span style="color:var(--warn);white-space:nowrap">&#9888; WARN: '+d.warn+'</span>'+
+      '<span style="color:var(--bad);white-space:nowrap">&#10007; FAIL: '+d.fail+'</span>'+
+      '<span style="white-space:nowrap">INFO: '+d.info+'</span>'+
+      (d.dns_mode?'<span style="flex:1 1 100%;min-width:0;overflow-wrap:anywhere;word-break:break-word">DNS: <b>'+d.dns_mode+'</b>'+(d.dns_providers?' • '+d.dns_providers:'')+'</span>':'')+
     '</div>'+
   '</div>';
   var secs=L?{net:'\u{1F310} Network & DNS',sys:'\u{1F4BB} System',svc:'\u2699 Services'}
@@ -14268,9 +14469,9 @@ function hcRender(d){
       var stClr=it.st==='PASS'?'var(--good)':it.st==='FAIL'?'var(--bad)':it.st==='WARN'?'var(--warn)':'var(--muted)';
       var stIco=it.st==='PASS'?'&#10003;':it.st==='FAIL'?'&#10007;':it.st==='WARN'?'&#9888;':'&#8226;';
       h+='<tr style="border-top:'+(i?'1px solid var(--border)':'none')+'">'+
-        '<td style="padding:7px 16px;color:var(--muted);width:45%">'+fixTR(it.lbl)+'</td>'+
-        '<td style="padding:7px 8px;color:var(--fg)">'+fixTR(it.val)+'</td>'+
-        '<td style="padding:7px 16px;text-align:right;color:'+stClr+';font-weight:600;white-space:nowrap">'+stIco+' '+it.st+'</td>'+
+        '<td style="padding:7px 10px;color:var(--muted);white-space:nowrap">'+fixTR(it.lbl)+'</td>'+
+        '<td style="padding:7px 8px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;width:100%">'+fixTR(it.val)+'</td>'+
+        '<td style="padding:7px 10px;text-align:right;color:'+stClr+';font-weight:600;white-space:nowrap">'+stIco+' '+it.st+'</td>'+
       '</tr>';
     });
     h+='</table></div>';
@@ -14523,12 +14724,12 @@ function clBuildList(){
   var el=document.getElementById('clList');
   if(!el||!clCache)return;
   var cur=S?S.kzm_version:'';
-  var h='<h3>'+(L?'Versions':'S&#252;r&#252;mler')+'</h3><div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">';
+  var h='<h3>'+(L?'Versions':'S&#252;r&#252;mler')+'</h3><div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:8px">';
   clCache.forEach(function(r){
     var tag=r.tag_name||r.name||'';
     var isCur=tag===cur;
     var isActive=tag===clCurTag;
-    h+='<div onclick="clSelect(\''+tag+'\')" style="cursor:pointer;padding:6px 10px;border-radius:7px;font-size:12.5px;'+
+    h+='<div onclick="clSelect(\''+tag+'\')" style="display:inline-block;max-width:100%;cursor:pointer;padding:6px 10px;border-radius:7px;font-size:12.5px;box-sizing:border-box;'+
       (isActive?'background:rgba(75,125,255,.2);border:1px solid rgba(75,125,255,.5);':'border:1px solid transparent;')+
       '">'+tag+(isCur?' <span style="color:var(--good);font-size:10px">&#9679; '+(L?'Installed':'Kurulu')+'</span>':'')+'</div>';
   });
@@ -14573,6 +14774,7 @@ document.querySelectorAll('.item').forEach(function(el){
   el.addEventListener('click',function(){
     document.querySelectorAll('.item').forEach(function(i){i.classList.remove('active');});
     el.classList.add('active');curV=el.getAttribute('data-view');render(curV);
+    if(isMob())closeMobMenu();
   });
 });
 // Sayfa acilisinda: once eski JSON'u goster, arka planda taze uret, gelince yenile
@@ -15096,6 +15298,31 @@ if [ -d "$KZM_GUI_DIR" ]; then
     if [ "$_gui_ver" != "$SCRIPT_VERSION" ] || [ "$_cgi_ver" != "$SCRIPT_VERSION" ]; then
         kzm_gui_write_html
         kzm_gui_write_cgi
+    fi
+fi
+# HealthMon kurulu ve calisiyorsa versiyon kontrolu
+if [ -f "$HM_PID_FILE" ] && kill -0 "$(cat "$HM_PID_FILE" 2>/dev/null)" 2>/dev/null; then
+    _hm_running_ver="$(cat /opt/etc/healthmon_running_ver 2>/dev/null)"
+    if [ "$_hm_running_ver" != "$SCRIPT_VERSION" ]; then
+        # Direkt kill + start (flag bekleme, anlik restart)
+        _hm_pid="$(cat "$HM_PID_FILE" 2>/dev/null)"
+        [ -n "$_hm_pid" ] && kill "$_hm_pid" 2>/dev/null || true
+        sleep 1
+        (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &)
+    fi
+fi
+# Telegram bot aktifse versiyon kontrolu (calisiyor olsun ya da olmasin)
+_tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
+if [ "$_tg_en" = "1" ]; then
+    _tgbot_running_ver="$(cat /opt/etc/tgbot_running_ver 2>/dev/null)"
+    if [ "$_tgbot_running_ver" != "$SCRIPT_VERSION" ]; then
+        _tgpid="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
+        [ -n "$_tgpid" ] && kill "$_tgpid" 2>/dev/null || true
+        ps 2>/dev/null | grep -- '--telegram-daemon' | grep -v grep | \
+            awk '{print $1}' | while read -r _p; do kill "$_p" 2>/dev/null || true; done
+        rm -f "$TG_BOT_PID_FILE" 2>/dev/null
+        sleep 1
+        (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &)
     fi
 fi
 # rc.unslung patch: /opt/bin/find yerine BusyBox find kullan (Entware binary bozulmasina karsi)
