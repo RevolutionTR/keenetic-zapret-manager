@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.3"
+SCRIPT_VERSION="v26.4.4"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -5033,18 +5033,6 @@ check_manager_update() {
                 e|E|y|Y)
                     echo ""
                     update_manager_script "1"
-                    if [ $? -eq 0 ]; then
-                        [ -d "$KZM_GUI_DIR" ] && (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
-                        [ -f "$HM_PID_FILE" ] && touch /tmp/healthmon_restart_requested 2>/dev/null && print_status INFO "$(T _ 'HealthMon yeniden baslatiliyor.' 'HealthMon restarting.')"
-                        _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
-                        if [ "$_tg_en" = "1" ] && [ -f "$TG_BOT_PID_FILE" ]; then
-                            _tgpid="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
-                            [ -n "$_tgpid" ] && kill "$_tgpid" 2>/dev/null || true
-                            sleep 1
-                            (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &)
-                            print_status INFO "$(T _ 'Telegram Bot yeniden baslatildi.' 'Telegram Bot restarted.')"
-                        fi
-                    fi
                     ;;
                 *)
                     print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
@@ -5071,18 +5059,6 @@ check_manager_update() {
         e|E|y|Y)
             echo ""
             update_manager_script
-            if [ $? -eq 0 ]; then
-                [ -d "$KZM_GUI_DIR" ] && (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
-                [ -f "$HM_PID_FILE" ] && touch /tmp/healthmon_restart_requested 2>/dev/null && print_status INFO "$(T _ 'HealthMon yeniden baslatiliyor.' 'HealthMon restarting.')"
-                _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
-                if [ "$_tg_en" = "1" ] && [ -f "$TG_BOT_PID_FILE" ]; then
-                    _tgpid="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
-                    [ -n "$_tgpid" ] && kill "$_tgpid" 2>/dev/null || true
-                    sleep 1
-                    (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &)
-                    print_status INFO "$(T _ 'Telegram Bot yeniden baslatildi.' 'Telegram Bot restarted.')"
-                fi
-            fi
             ;;
         *)
             print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
@@ -9389,7 +9365,6 @@ telegram_bot_daemon() {
     local raw ids update_id blk
     local cb_id cb_data cb_chat cb_msg_id msg_chat msg_text
     printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') | tgbot | started" >> "$TG_BOT_LOG_FILE"
-    echo "$SCRIPT_VERSION" >"/opt/etc/tgbot_running_ver" 2>/dev/null
     # Eski pending dosyalarini temizle
     rm -f /tmp/tgbot_pending_* 2>/dev/null
     tgbot_set_commands "$TG_BOT_TOKEN"
@@ -10352,7 +10327,6 @@ healthmon_loop() {
         fi
     fi
     echo "$$" >"$HM_PID_FILE" 2>/dev/null
-    echo "$SCRIPT_VERSION" >"/opt/etc/healthmon_running_ver" 2>/dev/null
     healthmon_log "$(date +%s) | started"
     # Load config early
     healthmon_load_config
@@ -10806,17 +10780,6 @@ healthmon_loop() {
         if [ -f /tmp/healthmon_restart_requested ]; then
             rm -f /tmp/healthmon_restart_requested 2>/dev/null
             healthmon_log "$(date +%s 2>/dev/null) | healthmon | self_restart | yeni surum icin yeniden baslatiliyor"
-            # Telegram bot aktifse yeni surum icin restart et
-            _tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
-            if [ "$_tg_en" = "1" ]; then
-                _tgpid="$(cat /tmp/zkm_telegram_bot.pid 2>/dev/null)"
-                [ -n "$_tgpid" ] && kill "$_tgpid" 2>/dev/null || true
-                ps 2>/dev/null | grep -- '--telegram-daemon' | grep -v grep | \
-                    awk '{print $1}' | while read -r _p; do kill "$_p" 2>/dev/null || true; done
-                sleep 1
-                (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"/tmp/zkm_telegram_bot.log" 2>&1 &)
-                healthmon_log "$(date +%s 2>/dev/null) | healthmon | tgbot_restart | yeni surum icin yeniden baslatildi"
-            fi
             rm -f "$HM_PID_FILE" 2>/dev/null
             rmdir "$HM_LOCKDIR" 2>/dev/null
             (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &)
@@ -15298,31 +15261,6 @@ if [ -d "$KZM_GUI_DIR" ]; then
     if [ "$_gui_ver" != "$SCRIPT_VERSION" ] || [ "$_cgi_ver" != "$SCRIPT_VERSION" ]; then
         kzm_gui_write_html
         kzm_gui_write_cgi
-    fi
-fi
-# HealthMon kurulu ve calisiyorsa versiyon kontrolu
-if [ -f "$HM_PID_FILE" ] && kill -0 "$(cat "$HM_PID_FILE" 2>/dev/null)" 2>/dev/null; then
-    _hm_running_ver="$(cat /opt/etc/healthmon_running_ver 2>/dev/null)"
-    if [ "$_hm_running_ver" != "$SCRIPT_VERSION" ]; then
-        # Direkt kill + start (flag bekleme, anlik restart)
-        _hm_pid="$(cat "$HM_PID_FILE" 2>/dev/null)"
-        [ -n "$_hm_pid" ] && kill "$_hm_pid" 2>/dev/null || true
-        sleep 1
-        (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &)
-    fi
-fi
-# Telegram bot aktifse versiyon kontrolu (calisiyor olsun ya da olmasin)
-_tg_en="$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')"
-if [ "$_tg_en" = "1" ]; then
-    _tgbot_running_ver="$(cat /opt/etc/tgbot_running_ver 2>/dev/null)"
-    if [ "$_tgbot_running_ver" != "$SCRIPT_VERSION" ]; then
-        _tgpid="$(cat "$TG_BOT_PID_FILE" 2>/dev/null)"
-        [ -n "$_tgpid" ] && kill "$_tgpid" 2>/dev/null || true
-        ps 2>/dev/null | grep -- '--telegram-daemon' | grep -v grep | \
-            awk '{print $1}' | while read -r _p; do kill "$_p" 2>/dev/null || true; done
-        rm -f "$TG_BOT_PID_FILE" 2>/dev/null
-        sleep 1
-        (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &)
     fi
 fi
 # rc.unslung patch: /opt/bin/find yerine BusyBox find kullan (Entware binary bozulmasina karsi)
