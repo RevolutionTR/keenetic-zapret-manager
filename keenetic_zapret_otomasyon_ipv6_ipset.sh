@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.4"
+SCRIPT_VERSION="v26.4.4.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -4892,6 +4892,20 @@ zkm_get_installed_script_version() {
     [ -z "$v" ] && v="$SCRIPT_VERSION"
     echo "$v"
 }
+# Basarili KZM guncellemesinden sonra Telegram bot ve HealthMon'u yeniden baslatir.
+# Sadece manuel guncelleme (interaktif) icin cagrilir.
+_zkm_restart_services_after_update() {
+    if ps 2>/dev/null | grep -q '[t]elegram-daemon'; then
+        print_status INFO "$(T _ 'Telegram bot yeniden baslatiliyor...' 'Restarting Telegram bot...')"
+        telegram_bot_stop
+        telegram_bot_start
+    fi
+    if healthmon_is_running 2>/dev/null; then
+        print_status INFO "$(T _ 'HealthMon yeniden baslatiliyor...' 'Restarting HealthMon...')"
+        healthmon_stop
+        healthmon_start
+    fi
+}
 update_manager_script() {
     local _force="${1:-0}"  # 1 = SHA uyusmazligi nedeniyle zorunlu yeniden indirme
     TARGET_SCRIPT="$ZKM_SCRIPT_PATH"
@@ -5032,7 +5046,7 @@ check_manager_update() {
             case "$_sha_ans" in
                 e|E|y|Y)
                     echo ""
-                    update_manager_script "1"
+                    update_manager_script "1" && _zkm_restart_services_after_update
                     ;;
                 *)
                     print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
@@ -5058,7 +5072,7 @@ check_manager_update() {
     case "$_ans" in
         e|E|y|Y)
             echo ""
-            update_manager_script
+            update_manager_script && _zkm_restart_services_after_update
             ;;
         *)
             print_status INFO "$(T TXT_ZAP_UPDATE_CANCELLED)"
@@ -10238,6 +10252,12 @@ healthmon_updatecheck_do() {
             healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_ok cur=$cur latest=$latest"
             # Web Panel HTML/CGI guncelle
             (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
+            # Telegram bot calisiyorsa yeniden baslat (yeni kod icin)
+            if ps 2>/dev/null | grep -q '[t]elegram-daemon'; then
+                telegram_bot_stop >/dev/null 2>&1
+                telegram_bot_start >/dev/null 2>&1
+                healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | tgbot_restarted"
+            fi
             # HealthMon restart flag - loop bir sonraki iterasyonda yakalar
             touch /tmp/healthmon_restart_requested 2>/dev/null
         else
