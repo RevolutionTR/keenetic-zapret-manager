@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.4.1"
+SCRIPT_VERSION="v26.4.6"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1378,6 +1378,10 @@ TXT_HM_AUTOUPDATE_WARN_L3_TR="Devam? (e/h): "
 TXT_HM_AUTOUPDATE_WARN_L3_EN="Continue? (y/n): "
 TXT_HM_AUTOUPDATE_SET_MSG_TR="Otomatik guncelleme modu ayarlandi: %MODE%"
 TXT_HM_AUTOUPDATE_SET_MSG_EN="Auto update mode set: %MODE%"
+TXT_HM_SYSLOG_CRIT_MSG_TR="📌 Keenetic Sistem Log Uyarisi\n🔐 %CNT% yeni kritik olay:\n%LOG%\n\n📎 Not: Bu mesajin KZM veya Zapret ile ilgisi yoktur. Keenetic sistem log'undan gelen onemli bir olay oldugu icin bilgi amacli yollanmistir."
+TXT_HM_SYSLOG_CRIT_MSG_EN="📌 Keenetic System Log Alert\n🔐 %CNT% new critical event:\n%LOG%\n\n📎 Note: This message is not related to KZM or Zapret. It is sent for informational purposes as an important event detected in the Keenetic system log."
+TXT_HM_SYSLOG_IKE_MSG_TR="📌 Keenetic Sistem Log Uyarisi\n🛡️ IKE baglanti denemesi: %CNT% yeni girisim\n\n📎 Not: Bu mesajin KZM veya Zapret ile ilgisi yoktur. Keenetic sistem log'undan gelen onemli bir olay oldugu icin bilgi amacli yollanmistir."
+TXT_HM_SYSLOG_IKE_MSG_EN="📌 Keenetic System Log Alert\n🛡️ IKE connection attempt: %CNT% new\n\n📎 Note: This message is not related to KZM or Zapret. It is sent for informational purposes as an important event detected in the Keenetic system log."
 TXT_HM_PROMPT_COOLDOWN_TR="Bildirim soguma (sn) [or: 600]:"
 TXT_HM_PROMPT_COOLDOWN_EN="Notification cooldown (sec) [e.g. 600]:"
 # Health check menu
@@ -1448,8 +1452,8 @@ TXT_TGBOT_BTN_LOGS_TR="Loglar"
 TXT_TGBOT_BTN_LOGS_EN="Logs"
 TXT_TGBOT_LOG_MENU_TITLE_TR="Log Secenekleri"
 TXT_TGBOT_LOG_MENU_TITLE_EN="Log Options"
-TXT_TGBOT_BTN_KZMLOG_TR="KZM Log"
-TXT_TGBOT_BTN_KZMLOG_EN="KZM Log"
+TXT_TGBOT_BTN_KZMLOG_TR="HealthMon Log"
+TXT_TGBOT_BTN_KZMLOG_EN="HealthMon Log"
 TXT_TGBOT_BTN_SYSLOG_TR="Sistem Log"
 TXT_TGBOT_BTN_SYSLOG_EN="System Log"
 TXT_TGBOT_BTN_TGBOTLOG_TR="TG Bot Log"
@@ -9711,6 +9715,8 @@ HM_QLEN_WARN_TH="50"          # paket esigi: bu degeri asarsa sayac artar
 HM_QLEN_CRIT_TURNS="3"        # kac ardisik tur ust uste yuksekse aksiyon alinir
 # KeenDNS curl throttle: her dongu degil, bu kadar saniyede bir curl cek
 HM_KEENDNS_CURL_SEC="120"     # 0 = her dongude (eski davranis)
+HM_SYSLOG_WATCH="0"          # 0=disable, 1=enable — sistem log izleme
+HM_SYSLOG_COOLDOWN_SEC="600" # ayni tip uyari icin bekleme suresi (saniye)
 healthmon_print_autoupdate_warning() {
     # Show a single WARN header, then plain indented lines (less noisy)
     print_status WARN "$(T TXT_HM_AUTOUPDATE_WARN_TITLE)"
@@ -9746,6 +9752,8 @@ healthmon_load_config() {
     HM_QLEN_CRIT_TURNS="3"
     HM_KEENDNS_CURL_SEC="120"
     HM_ZAPRET_AUTORESTART="1"
+    HM_SYSLOG_WATCH="0"
+    HM_SYSLOG_COOLDOWN_SEC="600"
     [ -f "$HM_CONF_FILE" ] && . "$HM_CONF_FILE" 2>/dev/null
     # Sayi gerektiren degerler icin float/bos sanitize
     _hm_int() { eval "_v=\$$1"; case "${_v:-}" in *[!0-9]*|'') eval "$1=${2}";; esac; }
@@ -9785,6 +9793,8 @@ HM_QLEN_WATCHDOG="$HM_QLEN_WATCHDOG"
 HM_QLEN_WARN_TH="$HM_QLEN_WARN_TH"
 HM_QLEN_CRIT_TURNS="$HM_QLEN_CRIT_TURNS"
 HM_KEENDNS_CURL_SEC="$HM_KEENDNS_CURL_SEC"
+HM_SYSLOG_WATCH="$HM_SYSLOG_WATCH"
+HM_SYSLOG_COOLDOWN_SEC="$HM_SYSLOG_COOLDOWN_SEC"
 EOF
     chmod 600 "$HM_CONF_FILE" 2>/dev/null
 }
@@ -10193,11 +10203,11 @@ healthmon_updatecheck_do() {
             if ver_is_newer "$zap_latest" "$zap_cur"; then
                 # Normal guncelleme: yeni surum mevcut
                 zap_url="https://github.com/${zap_repo}/releases/latest"
-                telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" CUR "$zap_cur" NEW "$zap_latest" URL "$zap_url")"
+                telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_NEW)" CUR "$zap_cur" NEW "$zap_latest" URL "$zap_url")" &
                 healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zapret | notified cur=$zap_cur latest=$zap_latest"
             elif ver_is_newer "$zap_cur" "$zap_latest"; then
                 # Geri cekilmis release: kurulu surum GitHub'dan yeni
-                telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_ROLLED)" CUR "$zap_cur" NEW "$zap_latest")"
+                telegram_send "$(tpl_render "$(T TXT_UPD_ZAPRET_ROLLED)" CUR "$zap_cur" NEW "$zap_latest")" &
                 healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zapret | pulled_release cur=$zap_cur stable=$zap_latest"
             fi
         fi
@@ -10232,7 +10242,7 @@ healthmon_updatecheck_do() {
                 _dh_val="$(T _ 'OK ✅' 'OK ✅')"
             fi
         fi
-        telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_UP_TO_DATE)" CUR "$cur" DISK_HEALTH "$_dh_val")"
+        telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_UP_TO_DATE)" CUR "$cur" DISK_HEALTH "$_dh_val")" &
         return 0
     fi
     # New version exists
@@ -10240,7 +10250,7 @@ healthmon_updatecheck_do() {
     url="https://github.com/${repo}/releases/latest"
     if [ "$upd_mode" = "1" ]; then
         msg="$(tpl_render "$(T TXT_UPD_ZKM_NEW)" NEW "$latest" CUR "$cur" URL "$url")"
-        telegram_send "$msg"
+        telegram_send "$msg" &
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | notified cur=$cur latest=$latest"
         return 0
     fi
@@ -10248,7 +10258,7 @@ healthmon_updatecheck_do() {
     if [ "$upd_mode" = "2" ]; then
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_start cur=$cur latest=$latest"
         if update_manager_script >/tmp/zkm_autoupdate.log 2>&1; then
-            telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_OK)" NEW "$latest" CUR "$cur" URL "$url")"
+            telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_OK)" NEW "$latest" CUR "$cur" URL "$url")" &
             healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_ok cur=$cur latest=$latest"
             # Web Panel HTML/CGI guncelle
             (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
@@ -10266,7 +10276,7 @@ healthmon_updatecheck_do() {
             # HealthMon restart flag - loop bir sonraki iterasyonda yakalar
             touch /tmp/healthmon_restart_requested 2>/dev/null
         else
-            telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_FAIL)" CUR "$cur" NEW "$latest" URL "$url")"
+            telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_AUTO_FAIL)" CUR "$cur" NEW "$latest" URL "$url")" &
             healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_fail cur=$cur latest=$latest"
         fi
     fi
@@ -10328,6 +10338,54 @@ healthmon_wan_is_up() {
 healthmon_wan_tick() {
     hm_wanmon_tick
 }
+hm_syslog_watch_tick() {
+    [ "${HM_SYSLOG_WATCH:-0}" = "1" ] || return 0
+    local _log _now _cd
+    _now=$(date +%s 2>/dev/null)
+    _cd="${HM_SYSLOG_COOLDOWN_SEC:-600}"
+    _log="$(LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null)"
+    [ -z "$_log" ] && return 0
+
+    # Kritik pattern'lar: unexpectedly stopped, too many failed, AUTH_TOPEER_FAILED
+    local _crit_count _prev_crit _new_crit
+    _crit_count="$(printf '%s\n' "$_log" | grep -cE 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED' 2>/dev/null)"
+    _prev_crit="$(cat /tmp/healthmon_syslog_crit.prev 2>/dev/null)"
+    [ -z "$_prev_crit" ] && _prev_crit=0
+    echo "$_crit_count" > /tmp/healthmon_syslog_crit.prev
+    _new_crit=$((_crit_count - _prev_crit))
+    if [ "$_new_crit" -gt 0 ] 2>/dev/null; then
+        local _last_crit _diff_crit
+        _last_crit="$(cat /tmp/healthmon_syslog_crit.ts 2>/dev/null)"
+        [ -z "$_last_crit" ] && _last_crit=0
+        _diff_crit=$((_now - _last_crit))
+        if [ "$_diff_crit" -ge "$_cd" ] 2>/dev/null; then
+            local _sample
+            _sample="$(printf '%s\n' "$_log" | grep -E 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED' | tail -n 3)"
+            echo "$_now" > /tmp/healthmon_syslog_crit.ts
+            healthmon_log "$(date +%s 2>/dev/null) | syslog_alert | critical | new=${_new_crit}"
+            telegram_send "$(tpl_render "$(T TXT_HM_SYSLOG_CRIT_MSG)" CNT "$_new_crit" LOG "$_sample")" &
+        fi
+    fi
+
+    # IKE — toplu bildir (cooldown ile)
+    local _ike_count _prev_ike _new_ike
+    _ike_count="$(printf '%s\n' "$_log" | grep -c 'no IKE config found' 2>/dev/null)"
+    _prev_ike="$(cat /tmp/healthmon_syslog_ike.prev 2>/dev/null)"
+    [ -z "$_prev_ike" ] && _prev_ike=0
+    echo "$_ike_count" > /tmp/healthmon_syslog_ike.prev
+    _new_ike=$((_ike_count - _prev_ike))
+    if [ "$_new_ike" -gt 0 ] 2>/dev/null; then
+        local _last_ike _diff_ike
+        _last_ike="$(cat /tmp/healthmon_syslog_ike.ts 2>/dev/null)"
+        [ -z "$_last_ike" ] && _last_ike=0
+        _diff_ike=$((_now - _last_ike))
+        if [ "$_diff_ike" -ge "$_cd" ] 2>/dev/null; then
+            echo "$_now" > /tmp/healthmon_syslog_ike.ts
+            healthmon_log "$(date +%s 2>/dev/null) | syslog_alert | ike | new=${_new_ike}"
+            telegram_send "$(tpl_render "$(T TXT_HM_SYSLOG_IKE_MSG)" CNT "$_new_ike")" &
+        fi
+    fi
+}
 healthmon_loop() {
     trap '' HUP 2>/dev/null
     # Stale-state cleanup on daemon start (keep PID/log intact)
@@ -10335,6 +10393,12 @@ healthmon_loop() {
     rm -f /tmp/healthmon_cpu_* /tmp/healthmon_disk* /tmp/healthmon_ram* /tmp/healthmon_zapret_* /tmp/healthmon_last_* 2>/dev/null
     rm -f /tmp/healthmon_qlen.cnt /tmp/healthmon_qlen.prev /tmp/healthmon_keendns_curl.ts 2>/dev/null
     rm -f /tmp/healthmon_updatecheck.ts 2>/dev/null
+    # Syslog state: silme, mevcut sayiyi yaz — restart sonrasi eski olaylar "yeni" sayilmasin
+    _sl_log="$(LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null)"
+    printf '%s\n' "${_sl_log}" | grep -cE 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED' > /tmp/healthmon_syslog_crit.prev 2>/dev/null
+    printf '%s\n' "${_sl_log}" | grep -c 'no IKE config found' > /tmp/healthmon_syslog_ike.prev 2>/dev/null
+    rm -f /tmp/healthmon_syslog_crit.ts /tmp/healthmon_syslog_ike.ts 2>/dev/null
+    unset _sl_log
     # single-instance guard (robust against stale PID/lock after power loss)
     if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
         # If a healthy daemon exists, do nothing.
@@ -10811,6 +10875,8 @@ healthmon_loop() {
             sleep 1
             exit 0
         fi
+        # ---- SYSLOG WATCH ----
+        hm_syslog_watch_tick
         sleep "$HM_INTERVAL"
     done
     rm -f "$HM_PID_FILE" 2>/dev/null
@@ -10914,17 +10980,17 @@ DEOF
             _info() { _cc="${_cc}INFO $1|"; }
             command -v opkg >/dev/null 2>&1 && _ok "OPKG (Entware)" || _fail "OPKG bulunamadi"
             command -v iptables >/dev/null 2>&1 && _ok "iptables" || _fail "iptables bulunamadi"
-            command -v ip6tables >/dev/null 2>&1 && _ok "IPv6 destegi (ip6tables)" || _fail "IPv6 destegi (ip6tables) bulunamadi"
+            command -v ip6tables >/dev/null 2>&1 && _ok "IPv6 deste&#287;i (ip6tables)" || _fail "IPv6 deste&#287;i (ip6tables) bulunamad&#305;"
             command -v ipset >/dev/null 2>&1 && _ok "ipset" || _fail "ipset bulunamadi"
-            command -v curl >/dev/null 2>&1 && _ok "curl (guncelleme icin)" || { command -v wget >/dev/null 2>&1 && _ok "wget (guncelleme icin)" || _fail "curl/wget bulunamadi"; }
-            lsmod 2>/dev/null | grep -qE "^xt_multiport" && _ok "Netfilter Queue modulleri" || { find /lib/modules -name "xt_multiport.ko" 2>/dev/null | grep -q . && _ok "Netfilter (xt_multiport)" || _fail "Netfilter Queue modulleri bulunamadi"; }
-            { opkg list-installed 2>/dev/null | grep -qE "^xtables-addons|^kmod-ipt-xtables" || lsmod 2>/dev/null | grep -qE "^xt_condition|^xt_fuzzy"; } && _ok "Netfilter Xtables-addons genisletme paketleri" || _fail "Netfilter Xtables-addons bulunamadi"
-            { lsmod 2>/dev/null | grep -qi "sch_\|ntc\|^cls_" || grep -qi "SCH_INGRESS\|SCH_HTB\|SCH_HFSC" /proc/net/psched 2>/dev/null || grep -rqi "sch_ingress\|sch_htb\|CONFIG_NET_SCH" /proc/config.gz 2>/dev/null || ls /sys/kernel/debug/tracing 2>/dev/null | grep -q . || find /lib/modules -name "sch_*.ko" 2>/dev/null | grep -q .; } && _ok "Trafik Kontrol (tc) kernel modulleri" || _info "Trafik Kontrol (tc) bulunamadi"
+            command -v curl >/dev/null 2>&1 && _ok "curl (g&#252;ncelleme i&#231;in)" || { command -v wget >/dev/null 2>&1 && _ok "wget (g&#252;ncelleme i&#231;in)" || _fail "curl/wget bulunamad&#305;"; }
+            lsmod 2>/dev/null | grep -qE "^xt_multiport" && _ok "Netfilter Queue mod&#252;lleri" || { find /lib/modules -name "xt_multiport.ko" 2>/dev/null | grep -q . && _ok "Netfilter (xt_multiport)" || _fail "Netfilter Queue mod&#252;lleri bulunamad&#305;"; }
+            { opkg list-installed 2>/dev/null | grep -qE "^xtables-addons|^kmod-ipt-xtables" || lsmod 2>/dev/null | grep -qE "^xt_condition|^xt_fuzzy"; } && _ok "Netfilter Xtables-addons geni&#351;letme paketleri" || _fail "Netfilter Xtables-addons bulunamad&#305;"
+            { lsmod 2>/dev/null | grep -qi "sch_\|ntc\|^cls_" || grep -qi "SCH_INGRESS\|SCH_HTB\|SCH_HFSC" /proc/net/psched 2>/dev/null || grep -rqi "sch_ingress\|sch_htb\|CONFIG_NET_SCH" /proc/config.gz 2>/dev/null || ls /sys/kernel/debug/tracing 2>/dev/null | grep -q . || find /lib/modules -name "sch_*.ko" 2>/dev/null | grep -q .; } && _ok "Trafik Kontrol (tc) kernel mod&#252;lleri" || _info "Trafik Kontrol (tc) bulunamad&#305;"
             [ -x "/opt/zapret/nfq/nfqws" ] && _ok "nfqws binary" || _info "nfqws binary bulunamadi"
             _opt_dev="$(awk '$2=="/opt"{print $1; exit}' /proc/mounts 2>/dev/null)"
             if [ -n "$_opt_dev" ]; then
                 case "$_opt_dev" in
-                    /dev/sd*) _ok "Harici depolama - USB (/opt bagli)" ;;
+                    /dev/sd*) _ok "Harici depolama - USB (/opt ba&#287;l&#305;)" ;;
                     /dev/mmcblk*|/dev/nvme*) _info "Dahili depolama (/opt bagli - eMMC/NVMe)" ;;
                     *) _ok "Depolama (/opt bagli)" ;;
                 esac
@@ -11487,6 +11553,7 @@ healthmon_status() {
     hm_kv "$(T _ 'NFQUEUE kuyruk denetimi' 'NFQUEUE qlen watchdog')" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}"
     hm_kv "$(T _ 'WAN izleme' 'WAN monitoring')" "en=${HM_WANMON_ENABLE:-0} fail=${HM_WANMON_FAIL_TH:-3} ok=${HM_WANMON_OK_TH:-2} (${HM_WANMON_IFACE:-auto})"
     hm_kv "KeenDNS curl interval" "${HM_KEENDNS_CURL_SEC}s"
+    hm_kv "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s")"
     echo
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_NOW)" "${CLR_RESET}"
     print_line "-"
@@ -11633,6 +11700,7 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "10" "$_w" "$(T TXT_HM_CFG_ITEM10)" "$HM_HEARTBEAT_SEC"
         printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (${HM_WANMON_IFACE:-auto})"
         printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} | keendns=${HM_KEENDNS_CURL_SEC}s"
+        printf " %2s) %-*s : %s\n" "13" "$_w" "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s")"
 echo
         printf "  %s) %s\n" "S" "$(T _ 'Kaydet ve uygula' 'Save & apply')"
         printf "  %s) %s\n" "0" "$(T _ 'Geri (kaydetmeden)' 'Back (without saving)')"
@@ -11716,6 +11784,10 @@ esac
                 hm_ask_num "$(T _ 'qlen esigi (paket sayisi)' 'qlen threshold (packet count)')" HM_QLEN_WARN_TH
                 hm_ask_num "$(T _ 'Ardisik yuksek tur sayisi -> restart' 'Consecutive high turns -> restart')" HM_QLEN_CRIT_TURNS
                 hm_ask_num "$(T _ 'KeenDNS curl araligi (sn, 0=her tur)' 'KeenDNS curl interval (sec, 0=every loop)')" HM_KEENDNS_CURL_SEC
+                ;;
+            13)
+                hm_ask_01  "$(T _ 'Sistem log izleme (0=kapat 1=ac)' 'System log watch (0=off 1=on)')" HM_SYSLOG_WATCH
+                hm_ask_num "$(T _ 'Sistem log uyari cooldown (sn)' 'System log alert cooldown (sec)')" HM_SYSLOG_COOLDOWN_SEC
                 ;;
             s|S)
                 healthmon_write_config
@@ -12521,7 +12593,7 @@ printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s"
     "$_dpi_profile" "$_dpi_origin" \
     "$_bc_score" "$_bc_dns_ok" "$_bc_tls12_ok" "$_bc_udp_weak" "$_bc_ts" \
     "$_sha_kzm" "$_sha_zapret" \
-    > /tmp/kzm_status.json
+    > /tmp/kzm_status.json.tmp && mv -f /tmp/kzm_status.json.tmp /tmp/kzm_status.json
 STATEOF
     chmod +x "$KZM_GUI_STATUS_SCRIPT"
 }
@@ -14242,11 +14314,16 @@ var V={
     '</div>';
   }}
 };
-function hlLoad(){
+function hlLoad(retry){
+  if(!document.getElementById('hlL')){setTimeout(hlLoad,200);return;}
   getD('hl_get',function(r){
     var el=document.getElementById('hlL'),ec=document.getElementById('hlCnt');
     if(!el)return;
-    if(!r.ok||!r.data||!r.data.length){el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;}
+    if(!r.ok){el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;}
+    if(!r.data||!r.data.length){
+      if(!retry){setTimeout(function(){hlLoad(true);},800);return;}
+      el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;
+    }
     if(ec)ec.textContent=r.data.length;
     el.innerHTML=r.data.map(function(d){return '<div class="li"><span>'+d+'</span>'+
       '<button class="danger" style="padding:3px 8px;font-size:11px" onclick="hlDel(\''+d+'\',this)">Sil</button></div>';}).join('');
@@ -14270,10 +14347,14 @@ function hlDel(d,b){actD('hl_del','domain='+encodeURIComponent(d),b,'Silindi');s
 function exAdd(){var v=(document.getElementById('exIn').value||'').trim();if(!v)return;actD('ex_add','domain='+encodeURIComponent(v),null,'Eklendi');document.getElementById('exIn').value='';setTimeout(hlLoad,1800);}
 function exDel(d,b){actD('ex_del','domain='+encodeURIComponent(d),b,'Silindi');setTimeout(hlLoad,1800);}
 function autoDel(d,b){actD('auto_del','domain='+encodeURIComponent(d),b,'Silindi');setTimeout(hlLoad,1800);}
-function ipLoad(){
+function ipLoad(retry){
+  if(!document.getElementById('ipL')){setTimeout(ipLoad,200);return;}
   getD('ip_get',function(r){
     var el=document.getElementById('ipL'),ec=document.getElementById('ipCnt');if(!el)return;
-    if(!r.ok||!r.data||!r.data.length){el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;}
+    if(!r.ok||!r.data||!r.data.length){
+      if(!retry){setTimeout(function(){ipLoad(true);},800);return;}
+      el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;
+    }
     if(ec)ec.textContent=r.data.length;
     el.innerHTML=r.data.map(function(ip){return '<div class="li"><span>'+ip+'</span>'+
       '<button class="danger" style="padding:3px 8px;font-size:11px" onclick="ipDel(\''+ip+'\',this)">Sil</button></div>';}).join('');
@@ -14602,12 +14683,44 @@ function ccRun(){
             .replace('Tum gerekli bilesenler mevcut!','T&#252;m gerekli bile&#351;enler mevcut!')
             .replace('Kritik bilesenlerde sorun var!','Kritik bile&#351;enlerde sorun var!')
             .replace('Zorunlu bilesenler tamam, opsiyonel eksikler var.','Zorunlu bile&#351;enler tamam, opsiyonel eksikler var.');
+        } else {
+          restTr=restTr
+            .replace('Tum gerekli bilesenler mevcut!','All required components present!')
+            .replace('Kritik bilesenlerde sorun var!','Critical components have issues!')
+            .replace('Zorunlu bilesenler tamam, opsiyonel eksikler var.','Required components OK, optional ones missing.');
         }
         h+='<div style="margin-top:16px;background:'+bgCol+';border:1px solid '+brCol+';border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px">'+
           '<span style="font-size:1.3em;color:'+pc+'">&#9888;</span>'+
           '<span style="color:'+pc+';font-size:14px;font-weight:500">'+pfxHtml+restTr+'</span></div>';
       }
-      else{h+='<div>'+pfxHtml+'<span style="color:'+tc+'">'+rest+'</span></div>';}
+      else{
+        var restLbl=rest;
+        if(!L){
+          restLbl=restLbl
+            .replace('IPv6 deste&#287;i (ip6tables)','IPv6 deste&#287;i (ip6tables)')
+            .replace('curl (g&#252;ncelleme i&#231;in)','curl (g&#252;ncelleme i&#231;in)')
+            .replace('Netfilter Queue mod&#252;lleri','Netfilter Queue mod&#252;lleri')
+            .replace('Netfilter Xtables-addons geni&#351;letme paketleri','Netfilter Xtables-addons geni&#351;letme paketleri')
+            .replace('Trafik Kontrol (tc) kernel mod&#252;lleri','Trafik Kontrol (tc) kernel mod&#252;lleri')
+            .replace('Trafik Kontrol (tc) bulunamad&#305;','Trafik Kontrol (tc) bulunamad&#305;')
+            .replace('Harici depolama - USB (/opt ba&#287;l&#305;)','Harici depolama - USB (/opt ba&#287;l&#305;)');
+        } else {
+          restLbl=restLbl
+            .replace('IPv6 deste&#287;i (ip6tables)','IPv6 support (ip6tables)')
+            .replace('IPv6 deste&#287;i (ip6tables) bulunamad&#305;','IPv6 support (ip6tables) not found')
+            .replace('curl (g&#252;ncelleme i&#231;in)','curl (for updates)')
+            .replace('wget (g&#252;ncelleme i&#231;in)','wget (for updates)')
+            .replace('curl/wget bulunamad&#305;','curl/wget not found')
+            .replace('Netfilter Queue mod&#252;lleri','Netfilter Queue modules')
+            .replace('Netfilter Queue mod&#252;lleri bulunamad&#305;','Netfilter Queue modules not found')
+            .replace('Netfilter Xtables-addons geni&#351;letme paketleri','Netfilter Xtables-addons extension packages')
+            .replace('Netfilter Xtables-addons bulunamad&#305;','Netfilter Xtables-addons not found')
+            .replace('Trafik Kontrol (tc) kernel mod&#252;lleri','Traffic Control (tc) kernel modules')
+            .replace('Trafik Kontrol (tc) bulunamad&#305;','Traffic Control (tc) not found')
+            .replace('Harici depolama - USB (/opt ba&#287;l&#305;)','External storage - USB (/opt mounted)');
+        }
+        h+='<div>'+pfxHtml+'<span style="color:'+tc+'">'+restLbl+'</span></div>';
+      }
     });
     h+='</div>';
     el.innerHTML=h;
@@ -14757,6 +14870,7 @@ function render(k){
   document.getElementById('pTitle').innerHTML=modelPfx+t;
   document.getElementById('pSub').innerHTML=(L&&v.subEn)?v.subEn:(v.sub||'');
   document.getElementById('view').innerHTML=v.html?v.html():'<div class="empty">Yap&#305;m a&#351;amas&#305;nda...</div>';
+  window.location.hash=k;
 }
 document.querySelectorAll('.item').forEach(function(el){
   el.addEventListener('click',function(){
@@ -14765,8 +14879,19 @@ document.querySelectorAll('.item').forEach(function(el){
     if(isMob())closeMobMenu();
   });
 });
+// Sayfa acilisinda hash'e gore goruntumu sec
+(function(){
+  var h=window.location.hash.slice(1);
+  if(h&&V[h]){
+    curV=h;
+    document.querySelectorAll('.item').forEach(function(el){
+      if(el.getAttribute('data-view')===h)el.classList.add('active');
+      else el.classList.remove('active');
+    });
+  }
+})();
 // Sayfa acilisinda: once eski JSON'u goster, arka planda taze uret, gelince yenile
-fetchS();startAuto();
+fetchS().then(function(){render(curV);});startAuto();
 fetch('/cgi-bin/action.sh',{method:'POST',
   headers:{'Content-Type':'application/x-www-form-urlencoded'},
   body:'action=status_refresh'})
