@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.6"
+SCRIPT_VERSION="v26.4.7"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -9716,7 +9716,8 @@ HM_QLEN_CRIT_TURNS="3"        # kac ardisik tur ust uste yuksekse aksiyon alinir
 # KeenDNS curl throttle: her dongu degil, bu kadar saniyede bir curl cek
 HM_KEENDNS_CURL_SEC="120"     # 0 = her dongude (eski davranis)
 HM_SYSLOG_WATCH="0"          # 0=disable, 1=enable — sistem log izleme
-HM_SYSLOG_COOLDOWN_SEC="600" # ayni tip uyari icin bekleme suresi (saniye)
+HM_SYSLOG_COOLDOWN_SEC="600" # kritik olaylar icin bekleme suresi (saniye)
+HM_SYSLOG_IKE_COOLDOWN_SEC="3600" # IKE bekleme suresi (saniye, varsayilan 1 saat)
 healthmon_print_autoupdate_warning() {
     # Show a single WARN header, then plain indented lines (less noisy)
     print_status WARN "$(T TXT_HM_AUTOUPDATE_WARN_TITLE)"
@@ -9754,6 +9755,7 @@ healthmon_load_config() {
     HM_ZAPRET_AUTORESTART="1"
     HM_SYSLOG_WATCH="0"
     HM_SYSLOG_COOLDOWN_SEC="600"
+    HM_SYSLOG_IKE_COOLDOWN_SEC="3600"
     [ -f "$HM_CONF_FILE" ] && . "$HM_CONF_FILE" 2>/dev/null
     # Sayi gerektiren degerler icin float/bos sanitize
     _hm_int() { eval "_v=\$$1"; case "${_v:-}" in *[!0-9]*|'') eval "$1=${2}";; esac; }
@@ -9795,6 +9797,7 @@ HM_QLEN_CRIT_TURNS="$HM_QLEN_CRIT_TURNS"
 HM_KEENDNS_CURL_SEC="$HM_KEENDNS_CURL_SEC"
 HM_SYSLOG_WATCH="$HM_SYSLOG_WATCH"
 HM_SYSLOG_COOLDOWN_SEC="$HM_SYSLOG_COOLDOWN_SEC"
+HM_SYSLOG_IKE_COOLDOWN_SEC="$HM_SYSLOG_IKE_COOLDOWN_SEC"
 EOF
     chmod 600 "$HM_CONF_FILE" 2>/dev/null
 }
@@ -10340,15 +10343,16 @@ healthmon_wan_tick() {
 }
 hm_syslog_watch_tick() {
     [ "${HM_SYSLOG_WATCH:-0}" = "1" ] || return 0
-    local _log _now _cd
+    local _log _now _cd _ike_cd
     _now=$(date +%s 2>/dev/null)
     _cd="${HM_SYSLOG_COOLDOWN_SEC:-600}"
+    _ike_cd="${HM_SYSLOG_IKE_COOLDOWN_SEC:-3600}"
     _log="$(LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null)"
     [ -z "$_log" ] && return 0
 
     # Kritik pattern'lar: unexpectedly stopped, too many failed, AUTH_TOPEER_FAILED
     local _crit_count _prev_crit _new_crit
-    _crit_count="$(printf '%s\n' "$_log" | grep -cE 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED' 2>/dev/null)"
+    _crit_count="$(printf '%s\n' "$_log" | grep -cE 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED|invalid password|access to.*denied' 2>/dev/null)"
     _prev_crit="$(cat /tmp/healthmon_syslog_crit.prev 2>/dev/null)"
     [ -z "$_prev_crit" ] && _prev_crit=0
     echo "$_crit_count" > /tmp/healthmon_syslog_crit.prev
@@ -10360,7 +10364,7 @@ hm_syslog_watch_tick() {
         _diff_crit=$((_now - _last_crit))
         if [ "$_diff_crit" -ge "$_cd" ] 2>/dev/null; then
             local _sample
-            _sample="$(printf '%s\n' "$_log" | grep -E 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED' | tail -n 3)"
+            _sample="$(printf '%s\n' "$_log" | grep -E 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED|invalid password|access to.*denied' | tail -n 3)"
             echo "$_now" > /tmp/healthmon_syslog_crit.ts
             healthmon_log "$(date +%s 2>/dev/null) | syslog_alert | critical | new=${_new_crit}"
             telegram_send "$(tpl_render "$(T TXT_HM_SYSLOG_CRIT_MSG)" CNT "$_new_crit" LOG "$_sample")" &
@@ -10379,7 +10383,7 @@ hm_syslog_watch_tick() {
         _last_ike="$(cat /tmp/healthmon_syslog_ike.ts 2>/dev/null)"
         [ -z "$_last_ike" ] && _last_ike=0
         _diff_ike=$((_now - _last_ike))
-        if [ "$_diff_ike" -ge "$_cd" ] 2>/dev/null; then
+        if [ "$_diff_ike" -ge "$_ike_cd" ] 2>/dev/null; then
             echo "$_now" > /tmp/healthmon_syslog_ike.ts
             healthmon_log "$(date +%s 2>/dev/null) | syslog_alert | ike | new=${_new_ike}"
             telegram_send "$(tpl_render "$(T TXT_HM_SYSLOG_IKE_MSG)" CNT "$_new_ike")" &
@@ -10395,7 +10399,7 @@ healthmon_loop() {
     rm -f /tmp/healthmon_updatecheck.ts 2>/dev/null
     # Syslog state: silme, mevcut sayiyi yaz — restart sonrasi eski olaylar "yeni" sayilmasin
     _sl_log="$(LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null)"
-    printf '%s\n' "${_sl_log}" | grep -cE 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED' > /tmp/healthmon_syslog_crit.prev 2>/dev/null
+    printf '%s\n' "${_sl_log}" | grep -cE 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED|invalid password|access to.*denied' > /tmp/healthmon_syslog_crit.prev 2>/dev/null
     printf '%s\n' "${_sl_log}" | grep -c 'no IKE config found' > /tmp/healthmon_syslog_ike.prev 2>/dev/null
     rm -f /tmp/healthmon_syslog_crit.ts /tmp/healthmon_syslog_ike.ts 2>/dev/null
     unset _sl_log
@@ -11553,7 +11557,7 @@ healthmon_status() {
     hm_kv "$(T _ 'NFQUEUE kuyruk denetimi' 'NFQUEUE qlen watchdog')" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}"
     hm_kv "$(T _ 'WAN izleme' 'WAN monitoring')" "en=${HM_WANMON_ENABLE:-0} fail=${HM_WANMON_FAIL_TH:-3} ok=${HM_WANMON_OK_TH:-2} (${HM_WANMON_IFACE:-auto})"
     hm_kv "KeenDNS curl interval" "${HM_KEENDNS_CURL_SEC}s"
-    hm_kv "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s")"
+    hm_kv "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s")"
     echo
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_NOW)" "${CLR_RESET}"
     print_line "-"
@@ -11700,7 +11704,7 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "10" "$_w" "$(T TXT_HM_CFG_ITEM10)" "$HM_HEARTBEAT_SEC"
         printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (${HM_WANMON_IFACE:-auto})"
         printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} | keendns=${HM_KEENDNS_CURL_SEC}s"
-        printf " %2s) %-*s : %s\n" "13" "$_w" "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s")"
+        printf " %2s) %-*s : %s\n" "13" "$_w" "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s")"
 echo
         printf "  %s) %s\n" "S" "$(T _ 'Kaydet ve uygula' 'Save & apply')"
         printf "  %s) %s\n" "0" "$(T _ 'Geri (kaydetmeden)' 'Back (without saving)')"
@@ -11787,7 +11791,9 @@ esac
                 ;;
             13)
                 hm_ask_01  "$(T _ 'Sistem log izleme (0=kapat 1=ac)' 'System log watch (0=off 1=on)')" HM_SYSLOG_WATCH
-                hm_ask_num "$(T _ 'Sistem log uyari cooldown (sn)' 'System log alert cooldown (sec)')" HM_SYSLOG_COOLDOWN_SEC
+                hm_ask_num "$(T _ 'Kritik olay cooldown (sn)' 'Critical event cooldown (sec)')" HM_SYSLOG_COOLDOWN_SEC
+                hm_ask_num "$(T _ 'IKE bildirim cooldown (sn, varsayilan 3600)' 'IKE alert cooldown (sec, default 3600)')" HM_SYSLOG_IKE_COOLDOWN_SEC
+                press_enter_to_continue
                 ;;
             s|S)
                 healthmon_write_config
