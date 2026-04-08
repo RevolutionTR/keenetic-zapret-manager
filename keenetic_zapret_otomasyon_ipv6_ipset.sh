@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.7"
+SCRIPT_VERSION="v26.4.8"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -12728,6 +12728,9 @@ case "$ACTION" in
         HM_QLEN_WARN_TH="${HM_QLEN_WARN_TH:-50}"
         HM_QLEN_CRIT_TURNS="${HM_QLEN_CRIT_TURNS:-3}"
         HM_KEENDNS_CURL_SEC="${HM_KEENDNS_CURL_SEC:-120}"
+        HM_SYSLOG_WATCH="${HM_SYSLOG_WATCH:-0}"
+        HM_SYSLOG_COOLDOWN_SEC="${HM_SYSLOG_COOLDOWN_SEC:-600}"
+        HM_SYSLOG_IKE_COOLDOWN_SEC="${HM_SYSLOG_IKE_COOLDOWN_SEC:-3600}"
         _load=$(awk '{print $1}' /proc/loadavg 2>/dev/null || echo "?")
         _ram_free=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null || echo "?")
         _disk_raw=$(df /opt 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5);print $5}')
@@ -12751,12 +12754,14 @@ case "$ACTION" in
             [ "${HM_ZAPRET_AUTORESTART}" = "1" ] && _zar="On" || _zar="Off"
             [ "${HM_QLEN_WATCHDOG}" = "1" ] && _qwd="On" || _qwd="Off"
             [ "${HM_WANMON_ENABLE:-0}" = "1" ] && _wmen="On" || _wmen="Off"
+            [ "${HM_SYSLOG_WATCH:-0}" = "1" ] && _swd="On" || _swd="Off"
         else
             [ "$HM_UPDATECHECK_ENABLE" = "1" ] && _upd="A&#231;&#305;k" || _upd="Kapal&#305;"
             [ "${HM_ZAPRET_WATCHDOG}" = "1" ] && _zwd="A&#231;&#305;k" || _zwd="Kapal&#305;"
             [ "${HM_ZAPRET_AUTORESTART}" = "1" ] && _zar="A&#231;&#305;k" || _zar="Kapal&#305;"
             [ "${HM_QLEN_WATCHDOG}" = "1" ] && _qwd="A&#231;&#305;k" || _qwd="Kapal&#305;"
             [ "${HM_WANMON_ENABLE:-0}" = "1" ] && _wmen="A&#231;&#305;k" || _wmen="Kapal&#305;"
+            [ "${HM_SYSLOG_WATCH:-0}" = "1" ] && _swd="A&#231;&#305;k" || _swd="Kapal&#305;"
         fi
         _r() { printf "<div class='info-row'><div class='lbl'>%s</div><div class='val'>%s</div></div>" "$1" "$2"; }
         _s() { printf "<div class='info-sec'>%s</div>" "$1"; }
@@ -12780,6 +12785,7 @@ case "$ACTION" in
         _rows="${_rows}$(_r "NFQUEUE Queue Watchdog" "${_qwd} | Threshold: <b>${HM_QLEN_WARN_TH}</b> Packets | Consecutive: <b>${HM_QLEN_CRIT_TURNS}</b> Turns")"
         _rows="${_rows}$(_r "WAN Monitoring" "${_wmen} | <span style='color:var(--muted)'>Failure Threshold:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Failed Pings | <span style='color:var(--muted)'>Recovery Threshold:</span> <b>${HM_WANMON_OK_TH:-2}</b> Successful Pings | <span style='color:var(--muted)'>Interface:</span> ${HM_WANMON_IFACE:-auto}")"
         _rows="${_rows}$(_r "KeenDNS Check Interval" "${HM_KEENDNS_CURL_SEC}s")"
+        _rows="${_rows}$(_r "System Log Watch" "${_swd} | Critical Cooldown: <b>${HM_SYSLOG_COOLDOWN_SEC}</b>s | IKE Cooldown: <b>${HM_SYSLOG_IKE_COOLDOWN_SEC}</b>s")"
         _rows="${_rows}$(_s "CURRENT STATUS")"
         _rows="${_rows}$(_r "CPU Load" "${_load}")"
         _rows="${_rows}$(_r "Free RAM" "${_ram_free} MB")"
@@ -12804,6 +12810,7 @@ case "$ACTION" in
         _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | E&#351;ik: <b>${HM_QLEN_WARN_TH}</b> Paket | Ard&#305;&#351;&#305;k: <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
         _rows="${_rows}$(_r "WAN &#304;zleme" "${_wmen} | <span style='color:var(--muted)'>Kesinti E&#351;i&#287;i:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Ba&#351;ar&#305;s&#305;z Ping | <span style='color:var(--muted)'>Toparlanma E&#351;i&#287;i:</span> <b>${HM_WANMON_OK_TH:-2}</b> Ba&#351;ar&#305;l&#305; Ping | <span style='color:var(--muted)'>Aray&#252;z:</span> ${HM_WANMON_IFACE:-auto}")"
         _rows="${_rows}$(_r "KeenDNS Kontrol Aral&#305;&#287;&#305;" "${HM_KEENDNS_CURL_SEC}s")"
+        _rows="${_rows}$(_r "Sistem Log &#304;zleme" "${_swd} | Kritik Bekleme: <b>${HM_SYSLOG_COOLDOWN_SEC}</b>s | IKE Bekleme: <b>${HM_SYSLOG_IKE_COOLDOWN_SEC}</b>s")"
         _rows="${_rows}$(_s "ANLIK DURUM")"
         _rows="${_rows}$(_r "CPU Y&#252;k&#252;" "${_load}")"
         _rows="${_rows}$(_r "Bo&#351; RAM" "${_ram_free} MB")"
