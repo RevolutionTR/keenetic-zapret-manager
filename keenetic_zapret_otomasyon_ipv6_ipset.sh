@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.8"
+SCRIPT_VERSION="v26.4.8.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -10273,8 +10273,10 @@ healthmon_updatecheck_do() {
                 kill -9 "$_tg_pid" 2>/dev/null
                 rm -f /tmp/zkm_telegram_bot.pid 2>/dev/null
                 (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"/tmp/zkm_telegram_bot.log" 2>&1 &)
-                echo $! > /tmp/zkm_telegram_bot.pid
-                healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | tgbot_restarted"
+                sleep 1
+                _new_tg_pid="$(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | head -1)"
+                [ -n "$_new_tg_pid" ] && echo "$_new_tg_pid" > /tmp/zkm_telegram_bot.pid
+                healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | tgbot_restarted pid=${_new_tg_pid:-unknown}"
             fi
             # HealthMon restart flag - loop bir sonraki iterasyonda yakalar
             touch /tmp/healthmon_restart_requested 2>/dev/null
