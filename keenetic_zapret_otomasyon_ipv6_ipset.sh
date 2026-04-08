@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.8.1"
+SCRIPT_VERSION="v26.4.8.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -10273,8 +10273,15 @@ healthmon_updatecheck_do() {
                 kill -9 "$_tg_pid" 2>/dev/null
                 rm -f /tmp/zkm_telegram_bot.pid 2>/dev/null
                 (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"/tmp/zkm_telegram_bot.log" 2>&1 &)
-                sleep 1
-                _new_tg_pid="$(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | head -1)"
+                # watchdog'a bu turu atlamasi icin sinyal ver
+                touch /tmp/tgbot_just_restarted 2>/dev/null
+                # ps retry: max 5 saniye bekle
+                _new_tg_pid=""; _w=0
+                while [ "$_w" -lt 5 ]; do
+                    _new_tg_pid="$(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | head -1)"
+                    [ -n "$_new_tg_pid" ] && break
+                    sleep 1; _w=$((_w+1))
+                done
                 [ -n "$_new_tg_pid" ] && echo "$_new_tg_pid" > /tmp/zkm_telegram_bot.pid
                 healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | tgbot_restarted pid=${_new_tg_pid:-unknown}"
             fi
@@ -10836,6 +10843,10 @@ healthmon_loop() {
                 _tgpid_f="$TG_BOT_PID_FILE"
                 _tgpid="$(cat "$_tgpid_f" 2>/dev/null)"
                 if [ -z "$_tgpid" ] || ! kill -0 "$_tgpid" 2>/dev/null; then
+                    # autoinstall az once botu yeniden baslatti — bu turu atla
+                    if [ -f /tmp/tgbot_just_restarted ]; then
+                        rm -f /tmp/tgbot_just_restarted 2>/dev/null
+                    else
                     healthmon_log "$now | tgbot_watchdog | bot dead, restarting"
                     # Eski tum telegram-daemon processleri temizle
                     ps 2>/dev/null | grep -- '--telegram-daemon' | grep -v grep | \
@@ -10846,6 +10857,7 @@ healthmon_loop() {
                     sleep 1
                     "$ZKM_SCRIPT_PATH" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &
                     echo $! > "$_tgpid_f"
+                    fi  # else tgbot_just_restarted
                 fi
             fi
         fi
