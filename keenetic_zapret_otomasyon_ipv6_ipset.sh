@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.8.2"
+SCRIPT_VERSION="v26.4.10"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -10265,11 +10265,26 @@ healthmon_updatecheck_do() {
             healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | autoinstall_ok cur=$cur latest=$latest"
             # Web Panel HTML/CGI guncelle
             (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1 &)
-            # Telegram botu burada yeniden baslatma.
-            # HealthMon self-restart sonrasi watchdog tek noktadan yonetsin.
-            # Sadece kisa sureli skip isareti birak ki ayni tur race olusmasin.
-            date +%s > /tmp/tgbot_just_restarted 2>/dev/null
-            healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | tgbot_restart_deferred watchdog=1"
+            # Telegram bot calisiyorsa yeniden baslat (yeni kod icin)
+            _tg_pid="$(cat /tmp/zkm_telegram_bot.pid 2>/dev/null)"
+            if [ -n "$_tg_pid" ] && kill -0 "$_tg_pid" 2>/dev/null; then
+                kill "$_tg_pid" 2>/dev/null
+                sleep 2
+                kill -9 "$_tg_pid" 2>/dev/null
+                rm -f /tmp/zkm_telegram_bot.pid 2>/dev/null
+                (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --telegram-daemon </dev/null >>"/tmp/zkm_telegram_bot.log" 2>&1 &)
+                # watchdog'a bu turu atlamasi icin sinyal ver
+                touch /tmp/tgbot_just_restarted 2>/dev/null
+                # ps retry: max 5 saniye bekle
+                _new_tg_pid=""; _w=0
+                while [ "$_w" -lt 5 ]; do
+                    _new_tg_pid="$(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | head -1)"
+                    [ -n "$_new_tg_pid" ] && break
+                    sleep 1; _w=$((_w+1))
+                done
+                [ -n "$_new_tg_pid" ] && echo "$_new_tg_pid" > /tmp/zkm_telegram_bot.pid
+                healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | tgbot_restarted pid=${_new_tg_pid:-unknown}"
+            fi
             # HealthMon restart flag - loop bir sonraki iterasyonda yakalar
             touch /tmp/healthmon_restart_requested 2>/dev/null
         else
@@ -10358,7 +10373,7 @@ hm_syslog_watch_tick() {
         _diff_crit=$((_now - _last_crit))
         if [ "$_diff_crit" -ge "$_cd" ] 2>/dev/null; then
             local _sample
-            _sample="$(printf '%s\n' "$_log" | grep -E 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED|invalid password|access to.*denied' | tail -n 3)"
+            _sample="$(printf '%s\n' "$_log" | grep -E 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED|invalid password|access to.*denied' | tail -n 3 | sed 's/^[[:space:]]*//' | sed 's/^/• /')"
             echo "$_now" > /tmp/healthmon_syslog_crit.ts
             healthmon_log "$(date +%s 2>/dev/null) | syslog_alert | critical | new=${_new_crit}"
             telegram_send "$(tpl_render "$(T TXT_HM_SYSLOG_CRIT_MSG)" CNT "$_new_crit" LOG "$_sample")" &
@@ -10828,30 +10843,20 @@ healthmon_loop() {
                 _tgpid_f="$TG_BOT_PID_FILE"
                 _tgpid="$(cat "$_tgpid_f" 2>/dev/null)"
                 if [ -z "$_tgpid" ] || ! kill -0 "$_tgpid" 2>/dev/null; then
-                    _tgskip_ts="$(cat /tmp/tgbot_just_restarted 2>/dev/null)"
-                    _tgnow="$(date +%s 2>/dev/null)"
-                    if [ -n "$_tgskip_ts" ] && [ -n "$_tgnow" ] && [ $((_tgnow - _tgskip_ts)) -lt 15 ] 2>/dev/null; then
-                        :
-                    else
+                    # autoinstall az once botu yeniden baslatti — bu turu atla
+                    if [ -f /tmp/tgbot_just_restarted ]; then
                         rm -f /tmp/tgbot_just_restarted 2>/dev/null
-                        healthmon_log "$now | tgbot_watchdog | bot dead, restarting"
-                        # Eski tum telegram-daemon processleri temizle
-                        ps 2>/dev/null | grep -- '--telegram-daemon' | grep -v grep |                             while IFS= read -r _pline; do
-                                _ppid="$(printf '%s' "$_pline" | awk '{print $1}')"
-                                [ -n "$_ppid" ] && kill "$_ppid" 2>/dev/null
-                            done
-                        sleep 2
-                        date +%s > /tmp/tgbot_just_restarted 2>/dev/null
-                        "$ZKM_SCRIPT_PATH" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &
-                        _new_tg_pid=""
-                        _w=0
-                        while [ "$_w" -lt 5 ]; do
-                            _new_tg_pid="$(ps 2>/dev/null | awk '/--telegram-daemon/ && !/awk/{print $1}' | head -1)"
-                            [ -n "$_new_tg_pid" ] && break
-                            sleep 1
-                            _w=$((_w+1))
+                    else
+                    healthmon_log "$now | tgbot_watchdog | bot dead, restarting"
+                    # Eski tum telegram-daemon processleri temizle
+                    ps 2>/dev/null | grep -- '--telegram-daemon' | grep -v grep | \
+                        while IFS= read -r _pline; do
+                            _ppid="$(printf '%s' "$_pline" | awk '{print $1}')"
+                            [ -n "$_ppid" ] && kill "$_ppid" 2>/dev/null
                         done
-                        [ -n "$_new_tg_pid" ] && echo "$_new_tg_pid" > "$_tgpid_f"
+                    sleep 1
+                    "$ZKM_SCRIPT_PATH" --telegram-daemon </dev/null >>"$TG_BOT_LOG_FILE" 2>&1 &
+                    echo $! > "$_tgpid_f"
                     fi  # else tgbot_just_restarted
                 fi
             fi
@@ -15285,7 +15290,7 @@ main_menu_loop() {
                 printf " %b%s%b\n" "${CLR_CYAN}" "$(T _ '9. DPI Profili / WAN Arayuzu' '9. DPI Profile / WAN Interface')" "${CLR_RESET}"
                 print_line "="
                 printf " %b 1.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'DPI Profilini Degistir' 'Change DPI Profile')"
-                printf " %b 2.%b %s  %b[$(T _ 'Mevcut' 'Current'): $([ -z "$(get_wan_if)" ] && printf "%b%s%b" "${CLR_CYAN}" "$(T _ 'Tum Arayuzler' 'All Interfaces')" "${CLR_DIM}" || get_wan_if)]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'WAN Arayuzunu Degistir' 'Change WAN Interface')" "${CLR_DIM}" "${CLR_RESET}"
+                printf " %b 2.%b %s  %b[$(T _ 'Mevcut' 'Current'): $([ -z "$(get_wan_if)" ] && printf "%b%s%b" "${CLR_CYAN}" "$(T _ 'Tum Arayuzler' 'All Interfaces')" "${CLR_DIM}" || printf "%b%s%b" "${CLR_GREEN}${CLR_BOLD}" "$(get_wan_if)" "${CLR_RESET}${CLR_DIM}")]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'WAN Arayuzunu Degistir' 'Change WAN Interface')" "${CLR_DIM}" "${CLR_RESET}"
                 printf " %b 0.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Geri' 'Back')"
                 print_line "-"
                 printf "%s" "$(T _ 'Secim: ' 'Choice: ')"
