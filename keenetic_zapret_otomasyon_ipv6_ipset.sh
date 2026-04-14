@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.11"
+SCRIPT_VERSION="v26.4.14"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1149,6 +1149,8 @@ TXT_HM_CFG_ITEM11_TR="WAN izleme"
 TXT_HM_CFG_ITEM11_EN="WAN monitor"
 TXT_HM_CFG_ITEM12_TR="NFQUEUE kuyruk denetimi"
 TXT_HM_CFG_ITEM12_EN="NFQUEUE qlen watchdog"
+TXT_HM_CFG_ITEM14_TR="Debug modu"
+TXT_HM_CFG_ITEM14_EN="Debug mode"
 TXT_HM_PROMPT_WANMON_ENABLE_TR="WAN izleme aktif mi?"
 TXT_HM_PROMPT_WANMON_ENABLE_EN="Enable WAN monitoring?"
 TXT_HM_PROMPT_WANMON_FAIL_TH_TR="DOWN algilama esigi (adet)"
@@ -1470,6 +1472,8 @@ TXT_TGBOT_BTN_SYSLOG_TR="Sistem Log"
 TXT_TGBOT_BTN_SYSLOG_EN="System Log"
 TXT_TGBOT_BTN_TGBOTLOG_TR="TG Bot Log"
 TXT_TGBOT_BTN_TGBOTLOG_EN="TG Bot Log"
+TXT_TGBOT_BTN_DEBUGLOG_TR="Debug Log"
+TXT_TGBOT_BTN_DEBUGLOG_EN="Debug Log"
 TXT_TGBOT_BTN_BACK_TR="Geri"
 TXT_TGBOT_BTN_BACK_EN="Back"
 TXT_TGBOT_BTN_START_TR="Baslat"
@@ -2072,8 +2076,8 @@ TXT_HL_WARN_AUTOCLEAR_2_TR="Bu islem geri alinamaz."
 TXT_HL_WARN_AUTOCLEAR_2_EN="This action cannot be undone."
 TXT_HL_BULK_HINT_TR="Birden fazla domain girebilirsiniz (virgul/noktalivirgul/bosluk ile ayirin)."
 TXT_HL_BULK_HINT_EN="You can enter multiple domains (separate with comma/semicolon/space)."
-TXT_HL_BULK_HINT2_TR="Alt alta yapistirabilirsiniz. Yapistirma bittikten sonra bir kez daha ENTER'a basin (bos satir)."
-TXT_HL_BULK_HINT2_EN="You can paste multiple lines. After pasting, press ENTER once more on an empty line to finish."
+TXT_HL_BULK_HINT2_TR="Alt alta yapistirabilirsiniz. Yapistirma veya giris bittikten sonra bir kez daha ENTER'a basin (bos satir)."
+TXT_HL_BULK_HINT2_EN="You can paste multiple lines. After pasting or typing, press ENTER once more on an empty line to finish."
 TXT_HL_CANCELLED_TR="Iptal edildi."
 TXT_HL_CANCELLED_EN="Cancelled."
 TXT_HL_OPT_8_TR="Kapsam Modunu Degistir (Global/Akilli)"
@@ -5437,13 +5441,14 @@ manage_hostlist_menu() {
                 ;;
             3)
 echo "$(T TXT_HL_BULK_HINT)"
-echo "$(T TXT_HL_BULK_HINT2)"
+printf "%b%s%b\n" "${CLR_ORANGE}" "$(T TXT_HL_BULK_HINT2)" "${CLR_RESET}"
 added=0
 already=0
 invalid=0
 cancelled=0
 # Prompt only once so multi-line paste doesn't spam the screen.
 # Read until an empty line. "0" cancels.
+echo ""
 printf "%s" "$(T TXT_HL_PROMPT_ADD)"
 while :; do
     IFS= read -r d || break
@@ -5508,13 +5513,14 @@ clear
                 ;;
             5)
 echo "$(T TXT_HL_BULK_HINT)"
-echo "$(T TXT_HL_BULK_HINT2)"
+printf "%b%s%b\n" "${CLR_ORANGE}" "$(T TXT_HL_BULK_HINT2)" "${CLR_RESET}"
 added=0
 already=0
 invalid=0
 cancelled=0
 # Prompt only once so multi-line paste doesn't spam the screen.
 # Read until an empty line. "0" cancels.
+echo ""
 printf "%s" "$(T TXT_HL_PROMPT_ADD)"
 while :; do
     IFS= read -r d || break
@@ -8562,10 +8568,11 @@ tgbot_kb_device() {
 # Log alt menu klavyesi
 tgbot_kb_logs() {
     local rid="${TG_ROUTER_ID:-default}"
-    printf '[[{"text":"📋 %s","callback_data":"%s:sys_kzmlog"},{"text":"📄 %s","callback_data":"%s:sys_syslog"}],[{"text":"🤖 %s","callback_data":"%s:sys_tgbotlog"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
+    printf '[[{"text":"📋 %s","callback_data":"%s:sys_kzmlog"},{"text":"📄 %s","callback_data":"%s:sys_syslog"}],[{"text":"🤖 %s","callback_data":"%s:sys_tgbotlog"},{"text":"🐛 %s","callback_data":"%s:sys_debuglog"}],[{"text":"⬅️ %s","callback_data":"%s:menu_main"}]]' \
         "$(T TXT_TGBOT_BTN_KZMLOG)" "$rid" \
         "$(T TXT_TGBOT_BTN_SYSLOG)" "$rid" \
         "$(T TXT_TGBOT_BTN_TGBOTLOG)" "$rid" \
+        "$(T TXT_TGBOT_BTN_DEBUGLOG)" "$rid" \
         "$(T TXT_TGBOT_BTN_BACK)" "$rid"
 }
 # Ag cihazlari: ndmc show ip hotspot ile aktif hostlari inline keyboard olarak listele
@@ -9086,6 +9093,17 @@ tgbot_handle_callback() {
             fi
             tgbot_send "$chat_id" \
                 "$(T TXT_TGBOT_LOG_MENU_TITLE)" "$(tgbot_kb_logs)"
+            ;;
+        sys_debuglog)
+            local _dbglog_tmp="/tmp/tgbot_debuglog_$$.txt"
+            if [ -f "/tmp/healthmon_debug.log" ] && [ -s "/tmp/healthmon_debug.log" ]; then
+                cp "/tmp/healthmon_debug.log" "$_dbglog_tmp" 2>/dev/null
+                tgbot_send_document "$chat_id" "$_dbglog_tmp"                     "🐛 Debug Log | ${TG_ROUTER_ID:-router}"
+                rm -f "$_dbglog_tmp" 2>/dev/null
+            else
+                tgbot_send "$chat_id" "$(T _ 'Debug log bulunamadi. Debug modu kapali olabilir.' 'Debug log not found. Debug mode may be disabled.')" ""
+            fi
+            tgbot_send "$chat_id"                 "$(T TXT_TGBOT_LOG_MENU_TITLE)" "$(tgbot_kb_logs)"
             ;;
         zap_start)
             start_zapret >/dev/null 2>&1
@@ -9727,6 +9745,7 @@ HM_QLEN_WARN_TH="50"          # paket esigi: bu degeri asarsa sayac artar
 HM_QLEN_CRIT_TURNS="3"        # kac ardisik tur ust uste yuksekse aksiyon alinir
 # KeenDNS curl throttle: her dongu degil, bu kadar saniyede bir curl cek
 HM_KEENDNS_CURL_SEC="120"     # 0 = her dongude (eski davranis)
+HM_DEBUG="0"                 # 0=disable, 1=enable — debug log modu
 HM_SYSLOG_WATCH="0"          # 0=disable, 1=enable — sistem log izleme
 HM_SYSLOG_COOLDOWN_SEC="600" # kritik olaylar icin bekleme suresi (saniye)
 HM_SYSLOG_IKE_COOLDOWN_SEC="3600" # IKE bekleme suresi (saniye, varsayilan 1 saat)
@@ -9807,6 +9826,7 @@ HM_QLEN_WATCHDOG="$HM_QLEN_WATCHDOG"
 HM_QLEN_WARN_TH="$HM_QLEN_WARN_TH"
 HM_QLEN_CRIT_TURNS="$HM_QLEN_CRIT_TURNS"
 HM_KEENDNS_CURL_SEC="$HM_KEENDNS_CURL_SEC"
+HM_DEBUG="$HM_DEBUG"
 HM_SYSLOG_WATCH="$HM_SYSLOG_WATCH"
 HM_SYSLOG_COOLDOWN_SEC="$HM_SYSLOG_COOLDOWN_SEC"
 HM_SYSLOG_IKE_COOLDOWN_SEC="$HM_SYSLOG_IKE_COOLDOWN_SEC"
@@ -10014,7 +10034,9 @@ hm_wanmon_tick() {
     fails="$(cat "$fails_f" 2>/dev/null)"; case "$fails" in ''|*[!0-9]*) fails=0;; esac
     oks="$(cat "$oks_f" 2>/dev/null)"; case "$oks" in ''|*[!0-9]*) oks=0;; esac
     now="$(healthmon_now)"
-    if hm_wanmon_is_up "$ifc"; then
+    local _wm_up=0; hm_wanmon_is_up "$ifc" && _wm_up=1
+    hm_debug_log "wanmon | ifc=$ifc up=${_wm_up}"
+    if [ "$_wm_up" = "1" ]; then
         # observed UP
         fails=0
         oks=$((oks+1))
@@ -10062,6 +10084,14 @@ hm_wanmon_tick() {
         healthmon_log "$now | wanmon | down iface=$ifc"
         # NOTE: No Telegram on DOWN. We notify only when it comes back UP (with duration).
     fi
+}
+hm_debug_log() {
+    [ "${HM_DEBUG:-0}" = "1" ] || return 0
+    local _ts _hr _line
+    _ts="$(healthmon_now)"
+    _hr="$(date -d "@${_ts}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+    _line="${_hr:-$_ts} | [DEBUG] $*"
+    printf '%s\n' "$_line" >> "/tmp/healthmon_debug.log" 2>/dev/null
 }
 healthmon_log() {
     # $1 line
@@ -10212,7 +10242,9 @@ healthmon_updatecheck_do() {
     zap_api="https://api.github.com/repos/${zap_repo}/releases/latest"
     zap_cur="$(cat /opt/zapret/version 2>/dev/null)"
     if [ -n "$zap_cur" ]; then
+        hm_debug_log "updatecheck | zapret | github_api start"
         zap_latest="$(curl -fsS "$zap_api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+        hm_debug_log "updatecheck | zapret | github_api done latest=${zap_latest:-N/A}"
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zapret | cur=$zap_cur latest=${zap_latest:-N/A}"
         if [ -n "$zap_latest" ]; then
             if ver_is_newer "$zap_latest" "$zap_cur"; then
@@ -10232,7 +10264,9 @@ healthmon_updatecheck_do() {
     repo="${HM_UPDATECHECK_REPO_ZKM:-RevolutionTR/keenetic-zapret-manager}"
     api="https://api.github.com/repos/${repo}/releases/latest"
     cur="$(zkm_get_installed_script_version)"; [ -z "$cur" ] && cur="$SCRIPT_VERSION"
+    hm_debug_log "updatecheck | zkm | github_api start"
     latest="$(curl -fsS "$api" 2>/dev/null | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+    hm_debug_log "updatecheck | zkm | github_api done latest=${latest:-N/A}"
     # Always log what we saw, so "ran but did nothing" is visible.
     healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | cur=$cur latest=${latest:-N/A} mode=$upd_mode"
     if [ -z "$latest" ]; then
@@ -10600,6 +10634,7 @@ healthmon_loop() {
                     _zap_down=1; _zap_reason="iptables_missing"
                 fi
             fi
+            hm_debug_log "zapret_wd | down=${_zap_down} reason=${_zap_reason:-ok}"
             if [ "$_zap_down" = "1" ]; then
                 [ -f "$zapret_start" ] || echo "$now" >"$zapret_start"
                 local sz=$(cat "$zapret_start" 2>/dev/null)
@@ -10858,7 +10893,9 @@ healthmon_loop() {
                     # autoinstall az once botu yeniden baslatti — bu turu atla
                     if [ -f /tmp/tgbot_just_restarted ]; then
                         rm -f /tmp/tgbot_just_restarted 2>/dev/null
+                        hm_debug_log "tgbot_wd | pid=${_tgpid:-empty} | just_restarted=yes → skip"
                     else
+                    hm_debug_log "tgbot_wd | pid=${_tgpid:-empty} | alive=no → restart"
                     healthmon_log "$now | tgbot_watchdog | bot dead, restarting"
                     # Eski tum telegram-daemon processleri temizle
                     ps 2>/dev/null | grep -- '--telegram-daemon' | grep -v grep | \
@@ -11731,6 +11768,7 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (${HM_WANMON_IFACE:-auto})"
         printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} | keendns=${HM_KEENDNS_CURL_SEC}s"
         printf " %2s) %-*s : %s\n" "13" "$_w" "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s")"
+        printf " %2s) %-*s : %s\n" "14" "$_w" "$(T TXT_HM_CFG_ITEM14)" "${HM_DEBUG:-0}"
 echo
         printf "  %s) %s\n" "S" "$(T _ 'Kaydet ve uygula' 'Save & apply')"
         printf "  %s) %s\n" "0" "$(T _ 'Geri (kaydetmeden)' 'Back (without saving)')"
@@ -11820,6 +11858,11 @@ esac
                 hm_ask_num "$(T _ 'Kritik olay cooldown (sn)' 'Critical event cooldown (sec)')" HM_SYSLOG_COOLDOWN_SEC
                 hm_ask_num "$(T _ 'IKE bildirim cooldown (sn, varsayilan 3600)' 'IKE alert cooldown (sec, default 3600)')" HM_SYSLOG_IKE_COOLDOWN_SEC
                 press_enter_to_continue
+                ;;
+            14)
+                printf "%b%s%b\n" "${CLR_ORANGE}" "$(T _ 'UYARI: Bu modu sadece gelistirici sizden acmanizi istediginde veya ek log bilgisi gerektiginde acin.' 'WARNING: Only enable this mode when a developer asks you to or when additional logging is needed.')" "${CLR_RESET}"
+                printf "%b%s%b\n\n" "${CLR_ORANGE}" "$(T _ 'Aksi halde sistem performansini olumsuz etkiler.' 'Otherwise it may negatively affect system performance.')" "${CLR_RESET}"
+                hm_ask_01 "$(T _ 'Debug modu (0=kapat 1=ac)' 'Debug mode (0=off 1=on)')" HM_DEBUG
                 ;;
             s|S)
                 healthmon_write_config
@@ -12754,6 +12797,7 @@ case "$ACTION" in
         HM_QLEN_WARN_TH="${HM_QLEN_WARN_TH:-50}"
         HM_QLEN_CRIT_TURNS="${HM_QLEN_CRIT_TURNS:-3}"
         HM_KEENDNS_CURL_SEC="${HM_KEENDNS_CURL_SEC:-120}"
+        HM_DEBUG="${HM_DEBUG:-0}"
         HM_SYSLOG_WATCH="${HM_SYSLOG_WATCH:-0}"
         HM_SYSLOG_COOLDOWN_SEC="${HM_SYSLOG_COOLDOWN_SEC:-600}"
         HM_SYSLOG_IKE_COOLDOWN_SEC="${HM_SYSLOG_IKE_COOLDOWN_SEC:-3600}"
@@ -12811,7 +12855,7 @@ case "$ACTION" in
         _rows="${_rows}$(_r "NFQUEUE Queue Watchdog" "${_qwd} | Threshold: <b>${HM_QLEN_WARN_TH}</b> Packets | Consecutive: <b>${HM_QLEN_CRIT_TURNS}</b> Turns")"
         _rows="${_rows}$(_r "WAN Monitoring" "${_wmen} | <span style='color:var(--muted)'>Failure Threshold:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Failed Pings | <span style='color:var(--muted)'>Recovery Threshold:</span> <b>${HM_WANMON_OK_TH:-2}</b> Successful Pings | <span style='color:var(--muted)'>Interface:</span> ${HM_WANMON_IFACE:-auto}")"
         _rows="${_rows}$(_r "KeenDNS Check Interval" "${HM_KEENDNS_CURL_SEC}s")"
-        _rows="${_rows}$(_r "System Log Watch" "${_swd} | Critical Cooldown: <b>${HM_SYSLOG_COOLDOWN_SEC}</b>s | IKE Cooldown: <b>${HM_SYSLOG_IKE_COOLDOWN_SEC}</b>s")"
+        _rows="${_rows}$(_r "System Log Watch" "${_swd} | <span style='color:var(--muted)'>Critical Cooldown:</span> <b>${HM_SYSLOG_COOLDOWN_SEC}</b>s | <span style='color:var(--muted)'>IKE Cooldown:</span> <b>${HM_SYSLOG_IKE_COOLDOWN_SEC}</b>s")"
         _rows="${_rows}$(_s "CURRENT STATUS")"
         _rows="${_rows}$(_r "CPU Load" "${_load}")"
         _rows="${_rows}$(_r "Free RAM" "${_ram_free} MB")"
@@ -12836,7 +12880,7 @@ case "$ACTION" in
         _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | E&#351;ik: <b>${HM_QLEN_WARN_TH}</b> Paket | Ard&#305;&#351;&#305;k: <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
         _rows="${_rows}$(_r "WAN &#304;zleme" "${_wmen} | <span style='color:var(--muted)'>Kesinti E&#351;i&#287;i:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Ba&#351;ar&#305;s&#305;z Ping | <span style='color:var(--muted)'>Toparlanma E&#351;i&#287;i:</span> <b>${HM_WANMON_OK_TH:-2}</b> Ba&#351;ar&#305;l&#305; Ping | <span style='color:var(--muted)'>Aray&#252;z:</span> ${HM_WANMON_IFACE:-auto}")"
         _rows="${_rows}$(_r "KeenDNS Kontrol Aral&#305;&#287;&#305;" "${HM_KEENDNS_CURL_SEC}s")"
-        _rows="${_rows}$(_r "Sistem Log &#304;zleme" "${_swd} | Kritik Bekleme: <b>${HM_SYSLOG_COOLDOWN_SEC}</b>s | IKE Bekleme: <b>${HM_SYSLOG_IKE_COOLDOWN_SEC}</b>s")"
+        _rows="${_rows}$(_r "Sistem Log &#304;zleme" "${_swd} | <span style='color:var(--muted)'>Kritik Bekleme:</span> <b>${HM_SYSLOG_COOLDOWN_SEC}</b>s | <span style='color:var(--muted)'>IKE Bekleme:</span> <b>${HM_SYSLOG_IKE_COOLDOWN_SEC}</b>s")"
         _rows="${_rows}$(_s "ANLIK DURUM")"
         _rows="${_rows}$(_r "CPU Y&#252;k&#252;" "${_load}")"
         _rows="${_rows}$(_r "Bo&#351; RAM" "${_ram_free} MB")"
@@ -13626,7 +13670,7 @@ document.addEventListener('mouseover',function(e){
 });
 function toast(msg,ok){
   var t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast '+(ok?'ok':'err')+' show';
+  t.innerHTML=msg;t.className='toast '+(ok?'ok':'err')+' show';
   clearTimeout(t._t);t._t=setTimeout(function(){t.className='toast';},3000);
 }
 function fetchS(){
@@ -14369,14 +14413,18 @@ function hlLoad(retry){
   });
   getD('auto_get',function(r){
     var el=document.getElementById('autoL'),ec=document.getElementById('autoCnt');if(!el)return;
-    if(!r.ok||!r.data||!r.data.length){el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;}
+    if(!r.ok||!r.data||!r.data.length){
+      if(!retry){setTimeout(function(){hlLoad(true);},800);return;}
+      el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;}
     if(ec)ec.textContent=r.data.length;
     el.innerHTML=r.data.map(function(d){return '<div class="li"><span>'+d+'</span>'+
       '<button class="danger" style="padding:3px 8px;font-size:11px" onclick="autoDel(\''+d+'\',this)">Sil</button></div>';}).join('');
   });
   getD('ex_get',function(r){
     var el=document.getElementById('exL');if(!el)return;
-    if(!r.ok||!r.data||!r.data.length){el.innerHTML='<div class="empty">Liste bo&#351;</div>';return;}
+    if(!r.ok||!r.data||!r.data.length){
+      if(!retry){setTimeout(function(){hlLoad(true);},800);return;}
+      el.innerHTML='<div class="empty">Liste bo&#351;</div>';return;}
     el.innerHTML=r.data.map(function(d){return '<div class="li"><span>'+d+'</span>'+
       '<button class="danger" style="padding:3px 8px;font-size:11px" onclick="exDel(\''+d+'\',this)">Sil</button></div>';}).join('');
   });
@@ -14400,7 +14448,9 @@ function ipLoad(retry){
   });
   getD('nozapret_get',function(r){
     var el=document.getElementById('nzL'),ec=document.getElementById('nzCnt');if(!el)return;
-    if(!r.ok||!r.data||!r.data.length){el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;}
+    if(!r.ok||!r.data||!r.data.length){
+      if(!retry){setTimeout(function(){ipLoad(true);},800);return;}
+      el.innerHTML='<div class="empty">Liste bo&#351;</div>';if(ec)ec.textContent='0';return;}
     if(ec)ec.textContent=r.data.length;
     el.innerHTML=r.data.map(function(ip){return '<div class="li"><span>'+ip+'</span>'+
       '<button class="danger" style="padding:3px 8px;font-size:11px" onclick="nzDel(\''+ip+'\',this)">'+(L?'Delete':'Sil')+'</button></div>';}).join('');
