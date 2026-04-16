@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.14"
+SCRIPT_VERSION="v26.4.16"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -10402,6 +10402,15 @@ hm_syslog_watch_tick() {
     _now=$(date +%s 2>/dev/null)
     _cd="${HM_SYSLOG_COOLDOWN_SEC:-600}"
     _ike_cd="${HM_SYSLOG_IKE_COOLDOWN_SEC:-3600}"
+    # Throttle: ndmc 'show log' cagrisini cooldown suresi kadar aralikla yap
+    # (her 60sn yerine max HM_SYSLOG_COOLDOWN_SEC'de bir — varsayilan 600s)
+    local _sl_check_f="/tmp/healthmon_syslog_check.ts"
+    local _sl_last
+    _sl_last="$(cat "$_sl_check_f" 2>/dev/null)"
+    if [ -n "$_sl_last" ] && [ "$((_now - _sl_last))" -lt "$_cd" ] 2>/dev/null; then
+        return 0
+    fi
+    echo "$_now" > "$_sl_check_f" 2>/dev/null
     _log="$(LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null)"
     [ -z "$_log" ] && return 0
 
@@ -10456,7 +10465,7 @@ healthmon_loop() {
     _sl_log="$(LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null)"
     printf '%s\n' "${_sl_log}" | grep -cE 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED|invalid password|access to.*denied' > /tmp/healthmon_syslog_crit.prev 2>/dev/null
     printf '%s\n' "${_sl_log}" | grep -c 'no IKE config found' > /tmp/healthmon_syslog_ike.prev 2>/dev/null
-    rm -f /tmp/healthmon_syslog_crit.ts /tmp/healthmon_syslog_ike.ts 2>/dev/null
+    rm -f /tmp/healthmon_syslog_crit.ts /tmp/healthmon_syslog_ike.ts /tmp/healthmon_syslog_check.ts 2>/dev/null
     unset _sl_log
     # single-instance guard (robust against stale PID/lock after power loss)
     if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
