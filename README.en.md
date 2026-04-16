@@ -27,11 +27,15 @@
 
 ## 🚀 KZM WEB UI
 
-<img src="docs/images/KZM_GUI1.jpg" width="800">
+<img src="docs/images/KZM_Main1.png" width="800">
 
-<img src="docs/images/KZM_GUI2.jpg" width="800">
+<img src="docs/images/KZM_Main2.png" width="800">
 
-<img src="docs/images/KZM_GUI3.jpg" width="800">
+<img src="docs/images/KZM_Main3.png" width="800">
+
+<img src="docs/images/KZM_Main4.png" width="800">
+
+<img src="docs/images/KZM_Main5.png" width="800">
 
 
 ## ✅ Tested Keenetic OS Versions
@@ -39,7 +43,7 @@
 This script has been tested on the following Keenetic OS versions:
 
 - **Keenetic OS 5.0.10**
-- **Keenetic OS 4.3.6.3**
+- **Keenetic OS 4.3.6.4**
 
 > Not tested on older Keenetic OS versions.  
 > On older versions, OPKG/Entware packages, iptables/ipset behaviour or binary compatibility may differ.
