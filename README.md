@@ -27,11 +27,15 @@
 
 ## 🚀 KZM WEB UI
 
-<img src="docs/images/KZM_GUI1.jpg" width="800">
+<img src="docs/images/KZM_Main1.png" width="800">
 
-<img src="docs/images/KZM_GUI2.jpg" width="800">
+<img src="docs/images/KZM_Main2.png" width="800">
 
-<img src="docs/images/KZM_GUI3.jpg" width="800">
+<img src="docs/images/KZM_Main3.png" width="800">
+
+<img src="docs/images/KZM_Main4.png" width="800">
+
+<img src="docs/images/KZM_Main5.png" width="800">
 
 
 ## ✅ Test Edilen Keenetic OS Sürümleri
@@ -39,7 +43,7 @@
 Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
 
 - **Keenetic OS 5.0.10**
-- **Keenetic OS 4.3.6.3**
+- **Keenetic OS 4.3.6.4**
 
 > Daha eski Keenetic OS sürümlerinde test edilmemiştir.  
 > Eski sürümlerde OPKG/Entware paketleri, iptables/ipset davranışı veya binary uyumluluğu farklı olabilir.
