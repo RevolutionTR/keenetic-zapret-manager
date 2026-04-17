@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.16"
+SCRIPT_VERSION="v26.4.17"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -4124,18 +4124,16 @@ show_ipset_client_status() {
         echo ""
         print_line "-"
         
-        # IPSET Uyeleri
+        # IPSET Uyeleri (dosyadan goster — subnet girisleri dogru gorunsun)
         printf '%b%-25s:%b ' "${CLR_ORANGE}${CLR_BOLD}" "$(T ipset_members "$TXT_IPSET_MEMBERS_TR" "$TXT_IPSET_MEMBERS_EN")" "${CLR_RESET}"
-        local ipset_members="$(ipset list "$IPSET_CLIENT_NAME" 2>/dev/null | sed -n '/^Members:/,$p' | tail -n +2)"
-        if [ -n "$ipset_members" ]; then
-            local member_count="$(echo "$ipset_members" | wc -l | tr -d ' ')"
+        if [ -f "$IPSET_CLIENT_FILE" ] && [ -s "$IPSET_CLIENT_FILE" ]; then
+            local member_count="$(grep -c '[0-9]' "$IPSET_CLIENT_FILE" 2>/dev/null | tr -d ' ')"
             printf '%b%d IP%b\n' "${CLR_GREEN}" "$member_count" "${CLR_RESET}"
             echo ""
-            # awk ile numaralandirma - subshell problemi yok
-            printf '%s\n' "$ipset_members" | awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
+            awk -v cyan="${CLR_CYAN}" -v reset="${CLR_RESET}" '
                 NF > 0 {
                     printf "  %s%2d.%s %s\n", cyan, NR, reset, $0
-                }'
+                }' "$IPSET_CLIENT_FILE"
         else
             printf '%b%s%b\n' "${CLR_RED}" "$(T empty "$TXT_EMPTY_TR" "$TXT_EMPTY_EN")" "${CLR_RESET}"
         fi
@@ -4333,9 +4331,9 @@ manage_ipset_clients() {
                     clear
                     continue
                 fi
-                # Basit IPv4 dogrulama
-                echo "$oneip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$' || { echo "Gecersiz IP!"; }
-                if echo "$oneip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+                # Basit IPv4 / CIDR dogrulama
+                echo "$oneip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))?$' || { echo "Gecersiz IP!"; }
+                if echo "$oneip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))?$'; then
                     touch "$IPSET_CLIENT_FILE" 2>/dev/null
                     grep -Fqx "$oneip" "$IPSET_CLIENT_FILE" 2>/dev/null || echo "$oneip" >> "$IPSET_CLIENT_FILE"
                     apply_ipset_client_settings
@@ -10402,16 +10400,7 @@ hm_syslog_watch_tick() {
     _now=$(date +%s 2>/dev/null)
     _cd="${HM_SYSLOG_COOLDOWN_SEC:-600}"
     _ike_cd="${HM_SYSLOG_IKE_COOLDOWN_SEC:-3600}"
-    # Throttle: ndmc 'show log' cagrisini cooldown suresi kadar aralikla yap
-    # (her 60sn yerine max HM_SYSLOG_COOLDOWN_SEC'de bir — varsayilan 600s)
-    local _sl_check_f="/tmp/healthmon_syslog_check.ts"
-    local _sl_last
-    _sl_last="$(cat "$_sl_check_f" 2>/dev/null)"
-    if [ -n "$_sl_last" ] && [ "$((_now - _sl_last))" -lt "$_cd" ] 2>/dev/null; then
-        return 0
-    fi
-    echo "$_now" > "$_sl_check_f" 2>/dev/null
-    _log="$(LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null)"
+    _log="$(LD_LIBRARY_PATH= ndmc -c 'show log 50' 2>/dev/null)"
     [ -z "$_log" ] && return 0
 
     # Kritik pattern'lar: unexpectedly stopped, too many failed, AUTH_TOPEER_FAILED
@@ -10465,7 +10454,7 @@ healthmon_loop() {
     _sl_log="$(LD_LIBRARY_PATH= ndmc -c 'show log' 2>/dev/null)"
     printf '%s\n' "${_sl_log}" | grep -cE 'unexpectedly stopped|too many failed requests|AUTH_TOPEER_FAILED|invalid password|access to.*denied' > /tmp/healthmon_syslog_crit.prev 2>/dev/null
     printf '%s\n' "${_sl_log}" | grep -c 'no IKE config found' > /tmp/healthmon_syslog_ike.prev 2>/dev/null
-    rm -f /tmp/healthmon_syslog_crit.ts /tmp/healthmon_syslog_ike.ts /tmp/healthmon_syslog_check.ts 2>/dev/null
+    rm -f /tmp/healthmon_syslog_crit.ts /tmp/healthmon_syslog_ike.ts 2>/dev/null
     unset _sl_log
     # single-instance guard (robust against stale PID/lock after power loss)
     if ! mkdir "$HM_LOCKDIR" 2>/dev/null; then
@@ -13081,13 +13070,7 @@ case "$ACTION" in
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_ip" ;;
     ipset_active_get)
-        _members="$(ipset list zapret_clients 2>/dev/null | awk '/^Members:/{found=1;next} found && NF{print}' | sort)"
-        if [ -z "$_members" ]; then
-            ok_data "[]"
-        else
-            _json="$(printf '%s\n' "$_members" | awk 'BEGIN{printf "["} NR>1{printf ","} {printf "\"%s\"",$0} END{print "]"}')"
-            ok_data "$_json"
-        fi ;;
+        ok_data "$(json_arr "$IPSET_FILE")" ;;
     ip_get)
         ok_data "$(json_arr "$IPSET_FILE")" ;;
     ip_add)
@@ -14155,8 +14138,8 @@ var V={
         '<div class="hint" style="margin-top:6px">'+(L?'DHCP not supported, enter static IP.':'DHCP desteklenmez, statik IP girin.')+'</div></div>'+
       '<div class="card wide"><h3>'+(L?'IP List':'IP Listesi')+' <span id="ipCnt" class="tag">0</span></h3>'+
         '<div class="lw" id="ipL"><div class="empty">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div></div>'+
-      '<div class="card wide"><h3>'+(L?'IPSET Active Members':'IPSET Aktif &#220;yeler')+' <span id="ipaCnt" class="tag">0</span></h3>'+
-        '<div class="hint" style="margin-bottom:6px">'+(L?'Active members in kernel ipset (read-only)':'Kernel ipset\'teki aktif &#252;yeler (salt okunur)')+'</div>'+
+      '<div class="card wide"><h3>'+(L?'IPSET Members':'IPSET &#220;yeleri')+' <span id="ipaCnt" class="tag">0</span></h3>'+
+        '<div class="hint" style="margin-bottom:6px">'+(L?'Members from ipset_clients.txt file':'ipset_clients.txt dosyas&#305;ndaki &#252;yeler')+'</div>'+
         '<div class="lw" id="ipaL"><div class="empty">'+(L?'Loading...':'Y&#252;kleniyor...')+'</div></div></div>'+
       '<div class="card wide"><h3>No Zapret <span id="nzCnt" class="tag">0</span></h3>'+
         '<div class="hint" style="margin-bottom:6px">'+(L?'IPs exempt from Zapret processing':'Zapret i&#351;leminden muaf IP&#39;ler')+'</div>'+
