@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.17"
+SCRIPT_VERSION="v26.4.18"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -700,7 +700,7 @@ _zkm_kn_to_name() {
     case "$1" in
         KN-1010) echo "Keenetic Giga (KN-1010)"           ;;
         KN-1011) echo "Keenetic Giga (KN-1011)"           ;;
-        KN-1012) echo "Keenetic Giga (KN-1012)"           ;;
+        KN-1012) echo "Keenetic Hero (KN-1012)"           ;;
         KN-1110) echo "Keenetic Start (KN-1110)"          ;;
         KN-1111) echo "Keenetic Start (KN-1111)"          ;;
         KN-1112) echo "Keenetic Start (KN-1112)"          ;;
@@ -9740,7 +9740,7 @@ HM_ZAPRET_COOLDOWN_SEC="120"
 # qlen > HM_QLEN_WARN_TH olan ardisik tur sayisi HM_QLEN_CRIT_TURNS'e ulasirsa -> restart_zapret
 HM_QLEN_WATCHDOG="1"          # 0=disable, 1=enable
 HM_QLEN_WARN_TH="50"          # paket esigi: bu degeri asarsa sayac artar
-HM_QLEN_CRIT_TURNS="3"        # kac ardisik tur ust uste yuksekse aksiyon alinir
+HM_QLEN_CRIT_TURNS="1"        # kac ardisik tur ust uste yuksekse aksiyon alinir
 # KeenDNS curl throttle: her dongu degil, bu kadar saniyede bir curl cek
 HM_KEENDNS_CURL_SEC="120"     # 0 = her dongude (eski davranis)
 HM_DEBUG="0"                 # 0=disable, 1=enable — debug log modu
@@ -9779,7 +9779,7 @@ healthmon_load_config() {
     HM_WANMON_IFACE=""
     HM_QLEN_WATCHDOG="1"
     HM_QLEN_WARN_TH="50"
-    HM_QLEN_CRIT_TURNS="3"
+    HM_QLEN_CRIT_TURNS="1"
     HM_KEENDNS_CURL_SEC="120"
     HM_ZAPRET_AUTORESTART="1"
     HM_SYSLOG_WATCH="0"
@@ -9791,7 +9791,7 @@ healthmon_load_config() {
     _hm_int HM_WANMON_OK_TH   2
     _hm_int HM_WANMON_FAIL_TH 3
     _hm_int HM_QLEN_WARN_TH   50
-    _hm_int HM_QLEN_CRIT_TURNS 3
+    _hm_int HM_QLEN_CRIT_TURNS 1
     unset -f _hm_int 2>/dev/null
 }
 healthmon_write_config() {
@@ -10700,7 +10700,7 @@ healthmon_loop() {
         if [ "${HM_QLEN_WATCHDOG:-1}" = "1" ]; then
             local qlen_th qlen_turns qlen_val qlen_cnt_f qlen_prev_f qlen_cnt qlen_prev
             qlen_th="${HM_QLEN_WARN_TH:-50}"
-            qlen_turns="${HM_QLEN_CRIT_TURNS:-3}"
+            qlen_turns="${HM_QLEN_CRIT_TURNS:-1}"
             qlen_cnt_f="/tmp/healthmon_qlen.cnt"
             qlen_prev_f="/tmp/healthmon_qlen.prev"
             # /proc/net/netfilter/nfnetlink_queue formati:
@@ -12793,7 +12793,7 @@ case "$ACTION" in
         HM_ZAPRET_AUTORESTART="${HM_ZAPRET_AUTORESTART:-0}"
         HM_QLEN_WATCHDOG="${HM_QLEN_WATCHDOG:-1}"
         HM_QLEN_WARN_TH="${HM_QLEN_WARN_TH:-50}"
-        HM_QLEN_CRIT_TURNS="${HM_QLEN_CRIT_TURNS:-3}"
+        HM_QLEN_CRIT_TURNS="${HM_QLEN_CRIT_TURNS:-1}"
         HM_KEENDNS_CURL_SEC="${HM_KEENDNS_CURL_SEC:-120}"
         HM_DEBUG="${HM_DEBUG:-0}"
         HM_SYSLOG_WATCH="${HM_SYSLOG_WATCH:-0}"
