@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.18"
+SCRIPT_VERSION="v26.4.19"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -2218,11 +2218,13 @@ TXT_IPSET_5_TR=" 5. Listeden Tek IP Sil"
 TXT_IPSET_5_EN=" 5. Remove a Single IP from list"
 TXT_IPSET_6_TR=" 6. No Zapret (Muafiyet) Yonetimi"
 TXT_IPSET_6_EN=" 6. No Zapret (Exemption) Management"
+TXT_IPSET_7_TR=" 7. VPN Sunucu Subneti Ekle"
+TXT_IPSET_7_EN=" 7. Add VPN Server Subnet"
 TXT_IPSET_0_TR=" 0. Ana Menuye Don"
 TXT_IPSET_0_EN=" 0. Back to Main Menu"
-TXT_PROMPT_IPSET_TR=" Seciminizi Yapin (0-6): "
-TXT_PROMPT_IPSET_EN=" Select an Option (0-6): "
-TXT_PROMPT_IPSET_BASIC_TR=" Seciminizi Yapin (0-3, 6): "
+TXT_PROMPT_IPSET_TR=" Seciminizi Yapin (0-7): "
+TXT_PROMPT_IPSET_EN=" Select an Option (0-7): "
+TXT_PROMPT_IPSET_BASIC_TR=" Seciminizi Yapin (0-3, 6-7): "
 TXT_PROMPT_IPSET_BASIC_EN=" Select an Option (0-3, 6): "
 TXT_NOZAPRET_TITLE_TR="No Zapret (Muafiyet) Yonetimi"
 TXT_NOZAPRET_TITLE_EN="No Zapret (Exemption) Management"
@@ -4218,11 +4220,13 @@ manage_ipset_clients() {
             echo "$(T TXT_IPSET_4)"
             echo "$(T TXT_IPSET_5)"
             echo "$(T TXT_IPSET_6)"
+            echo "$(T TXT_IPSET_7)"
             echo "$(T TXT_IPSET_0)"
             print_line "-"
             printf "$(T TXT_PROMPT_IPSET)"
         else
             echo "$(T TXT_IPSET_6)"
+            echo "$(T TXT_IPSET_7)"
             echo "$(T TXT_IPSET_0)"
             print_line "-"
             printf "$(T TXT_PROMPT_IPSET_BASIC)"
@@ -4382,6 +4386,88 @@ manage_ipset_clients() {
                 ;;
             6)
                 manage_nozapret_menu
+                clear
+                ;;
+            7)
+                # VPN sunucu subnetlerini listele ve ekle
+                _vpn_list=""
+                _vpn_idx=0
+                # WireGuard sunucularini tara
+                for _wg in $(LD_LIBRARY_PATH= ndmc -c 'show interface' 2>/dev/null | awk '/interface-name:.*Wireguard/{print $NF}'); do
+                    _wg_info="$(LD_LIBRARY_PATH= ndmc -c "show interface ${_wg}" 2>/dev/null)"
+                    _wg_link="$(printf '%s\n' "$_wg_info" | awk '/^[[:space:]]+link:/{print $2; exit}')"
+                    _wg_addr="$(printf '%s\n' "$_wg_info" | awk '/^[[:space:]]+address:/{print $2; exit}')"
+                    _wg_desc="$(printf '%s\n' "$_wg_info" | awk '/^[[:space:]]+description:/{$1=""; sub(/^[ \t]+/,"",$0); print; exit}')"
+                    _wg_local="$(printf '%s\n' "$_wg_info" | awk '/local-endpoint-address:/{print $2; exit}')"
+                    [ -z "$_wg_addr" ] && continue
+                    # Sadece aktif (link: up) olanlari goster
+                    [ "$_wg_link" != "up" ] && continue
+                    # local-endpoint-address dolu olanlar client (Proton gibi) — atla
+                    [ -n "$_wg_local" ] && [ "$_wg_local" != "0.0.0.0" ] && continue
+                    # Prefix yoksa /24 ekle
+                    case "$_wg_addr" in
+                        */*) _wg_subnet="$_wg_addr" ;;
+                        *)   _wg_subnet="${_wg_addr}/24" ;;
+                    esac
+                    _vpn_idx=$((_vpn_idx+1))
+                    _already=""; grep -qxF "$_wg_subnet" "$IPSET_CLIENT_FILE" 2>/dev/null && _already=" ${CLR_GREEN}$(T _ "[EKLENDI]" "[ADDED]")${CLR_RESET}"
+                    _vpn_list="${_vpn_list}${_vpn_idx}) ${_wg_desc:-$_wg} - ${_wg_subnet}${_already}\n"
+                    eval "_vpn_subnet_${_vpn_idx}=${_wg_subnet}"
+                done
+                # IKEv2 sunucusunu tara
+                _ike_info="$(LD_LIBRARY_PATH= ndmc -c 'show crypto map VirtualIPServerIKE2' 2>/dev/null)"
+                if [ -n "$_ike_info" ]; then
+                    _ike_begin="$(printf '%s\n' "$_ike_info" | awk '/begin:/{print $2; exit}')"
+                    _ike_end="$(printf '%s\n' "$_ike_info" | awk '/end:/{print $2; exit}')"
+                    if [ -n "$_ike_begin" ]; then
+                        _ike_subnet="$(printf '%s\n' "$_ike_begin" | sed 's/\.[0-9][0-9]*$/.0/')"/24
+                        _vpn_idx=$((_vpn_idx+1))
+                        _already=""; grep -qxF "$_ike_subnet" "$IPSET_CLIENT_FILE" 2>/dev/null && _already=" ${CLR_GREEN}$(T _ "[EKLENDI]" "[ADDED]")${CLR_RESET}"
+                        _vpn_list="${_vpn_list}${_vpn_idx}) IKEv2/IPsec - ${_ike_subnet}${_already}\n"
+                        eval "_vpn_subnet_${_vpn_idx}=${_ike_subnet}"
+                    fi
+                fi
+                # L2TP/IPsec sunucusunu tara
+                _l2tp_range="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null | awk '/l2tp-server range/{print $3; exit}')"
+                if [ -n "$_l2tp_range" ]; then
+                    _l2tp_subnet="$(printf '%s\n' "$_l2tp_range" | sed 's/\.[0-9][0-9]*$/.0/')"/24
+                    _vpn_idx=$((_vpn_idx+1))
+                    _already=""; grep -qxF "$_l2tp_subnet" "$IPSET_CLIENT_FILE" 2>/dev/null && _already=" ${CLR_GREEN}$(T _ "[EKLENDI]" "[ADDED]")${CLR_RESET}"
+                    _vpn_list="${_vpn_list}${_vpn_idx}) L2TP/IPsec - ${_l2tp_subnet}${_already}\n"
+                    eval "_vpn_subnet_${_vpn_idx}=${_l2tp_subnet}"
+                fi
+                if [ "$_vpn_idx" -eq 0 ]; then
+                    print_status WARN "$(T _ 'Aktif VPN sunucu bulunamadi.' 'No active VPN server found.')"
+                    press_enter_to_continue
+                    clear
+                    continue
+                fi
+                print_line "-"
+                printf "$(T _ 'VPN Sunucu Subnetleri:\n' 'VPN Server Subnets:\n')"
+                printf '%b' "$_vpn_list"
+                echo ""
+                printf '%s' "$(T _ 'Secim (0=iptal): ' 'Select (0=cancel): ')"; read -r _vpn_choice
+                if [ -z "$_vpn_choice" ] || [ "$_vpn_choice" = "0" ]; then
+                    clear; continue
+                fi
+                eval "_add_subnet=\${_vpn_subnet_${_vpn_choice}:-}"
+                if [ -z "$_add_subnet" ]; then
+                    print_status WARN "$(T _ 'Gecersiz secim.' 'Invalid selection.')"
+                    press_enter_to_continue
+                    clear
+                    continue
+                fi
+                touch "$IPSET_CLIENT_FILE" 2>/dev/null
+                # Ayni /24 aginin farkli host adresiyle yazilmis hali de kontrol et
+                _add_net="$(printf '%s' "$_add_subnet" | sed 's/\.[0-9]*\//\./')"
+                if grep -qxF "$_add_subnet" "$IPSET_CLIENT_FILE" 2>/dev/null ||                    grep -q "$_add_net" "$IPSET_CLIENT_FILE" 2>/dev/null; then
+                    print_status INFO "$(T _ 'Bu subnet zaten listede.' 'This subnet is already in the list.')"
+                else
+                    echo "$_add_subnet" >> "$IPSET_CLIENT_FILE"
+                    apply_ipset_client_settings
+                    print_status PASS "$(T _ 'Subnet eklendi.' 'Subnet added.'): $_add_subnet"
+                fi
+                press_enter_to_continue
                 clear
                 ;;
             0)
@@ -10624,6 +10710,10 @@ healthmon_loop() {
         fi
         # ---- Zapret watchdog ----
         if [ "$HM_ZAPRET_WATCHDOG" = "1" ]; then
+            # Kullanici Manuel durdurduysa watchdog mudahale etmesin
+            if [ -f "/tmp/.zapret_paused" ]; then
+                hm_debug_log "zapret_wd | paused by user, skipping"
+            else
             local _zap_down=0 _zap_reason=""
             if is_zapret_installed; then
                 if ! is_zapret_running; then
@@ -10633,6 +10723,7 @@ healthmon_loop() {
                 fi
             fi
             hm_debug_log "zapret_wd | down=${_zap_down} reason=${_zap_reason:-ok}"
+            fi  # zapret_paused check
             if [ "$_zap_down" = "1" ]; then
                 [ -f "$zapret_start" ] || echo "$now" >"$zapret_start"
                 local sz=$(cat "$zapret_start" 2>/dev/null)
@@ -12790,7 +12881,7 @@ case "$ACTION" in
         HM_RAM_WARN_MB="${HM_RAM_WARN_MB:-40}"
         HM_ZAPRET_WATCHDOG="${HM_ZAPRET_WATCHDOG:-1}"
         HM_ZAPRET_COOLDOWN_SEC="${HM_ZAPRET_COOLDOWN_SEC:-120}"
-        HM_ZAPRET_AUTORESTART="${HM_ZAPRET_AUTORESTART:-0}"
+        HM_ZAPRET_AUTORESTART="${HM_ZAPRET_AUTORESTART:-1}"
         HM_QLEN_WATCHDOG="${HM_QLEN_WATCHDOG:-1}"
         HM_QLEN_WARN_TH="${HM_QLEN_WARN_TH:-50}"
         HM_QLEN_CRIT_TURNS="${HM_QLEN_CRIT_TURNS:-1}"
@@ -12823,6 +12914,7 @@ case "$ACTION" in
             [ "${HM_QLEN_WATCHDOG}" = "1" ] && _qwd="On" || _qwd="Off"
             [ "${HM_WANMON_ENABLE:-0}" = "1" ] && _wmen="On" || _wmen="Off"
             [ "${HM_SYSLOG_WATCH:-0}" = "1" ] && _swd="On" || _swd="Off"
+            [ "${HM_DEBUG:-0}" = "1" ] && _dbg="On" || _dbg="Off"
         else
             [ "$HM_UPDATECHECK_ENABLE" = "1" ] && _upd="A&#231;&#305;k" || _upd="Kapal&#305;"
             [ "${HM_ZAPRET_WATCHDOG}" = "1" ] && _zwd="A&#231;&#305;k" || _zwd="Kapal&#305;"
@@ -12830,6 +12922,7 @@ case "$ACTION" in
             [ "${HM_QLEN_WATCHDOG}" = "1" ] && _qwd="A&#231;&#305;k" || _qwd="Kapal&#305;"
             [ "${HM_WANMON_ENABLE:-0}" = "1" ] && _wmen="A&#231;&#305;k" || _wmen="Kapal&#305;"
             [ "${HM_SYSLOG_WATCH:-0}" = "1" ] && _swd="A&#231;&#305;k" || _swd="Kapal&#305;"
+            [ "${HM_DEBUG:-0}" = "1" ] && _dbg="A&#231;&#305;k" || _dbg="Kapal&#305;"
         fi
         _r() { printf "<div class='info-row'><div class='lbl'>%s</div><div class='val'>%s</div></div>" "$1" "$2"; }
         _s() { printf "<div class='info-sec'>%s</div>" "$1"; }
@@ -12850,10 +12943,11 @@ case "$ACTION" in
         _rows="${_rows}$(_r "Zapret Watchdog" "${_zwd}")"
         _rows="${_rows}$(_r "Watchdog Cooldown" "${HM_ZAPRET_COOLDOWN_SEC}s")"
         _rows="${_rows}$(_r "Auto Restart" "${_zar}")"
-        _rows="${_rows}$(_r "NFQUEUE Queue Watchdog" "${_qwd} | Threshold: <b>${HM_QLEN_WARN_TH}</b> Packets | Consecutive: <b>${HM_QLEN_CRIT_TURNS}</b> Turns")"
+        _rows="${_rows}$(_r "NFQUEUE Queue Watchdog" "${_qwd} | <span style='color:var(--muted)'>Threshold:</span> <b>${HM_QLEN_WARN_TH}</b> Packets | <span style='color:var(--muted)'>Consecutive:</span> <b>${HM_QLEN_CRIT_TURNS}</b> Turns")"
         _rows="${_rows}$(_r "WAN Monitoring" "${_wmen} | <span style='color:var(--muted)'>Failure Threshold:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Failed Pings | <span style='color:var(--muted)'>Recovery Threshold:</span> <b>${HM_WANMON_OK_TH:-2}</b> Successful Pings | <span style='color:var(--muted)'>Interface:</span> ${HM_WANMON_IFACE:-auto}")"
         _rows="${_rows}$(_r "KeenDNS Check Interval" "${HM_KEENDNS_CURL_SEC}s")"
         _rows="${_rows}$(_r "System Log Watch" "${_swd} | <span style='color:var(--muted)'>Critical Cooldown:</span> <b>${HM_SYSLOG_COOLDOWN_SEC}</b>s | <span style='color:var(--muted)'>IKE Cooldown:</span> <b>${HM_SYSLOG_IKE_COOLDOWN_SEC}</b>s")"
+        _rows="${_rows}$(_r "Debug Mode" "${_dbg}")"
         _rows="${_rows}$(_s "CURRENT STATUS")"
         _rows="${_rows}$(_r "CPU Load" "${_load}")"
         _rows="${_rows}$(_r "Free RAM" "${_ram_free} MB")"
@@ -12875,10 +12969,11 @@ case "$ACTION" in
         _rows="${_rows}$(_r "Zapret Denetimi" "${_zwd}")"
         _rows="${_rows}$(_r "Denetim Bekleme" "${HM_ZAPRET_COOLDOWN_SEC}s")"
         _rows="${_rows}$(_r "Oto Yeniden Ba&#351;lat" "${_zar}")"
-        _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | E&#351;ik: <b>${HM_QLEN_WARN_TH}</b> Paket | Ard&#305;&#351;&#305;k: <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
+        _rows="${_rows}$(_r "NFQUEUE Kuyruk Denetimi" "${_qwd} | <span style='color:var(--muted)'>E&#351;ik:</span> <b>${HM_QLEN_WARN_TH}</b> Paket | <span style='color:var(--muted)'>Ard&#305;&#351;&#305;k:</span> <b>${HM_QLEN_CRIT_TURNS}</b> Tur")"
         _rows="${_rows}$(_r "WAN &#304;zleme" "${_wmen} | <span style='color:var(--muted)'>Kesinti E&#351;i&#287;i:</span> <b>${HM_WANMON_FAIL_TH:-3}</b> Ba&#351;ar&#305;s&#305;z Ping | <span style='color:var(--muted)'>Toparlanma E&#351;i&#287;i:</span> <b>${HM_WANMON_OK_TH:-2}</b> Ba&#351;ar&#305;l&#305; Ping | <span style='color:var(--muted)'>Aray&#252;z:</span> ${HM_WANMON_IFACE:-auto}")"
         _rows="${_rows}$(_r "KeenDNS Kontrol Aral&#305;&#287;&#305;" "${HM_KEENDNS_CURL_SEC}s")"
         _rows="${_rows}$(_r "Sistem Log &#304;zleme" "${_swd} | <span style='color:var(--muted)'>Kritik Bekleme:</span> <b>${HM_SYSLOG_COOLDOWN_SEC}</b>s | <span style='color:var(--muted)'>IKE Bekleme:</span> <b>${HM_SYSLOG_IKE_COOLDOWN_SEC}</b>s")"
+        _rows="${_rows}$(_r "Debug Modu" "${_dbg}")"
         _rows="${_rows}$(_s "ANLIK DURUM")"
         _rows="${_rows}$(_r "CPU Y&#252;k&#252;" "${_load}")"
         _rows="${_rows}$(_r "Bo&#351; RAM" "${_ram_free} MB")"
@@ -13080,7 +13175,7 @@ case "$ACTION" in
         ok "Eklendi: $_ip" ;;
     ip_del)
         _ip=$(get_param ip); [ -z "$_ip" ] && { fail "IP bos"; exit 0; }
-        sed -i "/^$(printf '%s' "$_ip" | sed 's/[.[\*^$]/\\&/g')$/d" "$IPSET_FILE" 2>/dev/null
+        sed -i "\|^$(printf '%s' "$_ip" | sed 's/[.[*^$]/\\&/g')$|d" "$IPSET_FILE" 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_ip" ;;
     sched_get)
@@ -13583,7 +13678,7 @@ select option{background:#111f3d}
     <div class="logo" onclick="sbToggle()"><svg viewBox="0 0 200 200" width="32" height="32" xmlns="http://www.w3.org/2000/svg"><path d="M0 0 C66 0 132 0 200 0 C200 66 200 132 200 200 C134 200 68 200 0 200 C0 134 0 68 0 0 Z" fill="#0097DC"/><path d="M0 0 C7.26 0 14.52 0 22 0 C22 12.54 22 25.08 22 38 C38.45832941 40.33792258 38.45832941 40.33792258 53.09423828 34.12109375 C60.19332323 28.08952211 66.41145996 21.14715923 72.60546875 14.2109375 C73.47247406 13.24068886 73.47247406 13.24068886 74.35699463 12.25083923 C76.63038781 9.6963532 78.88042196 7.14712999 81.03759766 4.49291992 C84.60784091 0.59195211 87.49422615 -0.33532239 92.80412292 -0.63720703 C96.54327015 -0.7161945 100.26408568 -0.58479269 104 -0.4375 C105.55331501 -0.40233733 107.10670674 -0.37040703 108.66015625 -0.34179688 C112.4420184 -0.26516327 116.22015399 -0.14466941 120 0 C114.64268261 6.49360211 114.64268261 6.49360211 111.625 8.9375 C107.3515284 12.56913841 103.44061874 16.51629057 99.5 20.5 C95.00571053 25.03906102 90.5225435 29.50877404 85.61328125 33.60546875 C83.6420072 35.30945141 81.82587049 37.14230606 80 39 C81.02738281 39.3403125 82.05476563 39.680625 83.11328125 40.03125 C98.3324789 45.26699285 108.08026902 52.25802023 116.37890625 66.33984375 C120.8595223 75.97238766 119.31353278 87.64470908 119 98 C112.07 98 105.14 98 98 98 C97.938125 95.23625 97.87625 92.4725 97.8125 89.625 C97.44459525 81.38082455 96.31754197 74.73042167 90.5703125 68.43359375 C78.6085413 58.46545108 60.64186398 60.33747275 46.1875 60.25 C43.83786901 60.22179859 41.48825814 60.19186545 39.13867188 60.16015625 C33.42558793 60.08357876 27.7138386 60.04259291 22 60 C22 72.54 22 85.08 22 98 C14.74 98 7.48 98 0 98 C0 65.66 0 33.32 0 0 Z" fill="#FCFDFE" transform="translate(42,51)"/></svg></div>
     <div class="brand-text"><h1 id="brandTitle">KZM Kontrol Paneli</h1><small>Keenetic &bull; Entware &bull; __KZM_PORT__</small></div>
   </div>
-  <div class="sec">GENEL</div>
+  <div class="sec" data-tr="GENEL" data-en="GENERAL">GENEL</div>
   <nav>
     <div class="item active" data-view="dash"><span class="item-icon">&#9783;</span><span class="item-label" data-tr="Dashboard" data-en="Dashboard">Dashboard</span><span class="pill" id="dashLivePill">Canl&#305;</span><span class="tip">Dashboard</span></div>
   </nav>
