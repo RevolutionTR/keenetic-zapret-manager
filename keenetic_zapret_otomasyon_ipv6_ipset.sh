@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.20"
+SCRIPT_VERSION="v26.4.20.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -5011,8 +5011,7 @@ _zkm_restart_services_after_update() {
     fi
     if [ -d "$KZM_GUI_DIR" ]; then
         print_status INFO "$(T _ 'Web Panel guncelleniyor...' 'Updating Web Panel...')"
-        kzm_gui_write_html
-        kzm_gui_write_cgi
+        (ZKM_SKIP_LOCK=1 sh "/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh" --update-gui >/dev/null 2>&1)
         print_status PASS "$(T _ 'Web Panel guncellendi.' 'Web Panel updated.')"
     fi
 }
