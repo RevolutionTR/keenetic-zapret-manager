@@ -129,7 +129,7 @@ The `/tmp/.zapret_paused` flag file is created. This flag ensures that:
 - Even if the netfilter hook fires, Zapret will not restart
 - The init.d service cannot start it either
 
-⚠️ If Health Monitor has `HM_ZAPRET_AUTORESTART=1`, it will clear this flag and restart Zapret. To stop Zapret permanently, set `AutoRes=0` (Menu 16).
+⚠️ Even with `HM_ZAPRET_AUTORESTART=1`, Health Monitor **does not intervene** when Zapret is stopped manually via Menu 4 or the Web Panel — the watchdog is skipped entirely while the pause flag is present. HealthMon only steps in when Zapret stops unexpectedly (crash, queue overflow etc.).
 
 ---
 
@@ -252,6 +252,16 @@ Updates the KZM script file from GitHub.
 
 👉 If issues arise after an update, use Menu 13 (Rollback) to revert to the previous version.
 
+### Post-Update Automatic Actions:
+
+When the update completes successfully, the following happen automatically:
+
+- **Telegram bot** is restarted if active (using new code)
+- **Health Monitor** is restarted if running (using new code)
+- **Web Panel** is updated with the new version if installed
+
+A prominent notification is displayed when the update completes, asking you to exit KZM and re-run it. All changes take effect upon re-entry.
+
 ---
 
 # 🔹 Menu 11 — Hostlist / Autohostlist (Filtering + Scope Mode)
@@ -311,6 +321,8 @@ Manual list of blocked domains (`zapret-hosts-user.txt`).
 
 👉 Use this to manually add services that autohostlist has not yet detected.
 
+⚠️ After adding/removing domains and adding/removing excludes, Zapret **restarts automatically.** You do not need to go to Menu 5 for changes to take effect.
+
 ---
 
 ## Autohostlist
@@ -348,6 +360,7 @@ The active mode is shown with a colour indicator above the menu.
 ✔ Clear list  
 ✔ Switch mode (Entire Network ↔ Selected IPs)  
 ✔ No Zapret (Exemption) Management  
+✔ **Add VPN Server Subnet** — automatically detects active VPN servers on Keenetic  
 
 ### Use Case:
 
@@ -367,6 +380,26 @@ Apply bypass only to specific devices such as:
 IPs on this list are **exempt** from Zapret processing. Ideal for devices that should not be affected by Zapret, such as IPTV boxes.
 
 **Two-way conflict protection:** When an IP is added to the No Zapret list, it is automatically removed from `zapret_clients`, and vice versa.
+
+---
+
+### Add VPN Server Subnet
+
+Automatically detects active VPN servers on Keenetic and adds their subnets to the `ipset_clients` list.
+
+**Supported VPN types:**
+- WireGuard servers (client connections are automatically filtered out; only server interfaces are listed)
+- IKEv2/IPsec server
+- L2TP/IPsec server
+
+**How It Works:**
+1. Active VPN servers are scanned and listed automatically
+2. Already-added subnets are marked with a green `[ADDED]` label
+3. The selected subnet is added in `/24` format and Zapret is restarted
+
+👉 Use this feature so devices connecting to your home remotely via VPN can route through Zapret.
+
+⚠️ IPSET mode must be set to "Selected IPs" (list) mode.
 
 ---
 
@@ -547,12 +580,10 @@ Should HealthMon attempt to restart Zapret when it goes down?
 
 | Value | Behaviour |
 |-------|-----------|
-| `0` | Sends notification only, does not restart (default) |
-| `1` | Automatically restarts after ~30 seconds |
+| `0` | Sends notification only, does not restart |
+| `1` | Automatically restarts after ~30 seconds **(default)** |
 
-⚠️ **Important:** When Zapret is stopped intentionally via Menu 4, the `/tmp/.zapret_paused` flag is created. With `AutoRes=0` this flag is preserved and Zapret stays stopped. With `AutoRes=1`, HealthMon clears the flag and restarts Zapret — meaning your deliberate Menu 4 stop is overridden.
-
-👉 If you want Zapret to stay stopped permanently, `AutoRes=0` is required.
+⚠️ **Important:** When Zapret is stopped via Menu 4 or the Web Panel, the `/tmp/.zapret_paused` flag is created. Even with `AutoRes=1`, HealthMon skips the watchdog while this flag is present — Zapret is not restarted. HealthMon only intervenes when Zapret stops unexpectedly (crash, queue overflow etc.).
 
 ### NFQUEUE Queue Watchdog (HM_QLEN_WATCHDOG / HM_QLEN_WARN_TH / HM_QLEN_CRIT_TURNS)
 
@@ -579,6 +610,33 @@ How often the KeenDNS reachability check runs.
 - Default: `120` seconds
 - Setting to `0` checks on every loop (legacy behaviour)
 
+### Debug Mode (HM_DEBUG)
+Logs the HealthMon loop's internal decisions in detail to `/tmp/healthmon_debug.log`.
+
+- Default: `0` (off)
+- Can be toggled from Menu 16 → 4 → 14
+- Also accessible via the 🐛 Debug Log button in the Telegram Log menu
+
+Logged categories: Zapret watchdog decisions, WAN monitoring, Telegram bot watchdog, update check GitHub API queries.
+
+👉 Use for troubleshooting and behaviour analysis. Leave disabled during normal operation.
+
+---
+
+## Zapret Restart Log
+
+All Zapret restart events are written to `/tmp/healthmon.log`:
+
+| Entry | Trigger |
+|-------|---------|
+| `zapret_restart \| triggered` | SSH menu (Menu 3, 5, 11 etc.) |
+| `zapret_restart \| triggered (web)` | Web Panel |
+| `zapret_restart \| triggered (ipset)` | IPSET / No Zapret operations |
+| `qlen_restart_ok` | NFQUEUE queue overflow |
+| `zapret_autorestart_ok` | HealthMon watchdog |
+
+👉 To review restart history: `tail -50 /tmp/healthmon.log | grep zapret_restart`
+
 ---
 
 ## [NOW]
@@ -587,17 +645,11 @@ Shows the current system state: CPU percentage, load average (1/5/15 min), free 
 
 ---
 
-## Recommended Configuration
+## Önerilen Yapılandırma
 
-If Telegram is set up and the router is in daily use:
+Telegram kurulduysa ve günlük kullanım yapılıyorsa:
 
-```
-HM_ENABLE=1
-HM_ZAPRET_WATCHDOG=1
-HM_QLEN_WATCHDOG=1
-HM_ZAPRET_AUTORESTART=0   ← for users who want to stop Zapret intentionally
-HM_AUTOUPDATE_MODE=2      ← set to 1 if you prefer manual updates
-```
+<img src="/docs/images/HealthMon_EN.png" width="800">
 
 ---
 
