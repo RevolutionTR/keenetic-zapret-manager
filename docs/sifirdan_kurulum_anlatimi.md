@@ -145,7 +145,7 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
   
 İşlem tamamlandıktan sonra kurulu betiği komut satırına "kzm" , "KZM" , "keenetic" veya "keenetic-zapret" yazıp onaylayarak kullanmaya başlayabilirsiniz.
 
-<img src="/docs/images/KZM8.png" width="800">
+<img src="/docs/images/KZM_Main_Menu.png" width="800">
   
 Yöntem 2 (klasik):  
 DH'den @Revolution_TR 'nin geliştirdiği Keenetic router’lar için özelleştirilmiş Zapret betiğini githup linkinden indirin:
@@ -161,7 +161,7 @@ chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 Çalıştırmak için:  
 /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
   
-İşlem tamamlandıktan sonra kurulu betiği komut satırına "keenetic" veya "keenetic-zapret" yazıp onaylayarak kullanmaya başlayabilirsiniz.
+İşlem tamamlandıktan sonra kurulu betiği komut satırına "kzm" , "keenetic" veya "keenetic-zapret" yazıp onaylayarak kullanmaya başlayabilirsiniz.
   
 
 Keenetic Zapret Manager’ın Tam Kullanım Kılavuzu için geliştiricinin github’daki ilgili sayfasını ziyaret edebilirsiniz.
