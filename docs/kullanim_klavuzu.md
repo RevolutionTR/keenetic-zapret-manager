@@ -655,15 +655,7 @@ Anlık sistem durumunu gösterir: CPU yüzdesi, yük ortalaması (1/5/15 dk), bo
 
 Telegram kurulduysa ve günlük kullanım yapılıyorsa:
 
-```
-HM_ENABLE=1
-HM_ZAPRET_WATCHDOG=1
-HM_QLEN_WATCHDOG=1
-HM_ZAPRET_AUTORESTART=1   ← Varsayılan; kasıtlı durdurma (Menü 4) ile çakışmaz
-HM_AUTOUPDATE_MODE=2      ← Otomatik güncellemeyi tercih etmiyorsanız 1 yapın
-```
-
----
+<img src="/docs/images/HealthMon_TR.png" width="800">
 
 ---
 
