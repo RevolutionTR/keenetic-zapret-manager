@@ -653,8 +653,6 @@ Anlık sistem durumunu gösterir: CPU yüzdesi, yük ortalaması (1/5/15 dk), bo
 
 ## Önerilen Yapılandırma
 
-Telegram kurulduysa ve günlük kullanım yapılıyorsa:
-
 <img src="/docs/images/HealthMon_TR.png" width="800">
 
 ---
