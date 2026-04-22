@@ -129,7 +129,7 @@ Zapret servisini durdurur. Tüm yönlendirme/bypass işlemleri pasif olur.
 - netfilter hook tetiklense bile Zapret yeniden başlamaz
 - init.d servisi de başlatma yapmaz
 
-⚠️ Health Monitor `HM_ZAPRET_AUTORESTART=1` ise bu flag'i temizleyip Zapret'i geri başlatır. Kalıcı durdurmak istiyorsanız `AutoRes=0` olmalıdır (Menü 16).
+⚠️ Health Monitor `HM_ZAPRET_AUTORESTART=1` olsa bile Menü 4 veya Web Panel üzerinden yapılan manuel durdurma işlemlerine **müdahale etmez** — pause flag varlığında watchdog tamamen atlanır. Sadece Zapret'in beklenmedik şekilde (crash, qlen) durması durumunda HealthMon devreye girer.
 
 ---
 
@@ -256,6 +256,16 @@ KZM script dosyasını GitHub üzerinden günceller.
 
 👉 Güncelleme sonrası sorun yaşarsanız Menü 13 (Rollback) ile önceki sürüme dönebilirsiniz.
 
+### Güncelleme Sonrası Otomatik İşlemler:
+
+Güncelleme başarıyla tamamlandığında aşağıdaki işlemler otomatik yapılır:
+
+- **Telegram bot** varsa yeniden başlatılır (yeni kod ile)
+- **Health Monitor** çalışıyorsa yeniden başlatılır (yeni kod ile)
+- **Web Panel** kuruluysa yeni sürüm kodu ile güncellenir
+
+Güncelleme tamamlandığında ekranda belirgin bir bildirim gösterilir ve KZM'den çıkıp yeniden girilmesi istenir. Yeniden giriş yapılınca tüm değişiklikler aktif olur.
+
 ---
 
 ---
@@ -317,6 +327,8 @@ Manuel engelli domain listesi (`zapret-hosts-user.txt`).
 
 👉 Autohostlist'in henüz yakalayamadığı servisleri buradan manuel ekleyebilirsiniz.
 
+⚠️ Domain ekle/sil ve Exclude ekle/sil işlemlerinden sonra Zapret **otomatik olarak yeniden başlatılır.** Değişikliklerin etkili olması için ayrıca Menü 5'e girmenize gerek yoktur.
+
 ---
 
 ## Autohostlist
@@ -352,6 +364,7 @@ Aktif mod menünün üstünde renk koduyla gösterilir.
 ✔ Listeyi temizle  
 ✔ Mod değiştir (Tüm Ağ ↔ Seçili IP)  
 ✔ No Zapret (Muafiyet) Yönetimi  
+✔ **VPN Sunucu Subneti Ekle** — Keenetic'teki aktif VPN sunucularını otomatik tespit eder  
 
 ### Kullanım Senaryosu:
 
@@ -371,6 +384,26 @@ Bypass sadece şu cihazlarda çalışsın:
 Bu listedeki IP'ler Zapret işleminden **muaf** tutulur. IPTV kutuları gibi Zapret'ten etkilenmemesi gereken cihazlar için idealdir.
 
 **Çift yönlü çakışma koruması:** Bir IP No Zapret listesine eklendiğinde otomatik olarak `zapret_clients` listesinden çıkarılır ve tersi de geçerlidir.
+
+---
+
+### VPN Sunucu Subneti Ekle
+
+Keenetic'teki aktif VPN sunucularını otomatik tespit ederek subnet'lerini `ipset_clients` listesine ekler.
+
+**Desteklenen VPN türleri:**
+- WireGuard sunucuları (client bağlantıları otomatik olarak filtrelenir, sadece sunucu interface'leri listelenir)
+- IKEv2/IPsec sunucusu
+- L2TP/IPsec sunucusu
+
+**Nasıl Çalışır:**
+1. Aktif VPN sunucuları otomatik taranır ve listelenir
+2. Zaten eklenmiş subnet'ler yeşil `[EKLENDİ]` etiketiyle işaretlenir
+3. Seçilen subnet `/24` formatında listeye eklenir, Zapret restart edilir
+
+👉 Eve VPN ile uzaktan bağlanan cihazların Zapret üzerinden çıkabilmesi için bu özelliği kullanın.
+
+⚠️ IPSET modunun "Seçili IP'lere Uygula" (list) modunda olması gerekir.
 
 # 🔹 Menü 13 — Rollback (Sürüm Geri Dön)
 
@@ -551,10 +584,10 @@ Zapret durduğunda HealthMon otomatik başlatma denesin mi?
 
 | Değer | Davranış |
 |-------|----------|
-| `0` | Sadece bildirim gönderir, başlatmaz (varsayılan) |
-| `1` | ~30 saniye sonra otomatik başlatır |
+| `0` | Sadece bildirim gönderir, başlatmaz |
+| `1` | ~30 saniye sonra otomatik başlatır **(varsayılan)** |
 
-⚠️ **Önemli:** Menü 4 ile Zapret'i kasıtlı durdurduğunuzda `/tmp/.zapret_paused` flag'i oluşturulur. `AutoRes=0` ise bu flag korunur ve Zapret başlamaz. `AutoRes=1` ise HealthMon bu flag'i temizleyerek Zapret'i yeniden başlatır — yani Menü 4 ile durdurmanız geçersiz sayılır.
+⚠️ **Önemli:** Menü 4 veya Web Panel ile Zapret'i kasıtlı durdurduğunuzda `/tmp/.zapret_paused` flag'i oluşturulur. `AutoRes=1` olsa bile HealthMon bu flag'i görünce watchdog'u tamamen atlar — yani Zapret başlatılmaz. Sadece Zapret'in beklenmedik şekilde (crash, qlen vb.) durması durumunda HealthMon otomatik olarak devreye girer.
 
 👉 Zapret'i kalıcı durdurmak istiyorsanız `AutoRes=0` olmalıdır.
 
@@ -583,6 +616,33 @@ KeenDNS erişilebilirlik kontrolü ne sıklıkta yapılsın.
 - Varsayılan: `120` saniye
 - `0` yapılırsa her döngüde kontrol edilir (eski davranış)
 
+### Debug Modu (HM_DEBUG)
+HealthMon döngüsünün iç kararlarını ayrıntılı şekilde `/tmp/healthmon_debug.log` dosyasına kaydeder.
+
+- Varsayılan: `0` (kapalı)
+- Menü 16 → 4 → 14 ile açılıp kapatılabilir
+- Telegram Log menüsünden 🐛 Debug Log butonu ile de erişilebilir
+
+Loglanan kategoriler: zapret watchdog kararları, WAN izleme, Telegram bot watchdog, güncelleme kontrolü GitHub API sorguları.
+
+👉 Sorun giderme ve davranış analizi için kullanılır. Normal kullanımda kapalı bırakın.
+
+---
+
+## Zapret Restart Kayıtları
+
+Tüm Zapret yeniden başlatma olayları `/tmp/healthmon.log` dosyasına yazılır:
+
+| Kayıt | Tetikleyici |
+|-------|-------------|
+| `zapret_restart \| triggered` | SSH menüsünden (Menü 3, 5, 11 vb.) |
+| `zapret_restart \| triggered (web)` | Web Panel üzerinden |
+| `zapret_restart \| triggered (ipset)` | IPSET / No Zapret işlemlerinden |
+| `qlen_restart_ok` | NFQUEUE kuyruk dolması nedeniyle |
+| `zapret_autorestart_ok` | HealthMon watchdog tarafından |
+
+👉 Zapret restart geçmişini takip etmek için: `tail -50 /tmp/healthmon.log | grep zapret_restart`
+
 ---
 
 ## [ŞİMDİ]
@@ -599,7 +659,7 @@ Telegram kurulduysa ve günlük kullanım yapılıyorsa:
 HM_ENABLE=1
 HM_ZAPRET_WATCHDOG=1
 HM_QLEN_WATCHDOG=1
-HM_ZAPRET_AUTORESTART=0   ← Zapret'i kasıtlı durdurmak isteyenler için
+HM_ZAPRET_AUTORESTART=1   ← Varsayılan; kasıtlı durdurma (Menü 4) ile çakışmaz
 HM_AUTOUPDATE_MODE=2      ← Otomatik güncellemeyi tercih etmiyorsanız 1 yapın
 ```
 
