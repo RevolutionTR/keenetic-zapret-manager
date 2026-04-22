@@ -647,8 +647,6 @@ Shows the current system state: CPU percentage, load average (1/5/15 min), free 
 
 ## Önerilen Yapılandırma
 
-Telegram kurulduysa ve günlük kullanım yapılıyorsa:
-
 <img src="/docs/images/HealthMon_EN.png" width="800">
 
 ---
