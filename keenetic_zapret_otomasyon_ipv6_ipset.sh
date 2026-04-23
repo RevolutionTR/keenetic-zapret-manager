@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.20.1"
+SCRIPT_VERSION="v26.4.23"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -75,8 +75,8 @@ case "$1" in
         ;;
     --self-test)        ZKM_SKIP_LOCK="1" ; ZKM_SELF_TEST="1" ;;
     --update-gui)       ZKM_SKIP_LOCK="1" ;;
-    --gui-status)       ZKM_SKIP_LOCK="1" ; ZKM_GUI_STATUS_GEN="1" ;;
-    --cgi-action)       ZKM_SKIP_LOCK="1" ;;
+    --gui-status)      ZKM_SKIP_LOCK="1" ; ZKM_GUI_STATUS_GEN="1" ;;
+    --cgi-action)      ZKM_SKIP_LOCK="1" ;;
     --dev|--developer)  ZKM_DEV_CHECK="1" ;;
 esac
 # Developer / Self-test flags
@@ -3743,6 +3743,7 @@ restart_zapret() {
         echo "$(T TXT_RESTART_NOT_INSTALLED)"
         return 1
     fi
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered" >> /tmp/healthmon.log 2>/dev/null
     stop_zapret
     zapret_resume
     start_zapret
@@ -4181,6 +4182,7 @@ show_ipset_client_status() {
     fi
 }
 apply_ipset_client_settings() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (ipset)" >> /tmp/healthmon.log 2>/dev/null
     write_client_ipset_hook >/dev/null 2>&1
     if [ -x "/opt/zapret/init.d/sysv/zapret" ]; then
         # restart-fw yerine stop-fw + start-fw (daha deterministik)
@@ -5591,6 +5593,7 @@ if [ "$cancelled" -eq 1 ]; then
     continue
 fi
 echo "$(T X 'Ozet:' 'Summary:') $(T X 'Eklendi' 'Added')=$added, $(T X 'Zaten vardi' 'Already existed')=$already, $(T X 'Gecersiz' 'Invalid')=$invalid"
+[ "$added" -gt 0 ] && restart_zapret >/dev/null 2>&1
 if type press_enter_to_continue >/dev/null 2>&1; then
     press_enter_to_continue
 else
@@ -5605,6 +5608,7 @@ clear
                 [ -z "$nd" ] && { echo "$(T TXT_HL_INVALID_DOMAIN)"; continue; }
                 remove_line_exact "$HOSTLIST_USER" "$nd"
                 echo "$(T TXT_HL_MSG_REMOVED)$nd"
+                restart_zapret >/dev/null 2>&1
                 ;;
             5)
 echo "$(T TXT_HL_BULK_HINT)"
@@ -5663,6 +5667,7 @@ if [ "$cancelled" -eq 1 ]; then
     continue
 fi
 echo "$(T X 'Ozet:' 'Summary:') $(T X 'Eklendi' 'Added')=$added, $(T X 'Zaten vardi' 'Already existed')=$already, $(T X 'Gecersiz' 'Invalid')=$invalid"
+[ "$added" -gt 0 ] && restart_zapret >/dev/null 2>&1
 if type press_enter_to_continue >/dev/null 2>&1; then
     press_enter_to_continue
 else
@@ -5677,6 +5682,7 @@ clear
                 [ -z "$nd" ] && { echo "$(T TXT_HL_INVALID_DOMAIN)"; continue; }
                 remove_line_exact "$HOSTLIST_EXCLUDE_DOM" "$nd"
                 echo "$(T TXT_HL_MSG_REMOVED)$nd"
+                restart_zapret >/dev/null 2>&1
                 ;;
             7)
                 print_line "-"
@@ -13135,11 +13141,13 @@ case "$ACTION" in
     hl_add)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         grep -qxF "$_d" "$HL_USER" 2>/dev/null || printf '%s\n' "$_d" >> "$HL_USER"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Eklendi: $_d" ;;
     hl_del)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         sed -i "/^$(printf '%s' "$_d" | sed 's/[.[\*^$]/\\&/g')$/d" "$HL_USER" 2>/dev/null
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_d" ;;
     ex_get)
@@ -13147,11 +13155,13 @@ case "$ACTION" in
     ex_add)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         grep -qxF "$_d" "$HL_EXCL" 2>/dev/null || printf '%s\n' "$_d" >> "$HL_EXCL"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Eklendi: $_d" ;;
     ex_del)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         sed -i "/^$(printf '%s' "$_d" | sed 's/[.[\*^$]/\\&/g')$/d" "$HL_EXCL" 2>/dev/null
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_d" ;;
     auto_get)
@@ -13159,6 +13169,7 @@ case "$ACTION" in
     auto_del)
         _d=$(get_param domain); [ -z "$_d" ] && { fail "Domain bos"; exit 0; }
         sed -i "/^$(printf '%s' "$_d" | sed 's/[.[\\*^$]/\\&/g')$/d" "/opt/zapret/ipset/zapret-hosts-auto.txt" 2>/dev/null
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_d" ;;
     nozapret_get)
@@ -13168,11 +13179,13 @@ case "$ACTION" in
         # Cakisma korumasi: ipset_clients.txt'den cikar
         sed -i "/^$(printf '%s' "$_ip" | sed 's/[.[\*^$]/\\&/g')$/d" "$IPSET_FILE" 2>/dev/null
         grep -qxF "$_ip" "/opt/zapret/ipset/nozapret.txt" 2>/dev/null || printf '%s\n' "$_ip" >> "/opt/zapret/ipset/nozapret.txt"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Eklendi: $_ip" ;;
     nozapret_del)
         _ip=$(get_param ip); [ -z "$_ip" ] && { fail "IP bos"; exit 0; }
         sed -i "/^$(printf '%s' "$_ip" | sed 's/[.[\*^$]/\\&/g')$/d" "/opt/zapret/ipset/nozapret.txt" 2>/dev/null
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_ip" ;;
     ipset_active_get)
@@ -13182,11 +13195,13 @@ case "$ACTION" in
     ip_add)
         _ip=$(get_param ip); [ -z "$_ip" ] && { fail "IP bos"; exit 0; }
         grep -qxF "$_ip" "$IPSET_FILE" 2>/dev/null || printf '%s\n' "$_ip" >> "$IPSET_FILE"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Eklendi: $_ip" ;;
     ip_del)
         _ip=$(get_param ip); [ -z "$_ip" ] && { fail "IP bos"; exit 0; }
         sed -i "\|^$(printf '%s' "$_ip" | sed 's/[.[*^$]/\\&/g')$|d" "$IPSET_FILE" 2>/dev/null
+        echo "$(date '+%Y-%m-%d %H:%M:%S') | zapret_restart | triggered (web)" >> /tmp/healthmon.log 2>/dev/null
         { /opt/zapret/init.d/sysv/zapret stop-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret stop >/dev/null 2>&1; killall nfqws >/dev/null 2>&1; sleep 1; /opt/zapret/init.d/sysv/zapret start-fw >/dev/null 2>&1; /opt/zapret/init.d/sysv/zapret start >/dev/null 2>&1; } &
         ok "Silindi: $_ip" ;;
     sched_get)
@@ -13429,6 +13444,12 @@ case "$ACTION" in
         [ -f "$_kzm" ] || { fail "KZM bulunamadi"; exit 0; }
         ZKM_SKIP_LOCK=1 sh "$_kzm" --cgi-action dns_rebind_toggle >/dev/null 2>&1
         ok "Rebind durumu degistirildi" ;;
+    lang_set)
+        _lang=$(get_param lang)
+        case "$_lang" in
+            tr|en) printf '%s' "$_lang" > /opt/zapret/lang 2>/dev/null; refresh; ok "Dil degistirildi: $_lang" ;;
+            *) fail "Gecersiz dil" ;;
+        esac ;;
     *)
         fail "Bilinmeyen action: $ACTION" ;;
 esac
@@ -13721,6 +13742,7 @@ select option{background:#111f3d}
   <header>
     <div class="title"><h2 id="pTitle">Dashboard</h2><small id="pSub">Canl&#305; sistem &#246;zeti.</small></div>
     <div class="meta">
+      <span id="langBadge" style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0;opacity:.85;cursor:pointer;" title="SSH: kzm → L"></span>
       <span>WAN: <b id="hWan">&#8212;</b></span>
       <span><span id="hLoadLabel">CPU Y&#252;k&#252;: </span><b id="hLoad">&#8212;</b></span>
       <span>KZM: <b id="hVer">&#8212;</b></span>
@@ -13730,6 +13752,7 @@ select option{background:#111f3d}
       <span class="ts" id="tsLbl"></span>
     </div>
   </header>
+
   <div id="view"><div style="padding:40px;color:var(--muted);text-align:center">Y&#252;kleniyor...</div></div>
 </main>
 </div>
@@ -14647,6 +14670,9 @@ function syncLang(){
   var brandTitle=document.getElementById('brandTitle');
   if(brandTitle)brandTitle.textContent=L?'KZM Control Panel':'KZM Kontrol Paneli';
   document.title=L?'KZM Control Panel':'KZM Kontrol Paneli';
+  var langBadge=document.getElementById('langBadge');
+  if(langBadge){langBadge.onclick=function(){var nl=L?'tr':'en';fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=lang_set&lang='+nl}).then(function(){setTimeout(fetchS,300);});};}
+  if(langBadge)langBadge.innerHTML=L?'<img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAzNiAzNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBmaWxsPSIjMDAyNDdEIiBkPSJNMCA5LjA1OVYxM2g1LjYyOHpNNC42NjQgMzFIMTN2LTUuODM3ek0yMyAyNS4xNjRWMzFoOC4zMzV6TTAgMjN2My45NDFMNS42MyAyM3pNMzEuMzM3IDVIMjN2NS44Mzd6TTM2IDI2Ljk0MlYyM2gtNS42MzF6TTM2IDEzVjkuMDU5TDMwLjM3MSAxM3pNMTMgNUg0LjY2NEwxMyAxMC44Mzd6Ii8+PHBhdGggZmlsbD0iI0NGMUIyQiIgZD0iTTI1LjE0IDIzbDkuNzEyIDYuODAxYTMuOTc3IDMuOTc3IDAgMCAwIC45OS0xLjc0OUwyOC42MjcgMjNIMjUuMTR6TTEzIDIzaC0yLjE0MWwtOS43MTEgNi44Yy41MjEuNTMgMS4xODkuOTA5IDEuOTM4IDEuMDg1TDEzIDIzLjk0M1YyM3ptMTAtMTBoMi4xNDFsOS43MTEtNi44YTMuOTg4IDMuOTg4IDAgMCAwLTEuOTM3LTEuMDg1TDIzIDEyLjA1N1YxM3ptLTEyLjE0MSAwTDEuMTQ4IDYuMmEzLjk5NCAzLjk5NCAwIDAgMC0uOTkxIDEuNzQ5TDcuMzcyIDEzaDMuNDg3eiIvPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0zNiAyMUgyMXYxMGgydi01LjgzNkwzMS4zMzUgMzFIMzJhMy45OSAzLjk5IDAgMCAwIDIuODUyLTEuMTk5TDI1LjE0IDIzaDMuNDg3bDcuMjE1IDUuMDUyYy4wOTMtLjMzNy4xNTgtLjY4Ni4xNTgtMS4wNTJ2LS4wNThMMzAuMzY5IDIzSDM2di0yek0wIDIxdjJoNS42M0wwIDI2Ljk0MVYyN2MwIDEuMDkxLjQzOSAyLjA3OCAxLjE0OCAyLjhsOS43MTEtNi44SDEzdi45NDNsLTkuOTE0IDYuOTQxYy4yOTQuMDcuNTk4LjExNi45MTQuMTE2aC42NjRMMTMgMjUuMTYzVjMxaDJWMjFIMHpNMzYgOWEzLjk4MyAzLjk4MyAwIDAgMC0xLjE0OC0yLjhMMjUuMTQxIDEzSDIzdi0uOTQzbDkuOTE1LTYuOTQyQTQuMDAxIDQuMDAxIDAgMCAwIDMyIDVoLS42NjNMMjMgMTAuODM3VjVoLTJ2MTBoMTV2LTJoLTUuNjI5TDM2IDkuMDU5Vjl6TTEzIDV2NS44MzdMNC42NjQgNUg0YTMuOTg1IDMuOTg1IDAgMCAwLTIuODUyIDEuMmw5LjcxMSA2LjhINy4zNzJMLjE1NyA3Ljk0OUEzLjk2OCAzLjk2OCAwIDAgMCAwIDl2LjA1OUw1LjYyOCAxM0gwdjJoMTVWNWgtMnoiLz48cGF0aCBmaWxsPSIjQ0YxQjJCIiBkPSJNMjEgMTVWNWgtNnYxMEgwdjZoMTV2MTBoNlYyMWgxNXYtNnoiLz48L3N2Zz4=" width="24" height="24" style="vertical-align:middle"> EN':'<img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAzNiAzNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+PHBhdGggZmlsbD0iI0UzMDkxNyIgZD0iTTM2IDI3YTQgNCAwIDAgMS00IDRINGE0IDQgMCAwIDEtNC00VjlhNCA0IDAgMCAxIDQtNGgyOGE0IDQgMCAwIDEgNCA0djE4eiIvPjxwYXRoIGZpbGw9IiNFRUUiIGQ9Ik0xNiAyNGE2IDYgMCAxIDEgMC0xMmMxLjMxIDAgMi41Mi40MjUgMy41MDcgMS4xMzhBNy4zMzIgNy4zMzIgMCAwIDAgMTQgMTAuNjQ3QTcuMzUzIDcuMzUzIDAgMCAwIDYuNjQ3IDE4QTcuMzUzIDcuMzUzIDAgMCAwIDE0IDI1LjM1NGMyLjE5NSAwIDQuMTYtLjk2NyA1LjUwNy0yLjQ5MkE1Ljk2MyA1Ljk2MyAwIDAgMSAxNiAyNHptMy45MTMtNS43N2wyLjQ0LjU2MmwuMjIgMi40OTNsMS4yODgtMi4xNDZsMi40NC41NjFsLTEuNjQ0LTEuODg4bDEuMjg3LTIuMTQ3bC0yLjMwMy45OGwtMS42NDQtMS44ODlsLjIyIDIuNDk0eiIvPjwvc3ZnPg==" width="24" height="24" style="vertical-align:middle"> TR';
 }
 function fixTR(s){if(!s)return s;
   return s.replace(/Calisiyor/g,'&#199;al&#305;&#351;&#305;yor').replace(/Calismiyor/g,'&#199;al&#305;&#351;m&#305;yor')
