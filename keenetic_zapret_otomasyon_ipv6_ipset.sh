@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.4.23"
+SCRIPT_VERSION="v26.5.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -242,6 +242,25 @@ zkm_self_test() {
     else
         _pass "webpanel: not installed (skipped)"
     fi
+    # 10) wan_if dosyasi
+    if [ -f "/opt/zapret/wan_if" ]; then
+        local _wif
+        _wif="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '[:space:]')"
+        if [ -n "$_wif" ]; then
+            _pass "wan_if: present ($_wif)"
+        else
+            _warn "wan_if: file exists but empty"
+        fi
+    else
+        _warn "wan_if: not found (WAN interface not configured)"
+    fi
+    # 11) 000-zapret.sh netfilter hook
+    if [ -f "/opt/etc/ndm/netfilter.d/000-zapret.sh" ]; then
+        _pass "netfilter: 000-zapret.sh present"
+    else
+        _warn "netfilter: 000-zapret.sh missing (netfilter hook not installed)"
+    fi
+    # 12) Kullanilmayan TXT_* kontrolu kaldirildi - bilinen anahtarlar mevcut
     echo "=== Summary: FAIL=$fail WARN=$warn ==="
     [ "$fail" -eq 0 ]
 }
@@ -1152,6 +1171,8 @@ TXT_HM_CFG_ITEM12_TR="NFQUEUE kuyruk denetimi"
 TXT_HM_CFG_ITEM12_EN="NFQUEUE qlen watchdog"
 TXT_HM_CFG_ITEM14_TR="Debug modu"
 TXT_HM_CFG_ITEM14_EN="Debug mode"
+TXT_HM_CFG_ITEM15_TR="Onerilen Ayarlari Uygula"
+TXT_HM_CFG_ITEM15_EN="Apply Recommended Settings"
 TXT_HM_PROMPT_WANMON_ENABLE_TR="WAN izleme aktif mi?"
 TXT_HM_PROMPT_WANMON_ENABLE_EN="Enable WAN monitoring?"
 TXT_HM_PROMPT_WANMON_FAIL_TH_TR="DOWN algilama esigi (adet)"
@@ -1267,6 +1288,8 @@ TXT_HM_RUN_OFF_TR="KAPALI"
 TXT_HM_RUN_OFF_EN="OFF"
 TXT_HM_BANNER_WARN_TR="Otomatik guncelleme ve watchdog devre disi. Aktif etmek icin Menu 16."
 TXT_HM_BANNER_WARN_EN="Auto-update and watchdog disabled. Enable via Menu 16."
+TXT_ISP_DNS_WARN_TR="ISP DNS: %DNS% olarak tespit edildi. Zapret bypass engellenebilir!"
+TXT_ISP_DNS_WARN_EN="ISP DNS: %DNS% detected. Zapret bypass may be blocked!"
 TXT_HM_ENABLE_LABEL_TR="etkin"
 TXT_HM_ENABLE_LABEL_EN="enable"
 TXT_HM_STATUS_INTERVAL_TR="Aralik"
@@ -6130,6 +6153,11 @@ display_menu() {
                 "${CLR_ORANGE}" "$(T _ 'WAN izleme KAPALI (Menu 16 > 4 > 11)' 'WAN monitoring DISABLED (Menu 16 > 4 > 11)')" "${CLR_RESET}"
         fi
     fi
+    # ISP DNS kontrolu
+    _isp_dns="$(LD_LIBRARY_PATH= ndmc -c 'show ip name-server' 2>/dev/null | awk '/address:/{print $2}' | tr '\n' ' ' | sed 's/ $//;s/ / - /g')"
+    if [ -n "$_isp_dns" ]; then
+        printf "  %b%-*s%b : %b%s%b\n" "${CLR_BOLD}" "$_lw" "ISP DNS" "${CLR_RESET}" "${CLR_ORANGE}" "$(tpl_render "$(T TXT_ISP_DNS_WARN)" DNS "$_isp_dns")" "${CLR_RESET}"
+    fi
     # Telegram Bot - sadece TG_BOT_ENABLE=1 ise goster
     if [ "$(grep -s '^TG_BOT_ENABLE=' /opt/etc/telegram.conf | cut -d= -f2 | tr -d '"')" = "1" ]; then
         if [ -f "/tmp/zkm_telegram_bot.pid" ] && kill -0 "$(cat "/tmp/zkm_telegram_bot.pid" 2>/dev/null)" 2>/dev/null; then
@@ -7136,6 +7164,13 @@ run_health_check() {
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_LOCAL)" "" "$dns_local_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_PUBLIC)" "" "$dns_8888_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_DNS_MATCH)" " $dns_cons_msg" "$dns_cons_ok"
+    # ISP DNS kontrolu
+    _isp_dns_check="$(LD_LIBRARY_PATH= ndmc -c 'show ip name-server' 2>/dev/null | awk '/address:/{print $2}' | tr '\n' ' ' | sed 's/ $//;s/ / - /g')"
+    if [ -n "$_isp_dns_check" ]; then
+        add_line "$HC_NET" "$(T _ 'ISP DNS' 'ISP DNS')" " ($_isp_dns_check) - $(T _ 'Zapret bypass engellenebilir' 'Zapret bypass may be blocked')" "WARN"
+    else
+        add_line "$HC_NET" "$(T _ 'ISP DNS' 'ISP DNS')" " $(T _ 'Yok - DNS sifreleme aktif' 'None - DNS encryption active')" "PASS"
+    fi
     add_line "$HC_NET" "$(T TXT_HEALTH_ROUTE)" " $route_msg" "$route_ok"
     add_line "$HC_NET" "$(T TXT_HEALTH_LAN_IP)" " $lan_ip_msg" "INFO"
     # ----------------------------
@@ -10736,7 +10771,10 @@ healthmon_loop() {
                 if ! is_zapret_running; then
                     _zap_down=1; _zap_reason="no_process"
                 elif ! _zapret_iptables_ok; then
-                    _zap_down=1; _zap_reason="iptables_missing"
+                    sleep 3
+                    if ! _zapret_iptables_ok; then
+                        _zap_down=1; _zap_reason="iptables_missing"
+                    fi
                 fi
             fi
             hm_debug_log "zapret_wd | down=${_zap_down} reason=${_zap_reason:-ok}"
@@ -10833,7 +10871,16 @@ healthmon_loop() {
                     echo "$qlen_cnt" > "$qlen_cnt_f" 2>/dev/null
                     healthmon_log "$now | qlen_high | qnum=200 qlen=$qlen_val prev=$qlen_prev cnt=$qlen_cnt/${qlen_turns}"
                     if [ "$qlen_cnt" -ge "$qlen_turns" ]; then
-                        # Ardisik N tur yuksek/sabit: restart_zapret
+                        # Ardisik N tur yuksek/sabit: 3 sn bekle, tekrar kontrol
+                        sleep 3
+                        _qlen_recheck="$(awk -v q=200 '$1==q{print $5}' /proc/net/netfilter/nfnetlink_queue 2>/dev/null)"
+                        case "$_qlen_recheck" in ''|*[!0-9]*) _qlen_recheck=0 ;; esac
+                        if [ "$_qlen_recheck" -le "$qlen_th" ]; then
+                            # 3 sn icinde duzeldi: spike, restart gerekmiyor
+                            healthmon_log "$now | qlen_spike | qnum=200 qlen=$qlen_val recovered=$_qlen_recheck no_restart"
+                            rm -f "$qlen_cnt_f" 2>/dev/null
+                        else
+                        # Hala yuksek: gercek stall, restart_zapret
                         healthmon_log "$now | qlen_crit | qnum=200 qlen=$qlen_val cnt=$qlen_cnt triggers=restart_zapret"
                         if healthmon_should_alert "qlen_crit" "${HM_ZAPRET_COOLDOWN_SEC:-120}"; then
                             telegram_send "$(tpl_render "$(T TXT_HM_ZAPRET_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" DISK "$disk") [qlen=$qlen_val]" &
@@ -10855,6 +10902,7 @@ healthmon_loop() {
                         fi
                         # Sayaci sifirla (restart sonrasi tekrar izlemeye basla)
                         rm -f "$qlen_cnt_f" 2>/dev/null
+                        fi  # _qlen_recheck else
                     fi
                 fi
             else
@@ -11284,6 +11332,13 @@ DEOF
             else _add "net" "$(T TXT_HEALTH_DNS_PUBLIC)" "" "FAIL"; fi
             if check_dns_consistency; then _add "net" "$(T TXT_HEALTH_DNS_MATCH)" "" "PASS"
             else _add "net" "$(T TXT_HEALTH_DNS_MATCH)" "$(T TXT_HEALTH_DNS_MATCH_NOTE)" "INFO"; fi
+            # ISP DNS kontrolu
+            _isp_dns_web="$(LD_LIBRARY_PATH= ndmc -c 'show ip name-server' 2>/dev/null | awk '/address:/{print $2}' | tr '\n' ' ' | sed 's/ $//;s/ / - /g')"
+            if [ -n "$_isp_dns_web" ]; then
+                _add "net" "ISP DNS" "($_isp_dns_web) - $(T _ 'Zapret bypass engellenebilir' 'Zapret bypass may be blocked')" "WARN"
+            else
+                _add "net" "ISP DNS" "$(T _ 'Yok - DNS sifreleme aktif' 'None - DNS encryption active')" "PASS"
+            fi
             # Route
             _gw="$(ip route 2>/dev/null | awk '/default/ {print $3; exit}')"
             if [ -n "$_gw" ]; then _add "net" "$(T TXT_HEALTH_ROUTE)" "$_gw" "PASS"
@@ -11797,6 +11852,18 @@ healthmon_test() {
 healthmon_config_menu() {
     healthmon_load_config
     # helper: ask number with current value, empty keeps current
+    hm_ask_num_raw() {
+        local _label="$1" _var="$2" _cur _v
+        eval _cur="\${$_var}"
+        printf "%s [%s]: " "$_label" "${_cur:-}"
+        read -r _v
+        [ -z "$_v" ] && return 0
+        case "$_v" in
+            ''|*[!0-9]*) echo "$(T _ 'Gecersiz deger, degistirilmedi.' 'Invalid value, not changed.')"; return 0 ;;
+        esac
+        eval "$_var="$_v""
+        echo "$(T _ 'Kaydedildi:' 'Saved:') ${_v}"
+    }
     hm_ask_num() {
         local _label="$1" _var="$2" _cur _v _sec _readable
         eval _cur="\${$_var}"
@@ -11875,6 +11942,9 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} | keendns=${HM_KEENDNS_CURL_SEC}s"
         printf " %2s) %-*s : %s\n" "13" "$_w" "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s")"
         printf " %2s) %-*s : %s\n" "14" "$_w" "$(T TXT_HM_CFG_ITEM14)" "${HM_DEBUG:-0}"
+        if [ -f "/opt/zapret/wan_if" ]; then
+            printf " %2s) %b%s%b\n" "15" "${CLR_BOLD}" "$(T TXT_HM_CFG_ITEM15)" "${CLR_RESET}"
+        fi
 echo
         printf "  %s) %s\n" "S" "$(T _ 'Kaydet ve uygula' 'Save & apply')"
         printf "  %s) %s\n" "0" "$(T _ 'Geri (kaydetmeden)' 'Back (without saving)')"
@@ -11955,8 +12025,8 @@ esac
                 ;;
             12)
                 hm_ask_01  "$(T _ 'NFQUEUE kuyruk denetimi (0=kapat 1=ac)' 'NFQUEUE qlen watchdog (0=off 1=on)')" HM_QLEN_WATCHDOG
-                hm_ask_num "$(T _ 'qlen esigi (paket sayisi)' 'qlen threshold (packet count)')" HM_QLEN_WARN_TH
-                hm_ask_num "$(T _ 'Ardisik yuksek tur sayisi -> restart' 'Consecutive high turns -> restart')" HM_QLEN_CRIT_TURNS
+                hm_ask_num_raw "$(T _ 'qlen esigi (paket sayisi)' 'qlen threshold (packet count)')" HM_QLEN_WARN_TH
+                hm_ask_num_raw "$(T _ 'Ardisik yuksek tur sayisi -> restart' 'Consecutive high turns -> restart')" HM_QLEN_CRIT_TURNS
                 hm_ask_num "$(T _ 'KeenDNS curl araligi (sn, 0=her tur)' 'KeenDNS curl interval (sec, 0=every loop)')" HM_KEENDNS_CURL_SEC
                 ;;
             13)
@@ -11969,6 +12039,48 @@ esac
                 printf "%b%s%b\n" "${CLR_ORANGE}" "$(T _ 'UYARI: Bu modu sadece gelistirici sizden acmanizi istediginde veya ek log bilgisi gerektiginde acin.' 'WARNING: Only enable this mode when a developer asks you to or when additional logging is needed.')" "${CLR_RESET}"
                 printf "%b%s%b\n\n" "${CLR_ORANGE}" "$(T _ 'Aksi halde sistem performansini olumsuz etkiler.' 'Otherwise it may negatively affect system performance.')" "${CLR_RESET}"
                 hm_ask_01 "$(T _ 'Debug modu (0=kapat 1=ac)' 'Debug mode (0=off 1=on)')" HM_DEBUG
+                ;;
+            15)
+                if [ ! -f "/opt/zapret/wan_if" ]; then return 0; fi
+                _wan_if_rec="$(cat /opt/zapret/wan_if 2>/dev/null | tr -d '[:space:]')"
+                print_line "-"
+                printf "%b%s%b\n" "${CLR_ORANGE}${CLR_BOLD}" "$(T _ 'Onerilen ayarlar uygulanacak. Onayliyor musunuz?' 'Recommended settings will be applied. Confirm?')" "${CLR_RESET}"
+                echo ""
+                printf "%s" "$(T _ '(e/h): ' '(y/n): ')"; read -r _ans
+                echo "$_ans" | grep -qi '^[ey]' || { echo "$(T _ 'Iptal edildi.' 'Cancelled.')"; press_enter_to_continue; continue; }
+                HM_ENABLE="1"
+                HM_CPU_WARN="70"
+                HM_CPU_WARN_DUR="180"
+                HM_CPU_CRIT="90"
+                HM_CPU_CRIT_DUR="60"
+                HM_DISK_WARN="90"
+                HM_RAM_WARN_MB="40"
+                HM_ZAPRET_WATCHDOG="1"
+                HM_ZAPRET_COOLDOWN_SEC="120"
+                HM_ZAPRET_AUTORESTART="1"
+                HM_UPDATECHECK_ENABLE="1"
+                HM_UPDATECHECK_SEC="43200"
+                HM_AUTOUPDATE_MODE="2"
+                HM_INTERVAL="60"
+                HM_COOLDOWN_SEC="600"
+                HM_HEARTBEAT_SEC="300"
+                HM_WANMON_ENABLE="1"
+                HM_WANMON_FAIL_TH="2"
+                HM_WANMON_OK_TH="2"
+                HM_WANMON_IFACE="$_wan_if_rec"
+                HM_QLEN_WATCHDOG="1"
+                HM_QLEN_WARN_TH="50"
+                HM_QLEN_CRIT_TURNS="2"
+                HM_KEENDNS_CURL_SEC="120"
+                HM_SYSLOG_WATCH="1"
+                HM_SYSLOG_COOLDOWN_SEC="600"
+                HM_SYSLOG_IKE_COOLDOWN_SEC="7200"
+                HM_DEBUG="0"
+                healthmon_write_config
+                healthmon_stop 2>/dev/null
+                healthmon_start
+                print_status PASS "$(T _ 'Onerilen ayarlar uygulandi.' 'Recommended settings applied.')"
+                press_enter_to_continue
                 ;;
             s|S)
                 healthmon_write_config
@@ -12587,6 +12699,9 @@ kzm_gui_gen_status() {
     fi
     [ -z "$_kdns_access" ] && _kdns_access="none"
     [ -z "$_kdns_fqdn"   ] && _kdns_fqdn=""
+    # ISP DNS
+    local _isp_dns_json
+    _isp_dns_json="$(LD_LIBRARY_PATH= ndmc -c 'show ip name-server' 2>/dev/null | awk '/address:/{print $2}' | tr '\n' ' ' | sed 's/ $//;s/ / - /g')"
     # Timestamp
     local _ts
     _ts="$(date +%s 2>/dev/null)"
@@ -12604,6 +12719,7 @@ kzm_gui_gen_status() {
   "lan_ip": "$(ip -4 addr show br0 2>/dev/null | awk '/inet /{print $2;exit}' | cut -d/ -f1)",
   "keendns_fqdn": "$_kdns_fqdn",
   "keendns_access": "$_kdns_access",
+  "isp_dns": "$_isp_dns_json",
   "zapret_running": $_zap_run,
   "zapret_version": "$_zap_ver",
   "healthmon_running": $_hm_run,
@@ -12741,6 +12857,7 @@ if [ -n "$_kdns_access" ]; then
     _kdns_fqdn="${_kdns_name}.${_kdns_domain}"
 fi
 [ -z "$_kdns_access" ] && _kdns_access="none"
+_isp_dns_json="$(LD_LIBRARY_PATH= ndmc -c 'show ip name-server' 2>/dev/null | awk '/address:/{print $2}' | tr '\n' ' ' | sed 's/ $//;s/ / - /g')"
 _dpi_profile="$(cat /opt/zapret/dpi_profile 2>/dev/null | tr -d '\n')"
 _dpi_origin="$(cat /opt/zapret/dpi_profile_origin 2>/dev/null | tr -d '\n')"
 [ -z "$_dpi_profile" ] && _dpi_profile="Unknown"
@@ -12762,9 +12879,9 @@ if [ -f /opt/zapret/blockcheck_result.json ]; then
     [ -z "$_bc_udp_weak" ] && _bc_udp_weak=1
     [ -z "$_bc_ts"       ] && _bc_ts=0
 fi
-printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
+printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "isp_dns": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
     "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$_kzmver" "$_model" "$_fw" "$_wan_display" "$_wip" "$_lan_ip" \
-    "$_kdns_fqdn" "$_kdns_access" \
+    "$_kdns_fqdn" "$_kdns_access" "$_isp_dns_json" \
     "$_zap" "$_zver" "$_hm" "$_hm_en" "$_tg_en" "$_tg" "$_tg_configured" \
     "$_lighttpd" "$_curl_ok" \
     "$_load1" "$_load5" "$_load15" \
@@ -14169,6 +14286,7 @@ var V={
         ir('WAN',(L?S.wan_dev:fixTR(S.wan_dev||'—'))+' | '+(S.wan_ip||'—'))+
         ir('LAN IP',(S.lan_ip||'—'))+
         (S.keendns_fqdn ? ir('KeenDNS',S.keendns_fqdn+' | '+fmtKeenDns(S.keendns_access)) : '')+
+        ir('ISP DNS',S.isp_dns ? '<span style="color:var(--warn)">'+S.isp_dns+' — '+(L?'Zapret bypass may be blocked!':'Zapret bypass engellenebilir!')+'</span>' : '<span style="color:var(--good)">'+(L?'None - DNS encryption active':'Yok - DNS &#351;ifreleme aktif')+'</span>')+
         ir('Zapret',bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
         ir('Health Monitor',bdg(S.healthmon_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
         ir('Telegram Bot',bdgO(S.telegram_enabled&&S.telegram_running,L?'ACTIVE':'AKT&#304;F',L?'OFF':'KAPALI'))+
