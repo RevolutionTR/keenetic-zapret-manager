@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.1"
+SCRIPT_VERSION="v26.5.2"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -2787,8 +2787,8 @@ select_dpi_profile() {
     print_line "-"
     echo " $(T dpi_title "DPI Profili Secimi" "DPI Profile Selection")"
     print_line "-"
-    local _cur_label_tr=" Su Anki"
-    local _cur_label_en=" Current"
+    local _cur_label_tr=" Su Anki DPI"
+    local _cur_label_en=" Current DPI"
     if [ "$origin" = "auto" ]; then
         # Auto: show current as Blockcheck, and show base profile separately
         printf "%b%s: %s%b\n" "${CLR_GREEN}${CLR_BOLD}" "$(T dpi_current "$_cur_label_tr" "$_cur_label_en")" "$(T TXT_ACTIVE_DPI_AUTO)" "${CLR_RESET}"
@@ -6188,6 +6188,11 @@ display_menu() {
     [ "$_zap_sha_state" = "ok" ] && _clr_zap="${CLR_GREEN}" || _clr_zap="${CLR_ORANGE}"
     printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_BOLD}" "$_clr_kzm" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
     printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'Zapret Surum' 'Zapret Version'  )"       "${CLR_RESET}" "${CLR_BOLD}" "$_clr_zap" "$(zkm_get_zapret_version)"                       "${CLR_RESET}"
+    _dpi_cur="$(get_dpi_profile 2>/dev/null)"
+    if [ -n "$_dpi_cur" ]; then
+        _dpi_label="$(T dpi_curp "$(dpi_profile_name_tr "$_dpi_cur")" "$(dpi_profile_name_en "$_dpi_cur")")"
+        printf "  %b%-*s%b : %b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'DPI Profili' 'DPI Profile')" "${CLR_RESET}" "${CLR_CYAN}" "$_dpi_label" "${CLR_RESET}"
+    fi
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'GitHub'       'GitHub'          )"       "${CLR_RESET}" "${CLR_DIM}"   "github.com/RevolutionTR/keenetic-zapret-manager"  "${CLR_RESET}"
     print_line "="
     # Aciklama satirlari — her biri ayri satirda, kisa
