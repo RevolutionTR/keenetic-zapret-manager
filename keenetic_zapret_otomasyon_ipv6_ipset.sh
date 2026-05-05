@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.2"
+SCRIPT_VERSION="v26.5.5"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -987,6 +987,10 @@ TXT_OPTIMIZED_TR=" Varsayilan ayarlar TT altyapisinda test edilerek optimize edi
 TXT_OPTIMIZED_EN=" Default settings are tested and optimized for TT infrastructure."
 TXT_DPI_WARNING_TR=" DPI profil basarimi; ISS, hat tipine gore degiskenlik gosterebilir."
 TXT_DPI_WARNING_EN=" DPI profile effectiveness may vary by ISP, line type."
+TXT_ISS_LABEL_TR="ISS"
+TXT_ISS_LABEL_EN="ISP"
+TXT_DPI_MISMATCH_TR="ISS ile eslesmeyebilir! Menu 9'dan profil secin."
+TXT_DPI_MISMATCH_EN="May not match ISP! Select profile from Menu 9."
 TXT_DEVELOPER_TR=" Gelistirici : RevolutionTR"
 TXT_DEVELOPER_EN=" Developer  : RevolutionTR"
 TXT_GITHUB_TR=" GitHub      : github.com/RevolutionTR/keenetic-zapret-manager"
@@ -6188,10 +6192,60 @@ display_menu() {
     [ "$_zap_sha_state" = "ok" ] && _clr_zap="${CLR_GREEN}" || _clr_zap="${CLR_ORANGE}"
     printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'KZM Surum'    'KZM Version'    )"        "${CLR_RESET}" "${CLR_BOLD}" "$_clr_kzm" "${SCRIPT_VERSION}"                               "${CLR_RESET}"
     printf "  %b%-*s%b : %b%b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'Zapret Surum' 'Zapret Version'  )"       "${CLR_RESET}" "${CLR_BOLD}" "$_clr_zap" "$(zkm_get_zapret_version)"                       "${CLR_RESET}"
+    # ISS tespiti - cache kullan
+    local _iss_cache="/opt/var/run/kzm_iss.cache"
+    if [ -f "$_iss_cache" ]; then
+        _iss_domain="$(cat "$_iss_cache" 2>/dev/null | tr -d '[:space:]')"
+    else
+        _iss_domain="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null | grep 'authentication identity' | grep -o '@[^[:space:]]*' | head -1)"
+        [ -n "$_iss_domain" ] && printf '%s' "$_iss_domain" > "$_iss_cache" 2>/dev/null
+    fi
+    _iss_name=""
+    case "$_iss_domain" in
+        @ttnet)      _iss_name="Turk Telekom (TT Net)" ;;
+        @superonline) _iss_name="Superonline (SOL)" ;;
+        @vodafone)   _iss_name="Vodafone" ;;
+        @kablofiber) _iss_name="Kablonet Fiber (Turksat)" ;;
+        @kablonet)   _iss_name="Kablonet (Turksat)" ;;
+        @turksat)    _iss_name="Kablonet (Turksat)" ;;
+        @turk.net)   _iss_name="TurkNet (Turk Net)" ;;
+        @doping)     _iss_name="Millenicom (Doping)" ;;
+        @dsmart)     _iss_name="D-Smart" ;;
+        @netspeed|@netspeedas) _iss_name="Netspeed" ;;
+        @isnet|@is.net) _iss_name="Isnet" ;;
+        @griddsl)    _iss_name="Grid Telekom" ;;
+        @doruknet|@doruk) _iss_name="Doruknet" ;;
+        @orisdsl.net|@vaepro.net) _iss_name="Oris Telekom" ;;
+        @gnet)       _iss_name="Gibirnet" ;;
+        @comnet)     _iss_name="Comnet" ;;
+        @fixnet)     _iss_name="Fixnet" ;;
+        @tiklanet)   _iss_name="Tiklanet" ;;
+        @poyrazwifi) _iss_name="Poyraz Wifi" ;;
+        @pelikan)    _iss_name="Pelikannet" ;;
+        @atlantis)   _iss_name="Atlantisnet" ;;
+        @extranet)   _iss_name="Extranet" ;;
+        @pananet)    _iss_name="Pananet" ;;
+        @tbtnet)     _iss_name="Tbtnet" ;;
+        "")          _iss_name="" ;;
+        *)           _iss_name="$(printf '%s' "$_iss_domain" | sed 's/@//')" ;;
+    esac
+    if [ -n "$_iss_name" ]; then
+        printf "  %b%-*s%b : %s\n" "${CLR_BOLD}" "$_lw" "$(T TXT_ISS_LABEL)" "${CLR_RESET}" "$_iss_name"
+    fi
     _dpi_cur="$(get_dpi_profile 2>/dev/null)"
     if [ -n "$_dpi_cur" ]; then
         _dpi_label="$(T dpi_curp "$(dpi_profile_name_tr "$_dpi_cur")" "$(dpi_profile_name_en "$_dpi_cur")")"
-        printf "  %b%-*s%b : %b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'DPI Profili' 'DPI Profile')" "${CLR_RESET}" "${CLR_CYAN}" "$_dpi_label" "${CLR_RESET}"
+        # ISS DPI li ama profil tt_default ise turuncu uyari
+        _dpi_mismatch=0
+        case "$_iss_domain" in
+            @superonline|@vodafone|@kablofiber|@kablonet|@turksat)
+                [ "$_dpi_cur" = "tt_default" ] && _dpi_mismatch=1 ;;
+        esac
+        if [ "$_dpi_mismatch" = "1" ]; then
+            printf "  %b%-*s%b : %b%s — %s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'DPI Profili' 'DPI Profile')" "${CLR_RESET}" "${CLR_ORANGE}" "$_dpi_label" "$(T TXT_DPI_MISMATCH)" "${CLR_RESET}"
+        else
+            printf "  %b%-*s%b : %b%s%b\n" "${CLR_BOLD}" "$_lw" "$(T _ 'DPI Profili' 'DPI Profile')" "${CLR_RESET}" "${CLR_CYAN}" "$_dpi_label" "${CLR_RESET}"
+        fi
     fi
     printf "  %b%-*s%b : %b%s%b\n"      "${CLR_BOLD}" "$_lw" "$(T _ 'GitHub'       'GitHub'          )"       "${CLR_RESET}" "${CLR_DIM}"   "github.com/RevolutionTR/keenetic-zapret-manager"  "${CLR_RESET}"
     print_line "="
@@ -12863,6 +12917,32 @@ if [ -n "$_kdns_access" ]; then
 fi
 [ -z "$_kdns_access" ] && _kdns_access="none"
 _isp_dns_json="$(LD_LIBRARY_PATH= ndmc -c 'show ip name-server' 2>/dev/null | awk '/address:/{print $2}' | tr '\n' ' ' | sed 's/ $//;s/ / - /g')"
+_iss_name=""
+_iss_domain="$(cat /opt/var/run/kzm_iss.cache 2>/dev/null | tr -d '[:space:]')"
+case "$_iss_domain" in
+    @ttnet)      _iss_name="Turk Telekom (TT Net)" ;;
+    @superonline) _iss_name="Superonline (SOL)" ;;
+    @vodafone)   _iss_name="Vodafone" ;;
+    @kablofiber) _iss_name="Kablonet Fiber (Turksat)" ;;
+    @kablonet)   _iss_name="Kablonet (Turksat)" ;;
+    @turksat)    _iss_name="Kablonet (Turksat)" ;;
+    @turk.net)   _iss_name="TurkNet (Turk Net)" ;;
+    @doping)     _iss_name="Millenicom (Doping)" ;;
+    @dsmart)     _iss_name="D-Smart" ;;
+    @netspeed|@netspeedas) _iss_name="Netspeed" ;;
+    @isnet|@is.net) _iss_name="Isnet" ;;
+    @griddsl)    _iss_name="Grid Telekom" ;;
+    @doruknet|@doruk) _iss_name="Doruknet" ;;
+    @orisdsl.net|@vaepro.net) _iss_name="Oris Telekom" ;;
+    @gnet)       _iss_name="Gibirnet" ;;
+    @comnet)     _iss_name="Comnet" ;;
+    @fixnet)     _iss_name="Fixnet" ;;
+    @tiklanet)   _iss_name="Tiklanet" ;;
+    @poyrazwifi) _iss_name="Poyraz Wifi" ;;
+    @pelikan)    _iss_name="Pelikannet" ;;
+    @atlantis)   _iss_name="Atlantis" ;;
+    @*) _iss_name="$(printf '%s' "$_iss_domain" | sed 's/^@//')" ;;
+esac
 _dpi_profile="$(cat /opt/zapret/dpi_profile 2>/dev/null | tr -d '\n')"
 _dpi_origin="$(cat /opt/zapret/dpi_profile_origin 2>/dev/null | tr -d '\n')"
 [ -z "$_dpi_profile" ] && _dpi_profile="Unknown"
@@ -12884,9 +12964,9 @@ if [ -f /opt/zapret/blockcheck_result.json ]; then
     [ -z "$_bc_udp_weak" ] && _bc_udp_weak=1
     [ -z "$_bc_ts"       ] && _bc_ts=0
 fi
-printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "isp_dns": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
+printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "iss_name": "%s",\n  "isp_dns": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
     "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$_kzmver" "$_model" "$_fw" "$_wan_display" "$_wip" "$_lan_ip" \
-    "$_kdns_fqdn" "$_kdns_access" "$_isp_dns_json" \
+    "$_kdns_fqdn" "$_kdns_access" "$_iss_name" "$_isp_dns_json" \
     "$_zap" "$_zver" "$_hm" "$_hm_en" "$_tg_en" "$_tg" "$_tg_configured" \
     "$_lighttpd" "$_curl_ok" \
     "$_load1" "$_load5" "$_load15" \
@@ -14291,6 +14371,7 @@ var V={
         ir('WAN',(L?S.wan_dev:fixTR(S.wan_dev||'—'))+' | '+(S.wan_ip||'—'))+
         ir('LAN IP',(S.lan_ip||'—'))+
         (S.keendns_fqdn ? ir('KeenDNS',S.keendns_fqdn+' | '+fmtKeenDns(S.keendns_access)) : '')+
+        (S.iss_name ? ir(L?'ISP':'ISS',S.iss_name) : '')+
         ir('ISP DNS',S.isp_dns ? '<span style="color:var(--warn)">'+S.isp_dns+' — '+(L?'Zapret bypass may be blocked!':'Zapret bypass engellenebilir!')+'</span>' : '<span style="color:var(--good)">'+(L?'None - DNS encryption active':'Yok - DNS &#351;ifreleme aktif')+'</span>')+
         ir('Zapret',bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
         ir('Health Monitor',bdg(S.healthmon_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
