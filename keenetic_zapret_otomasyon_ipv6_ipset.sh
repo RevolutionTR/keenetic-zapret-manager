@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.5"
+SCRIPT_VERSION="v26.5.5.1"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -3703,6 +3703,7 @@ start_zapret() {
         echo "$(T TXT_START_NOT_INSTALLED)"
         return 1
     fi
+    ln -fs /opt/zapret/init.d/sysv/zapret /opt/etc/init.d/S90-zapret 2>/dev/null
     # Start edilecekse pause kaldir
     zapret_resume
     install_zapret_pause_guard
@@ -3762,6 +3763,7 @@ stop_zapret() {
         echo "OK: NFQUEUE YOK"
     fi
     echo "$(T TXT_STOP_OK)"
+    rm -f /opt/etc/init.d/S90-zapret 2>/dev/null
     return 0
 }
 # Zapret servisini yeniden baslatir (guvenli)
