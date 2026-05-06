@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.5.1"
+SCRIPT_VERSION="v26.5.6"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -12907,7 +12907,18 @@ if [ -z "$_model" ] || [ "$_model" = "Keenetic" ]; then
     [ -n "$_model" ] && printf '%s' "$_model" > /opt/var/run/kzm_hw_model 2>/dev/null
 fi
 [ -z "$_model" ] && _model="Keenetic"
-_fw="$(cat /opt/var/run/kzm_hw_firmware 2>/dev/null | tr -d '\n')"; [ -z "$_fw" ] && _fw="Unknown"
+_fw_ver="$(grep -o '<title>[^<]*</title>' /etc/components.xml 2>/dev/null | head -1 | sed 's/<title>//;s/<\/title>//')"
+_fw_sandbox="$(grep -o 'sandbox="[^"]*"' /etc/components.xml 2>/dev/null | head -1 | sed 's/sandbox="//;s/"//')"
+case "$_fw_sandbox" in
+    stable)  _fw_ch="Kararli" ;;
+    preview) _fw_ch="Onizleme" ;;
+    alpha)   _fw_ch="Gelistirici" ;;
+    *)       _fw_ch="$_fw_sandbox" ;;
+esac
+[ -n "$_fw_ver" ] && [ -n "$_fw_ch" ] && _fw="$_fw_ver ($_fw_ch)" || _fw="$_fw_ver"
+[ -n "$_fw" ] && printf '%s' "$_fw" > /opt/var/run/kzm_hw_firmware 2>/dev/null
+[ -z "$_fw" ] && _fw="$(cat /opt/var/run/kzm_hw_firmware 2>/dev/null | tr -d '\n')"
+[ -z "$_fw" ] && _fw="Unknown"
 _ts="$(date +%s 2>/dev/null)"; [ -z "$_ts" ] && _ts=0
 _kdns_raw="$(LD_LIBRARY_PATH= ndmc -c 'show ndns' 2>/dev/null)"
 _kdns_access="$(printf '%s\n' "$_kdns_raw" | awk '/^[[:space:]]*access:/ {print $2; exit}')"
