@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.6"
+SCRIPT_VERSION="v26.5.7"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1079,8 +1079,8 @@ TXT_MENU_14_TR="14. Ag Tanilama ve Sistem Kontrolu (DNS/NTP/GitHub/OPKG/Disk/Zap
 TXT_MENU_14_EN="14. Network Diagnostics & System Check (DNS/NTP/GitHub/OPKG/Disk/Zapret)"
 TXT_MENU_15_TR="15. Bildirimler (Telegram)"
 TXT_MENU_15_EN="15. Notifications (Telegram)"
-TXT_MENU_16_TR="16. Sistem Izleme (CPU/RAM/Disk/Load/Zapret)"
-TXT_MENU_16_EN="16. System Monitoring (CPU/RAM/Disk/Load/Zapret)"
+TXT_MENU_16_TR="16. Sistem Sagligi ve Izleme (CPU/RAM/Disk/Load/Zapret)"
+TXT_MENU_16_EN="16. System Health and Monitoring (CPU/RAM/Disk/Load/Zapret)"
 # -------------------------------------------------------------------
 # Telegram notifications
 # -------------------------------------------------------------------
@@ -1133,8 +1133,8 @@ TXT_TG_TEST_OK_MSG_EN="✅ Telegram Test: Notifications working"
 # -------------------------------------------------------------------
 # Health Monitor (Mod B) notifications
 # -------------------------------------------------------------------
-TXT_HM_TITLE_TR="Sistem Sagligi Monitoru"
-TXT_HM_TITLE_EN="System Health Monitor"
+TXT_HM_TITLE_TR="Sistem Sagligi ve Izleme"
+TXT_HM_TITLE_EN="System Health and Monitoring"
 TXT_HM_BANNER_LABEL_TR="Saglik Mon."
 TXT_HM_BANNER_LABEL_EN="Health Mon."
 TXT_TGBOT_BANNER_LABEL_TR="Telegram Bot"
@@ -1198,8 +1198,8 @@ TXT_HM_WAN_DUR_LABEL_TR="Sure"
 TXT_HM_WAN_DUR_LABEL_EN="Duration"
 TXT_HM_STATUS_DISK_OPT_TR="Disk(/opt)"
 TXT_HM_STATUS_DISK_OPT_EN="Disk(/opt)"
-TXT_HM_STATUS_TITLE_TR="Sistem Sagligi Monitoru Durumu"
-TXT_HM_STATUS_TITLE_EN="System Health Monitor Status"
+TXT_HM_STATUS_TITLE_TR="Sistem Sagligi ve Izleme Durumu"
+TXT_HM_STATUS_TITLE_EN="System Health and Monitoring Status"
 TXT_HM_STATUS_SEC_SETTINGS_TR="[AYARLAR]"
 TXT_HM_STATUS_SEC_SETTINGS_EN="[SETTINGS]"
 TXT_HM_STATUS_SEC_THRESH_TR="[ESIKLER]"
@@ -1254,13 +1254,13 @@ TXT_HM_SEND_TEST_TR="Test Bildirimi (Telegram)"
 TXT_HM_SEND_TEST_EN="Send Test Notification (Telegram)"
 TXT_HM_CONFIG_THRESHOLDS_TR="Esikleri Ayarla"
 TXT_HM_CONFIG_THRESHOLDS_EN="Configure Thresholds"
-TXT_HM_ENABLED_TR="Sistem Sagligi Monitoru acildi."
+TXT_HM_ENABLED_TR="Sistem Sagligi ve Izleme acildi."
 TXT_HM_ENABLED_EN="Health Monitor enabled."
-TXT_HM_DISABLED_TR="Sistem Sagligi Monitoru kapatildi."
+TXT_HM_DISABLED_TR="Sistem Sagligi ve Izleme kapatildi."
 TXT_HM_DISABLED_EN="Health Monitor disabled."
 TXT_HM_RESTART_TR="Yeniden Baslat"
 TXT_HM_RESTART_EN="Restart"
-TXT_HM_RESTARTED_TR="Sistem Sagligi Monitoru yeniden baslatildi."
+TXT_HM_RESTARTED_TR="Sistem Sagligi ve Izleme yeniden baslatildi."
 TXT_HM_RESTARTED_EN="Health Monitor restarted."
 TXT_HM_TEST_MSG_TR="📌 HealthMon %TS%\n✅ Saglik Izleme testi\n🧠 CPU: %CPU%%\n📊 Yuk: %LOAD%\n🧮 RAM bos: %RAM% MB\n💾 Disk(/opt): %DISK%%"
 TXT_HM_TEST_MSG_EN="📌 HealthMon %TS%\n✅ Health Monitor test\n🧠 CPU: %CPU%%\n📊 Load: %LOAD%\n🧮 RAM free: %RAM% MB\n💾 Disk(/opt): %DISK%%"
@@ -2563,7 +2563,7 @@ detect_recommended_wan_if() {
 get_wan_if() {
     local w=""
     if [ -f "$WAN_IF_FILE" ]; then
-        w="$(cat "$WAN_IF_FILE" 2>/dev/null | tr -d '\n')"
+        w="$(cat "$WAN_IF_FILE" 2>/dev/null | tr -d '\033' | tr -cd '[:alnum:]._/-' | tr -d '\n')"
         # Dosya var ama bos = kullanici "tum arayuzler" secmis, bos don
         echo "$w"
     else
@@ -6205,7 +6205,7 @@ display_menu() {
     _iss_name=""
     case "$_iss_domain" in
         @ttnet)      _iss_name="Turk Telekom (TT Net)" ;;
-        @superonline) _iss_name="Superonline (SOL)" ;;
+        @superonline|@fiber) _iss_name="Superonline (SOL)" ;;
         @vodafone)   _iss_name="Vodafone" ;;
         @kablofiber) _iss_name="Kablonet Fiber (Turksat)" ;;
         @kablonet)   _iss_name="Kablonet (Turksat)" ;;
@@ -6240,7 +6240,7 @@ display_menu() {
         # ISS DPI li ama profil tt_default ise turuncu uyari
         _dpi_mismatch=0
         case "$_iss_domain" in
-            @superonline|@vodafone|@kablofiber|@kablonet|@turksat)
+            @superonline|@fiber|@vodafone|@kablofiber|@kablonet|@turksat)
                 [ "$_dpi_cur" = "tt_default" ] && _dpi_mismatch=1 ;;
         esac
         if [ "$_dpi_mismatch" = "1" ]; then
@@ -12934,7 +12934,7 @@ _iss_name=""
 _iss_domain="$(cat /opt/var/run/kzm_iss.cache 2>/dev/null | tr -d '[:space:]')"
 case "$_iss_domain" in
     @ttnet)      _iss_name="Turk Telekom (TT Net)" ;;
-    @superonline) _iss_name="Superonline (SOL)" ;;
+    @superonline|@fiber) _iss_name="Superonline (SOL)" ;;
     @vodafone)   _iss_name="Vodafone" ;;
     @kablofiber) _iss_name="Kablonet Fiber (Turksat)" ;;
     @kablonet)   _iss_name="Kablonet (Turksat)" ;;
@@ -13938,7 +13938,7 @@ select option{background:#111f3d}
   </nav>
   <div class="sec" data-tr="SERV&#304;SLER" data-en="SERVICES">SERV&#304;SLER</div>
   <nav>
-    <div class="item" data-view="healthmon"><span class="item-icon">&#9829;</span><span class="item-label" data-tr="Sistem &#304;zleme" data-en="System Monitor">Sistem &#304;zleme</span><span class="pill">16</span><span class="tip">Sistem &#304;zleme</span></div>
+    <div class="item" data-view="healthmon"><span class="item-icon">&#9829;</span><span class="item-label" data-tr="Sistem Sa&#287;l&#305;&#287;&#305; ve &#304;zleme" data-en="Health &amp; Monitoring">Sistem Sa&#287;l&#305;&#287;&#305; ve &#304;zleme</span><span class="pill">16</span><span class="tip">Sistem Sa&#287;l&#305;&#287;&#305; ve &#304;zleme</span></div>
     <div class="item" data-view="healthcheck"><span class="item-icon">&#9906;</span><span class="item-label" data-tr="A&#287; Tan&#305;lama" data-en="Network Diagnostics">A&#287; Tan&#305;lama</span><span class="pill">14-1</span><span class="tip">A&#287; Tan&#305;lama</span></div>
     <div class="item" data-view="dns"><span class="item-icon">&#9670;</span><span class="item-label" data-tr="DNS Y&#246;netimi" data-en="DNS Management">DNS Y&#246;netimi</span><span class="pill">14-3</span><span class="tip">DNS Y&#246;netimi</span></div>
     <div class="item" data-view="compcheck"><span class="item-icon">&#9874;</span><span class="item-label" data-tr="Bile&#351;en Kontrol&#252;" data-en="Component Check">Bile&#351;en Kontrolu</span><span class="pill">14-4</span><span class="tip">Bile&#351;en Kontrolu</span></div>
@@ -14370,7 +14370,7 @@ var V={
       '</div>'+
       '<div class="card dash-card-span-2"><h3>'+(L?'Services':'Servisler')+'</h3>'+
         '<div class="svc-badges dash-services-grid">'+
-          '<div style="min-width:0">'+bdg(S.healthmon_running,'Health Mon','Health Mon')+'</div>'+
+          '<div style="min-width:0">'+bdg(S.healthmon_running,'Sa&#287;l&#305;k Mon.','Health Mon.')+'</div>'+
           '<div style="min-width:0">'+bdgO(S.telegram_enabled&&S.telegram_running,'Telegram','Telegram')+'</div>'+
           '<div style="min-width:0">'+bdg(S.zapret_running,'Zapret','Zapret')+'</div>'+
           '<div style="min-width:0">'+bdg(S.lighttpd_running,'Web Panel','Web Panel')+'</div>'+
@@ -14387,7 +14387,7 @@ var V={
         (S.iss_name ? ir(L?'ISP':'ISS',S.iss_name) : '')+
         ir('ISP DNS',S.isp_dns ? '<span style="color:var(--warn)">'+S.isp_dns+' — '+(L?'Zapret bypass may be blocked!':'Zapret bypass engellenebilir!')+'</span>' : '<span style="color:var(--good)">'+(L?'None - DNS encryption active':'Yok - DNS &#351;ifreleme aktif')+'</span>')+
         ir('Zapret',bdg(S.zapret_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
-        ir('Health Monitor',bdg(S.healthmon_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
+        ir(L?'Health Monitor':'Sa&#287;l&#305;k Mon.',bdg(S.healthmon_running,L?'ACTIVE':'AKT&#304;F',L?'INACTIVE':'PAS&#304;F'))+
         ir('Telegram Bot',bdgO(S.telegram_enabled&&S.telegram_running,L?'ACTIVE':'AKT&#304;F',L?'OFF':'KAPALI'))+
         ir(L?'Web Panel (lighttpd)':'Web Panel (lighttpd)',bdg(S.lighttpd_running,L?'RUNNING':'&#199;ALI&#350;IYOR',L?'STOPPED':'DURDU'))+
         ir('curl',S.curl_ok?'<span class="badge good">'+(L?'INSTALLED':'KURULU')+'</span>':'<span class="badge bad">'+(L?'NOT FOUND':'BULUNAMADI')+'</span>')+
@@ -14495,7 +14495,7 @@ var V={
       '</div>';
     setTimeout(ipLoad,100);return h;
   }},
-  healthmon:{title:'Sistem &#304;zleme',titleEn:'System Monitor',sub:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',subEn:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',html:function(){
+  healthmon:{title:'Sistem Sa&#287;l&#305;&#287;&#305; ve &#304;zleme',titleEn:'System Health and Monitoring',sub:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',subEn:'CPU/RAM/Disk/Load/Zapret + HealthMon daemon (Menu 16).',html:function(){
     if(!S)return nd();
     var rp=pct(S.ram_used_mb,S.ram_total_mb);
     var h='<div class="grid">'  /* uyari hmUpdate tarafindan yonetilir */+
