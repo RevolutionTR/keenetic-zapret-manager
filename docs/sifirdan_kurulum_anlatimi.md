@@ -26,7 +26,7 @@ Bir USB portu ve/veya dahili depolaması olan, OPKG paket yöneticisi kurulabile
 # BETİK KURULUMU ÖNCESİ ÖN HAZIRLIK:
   
 ## === Kurulması gerekli Bileşen seçenekleri ===
-Router’ınızın web arayüzüne, YÖNETİM / Sistem Ayarları / Bileşen seçenekleri’ne giderek IPv6, DoT (DNS-over-TLS), DoH (DNS-over-HTTPS) ve OPKG bileşenlerini işaretleyip KeeneticOS’yi güncelleyin. Cihaz yeniden başlatılacaktır (OS güncel versiyonda değilseniz DİKKAT! Bileşen ayarlarını değiştirmek KeeneticOS 'u en güncel versiyona yükseltecektir).
+Router’ınızın web arayüzüne, YÖNETİM / Sistem Ayarları / Bileşen seçenekleri’ne giderek IPv6, DoT (DNS-over-TLS), DoH (DNS-over-HTTPS) SSH Sunucu ve OPKG bileşenlerini işaretleyip KeeneticOS’yi güncelleyin. Cihaz yeniden başlatılacaktır (OS güncel versiyonda değilseniz DİKKAT! Bileşen ayarlarını değiştirmek KeeneticOS 'u en güncel versiyona yükseltecektir).
 
 
 <img src="/docs/images/KZM1.png" width="800">
