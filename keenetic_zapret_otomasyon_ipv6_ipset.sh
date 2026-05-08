@@ -8455,6 +8455,16 @@ telegram_send() {
         healthmon_log "$(healthmon_now) | telegram | curl not found"
         return 127
     fi
+
+	#---Silent botfication settinga ---
+	local disable_notif="false"
+    local current_hour=$(date +%H)
+	# Example: Silent betwwen 00:00- 08:00 (Maybe it can be done with the parameters that the user will determine later.)
+    if [ "$current_hour" -ge 0 ] && [ "$current_hour" -lt 8 ]; then
+        disable_notif="true"
+    fi
+    # ----------------------------
+	
     # After WAN flaps, DNS may not be ready immediately (curl rc=6).
     # We wait a bit and retry with exponential backoff.
     local try=1 max_try=6 rc=0
@@ -8482,6 +8492,7 @@ telegram_send() {
             --retry 3 --retry-delay 1 --retry-all-errors \
             -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TG_CHAT_ID}" \
+			-d "disable_notification=${disable_notif}" \
             --data-urlencode "text=$_tg_msg" \
             -d "disable_web_page_preview=true" \
             >/dev/null 2>&1
