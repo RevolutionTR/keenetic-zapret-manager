@@ -698,6 +698,20 @@ Komutlar (Zapret başlat/durdur, profil değiştir vb.) ise CGI üzerinden gerç
 
 ⚠️ lighttpd paketi gerektirir. Kurulum sırasında otomatik yüklenir. crond çalışıyor olmalıdır.
 
+> [!WARNING]
+> ## 🔒 Web Panel Güvenlik Notu
+>
+> KZM Web Panel yalnızca **güvenilir yerel ağ (Trusted LAN)** üzerinde kullanılmak üzere tasarlanmıştır.
+>
+> **Önerilmez:**
+> - WAN (internet) erişimine açılması
+> - Port Forward yapılması
+> - Misafir (Guest) ağlarından erişim
+> - IoT/VLAN gibi güvenilmeyen segmentlerden erişim
+>
+> Web Panel; Zapret yeniden başlatma, DPI profili değiştirme, hostlist/IPSET yönetimi ve sistem işlemleri gibi **yönetici seviyesinde işlemler** yapabilir.
+>
+> Bu nedenle yalnızca **ev/ofis içindeki güvenilir yönetim ağı** üzerinden kullanılması önerilir.
 ---
 
 # 🔹 R — Zamanlı Yeniden Başlat (Cron)
