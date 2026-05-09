@@ -692,6 +692,22 @@ Commands (start/stop Zapret, change profile etc.) run in real time via CGI.
 
 ⚠️ Requires the lighttpd package. Installed automatically during setup. crond must be running.
 
+> [!WARNING]
+> ## 🔒 Web Panel Security Notice
+>
+> The KZM Web Panel is intended to be used **only on trusted local networks (Trusted LAN)**.
+>
+> **Not recommended:**
+> - Exposing the panel to WAN/Internet
+> - Port forwarding
+> - Access from Guest networks
+> - Access from untrusted IoT/VLAN segments
+>
+> The Web Panel performs **administrator-level operations**, including Zapret restart, DPI profile changes, hostlist/IPSET management and system actions.
+>
+> Changing the port number is not access control by itself. If you do not use the panel, keeping it disabled is recommended.
+>
+> For this reason, it should only be used within a **trusted home/office management network**.
 ---
 
 # 🔹 R — Scheduled Reboot (Cron)

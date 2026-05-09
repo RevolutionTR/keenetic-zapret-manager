@@ -663,11 +663,6 @@ Tarayıcı üzerinden erişilebilen görsel yönetim paneli.
 
 Varsayılan port: **8088** → `http://<router-ip>:8088`
 
-> [!WARNING]
-> Web Panel yalnızca **güvenilir yerel ağ** üzerinden kullanılmalıdır. WAN'a, port forward ile internete, misafir ağına veya IoT/VLAN gibi güvenilmeyen segmentlere açılması önerilmez.
->
-> Panel; Zapret başlatma/durdurma, DPI profili değiştirme, hostlist/IPSET düzenleme ve OPKG işlemleri gibi yönetici seviyesinde komutlar çalıştırabilir. Port numarasını değiştirmek tek başına erişim kontrolü değildir; kullanılmıyorsa paneli kapalı bırakın.
-
 ### Alt Menü:
 
 ✔ **Web Panel Kur** — lighttpd + CGI kurulur, cron ile durum yenileme aktif edilir, iptables kuralı açılır  
@@ -703,6 +698,22 @@ Komutlar (Zapret başlat/durdur, profil değiştir vb.) ise CGI üzerinden gerç
 
 ⚠️ lighttpd paketi gerektirir. Kurulum sırasında otomatik yüklenir. crond çalışıyor olmalıdır.
 
+> [!WARNING]
+> ## 🔒 Web Panel Güvenlik Notu
+>
+> KZM Web Panel yalnızca **güvenilir yerel ağ (Trusted LAN)** üzerinde kullanılmak üzere tasarlanmıştır.
+>
+> **Önerilmez:**
+> - WAN (internet) erişimine açılması
+> - Port Forward yapılması
+> - Misafir (Guest) ağlarından erişim
+> - IoT/VLAN gibi güvenilmeyen segmentlerden erişim
+>
+> Web Panel; Zapret yeniden başlatma, DPI profili değiştirme, hostlist/IPSET yönetimi ve sistem işlemleri gibi **yönetici seviyesinde işlemler** yapabilir.
+>
+> Port numarasını değiştirmek tek başına erişim kontrolü değildir. Panel kullanılmıyorsa kapalı bırakılması önerilir.
+>
+> Bu nedenle yalnızca **ev/ofis içindeki güvenilir yönetim ağı** üzerinden kullanılması önerilir.
 ---
 
 # 🔹 R — Zamanlı Yeniden Başlat (Cron)
