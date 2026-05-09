@@ -37,6 +37,23 @@
 
 <img src="docs/images/KZM_Main5.png" width="800">
 
+> [!WARNING]
+> ## 🔒 Web Panel Security Note
+>
+> KZM Web Panel is intended to be used only from a **trusted private LAN**.
+>
+> **Not recommended:**
+> - exposing it to WAN / the Internet
+> - using port forwarding for Web Panel access
+> - allowing access from Guest networks
+> - allowing access from IoT/VLAN or other untrusted segments
+>
+> Web Panel can run **administrator-level actions** such as restarting Zapret, changing DPI profiles, managing hostlists/IPSET and running system operations.
+>
+> Changing the port number is not access control by itself. If you do not use the panel, keeping it disabled is recommended.
+>
+> For this reason, use it only from your trusted home/office management network.
+
 
 ## ✅ Tested Keenetic OS Versions
 

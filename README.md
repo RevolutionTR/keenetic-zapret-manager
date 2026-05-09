@@ -50,6 +50,8 @@
 >
 > Web Panel; Zapret yeniden başlatma, DPI profili değiştirme, hostlist/IPSET yönetimi ve sistem işlemleri gibi **yönetici seviyesinde işlemler** yapabilir.
 >
+> Port numarasını değiştirmek tek başına erişim kontrolü değildir. Panel kullanılmıyorsa kapalı bırakılması önerilir.
+>
 > Bu nedenle yalnızca **ev/ofis içindeki güvenilir yönetim ağı** üzerinden kullanılması önerilir.
 
 

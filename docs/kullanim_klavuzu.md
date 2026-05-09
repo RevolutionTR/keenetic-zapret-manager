@@ -663,6 +663,11 @@ Tarayıcı üzerinden erişilebilen görsel yönetim paneli.
 
 Varsayılan port: **8088** → `http://<router-ip>:8088`
 
+> [!WARNING]
+> Web Panel yalnızca **güvenilir yerel ağ** üzerinden kullanılmalıdır. WAN'a, port forward ile internete, misafir ağına veya IoT/VLAN gibi güvenilmeyen segmentlere açılması önerilmez.
+>
+> Panel; Zapret başlatma/durdurma, DPI profili değiştirme, hostlist/IPSET düzenleme ve OPKG işlemleri gibi yönetici seviyesinde komutlar çalıştırabilir. Port numarasını değiştirmek tek başına erişim kontrolü değildir; kullanılmıyorsa paneli kapalı bırakın.
+
 ### Alt Menü:
 
 ✔ **Web Panel Kur** — lighttpd + CGI kurulur, cron ile durum yenileme aktif edilir, iptables kuralı açılır  
