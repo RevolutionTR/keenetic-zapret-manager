@@ -49,9 +49,12 @@ Bu betik aşağıdaki Keenetic OS sürümlerinde test edilmiştir:
 > Eski sürümlerde OPKG/Entware paketleri, iptables/ipset davranışı veya binary uyumluluğu farklı olabilir.
 
 ## ✅ Önerilen Kurulum:
-- Keenetic'e USB bellek takılı
-- Entware USB'ye kurulu
-- Betik ve Zapret `/opt/lib/opkg` altında çalışıyor olmalı
+KZM için Entware/OPKG ortamının `/opt` altında hazır olması gerekir. Bu `/opt`
+bağlantısı dahili depolama veya USB sürücü üzerinde olabilir.
+
+- Dahili depolaması yaklaşık 100 MB olan güncel Keenetic modellerinde sadece KZM/Zapret için dahili depolama genellikle yeterlidir.
+- Dahili depolaması düşük olan eski modellerde veya ek Entware paketleri, yoğun log, Web Panel/izleme gibi kullanım senaryolarında USB/harici depolama tavsiye edilir.
+- KZM betiği `/opt/lib/opkg`, Zapret dosyaları ise `/opt/zapret` altında çalışır.
 
 ---
 

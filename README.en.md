@@ -49,9 +49,12 @@ This script has been tested on the following Keenetic OS versions:
 > On older versions, OPKG/Entware packages, iptables/ipset behaviour or binary compatibility may differ.
 
 ## ✅ Recommended Setup:
-- USB storage attached to the Keenetic device
-- Entware installed on USB
-- Script and Zapret running under `/opt/lib/opkg`
+KZM needs a working Entware/OPKG environment mounted under `/opt`. This `/opt`
+mount can be backed by internal storage or by a USB drive.
+
+- On newer Keenetic models with around 100 MB of internal storage, internal storage is usually enough for KZM/Zapret only.
+- On older low-storage models, or when using extra Entware packages, heavy logs, Web Panel/monitoring, USB/external storage is recommended.
+- The KZM script runs from `/opt/lib/opkg`, while Zapret files are managed under `/opt/zapret`.
 
 ---
 
