@@ -37,6 +37,21 @@
 
 <img src="docs/images/KZM_Main5.png" width="800">
 
+> [!WARNING]
+> ## 🔒 Web Panel Güvenlik Notu
+>
+> KZM Web Panel yalnızca **güvenilir yerel ağ (Trusted LAN)** üzerinde kullanılmak üzere tasarlanmıştır.
+>
+> **Önerilmez:**
+> - WAN (internet) erişimine açılması
+> - Port Forward yapılması
+> - Misafir (Guest) ağlarından erişim
+> - IoT/VLAN gibi güvenilmeyen segmentlerden erişim
+>
+> Web Panel; Zapret yeniden başlatma, DPI profili değiştirme, hostlist/IPSET yönetimi ve sistem işlemleri gibi **yönetici seviyesinde işlemler** yapabilir.
+>
+> Bu nedenle yalnızca **ev/ofis içindeki güvenilir yönetim ağı** üzerinden kullanılması önerilir.
+
 
 ## ✅ Test Edilen Keenetic OS Sürümleri
 
