@@ -37,6 +37,21 @@
 
 <img src="docs/images/KZM_Main5.png" width="800">
 
+> [!WARNING]
+> ## 🔒 Web Panel Security Notice
+>
+> The KZM Web Panel is intended to be used **only on trusted local networks (Trusted LAN)**.
+>
+> **Not recommended:**
+> - Exposing the panel to WAN/Internet
+> - Port forwarding
+> - Access from Guest networks
+> - Access from untrusted IoT/VLAN segments
+>
+> The Web Panel performs **administrator-level operations**, including Zapret restart, DPI profile changes, hostlist/IPSET management and system actions.
+>
+> For this reason, it should only be used within a **trusted home/office management network**.
+> 
 
 ## ✅ Tested Keenetic OS Versions
 
