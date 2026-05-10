@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.7"
+SCRIPT_VERSION="v26.5.10"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -888,6 +888,7 @@ zkm_banner_get_firmware() {
     # Kanal adini yerellestir
     case "$_sandbox" in
         stable)  _channel_tr="$(T _ 'Kararli'     'Stable')"     ;;
+        lts)     _channel_tr="LTS"                               ;;
         preview) _channel_tr="$(T _ 'Onizleme'    'Preview')"    ;;
         alpha)   _channel_tr="$(T _ 'Gelistirici' 'Developer')"  ;;
         *)       _channel_tr="$_sandbox"                          ;;
@@ -3437,7 +3438,42 @@ check_keenetic_components() {
     else
         print_status WARN "$(T TXT_COMP_TC_WARN)"
     fi
-    # 9. nfqws binary - sadece Zapret kuruluysa kontrol et
+    # 9. wget
+    if command -v wget >/dev/null 2>&1; then
+        print_status PASS "$(T _ 'wget' 'wget')"
+    else
+        print_status WARN "$(T _ 'wget bulunamadi' 'wget not found')"
+        missing_optional=1
+    fi
+    # 10. coreutils-sort
+    if opkg list-installed 2>/dev/null | grep -q '^coreutils-sort'; then
+        print_status PASS "$(T _ 'coreutils-sort' 'coreutils-sort')"
+    else
+        print_status WARN "$(T _ 'coreutils-sort bulunamadi' 'coreutils-sort not found')"
+        missing_optional=1
+    fi
+    # 11. grep
+    if command -v grep >/dev/null 2>&1; then
+        print_status PASS "$(T _ 'grep' 'grep')"
+    else
+        print_status WARN "$(T _ 'grep bulunamadi' 'grep not found')"
+        missing_optional=1
+    fi
+    # 12. gzip
+    if command -v gzip >/dev/null 2>&1; then
+        print_status PASS "$(T _ 'gzip' 'gzip')"
+    else
+        print_status WARN "$(T _ 'gzip bulunamadi' 'gzip not found')"
+        missing_optional=1
+    fi
+    # 13. cron
+    if command -v crond >/dev/null 2>&1 || command -v cron >/dev/null 2>&1; then
+        print_status PASS "$(T _ 'cron' 'cron')"
+    else
+        print_status WARN "$(T _ 'cron bulunamadi' 'cron not found')"
+        missing_optional=1
+    fi
+    # 14. nfqws binary - sadece Zapret kuruluysa kontrol et
     if is_zapret_installed; then
         if [ -x "/opt/zapret/nfq/nfqws" ]; then
             print_status PASS "$(T _ 'nfqws binary' 'nfqws binary')"
@@ -4881,19 +4917,19 @@ if ! is_zapret_installed; then
 }
 # Zapret'i kurar
 install_zapret() {
-    # Component check before installation
-    if ! check_keenetic_components; then
-        return 1
-    fi
-    
     if is_zapret_installed; then
         echo "$(T TXT_INSTALL_ALREADY)"
         return 1
     fi
     echo "$(T _ 'OPKG paketleri denetleniyor, eksik olan varsa indirilip kurulacaktir...' 'Checking OPKG packages, missing ones will be downloaded and installed...')"
     opkg update >/dev/null 2>&1
-    opkg install coreutils-sort curl grep gzip ipset iptables kmod_ndms xtables-addons_legacy cron >/dev/null 2>&1 || \
+    opkg install coreutils-sort curl wget grep gzip ipset iptables kmod_ndms xtables-addons_legacy cron >/dev/null 2>&1 || \
     { echo "$(T TXT_INSTALL_PKG_FAIL)"; return 1; }
+
+    # Component check after package installation
+    if ! check_keenetic_components; then
+        return 1
+    fi
     
     echo "$(T TXT_INSTALL_INSTALLING)"
     ZAPRET_API_URL="https://api.github.com/repos/bol-van/zapret/releases/latest"
@@ -6858,7 +6894,26 @@ network_diag_menu() {
             1) run_health_check ;;
             2) clear; run_opkg_update ;;
             3) dns_management_menu ;;
-            4) clear; check_keenetic_components; press_enter_to_continue ;;
+            4) clear; check_keenetic_components
+               # Eksik opsiyonel paketleri tespit et ve kur
+               _fix_missing=""
+               command -v wget >/dev/null 2>&1 || _fix_missing="$_fix_missing wget"
+               opkg list-installed 2>/dev/null | grep -q '^coreutils-sort' || _fix_missing="$_fix_missing coreutils-sort"
+               command -v grep >/dev/null 2>&1 || _fix_missing="$_fix_missing grep"
+               command -v gzip >/dev/null 2>&1 || _fix_missing="$_fix_missing gzip"
+               { command -v crond >/dev/null 2>&1 || command -v cron >/dev/null 2>&1; } || _fix_missing="$_fix_missing cron"
+               if [ -n "$_fix_missing" ]; then
+                   echo ""
+                   printf "%s" "$(T _ 'Eksik paketleri kurmak ister misiniz? (e/h): ' 'Install missing packages? (y/n): ')"
+                   read -r _fix_ans </dev/tty
+                   if echo "$_fix_ans" | grep -qi '^[ey]'; then
+                       opkg update >/dev/null 2>&1
+                       opkg install $_fix_missing >/dev/null 2>&1 && \
+                           print_status PASS "$(T _ 'Paketler kuruldu.' 'Packages installed.')" || \
+                           print_status WARN "$(T _ 'Kurulum basarisiz. Internet baglantisini kontrol edin.' 'Installation failed. Check internet connection.')"
+                   fi
+               fi
+               press_enter_to_continue ;;
             0) return 0 ;;
             *) print_status WARN "$(T TXT_INVALID_CHOICE)"; sleep 1 ;;
         esac
@@ -11265,6 +11320,11 @@ DEOF
             command -v ip6tables >/dev/null 2>&1 && _ok "IPv6 deste&#287;i (ip6tables)" || _fail "IPv6 deste&#287;i (ip6tables) bulunamad&#305;"
             command -v ipset >/dev/null 2>&1 && _ok "ipset" || _fail "ipset bulunamadi"
             command -v curl >/dev/null 2>&1 && _ok "curl (g&#252;ncelleme i&#231;in)" || { command -v wget >/dev/null 2>&1 && _ok "wget (g&#252;ncelleme i&#231;in)" || _fail "curl/wget bulunamad&#305;"; }
+            command -v wget >/dev/null 2>&1 && _ok "wget" || _info "wget bulunamad&#305;"
+            opkg list-installed 2>/dev/null | grep -q '^coreutils-sort' && _ok "coreutils-sort" || _info "coreutils-sort bulunamad&#305;"
+            command -v grep >/dev/null 2>&1 && _ok "grep" || _info "grep bulunamad&#305;"
+            command -v gzip >/dev/null 2>&1 && _ok "gzip" || _info "gzip bulunamad&#305;"
+            { command -v crond >/dev/null 2>&1 || command -v cron >/dev/null 2>&1; } && _ok "cron" || _info "cron bulunamad&#305;"
             lsmod 2>/dev/null | grep -qE "^xt_multiport" && _ok "Netfilter Queue mod&#252;lleri" || { find /lib/modules -name "xt_multiport.ko" 2>/dev/null | grep -q . && _ok "Netfilter (xt_multiport)" || _fail "Netfilter Queue mod&#252;lleri bulunamad&#305;"; }
             { opkg list-installed 2>/dev/null | grep -qE "^xtables-addons|^kmod-ipt-xtables" || lsmod 2>/dev/null | grep -qE "^xt_condition|^xt_fuzzy"; } && _ok "Netfilter Xtables-addons geni&#351;letme paketleri" || _fail "Netfilter Xtables-addons bulunamad&#305;"
             { lsmod 2>/dev/null | grep -qi "sch_\|ntc\|^cls_" || grep -qi "SCH_INGRESS\|SCH_HTB\|SCH_HFSC" /proc/net/psched 2>/dev/null || grep -rqi "sch_ingress\|sch_htb\|CONFIG_NET_SCH" /proc/config.gz 2>/dev/null || ls /sys/kernel/debug/tracing 2>/dev/null | grep -q . || find /lib/modules -name "sch_*.ko" 2>/dev/null | grep -q .; } && _ok "Trafik Kontrol (tc) kernel mod&#252;lleri" || _info "Trafik Kontrol (tc) bulunamad&#305;"
@@ -12591,6 +12651,8 @@ TXT_GUI_OPKG_UPD_TR="opkg guncelleniyor..."
 TXT_GUI_OPKG_UPD_EN="Running opkg update..."
 TXT_GUI_CRON_OK_TR="Cron        : OK"
 TXT_GUI_CRON_OK_EN="Cron        : OK"
+TXT_GUI_SECURITY_WARN_TR="Web Panel sadece guvenilir LAN icin tasarlanmistir. WAN, Misafir veya IoT aglarina acmayin."
+TXT_GUI_SECURITY_WARN_EN="Web Panel is intended for trusted LAN only. Do not expose it to WAN, Guest or IoT networks."
 # ===========================================================================
 # KZM GUI — Fonksiyonlar
 # ===========================================================================
@@ -12903,7 +12965,7 @@ _kzmver="$(grep '^SCRIPT_VERSION=' /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_
 [ -z "$_kzmver" ] && _kzmver="Unknown"
 _model="$(cat /opt/var/run/kzm_hw_model 2>/dev/null | tr -d '\n')"
 if [ -z "$_model" ] || [ "$_model" = "Keenetic" ]; then
-    _model="$(. /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh 2>/dev/null; zkm_banner_get_system 2>/dev/null)"
+    _model="$(LD_LIBRARY_PATH= ndmc -c 'show version' 2>/dev/null | tr -d '\r' | tr -d '\033' | awk '/description:/{gsub(/^[[:space:]]+/,"",$0); sub(/description:[[:space:]]*/,"",$0); print; exit}')"
     [ -n "$_model" ] && printf '%s' "$_model" > /opt/var/run/kzm_hw_model 2>/dev/null
 fi
 [ -z "$_model" ] && _model="Keenetic"
@@ -12911,6 +12973,7 @@ _fw_ver="$(grep -o '<title>[^<]*</title>' /etc/components.xml 2>/dev/null | head
 _fw_sandbox="$(grep -o 'sandbox="[^"]*"' /etc/components.xml 2>/dev/null | head -1 | sed 's/sandbox="//;s/"//')"
 case "$_fw_sandbox" in
     stable)  _fw_ch="Kararli" ;;
+    lts)     _fw_ch="LTS" ;;
     preview) _fw_ch="Onizleme" ;;
     alpha)   _fw_ch="Gelistirici" ;;
     *)       _fw_ch="$_fw_sandbox" ;;
@@ -13845,6 +13908,8 @@ button.ok:hover{background:rgba(46,204,113,.28)}
 .info-row .lbl{padding:8px 11px;color:var(--muted);font-size:14px}
 .info-row .val{padding:8px 11px;font-size:14px}
 .dash-stack{display:flex;flex-direction:column;gap:16px}
+.security-note{margin:0 0 12px;padding:10px 14px;border-radius:12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.30);color:var(--text);font-size:13px;line-height:1.45}
+.security-note b{color:#f59e0b;font-weight:800}
 .dash-top-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
 .dash-card-span-2{grid-column:span 2}
 .dash-services-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -14370,7 +14435,7 @@ var V={
       '</div>'+
       '<div class="card dash-card-span-2"><h3>'+(L?'Services':'Servisler')+'</h3>'+
         '<div class="svc-badges dash-services-grid">'+
-          '<div style="min-width:0">'+bdg(S.healthmon_running,'Sa&#287;l&#305;k Mon.','Health Mon.')+'</div>'+
+          '<div style="min-width:0">'+bdg(S.healthmon_running,L?'Health Mon.':'Sa&#287;l&#305;k Mon.',L?'Health Mon.':'Sa&#287;l&#305;k Mon.')+'</div>'+
           '<div style="min-width:0">'+bdgO(S.telegram_enabled&&S.telegram_running,'Telegram','Telegram')+'</div>'+
           '<div style="min-width:0">'+bdg(S.zapret_running,'Zapret','Zapret')+'</div>'+
           '<div style="min-width:0">'+bdg(S.lighttpd_running,'Web Panel','Web Panel')+'</div>'+
@@ -14380,7 +14445,7 @@ var V={
       fmtOpkgCard()+
       '</div>'+
       '<div class="card wide"><h3>'+(L?'System Info':'Sistem Bilgisi')+'</h3><div class="info-grid">'+
-        ir('Model',S.model||'—')+ir('Firmware',(L?fixTR(S.firmware||'—').replace('&#214;nizleme','Preview').replace('&#214;nizleme','Preview'):fixTR(S.firmware||'—')))+
+        ir('Model',S.model||'—')+ir('Firmware',(L?fixTR(S.firmware||'—').replace('Kararl\u0131','Stable').replace('Kararl&#305;','Stable').replace('Kararli','Stable').replace('\u00d6nizleme','Preview').replace('&#214;nizleme','Preview').replace('Onizleme','Preview').replace('Geli\u015ftirici','Developer').replace('Geli&#351;tirici','Developer').replace('Gelistirici','Developer'):fixTR(S.firmware||'—')))+
         ir('WAN',(L?S.wan_dev:fixTR(S.wan_dev||'—'))+' | '+(S.wan_ip||'—'))+
         ir('LAN IP',(S.lan_ip||'—'))+
         (S.keendns_fqdn ? ir('KeenDNS',S.keendns_fqdn+' | '+fmtKeenDns(S.keendns_access)) : '')+
@@ -14528,7 +14593,7 @@ var V={
     }
     return h;
   }},
-  compcheck:{title:'Bile&#351;en Kontrol&#252;',titleEn:'Component Check',sub:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC kontrol&#252;.',subEn:'OPKG, iptables, ipset, ip6tables, curl, xtables, TC check.',html:function(){
+  compcheck:{title:'Bile&#351;en Kontrol&#252;',titleEn:'Component Check',sub:'OPKG, iptables, ipset, ip6tables, curl, wget, grep, gzip, cron, xtables, TC kontrol&#252;.',subEn:'OPKG, iptables, ipset, ip6tables, curl, wget, grep, gzip, cron, xtables, TC check.',html:function(){
     setTimeout(function(){ccRun();},100);
     return '<div id="ccResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.4s"></div></div><div style="font-size:1.1em;color:var(--fg)">'+(L?'Checking components...':'Bile&#351;enler kontrol ediliyor...')+'</div></div></div>';
   }},
@@ -15293,13 +15358,16 @@ function clFmt(md){
     .replace(/^(?!<div|<hr)(.+)$/gm,'<div style="color:var(--muted);font-size:12px;margin:2px 0">$1</div>')
     .replace(/\n{2,}/g,'<div style="height:6px"></div>');
 }
+function securityNote(){
+  return '<div class="security-note"><b>&#128274; '+(L?'Trusted LAN only.':'Web Panel sadece g&#252;venilir LAN i&#231;indir.')+'</b> '+(L?'Do not expose this panel to WAN, Guest or IoT networks.':'WAN, Misafir veya IoT a&#287;lar&#305;na a&#231;may&#305;n.')+'</div>';
+}
 function render(k){
   var v=V[k]||V.dash;
   var t=(L&&v.titleEn)?v.titleEn:(v.title||k);
   var modelPfx=(S&&S.model&&!v.noPrefix)?S.model+' — ':'';
   document.getElementById('pTitle').innerHTML=modelPfx+t;
   document.getElementById('pSub').innerHTML=(L&&v.subEn)?v.subEn:(v.sub||'');
-  document.getElementById('view').innerHTML=v.html?v.html():'<div class="empty">Yap&#305;m a&#351;amas&#305;nda...</div>';
+  document.getElementById('view').innerHTML=securityNote()+(v.html?v.html():'<div class="empty">Yap&#305;m a&#351;amas&#305;nda...</div>');
   window.location.hash=k;
 }
 document.querySelectorAll('.item').forEach(function(el){
@@ -15638,6 +15706,9 @@ kzm_gui_menu() {
         else
             printf " %b%s%b\n" "${CLR_RED}" "$(T TXT_GUI_STATUS_OFF)" "${CLR_RESET}"
         fi
+        echo
+        printf "%b%s%b\\n" "${CLR_ORANGE}" "$(T TXT_GUI_SECURITY_WARN)" "${CLR_RESET}"
+        echo
         print_line "-"
         printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_1)" "${CLR_RESET}"
         printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_2)" "${CLR_RESET}"
