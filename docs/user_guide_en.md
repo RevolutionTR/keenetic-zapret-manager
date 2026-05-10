@@ -18,6 +18,12 @@ wget -O /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh \
 chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 ```
+> ⚠️ **Note:** On some devices, the default `wget` does not support HTTPS. If you get `HTTPS support not compiled in` error, first run:
+> ```
+> opkg install wget-ssl
+> ```
+> Then retry the wget command.
+
 
 Or
 
