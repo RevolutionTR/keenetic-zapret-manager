@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.10"
+SCRIPT_VERSION="v26.5.12"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1032,8 +1032,8 @@ TXT_MENU_2_TR=" 2. Zapret'i Kaldir"
 TXT_MENU_2_EN=" 2. Uninstall Zapret"
 TXT_MENU_3_TR=" 3. Zapret'i Baslat"
 TXT_MENU_3_EN=" 3. Start Zapret"
-TXT_MENU_4_TR=" 4. Zapret'i Durdur"
-TXT_MENU_4_EN=" 4. Stop Zapret"
+TXT_MENU_4_TR=" 4. Zapret'i Durdur (Kalici Durdurma icin: Menu 16>4>5 zapret oto-start kapatin)"
+TXT_MENU_4_EN=" 4. Stop Zapret (Permanent: Menu 16>4>5 disable zapret auto-start)"
 TXT_MENU_5_TR=" 5. Zapret'i Yeniden Baslat"
 TXT_MENU_5_EN=" 5. Restart Zapret"
 TXT_MENU_6_TR=" 6. Zapret Guncelleme Kontrolu (Guncel/Kurulu - GitHub)"
@@ -3438,11 +3438,11 @@ check_keenetic_components() {
     else
         print_status WARN "$(T TXT_COMP_TC_WARN)"
     fi
-    # 9. wget
-    if command -v wget >/dev/null 2>&1; then
-        print_status PASS "$(T _ 'wget' 'wget')"
+    # 9. wget-ssl
+    if opkg list-installed 2>/dev/null | grep -q '^wget-ssl'; then
+        print_status PASS "$(T _ 'wget-ssl' 'wget-ssl')"
     else
-        print_status WARN "$(T _ 'wget bulunamadi' 'wget not found')"
+        print_status WARN "$(T _ 'wget-ssl bulunamadi' 'wget-ssl not found')"
         missing_optional=1
     fi
     # 10. coreutils-sort
@@ -3773,6 +3773,7 @@ start_zapret() {
 }
 # Zapret servisini durdurur (kalici durdurma: otomatik restart'i da engeller)
 stop_zapret() {
+    local _remove_autostart="${1:-0}"
     if ! is_zapret_installed; then
         echo "$(T TXT_STOP_NOT_INSTALLED)"
         return 1
@@ -3799,7 +3800,7 @@ stop_zapret() {
         echo "OK: NFQUEUE YOK"
     fi
     echo "$(T TXT_STOP_OK)"
-    rm -f /opt/etc/init.d/S90-zapret 2>/dev/null
+    [ "$_remove_autostart" = "1" ] && rm -f /opt/etc/init.d/S90-zapret 2>/dev/null
     return 0
 }
 # Zapret servisini yeniden baslatir (guvenli)
@@ -4883,7 +4884,7 @@ if ! is_zapret_installed; then
             *) echo "$(T _ 'Iptal edildi.' 'Cancelled.')"; return 0 ;;
         esac
     fi
-    is_zapret_running && stop_zapret
+    is_zapret_running && stop_zapret 1
     cleanup_zapret_firewall_leftovers
     echo "$(T TXT_UNINSTALL_REMOVING)"
     if ! echo "y" | /opt/zapret/uninstall_easy.sh >/dev/null 2>&1; then
@@ -4923,7 +4924,7 @@ install_zapret() {
     fi
     echo "$(T _ 'OPKG paketleri denetleniyor, eksik olan varsa indirilip kurulacaktir...' 'Checking OPKG packages, missing ones will be downloaded and installed...')"
     opkg update >/dev/null 2>&1
-    opkg install coreutils-sort curl wget grep gzip ipset iptables kmod_ndms xtables-addons_legacy cron >/dev/null 2>&1 || \
+    opkg install coreutils-sort curl wget-ssl grep gzip ipset iptables kmod_ndms xtables-addons_legacy cron >/dev/null 2>&1 || \
     { echo "$(T TXT_INSTALL_PKG_FAIL)"; return 1; }
 
     # Component check after package installation
@@ -6897,7 +6898,7 @@ network_diag_menu() {
             4) clear; check_keenetic_components
                # Eksik opsiyonel paketleri tespit et ve kur
                _fix_missing=""
-               command -v wget >/dev/null 2>&1 || _fix_missing="$_fix_missing wget"
+               opkg list-installed 2>/dev/null | grep -q '^wget-ssl' || _fix_missing="$_fix_missing wget-ssl"
                opkg list-installed 2>/dev/null | grep -q '^coreutils-sort' || _fix_missing="$_fix_missing coreutils-sort"
                command -v grep >/dev/null 2>&1 || _fix_missing="$_fix_missing grep"
                command -v gzip >/dev/null 2>&1 || _fix_missing="$_fix_missing gzip"
@@ -9363,7 +9364,7 @@ tgbot_handle_callback() {
                 "$(T TXT_TGBOT_ZAPRET_STARTED)" "$(tgbot_kb_zapret)"
             ;;
         zap_stop)
-            stop_zapret >/dev/null 2>&1
+            stop_zapret 1 >/dev/null 2>&1
             tgbot_edit "$chat_id" "$msg_id" \
                 "$(T TXT_TGBOT_ZAPRET_STOPPED)" "$(tgbot_kb_zapret)"
             ;;
@@ -11225,7 +11226,7 @@ healthmon_loop() {
 if [ "$1" = "--cgi-action" ]; then
     case "$2" in
         start_zapret)    start_zapret   2>/dev/null ;;
-        stop_zapret)     stop_zapret    2>/dev/null ;;
+        stop_zapret)     stop_zapret 1  2>/dev/null ;;
         restart_zapret)  restart_zapret 2>/dev/null ;;
         healthmon_start)
             if [ -f "$ZKM_SCRIPT_PATH" ]; then
@@ -11320,7 +11321,7 @@ DEOF
             command -v ip6tables >/dev/null 2>&1 && _ok "IPv6 deste&#287;i (ip6tables)" || _fail "IPv6 deste&#287;i (ip6tables) bulunamad&#305;"
             command -v ipset >/dev/null 2>&1 && _ok "ipset" || _fail "ipset bulunamadi"
             command -v curl >/dev/null 2>&1 && _ok "curl (g&#252;ncelleme i&#231;in)" || { command -v wget >/dev/null 2>&1 && _ok "wget (g&#252;ncelleme i&#231;in)" || _fail "curl/wget bulunamad&#305;"; }
-            command -v wget >/dev/null 2>&1 && _ok "wget" || _info "wget bulunamad&#305;"
+            opkg list-installed 2>/dev/null | grep -q '^wget-ssl' && _ok "wget-ssl" || _info "wget-ssl bulunamad&#305;"
             opkg list-installed 2>/dev/null | grep -q '^coreutils-sort' && _ok "coreutils-sort" || _info "coreutils-sort bulunamad&#305;"
             command -v grep >/dev/null 2>&1 && _ok "grep" || _info "grep bulunamad&#305;"
             command -v gzip >/dev/null 2>&1 && _ok "gzip" || _info "gzip bulunamad&#305;"
@@ -14593,7 +14594,7 @@ var V={
     }
     return h;
   }},
-  compcheck:{title:'Bile&#351;en Kontrol&#252;',titleEn:'Component Check',sub:'OPKG, iptables, ipset, ip6tables, curl, wget, grep, gzip, cron, xtables, TC kontrol&#252;.',subEn:'OPKG, iptables, ipset, ip6tables, curl, wget, grep, gzip, cron, xtables, TC check.',html:function(){
+  compcheck:{title:'Bile&#351;en Kontrol&#252;',titleEn:'Component Check',sub:'OPKG, iptables, ipset, ip6tables, curl, wget-ssl, grep, gzip, cron, xtables, TC kontrol&#252;.',subEn:'OPKG, iptables, ipset, ip6tables, curl, wget-ssl, grep, gzip, cron, xtables, TC check.',html:function(){
     setTimeout(function(){ccRun();},100);
     return '<div id="ccResult"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px"><div style="display:flex;align-items:center;gap:4px;height:40px"><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:0s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.1s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.2s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.3s"></div><div style="width:5px;background:#4d7fff;border-radius:3px;animation:hcBar 1.1s ease-in-out infinite;animation-delay:.4s"></div></div><div style="font-size:1.1em;color:var(--fg)">'+(L?'Checking components...':'Bile&#351;enler kontrol ediliyor...')+'</div></div></div>';
   }},
@@ -15751,7 +15752,7 @@ main_menu_loop() {
             1) install_zapret; press_enter_to_continue ;;
             2) uninstall_zapret ;;
             3) start_zapret; press_enter_to_continue ;;
-            4) stop_zapret; press_enter_to_continue ;;
+            4) stop_zapret 1; press_enter_to_continue ;;
             5) restart_zapret; press_enter_to_continue ;;
             6) check_remote_update ;;
 			10) check_manager_update ;;
