@@ -40,7 +40,7 @@ Router’ınızın web arayüzüne, AĞ KURALLARI / İnternet Güvenliği / DNS 
 <img src="/docs/images/KZM2.png" width="800">
 
 DNS kontrollerinizi aşağıdaki adreslerden yapabilirsiniz:  
-[DNS Leak Test](https://www.dnsleaktest.com/) , [Browser Leaks - DNS](https://browserleaks.com/dns)
+[DNS Leak Test](https://www.dnsleaktest.com) , [Browser Leaks - DNS](https://browserleaks.com/dns)
   
 ## === ISP’den gelen DNS’leri yoksayın === 
 Router’ınızın web arayüzünde, internet hizmeti aldığınız bağlantıya göre İNTERNET / Ethernet Kablosu (veya DSL) girin. İSS Kimlik Doğrulama (PPPoE / PPTP / L2TP) / Gelişmiş PPPoE ayarlarını göster’de  
@@ -87,15 +87,23 @@ Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812
   
 Kurulum için PC veya mobilde SSH/telnet aracı programa ihtiyacınız olacak. PC için PuTTY, mobil için Termius tavsiye edilir.
   
-- PC için [PuTTY indir:](https://putty.org/index.html/).
+- PC için [PuTTY indir:](https://putty.org/index.html).
   
 - Mobil için Termius indir:
-- [Android için](https://play.google.com/store/apps/details?id=com.server.auditor.ssh.client/)
-- [iOS için](https://apps.apple.com/us/app/termius-modern-ssh-client/id549039908/)
+- [Android için](https://play.google.com/store/apps/details?id=com.server.auditor.ssh.client)
+- [iOS için](https://apps.apple.com/us/app/termius-modern-ssh-client/id549039908)
   
 ## === PuTTY / Termius aracılığıyla ile SSH üzerinden yapılacak işlemler ===
   
 Uygulamada ilgili alana router’ınızın web arayüzüne ulaşmak için kullandığınız IP adresini girin; genelde 192.168.1.1’dir. Port olarak duruma göre 22 veya 222 girin. (PuTTY / Termius'un router bağlantısı için; Keenetic'deki "Bileşen Seçenekleri" nde “SSH Sunucu”sunu daha önce kurmadıysanız OPKG için varsayılan portunuz 22 olacaktır. Ancak daha önce SSH bileşenini kurduysanız OPKG için varsayılan portunuz 222 olacaktır.)
+
+Ayrıca cihazınıza Telnet ile de bağlanabilirsiniz. Bu durumda portu 23 olarak seçmelisiniz. Ve bağlantı sağladıktan sonra (cihaz kullanıcı adı ve şifreniz ile) komut satırına
+
+```bash
+(config)> exec sh
+```
+
+Yazıp yine Entware BusyBox'a geçebilirsiniz.
 
 <img src="/docs/images/KZM4.png" width="800">
 
