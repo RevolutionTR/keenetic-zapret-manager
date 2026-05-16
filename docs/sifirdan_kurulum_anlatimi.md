@@ -62,11 +62,11 @@ Kullanacağınız depolamayı önce OPKG Entware paket yöneticisini kurarak haz
   
 ## === Dahili Bellek kullanılacaksa ===
 Kullanım Kılavuzu / Yönetim / OPKG / OPKG Entware'i Router'ın Dahili Belleğine Kurma  
-Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/18482-installing-opkg-entware-in-the-router-s-internal-memory.html/).
+Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/18482-installing-opkg-entware-in-the-router-s-internal-memory.html).
   
 ## === USB Sürücüsü (harici depolama) kullanılacaksa ===
 Kullanım Kılavuzu / Yönetim / OPKG / USB Sürücüye Entware Deposunu Kurma  
-Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/20980-installing-the-entware-repository-on-a-usb-drive.html/).  
+Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/20980-installing-the-entware-repository-on-a-usb-drive.html).  
   
 Bu aşamada dikkat etmeniz gereken nokta kurulum yapılacak cihazın işlemci mimarisine göre OPKG Entware paket yöneticisi kurmanızdır. İşlemleri, önerdiğim gibi cihazınızın online kullanım kılavuzundan bakarak yapıyorsanız orada cihazın işlemci mimarisine uygun paketin linki olacaktır. Ben yine de üç işlemci mimarisi için linkleri aşağıya yazayım (cihazınızın işlemci mimarisini kullanım kılavuzundan öğrenebilirsiniz):
   
@@ -80,7 +80,7 @@ Ayrıca arayıp bulamayan, nerde bu diyenler SSH bağlı iken 'show version' yaz
   
 OPKG ile ilgili daha detaylı bilgi almak için online kullanım kılavuzlarınızda, altta yolu tarif edilmiş yazıyı okuyabilirsiniz.  
 Kullanım Kılavuzu / Yönetim / OPKG / OPKG bileşen açıklaması  
-Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/42407-opkg-component-description.html/).
+Titan (KN-1812)’dan örnek [link](https://destek.keenetic.com.tr/titan/kn-1812/tr/42407-opkg-component-description.html).
   
 
 # BETİK KURULUMU
