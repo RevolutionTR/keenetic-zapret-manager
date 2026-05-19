@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.12"
+SCRIPT_VERSION="v26.5.19"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -889,6 +889,7 @@ zkm_banner_get_firmware() {
     case "$_sandbox" in
         stable)  _channel_tr="$(T _ 'Kararli'     'Stable')"     ;;
         lts)     _channel_tr="LTS"                               ;;
+        archive) _channel_tr="$(T _ 'Arsiv' 'Archive')"             ;;
         preview) _channel_tr="$(T _ 'Onizleme'    'Preview')"    ;;
         alpha)   _channel_tr="$(T _ 'Gelistirici' 'Developer')"  ;;
         *)       _channel_tr="$_sandbox"                          ;;
@@ -1209,8 +1210,8 @@ TXT_HM_STATUS_SEC_ZAPRET_TR="[ZAPRET]"
 TXT_HM_STATUS_SEC_ZAPRET_EN="[ZAPRET]"
 TXT_HM_STATUS_SEC_NOW_TR="[SIMDI]"
 TXT_HM_STATUS_SEC_NOW_EN="[NOW]"
-TXT_HM_STATUS_ZAPRET_AR_TR="AutoRes"
-TXT_HM_STATUS_ZAPRET_AR_EN="AutoRes"
+TXT_HM_STATUS_ZAPRET_AR_TR="Oto Yeniden Baslat"
+TXT_HM_STATUS_ZAPRET_AR_EN="Auto-Restart"
 TXT_HM_STATUS_CPU_TR="CPU"
 TXT_HM_STATUS_CPU_EN="CPU"
 TXT_HM_STATUS_ZAPRET_TR="Zapret"
@@ -11900,9 +11901,9 @@ healthmon_status() {
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_WD)" "$HM_ZAPRET_WATCHDOG"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_CD)" "${HM_ZAPRET_COOLDOWN_SEC}s"
     hm_kv "$(T TXT_HM_STATUS_ZAPRET_AR)" "$HM_ZAPRET_AUTORESTART"
-    hm_kv "$(T _ 'NFQUEUE kuyruk denetimi' 'NFQUEUE qlen watchdog')" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS}"
-    hm_kv "$(T _ 'WAN izleme' 'WAN monitoring')" "en=${HM_WANMON_ENABLE:-0} fail=${HM_WANMON_FAIL_TH:-3} ok=${HM_WANMON_OK_TH:-2} (${HM_WANMON_IFACE:-auto})"
-    hm_kv "KeenDNS curl interval" "${HM_KEENDNS_CURL_SEC}s"
+    hm_kv "$(T _ 'NFQUEUE kuyruk denetimi' 'NFQUEUE qlen watchdog')" "$(T _ 'denetim' 'monitor')=${HM_QLEN_WATCHDOG} $(T _ 'esik' 'thresh')=${HM_QLEN_WARN_TH} $(T _ 'tur' 'turn')=${HM_QLEN_CRIT_TURNS}"
+    hm_kv "$(T _ 'WAN izleme' 'WAN monitoring')" "$(T _ 'acik' 'on')=${HM_WANMON_ENABLE:-0} $(T _ 'kesinti' 'fail')=${HM_WANMON_FAIL_TH:-3} $(T _ 'toparlanma' 'ok')=${HM_WANMON_OK_TH:-2} (${HM_WANMON_IFACE:-auto})"
+    hm_kv "$(T _ 'KeenDNS curl araligi' 'KeenDNS curl interval')" "${HM_KEENDNS_CURL_SEC}s"
     hm_kv "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s")"
     echo
     printf "%b%s%b\n" "${CLR_CYAN}" "$(T TXT_HM_STATUS_SEC_NOW)" "${CLR_RESET}"
@@ -11950,7 +11951,7 @@ healthmon_status() {
     printf "  %-*s : %s/%s MB
 " "$_w2" "$(T _ 'RAM Kullanilan' 'RAM Used')" "$(( _st_used_kb/1024 ))" "$(( _st_ram_total/1024 ))"
     printf "  %-*s : %s MB
-"    "$_w2" "$(T _ 'RAM Bos (Available)' 'RAM Free (Available)')" "$(( _st_total_kb/1024 ))"
+"    "$_w2" "$(T _ 'RAM Bos (Kullanilabilir)' 'RAM Free (Available)')" "$(( _st_total_kb/1024 ))"
     printf "  %-*s : %s MB
 "    "$_w2" "$(T _ 'Buffer/Cache' 'Buffer/Cache')" "$(( (_st_buf_kb+_st_cached_kb)/1024 ))"
     printf "  %-*s : %s/%s MB
@@ -12047,11 +12048,11 @@ healthmon_config_menu() {
         print_line "="
         echo
                 local _w=24
-        printf " %2s) %-*s : %s\n" "1" "$_w" "CPU WARN % / sure"  "$HM_CPU_WARN / $HM_CPU_WARN_DUR"
-        printf " %2s) %-*s : %s\n" "2" "$_w" "CPU CRIT % / sure"  "$HM_CPU_CRIT / $HM_CPU_CRIT_DUR"
-        printf " %2s) %-*s : %s\n" "3" "$_w" "Disk(/opt) esigi %" "$HM_DISK_WARN"
-        printf " %2s) %-*s : %s\n" "4" "$_w" "RAM esigi (MB)"     "$HM_RAM_WARN_MB"
-        printf " %2s) %-*s : %s\n" "5" "$_w" "$(T TXT_HM_CFG_ITEM5)" "denetim=$HM_ZAPRET_WATCHDOG | bekleme=${HM_ZAPRET_COOLDOWN_SEC}s | oto-restart=$HM_ZAPRET_AUTORESTART"
+        printf " %2s) %-*s : %s\n" "1" "$_w" "$(T _ 'CPU WARN % / sure' 'CPU WARN % / dur.')"  "$HM_CPU_WARN / $HM_CPU_WARN_DUR"
+        printf " %2s) %-*s : %s\n" "2" "$_w" "$(T _ 'CPU CRIT % / sure' 'CPU CRIT % / dur.')"  "$HM_CPU_CRIT / $HM_CPU_CRIT_DUR"
+        printf " %2s) %-*s : %s\n" "3" "$_w" "$(T _ 'Disk(/opt) esigi %' 'Disk(/opt) threshold %')" "$HM_DISK_WARN"
+        printf " %2s) %-*s : %s\n" "4" "$_w" "$(T _ 'RAM esigi (MB)' 'RAM threshold (MB)')"     "$HM_RAM_WARN_MB"
+        printf " %2s) %-*s : %s\n" "5" "$_w" "$(T TXT_HM_CFG_ITEM5)" "$(T _ 'denetim' 'monitor')=$HM_ZAPRET_WATCHDOG | $(T _ 'bekleme' 'cooldown')=${HM_ZAPRET_COOLDOWN_SEC}s | $(T _ 'oto-restart' 'auto-restart')=$HM_ZAPRET_AUTORESTART"
         local _en_lbl _ev_lbl
         _en_lbl="$(T TXT_HM_FLAG_ENABLED)"
         _ev_lbl="$(T TXT_HM_FLAG_EVERY)"
@@ -12060,8 +12061,8 @@ healthmon_config_menu() {
         printf " %2s) %-*s : %s\n" "8" "$_w" "$(T TXT_HM_CFG_ITEM8)" "$HM_INTERVAL"
         printf " %2s) %-*s : %s\n" "9" "$_w" "$(T TXT_HM_CFG_ITEM9)" "$HM_COOLDOWN_SEC"
         printf " %2s) %-*s : %s\n" "10" "$_w" "$(T TXT_HM_CFG_ITEM10)" "$HM_HEARTBEAT_SEC"
-        printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "en=$HM_WANMON_ENABLE fail=$HM_WANMON_FAIL_TH ok=$HM_WANMON_OK_TH (${HM_WANMON_IFACE:-auto})"
-        printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "wd=${HM_QLEN_WATCHDOG} th=${HM_QLEN_WARN_TH} turns=${HM_QLEN_CRIT_TURNS} | keendns=${HM_KEENDNS_CURL_SEC}s"
+        printf " %2s) %-*s : %s\n" "11" "$_w" "$(T TXT_HM_CFG_ITEM11)" "$(T _ 'acik' 'on')=$HM_WANMON_ENABLE $(T _ 'kesinti' 'fail')=$HM_WANMON_FAIL_TH $(T _ 'toparlanma' 'ok')=$HM_WANMON_OK_TH (${HM_WANMON_IFACE:-auto})"
+        printf " %2s) %-*s : %s\n" "12" "$_w" "$(T TXT_HM_CFG_ITEM12)" "$(T _ 'denetim' 'monitor')=${HM_QLEN_WATCHDOG} $(T _ 'esik' 'thresh')=${HM_QLEN_WARN_TH} $(T _ 'tur' 'turn')=${HM_QLEN_CRIT_TURNS} | keendns=${HM_KEENDNS_CURL_SEC}s"
         printf " %2s) %-*s : %s\n" "13" "$_w" "$(T _ 'Sistem log izleme' 'System log watch')" "$(T _ "ac=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s" "on=${HM_SYSLOG_WATCH} cd=${HM_SYSLOG_COOLDOWN_SEC}s ike_cd=${HM_SYSLOG_IKE_COOLDOWN_SEC}s")"
         printf " %2s) %-*s : %s\n" "14" "$_w" "$(T TXT_HM_CFG_ITEM14)" "${HM_DEBUG:-0}"
         if [ -f "/opt/zapret/wan_if" ]; then
@@ -12141,8 +12142,8 @@ esac
                 ;;
             11)
                 hm_ask_01 "$(T TXT_HM_PROMPT_WANMON_ENABLE)" HM_WANMON_ENABLE
-                hm_ask_num "$(T TXT_HM_PROMPT_WANMON_FAIL_TH)" HM_WANMON_FAIL_TH
-                hm_ask_num "$(T TXT_HM_PROMPT_WANMON_OK_TH)" HM_WANMON_OK_TH
+                hm_ask_num_raw "$(T TXT_HM_PROMPT_WANMON_FAIL_TH)" HM_WANMON_FAIL_TH
+                hm_ask_num_raw "$(T TXT_HM_PROMPT_WANMON_OK_TH)" HM_WANMON_OK_TH
                 print_status INFO "$(T _ \'NDM WAN: \' \'NDM WAN: \')$(healthmon_detect_wan_iface_ndm)"
                 ;;
             12)
@@ -12835,6 +12836,7 @@ kzm_gui_gen_status() {
 {
   "ts": $_ts,
   "lang": "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)",
+  "theme": "$(cat /opt/zapret/theme 2>/dev/null | tr -d '[:space:]' | head -c5)",
   "kzm_version": "$SCRIPT_VERSION",
   "model": "$_model",
   "firmware": "$_firmware",
@@ -12975,6 +12977,7 @@ _fw_sandbox="$(grep -o 'sandbox="[^"]*"' /etc/components.xml 2>/dev/null | head 
 case "$_fw_sandbox" in
     stable)  _fw_ch="Kararli" ;;
     lts)     _fw_ch="LTS" ;;
+    archive) _fw_ch="Arsiv" ;;
     preview) _fw_ch="Onizleme" ;;
     alpha)   _fw_ch="Gelistirici" ;;
     *)       _fw_ch="$_fw_sandbox" ;;
@@ -13041,8 +13044,8 @@ if [ -f /opt/zapret/blockcheck_result.json ]; then
     [ -z "$_bc_udp_weak" ] && _bc_udp_weak=1
     [ -z "$_bc_ts"       ] && _bc_ts=0
 fi
-printf '{\n  "ts": %s,\n  "lang": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "iss_name": "%s",\n  "isp_dns": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
-    "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$_kzmver" "$_model" "$_fw" "$_wan_display" "$_wip" "$_lan_ip" \
+printf '{\n  "ts": %s,\n  "lang": "%s",\n  "theme": "%s",\n  "kzm_version": "%s",\n  "model": "%s",\n  "firmware": "%s",\n  "wan_dev": "%s",\n  "wan_ip": "%s",\n  "lan_ip": "%s",\n  "keendns_fqdn": "%s",\n  "keendns_access": "%s",\n  "iss_name": "%s",\n  "isp_dns": "%s",\n  "zapret_running": %s,\n  "zapret_version": "%s",\n  "healthmon_running": %s,\n  "healthmon_enabled": %s,\n  "telegram_enabled": %s,\n  "telegram_running": %s,\n  "telegram_configured": %s,\n  "lighttpd_running": %s,\n  "curl_ok": %s,\n  "load1": "%s",\n  "load5": "%s",\n  "load15": "%s",\n  "ram_used_mb": %s,\n  "ram_free_mb": %s,\n  "ram_total_mb": %s,\n  "ram_buffer_mb": %s,\n  "swap_used_mb": %s,\n  "swap_total_mb": %s,\n  "disk_used_pct": %s,\n  "disk_used_mb": %s,\n  "disk_total_mb": %s,\n  "disk_tmp_pct": %s,\n  "disk_tmp_used_mb": %s,\n  "disk_tmp_total_mb": %s,\n  "cpu_temp": %s,\n  "dpi_profile": "%s",\n  "dpi_origin": "%s",\n  "bc_score": %s,\n  "bc_dns_ok": %s,\n  "bc_tls12_ok": %s,\n  "bc_udp_weak": %s,\n  "bc_ts": %s,\n  "sha_kzm": "%s",\n  "sha_zapret": "%s"\n}\n' \
+    "$_ts" "$(cat /opt/zapret/lang 2>/dev/null | tr -d '[:space:]' | head -c2)" "$(cat /opt/zapret/theme 2>/dev/null | tr -d '[:space:]' | head -c5)" "$_kzmver" "$_model" "$_fw" "$_wan_display" "$_wip" "$_lan_ip" \
     "$_kdns_fqdn" "$_kdns_access" "$_iss_name" "$_isp_dns_json" \
     "$_zap" "$_zver" "$_hm" "$_hm_en" "$_tg_en" "$_tg" "$_tg_configured" \
     "$_lighttpd" "$_curl_ok" \
@@ -13729,6 +13732,12 @@ case "$ACTION" in
             tr|en) printf '%s' "$_lang" > /opt/zapret/lang 2>/dev/null; refresh; ok "Dil degistirildi: $_lang" ;;
             *) fail "Gecersiz dil" ;;
         esac ;;
+    theme_set)
+        _theme=$(get_param theme)
+        case "$_theme" in
+            dark|light) printf '%s' "$_theme" > /opt/zapret/theme 2>/dev/null; refresh; ok "Tema degistirildi: $_theme" ;;
+            *) fail "Gecersiz tema" ;;
+        esac ;;
     *)
         fail "Bilinmeyen action: $ACTION" ;;
 esac
@@ -13789,22 +13798,28 @@ kzm_gui_write_html() {
  <title>KZM Control Panel</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cGF0aCBkPSJNMCAwIEM2NiAwIDEzMiAwIDIwMCAwIEMyMDAgNjYgMjAwIDEzMiAyMDAgMjAwIEMxMzQgMjAwIDY4IDIwMCAwIDIwMCBDMCAxMzQgMCA2OCAwIDAgWiIgZmlsbD0iIzAwOTdEQyIvPjxwYXRoIGQ9Ik0wIDAgQzcuMjYgMCAxNC41MiAwIDIyIDAgQzIyIDEyLjU0IDIyIDI1LjA4IDIyIDM4IEMzOC40NTgzMjk0MSA0MC4zMzc5MjI1OCAzOC40NTgzMjk0MSA0MC4zMzc5MjI1OCA1My4wOTQyMzgyOCAzNC4xMjEwOTM3NSBDNjAuMTkzMzIzMjMgMjguMDg5NTIyMTEgNjYuNDExNDU5OTYgMjEuMTQ3MTU5MjMgNzIuNjA1NDY4NzUgMTQuMjEwOTM3NSBDNzMuNDcyNDc0MDYgMTMuMjQwNjg4ODYgNzMuNDcyNDc0MDYgMTMuMjQwNjg4ODYgNzQuMzU2OTk0NjMgMTIuMjUwODM5MjMgQzc2LjYzMDM4NzgxIDkuNjk2MzUzMiA3OC44ODA0MjE5NiA3LjE0NzEyOTk5IDgxLjAzNzU5NzY2IDQuNDkyOTE5OTIgQzg0LjYwNzg0MDkxIDAuNTkxOTUyMTEgODcuNDk0MjI2MTUgLTAuMzM1MzIyMzkgOTIuODA0MTIyOTIgLTAuNjM3MjA3MDMgQzk2LjU0MzI3MDE1IC0wLjcxNjE5NDUgMTAwLjI2NDA4NTY4IC0wLjU4NDc5MjY5IDEwNCAtMC40Mzc1IEMxMDUuNTUzMzE1MDEgLTAuNDAyMzM3MzMgMTA3LjEwNjcwNjc0IC0wLjM3MDQwNzAzIDEwOC42NjAxNTYyNSAtMC4zNDE3OTY4OCBDMTEyLjQ0MjAxODQgLTAuMjY1MTYzMjcgMTE2LjIyMDE1Mzk5IC0wLjE0NDY2OTQxIDEyMCAwIEMxMTQuNjQyNjgyNjEgNi40OTM2MDIxMSAxMTQuNjQyNjgyNjEgNi40OTM2MDIxMSAxMTEuNjI1IDguOTM3NSBDMTA3LjM1MTUyODQgMTIuNTY5MTM4NDEgMTAzLjQ0MDYxODc0IDE2LjUxNjI5MDU3IDk5LjUgMjAuNSBDOTUuMDA1NzEwNTMgMjUuMDM5MDYxMDIgOTAuNTIyNTQzNSAyOS41MDg3NzQwNCA4NS42MTMyODEyNSAzMy42MDU0Njg3NSBDODMuNjQyMDA3MiAzNS4zMDk0NTE0MSA4MS44MjU4NzA0OSAzNy4xNDIzMDYwNiA4MCAzOSBDODEuMDI3MzgyODEgMzkuMzQwMzEyNSA4Mi4wNTQ3NjU2MyAzOS42ODA2MjUgODMuMTEzMjgxMjUgNDAuMDMxMjUgQzk4LjMzMjQ3ODkgNDUuMjY2OTkyODUgMTA4LjA4MDI2OTAyIDUyLjI1ODAyMDIzIDExNi4zNzg5MDYyNSA2Ni4zMzk4NDM3NSBDMTIwLjg1OTUyMjMgNzUuOTcyMzg3NjYgMTE5LjMxMzUzMjc4IDg3LjY0NDcwOTA4IDExOSA5OCBDMTEyLjA3IDk4IDEwNS4xNCA5OCA5OCA5OCBDOTcuOTM4MTI1IDk1LjIzNjI1IDk3Ljg3NjI1IDkyLjQ3MjUgOTcuODEyNSA4OS42MjUgQzk3LjQ0NDU5NTI1IDgxLjM4MDgyNDU1IDk2LjMxNzU0MTk3IDc0LjczMDQyMTY3IDkwLjU3MDMxMjUgNjguNDMzNTkzNzUgQzc4LjYwODU0MTMgNTguNDY1NDUxMDggNjAuNjQxODYzOTggNjAuMzM3NDcyNzUgNDYuMTg3NSA2MC4yNSBDNDMuODM3ODY5MDEgNjAuMjIxNzk4NTkgNDEuNDg4MjU4MTQgNjAuMTkxODY1NDUgMzkuMTM4NjcxODggNjAuMTYwMTU2MjUgQzMzLjQyNTU4NzkzIDYwLjA4MzU3ODc2IDI3LjcxMzgzODYgNjAuMDQyNTkyOTEgMjIgNjAgQzIyIDcyLjU0IDIyIDg1LjA4IDIyIDk4IEMxNC43NCA5OCA3LjQ4IDk4IDAgOTggQzAgNjUuNjYgMCAzMy4zMiAwIDAgWiIgZmlsbD0iI0ZDRkRGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDIsNTEpIi8+PC9zdmc+"/>
 <style>
-:root{
+:root,[data-theme="dark"]{
   --bg:#0b1220;--panel:#0f1b33;--card:#111f3d;
   --text:#e7eefc;--muted:#a9b7d6;--line:rgba(231,238,252,.10);
   --accent:#4b7dff;--good:#2ecc71;--warn:#f1c40f;--bad:#e74c3c;
   --radius:14px;--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
   --sw:240px;--swc:54px;--str:.22s cubic-bezier(.4,0,.2,1);
 }
+[data-theme="light"]{
+  --bg:#f0f4fa;--panel:#e2e8f5;--card:#ffffff;
+  --text:#1a2340;--muted:#5a6a8a;--line:rgba(26,35,64,.10);
+  --accent:#1a56db;--good:#16a34a;--warn:#d97706;--bad:#dc2626;
+  --radius:14px;--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  --sw:240px;--swc:54px;--str:.22s cubic-bezier(.4,0,.2,1);
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
-  background:radial-gradient(1200px 600px at 20% -10%,rgba(75,125,255,.22),transparent 55%),
-             linear-gradient(180deg,#081022,#070d18);
+  background:var(--bg);
   color:var(--text);min-height:100vh;overflow-x:hidden;}
 .app{display:grid;grid-template-columns:var(--sw) 1fr;min-height:100vh;transition:grid-template-columns var(--str);}
 .app.sb-off{grid-template-columns:var(--swc) 1fr;}
 aside{border-right:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(15,27,51,.97),rgba(12,23,48,.97));
+  background:var(--panel);
   padding:12px 8px;position:sticky;top:0;height:100vh;overflow:visible;
   display:flex;flex-direction:column;gap:2px;
   width:var(--sw);transition:width var(--str);position:relative;}
@@ -13827,7 +13842,7 @@ aside{border-right:1px solid var(--line);
 .brand h1{font-size:13px;font-weight:700;white-space:nowrap;}
 .brand small{display:block;color:var(--muted);font-size:10px;margin-top:1px;white-space:nowrap;}
 nav{display:flex;flex-direction:column;gap:2px;padding:0 2px;}
-.sec{color:rgba(169,183,214,.65);font-size:10px;letter-spacing:.12em;
+.sec{color:var(--muted);font-size:10px;letter-spacing:.12em;
   margin:8px 4px 2px;text-transform:uppercase;font-weight:600;
   white-space:nowrap;overflow:hidden;transition:opacity var(--str);}
 .app.sb-off aside .sec{opacity:0;}
@@ -13845,7 +13860,7 @@ nav{display:flex;flex-direction:column;gap:2px;padding:0 2px;}
   transition:opacity var(--str);margin-left:auto;}
 .app.sb-off aside .pill{opacity:0;width:0;padding:0;border:none;margin:0;}
 .tip{display:none;position:fixed;
-  background:rgba(15,27,51,.97);border:1px solid var(--line);border-radius:7px;
+  background:var(--panel);border:1px solid var(--line);border-radius:7px;
   padding:5px 10px;font-size:12px;white-space:nowrap;color:var(--text);
   pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:9999;}
 .app.sb-off .item:hover .tip{display:block;}
@@ -13856,7 +13871,7 @@ nav{display:flex;flex-direction:column;gap:2px;padding:0 2px;}
 main{display:flex;flex-direction:column;min-height:100vh}
 header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
   padding:14px 22px;border-bottom:1px solid var(--line);
-  background:rgba(11,18,32,.75);backdrop-filter:blur(12px);
+  background:var(--panel);backdrop-filter:blur(12px);
   position:sticky;top:0;z-index:10;}
 .title h2{font-size:17px;font-weight:700}
 .title small{color:var(--muted);font-size:11px}
@@ -13965,13 +13980,13 @@ button.ok:hover{background:rgba(46,204,113,.28)}
 .toast.err{background:rgba(231,76,60,.95);color:#fff}
 .rbtn{font-size:11px;padding:4px 9px;background:rgba(75,125,255,.13);
   color:var(--accent);border:1px solid rgba(75,125,255,.28);border-radius:6px;cursor:pointer;}
-.ts{font-size:11px;color:rgba(169,183,214,.45)}
+.ts{font-size:11px;color:var(--muted)}
 .irow{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 input[type=text],input[type=number],select{
-  background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:7px;
+  background:var(--card);border:1px solid var(--line);border-radius:7px;
   color:var(--text);padding:6px 10px;font-size:12.5px;outline:none;transition:.12s;}
 input:focus,select:focus{border-color:rgba(75,125,255,.5)}
-select option{background:#111f3d}
+select option{background:var(--card)}
 .li{display:flex;justify-content:space-between;align-items:center;
   padding:7px 10px;border-bottom:1px solid var(--line);font-size:12.5px;}
 .li:last-child{border-bottom:none}
@@ -14024,6 +14039,7 @@ select option{background:#111f3d}
     <div class="title"><h2 id="pTitle">Dashboard</h2><small id="pSub">Canl&#305; sistem &#246;zeti.</small></div>
     <div class="meta">
       <span id="langBadge" style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0;opacity:.85;cursor:pointer;" title="SSH: kzm → L"></span>
+      <span id="themeBadge" style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0;opacity:.85;cursor:pointer;" title="Tema"></span>
       <span>WAN: <b id="hWan">&#8212;</b></span>
       <span><span id="hLoadLabel">CPU Y&#252;k&#252;: </span><b id="hLoad">&#8212;</b></span>
       <span>KZM: <b id="hVer">&#8212;</b></span>
@@ -14079,7 +14095,7 @@ function fetchS(){
   return fetch('/run/kzm_status.json?t='+Date.now())
     .then(function(r){return r.json();})
     .then(function(d){
-      S=d;syncLang();updHdr();if(curV==='dash'||curV==='healthmon'||curV==='telegram'||curV==='zapret')render(curV);
+      S=d;syncLang();syncTheme();updHdr();if(curV==='dash'||curV==='healthmon'||curV==='telegram'||curV==='zapret')render(curV);
       var dt=new Date(d.ts*1000);
       document.getElementById('tsLbl').textContent=dt.toLocaleTimeString('tr-TR');
     })
@@ -14209,7 +14225,7 @@ function dnsRender(r){
     rows+='</table>';
     var grpKeys=Object.keys(groups);
     if(grpKeys.length>1){
-      rows+='<div style="margin-top:8px;background:#2a1f00;border:1px solid var(--warn);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px">'+
+      rows+='<div style="margin-top:8px;background:rgba(217,119,6,.10);border:1px solid var(--warn);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px">'+
         '<span style="font-size:1.3em">&#9888;</span>'+
         '<span style="color:var(--warn);font-size:14px;font-weight:500">'+
           (L?'Multiple filter groups active! DNS conflicts may occur.':'Farkl&#305; filtre gruplar&#305; aktif! DNS kar&#305;&#351;&#305;kl&#305;&#287;&#305; ya&#351;anabilir.')+
@@ -14446,7 +14462,7 @@ var V={
       fmtOpkgCard()+
       '</div>'+
       '<div class="card wide"><h3>'+(L?'System Info':'Sistem Bilgisi')+'</h3><div class="info-grid">'+
-        ir('Model',S.model||'—')+ir('Firmware',(L?fixTR(S.firmware||'—').replace('Kararl\u0131','Stable').replace('Kararl&#305;','Stable').replace('Kararli','Stable').replace('\u00d6nizleme','Preview').replace('&#214;nizleme','Preview').replace('Onizleme','Preview').replace('Geli\u015ftirici','Developer').replace('Geli&#351;tirici','Developer').replace('Gelistirici','Developer'):fixTR(S.firmware||'—')))+
+        ir('Model',S.model||'—')+ir('Firmware',(L?fixTR(S.firmware||'—').replace('Kararl\u0131','Stable').replace('Kararl&#305;','Stable').replace('Kararli','Stable').replace('Ar\u015fiv','Archive').replace('Arsiv','Archive').replace('\u00d6nizleme','Preview').replace('&#214;nizleme','Preview').replace('Onizleme','Preview').replace('Geli\u015ftirici','Developer').replace('Geli&#351;tirici','Developer').replace('Gelistirici','Developer'):fixTR(S.firmware||'—')))+
         ir('WAN',(L?S.wan_dev:fixTR(S.wan_dev||'—'))+' | '+(S.wan_ip||'—'))+
         ir('LAN IP',(S.lan_ip||'—'))+
         (S.keendns_fqdn ? ir('KeenDNS',S.keendns_fqdn+' | '+fmtKeenDns(S.keendns_access)) : '')+
@@ -14746,7 +14762,7 @@ var V={
       '<div class="hint" style="margin-top:8px">'+(L?'Blocks DNS responses returning local IPs (prevents DNS rebinding attacks).':'Yerel IP d&#246;nd&#252;ren DNS yan&#305;tlar&#305;n&#305; engeller.')+'</div>'+
     '</div>'+
     '</div>';
-    h+='<div style="margin-top:16px;background:#2a1f00;border:1px solid var(--warn);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px"><span style="font-size:1.3em">&#9888;</span><span style="color:var(--warn);font-size:14px;font-weight:500">'+(L?'If you use a VPN, assign a dedicated DNS to your VPN interface to prevent DNS leaks.':'VPN kullan&#305;yorsan&#305;z DNS s&#305;z&#305;nt&#305;s&#305;n&#305; &#246;nlemek i&#231;in VPN aray&#252;z&#252;n&#252;ze &#246;zel DNS atay&#305;n&#305;z.')+'</span></div>';
+    h+='<div style="margin-top:16px;background:rgba(217,119,6,.10);border:1px solid var(--warn);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px"><span style="font-size:1.3em">&#9888;</span><span style="color:var(--warn);font-size:14px;font-weight:500">'+(L?'If you use a VPN, assign a dedicated DNS to your VPN interface to prevent DNS leaks.':'VPN kullan&#305;yorsan&#305;z DNS s&#305;z&#305;nt&#305;s&#305;n&#305; &#246;nlemek i&#231;in VPN aray&#252;z&#252;n&#252;ze &#246;zel DNS atay&#305;n&#305;z.')+'</span></div>';
     setTimeout(function(){dnsLoad();},100);
     return h;
   }},
@@ -14932,6 +14948,16 @@ function hcPoll(btn){
 // Dil yardimcisi - S.lang'a gore TR veya EN doner
 var L=false; // S yuklendikten sonra guncellenir
 function t(tr,en){return L?(en||tr):(tr||en);}
+function syncTheme(){
+  var th=(S&&S.theme==='light')?'light':'dark';
+  document.body.setAttribute('data-theme',th);
+  var themeBadge=document.getElementById('themeBadge');
+  if(themeBadge){
+    themeBadge.onclick=function(){var nt=th==='dark'?'light':'dark';fetch('/cgi-bin/action.sh',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=theme_set&theme='+nt}).then(function(){setTimeout(fetchS,300);});};
+    themeBadge.innerHTML=th==='dark'?'☀️':'&#127769;';
+    themeBadge.title=th==='dark'?'A\u00e7\u0131k Temaya Ge\u00e7':'Koyu Temaya Ge\u00e7';
+  }
+}
 function syncLang(){
   L=!!(S&&S.lang==='en');
   var labels=document.querySelectorAll('.item-label[data-tr]');
@@ -15913,6 +15939,10 @@ if [ -d "$KZM_GUI_DIR" ]; then
     if [ "$_gui_ver" != "$SCRIPT_VERSION" ] || [ "$_cgi_ver" != "$SCRIPT_VERSION" ]; then
         kzm_gui_write_html
         kzm_gui_write_cgi
+    fi
+    # status_gen'de theme alani yoksa yeniden olustur
+    if [ -f "$KZM_GUI_STATUS_SCRIPT" ] && ! grep -q '"theme"' "$KZM_GUI_STATUS_SCRIPT" 2>/dev/null; then
+        kzm_gui_write_status_script 2>/dev/null
     fi
 fi
 # rc.unslung patch: /opt/bin/find yerine BusyBox find kullan (Entware binary bozulmasina karsi)
