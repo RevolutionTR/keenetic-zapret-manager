@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.19"
+SCRIPT_VERSION="v26.5.20"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -6374,6 +6374,8 @@ _dns_master_list() {
         "1.1.1.1@one.one.one.one|DoT|dns-proxy tls upstream 1.1.1.1 sni one.one.one.one|no dns-proxy tls upstream 1.1.1.1|Cloudflare|Filtresiz" \
         "1.0.0.1@one.one.one.one|DoT|dns-proxy tls upstream 1.0.0.1 sni one.one.one.one|no dns-proxy tls upstream 1.0.0.1|Cloudflare|Filtresiz" \
         "cloudflare-dns.com/dns-query|DoH|dns-proxy https upstream https://cloudflare-dns.com/dns-query dnsm|no dns-proxy https upstream https://cloudflare-dns.com/dns-query|Cloudflare|Filtresiz" \
+        "1.1.1.1/dns-query|DoH|dns-proxy https upstream https://1.1.1.1/dns-query dnsm|no dns-proxy https upstream https://1.1.1.1/dns-query|Cloudflare|Filtresiz" \
+        "1.0.0.1/dns-query|DoH|dns-proxy https upstream https://1.0.0.1/dns-query dnsm|no dns-proxy https upstream https://1.0.0.1/dns-query|Cloudflare|Filtresiz" \
         "1.1.1.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.1.1.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.1.1.2|CF_Families|Aile" \
         "1.0.0.2@security.cloudflare-dns.com|DoT|dns-proxy tls upstream 1.0.0.2 sni security.cloudflare-dns.com|no dns-proxy tls upstream 1.0.0.2|CF_Families|Aile" \
         "9.9.9.9@dns.quad9.net|DoT|dns-proxy tls upstream 9.9.9.9 sni dns.quad9.net|no dns-proxy tls upstream 9.9.9.9|Quad9|Gizlilik" \
@@ -6381,7 +6383,6 @@ _dns_master_list() {
         "94.140.14.14@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.14.14 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.14.14|AdGuard|Reklam" \
         "94.140.15.15@dns.adguard-dns.com|DoT|dns-proxy tls upstream 94.140.15.15 sni dns.adguard-dns.com|no dns-proxy tls upstream 94.140.15.15|AdGuard|Reklam" \
         "dns.mullvad.net/dns-query|DoH|dns-proxy https upstream https://dns.mullvad.net/dns-query dnsm|no dns-proxy https upstream https://dns.mullvad.net/dns-query|Mullvad|Gizlilik" \
-        "dns.dns0.eu/dns-query|DoH|dns-proxy https upstream https://dns.dns0.eu/dns-query dnsm|no dns-proxy https upstream https://dns.dns0.eu/dns-query|Dns0eu|Gizlilik" \
         "185.228.168.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.168.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.168.9|CleanBrowsing|Aile" \
         "185.228.169.9@family-filter-dns.cleanbrowsing.org|DoT|dns-proxy tls upstream 185.228.169.9 sni family-filter-dns.cleanbrowsing.org|no dns-proxy tls upstream 185.228.169.9|CleanBrowsing|Aile"
 }
@@ -6404,7 +6405,12 @@ dns_show_current() {
         _grp="${_rest4##*|}"
         local _grep_key
         _grep_key="${_key%%@*}"
-        if echo "$_raw" | grep -qF "$_grep_key"; then
+        local _matched=0
+        case "$_type" in
+            DoT) echo "$_raw" | grep -qF "# ${_grep_key}@" && _matched=1 ;;
+            DoH) echo "$_raw" | grep -qF "uri: https://${_grep_key}" && _matched=1 ;;
+        esac
+        if [ "$_matched" = "1" ]; then
             # Grup rengi ve cevirisi
             local _gc _grp_label
             case "$_grp" in
@@ -6450,7 +6456,7 @@ dns_add_preset_menu() {
         dns_show_current "$_raw"
         echo ""
         printf " %b 1.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Standart (Filtresiz)' 'Standard (No Filter)')" "Google + Cloudflare"
-        printf " %b 2.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Gizlilik Odakli' 'Privacy Focused')" "Quad9 + Mullvad + dns0.eu"
+        printf " %b 2.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Gizlilik Odakli' 'Privacy Focused')" "Quad9 + Mullvad"
         printf " %b 3.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Reklam Engelleyici' 'Ad Blocker')" "AdGuard DoT"
         printf " %b 4.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Aile Filtresi' 'Family Filter')" "CF Families + CleanBrowsing"
         printf " %b 0.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Geri' 'Back')"
@@ -6489,7 +6495,12 @@ _dns_add_package() {
         _rest2="${_rest#*|}"
         _add="${_rest2%%|*}"
         _grep_key="${_key%%@*}"
-        if echo "$_raw" | grep -qF "$_grep_key"; then
+        _apmatch=0
+        case "$_type" in
+            DoT) echo "$_raw" | grep -qF "# ${_grep_key}@" && _apmatch=1 ;;
+            DoH) echo "$_raw" | grep -qF "uri: https://${_grep_key}" && _apmatch=1 ;;
+        esac
+        if [ "$_apmatch" = "1" ]; then
             printf "  %b%-5s%b %-40s : %b%s%b
 " "${CLR_CYAN}" "[$_type]" "${CLR_RESET}" "$_key"                 "${CLR_DIM}" "$(T TXT_DNS_MGMT_PRESET_EXISTS)" "${CLR_RESET}"
         else
@@ -6527,7 +6538,12 @@ dns_delete_menu() {
         _rest3="${_rest2#*|}"
         _del="${_rest3%%|*}"
         _grep_key="${_key%%@*}"
-        if echo "$_raw" | grep -qF "$_grep_key"; then
+        _dmatch=0
+        case "$_type" in
+            DoT) echo "$_raw" | grep -qF "# ${_grep_key}@" && _dmatch=1 ;;
+            DoH) echo "$_raw" | grep -qF "uri: https://${_grep_key}" && _dmatch=1 ;;
+        esac
+        if [ "$_dmatch" = "1" ]; then
             _num=$((_num+1))
             printf "  %b%2d.%b %b%-5s%b %s
 " "${CLR_BOLD}" "$_num" "${CLR_RESET}"                 "${CLR_CYAN}" "[$_type]" "${CLR_RESET}" "$_key"
@@ -6595,11 +6611,17 @@ dns_delete_all() {
     while IFS= read -r _entry; do
         _key="${_entry%%|*}"
         _rest="${_entry#*|}"
+        _type2="${_rest%%|*}"
         _rest2="${_rest#*|}"
         _rest3="${_rest2#*|}"
         _del="${_rest3%%|*}"
         _grep_key="${_key%%@*}"
-        if echo "$_raw" | grep -qF "$_grep_key"; then
+        _damatch=0
+        case "$_type2" in
+            DoT) echo "$_raw" | grep -qF "# ${_grep_key}@" && _damatch=1 ;;
+            DoH) echo "$_raw" | grep -qF "uri: https://${_grep_key}" && _damatch=1 ;;
+        esac
+        if [ "$_damatch" = "1" ]; then
             LD_LIBRARY_PATH= ndmc -c "$_del" >/dev/null 2>&1
             printf "  %s : %b%s%b
 " "$_key" "${CLR_RED}" "$(T TXT_DNS_MGMT_DELETED)" "${CLR_RESET}"
@@ -7005,7 +7027,7 @@ run_health_check() {
     # server-https uri'lerinden domain al
     local _doh_providers
     _doh_providers="$(printf '%s\n' "$_dns_proxy_raw" | grep 'uri:' | \
-        sed 's|.*https://||' | sed 's|/.*||' | grep -v '^$' | sort -u)"
+        sed 's|.*https://||' | grep -v '^$' | sort -u)"
     # Ikisini birlestir ve tekrarlananlar temizle
     dot_list="$(printf '%s\n%s\n' "$_dot_providers" "$_doh_providers" | \
         sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')"
@@ -11254,12 +11276,23 @@ if [ "$1" = "--cgi-action" ]; then
             _dnsrc="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
             _items=""
             _comma=""
-            for _dkey in                 "8.8.8.8@dns.google|DoT"                 "8.8.4.4@dns.google|DoT"                 "dns.google/dns-query|DoH"                 "1.1.1.1@one.one.one.one|DoT"                 "1.0.0.1@one.one.one.one|DoT"                 "cloudflare-dns.com/dns-query|DoH"                 "1.1.1.2@security.cloudflare-dns.com|DoT"                 "1.0.0.2@security.cloudflare-dns.com|DoT"
+            for _dkey in                 "8.8.8.8@dns.google|DoT"                 "8.8.4.4@dns.google|DoT"                 "dns.google/dns-query|DoH"                 "1.1.1.1@one.one.one.one|DoT"                 "1.0.0.1@one.one.one.one|DoT"                 "cloudflare-dns.com/dns-query|DoH"                 "1.1.1.1/dns-query|DoH"                 "1.0.0.1/dns-query|DoH"                 "1.1.1.2@security.cloudflare-dns.com|DoT"                 "1.0.0.2@security.cloudflare-dns.com|DoT"
             do
                 _dk="${_dkey%%|*}"
                 _dt="${_dkey##*|}"
                 _gk="${_dk%%@*}"
-                if printf '%s' "$_dnsraw" | grep -qF "$_gk"; then
+                # DoT icin: IP@SNI formatinda gercek DoT kaydi ara
+                # DoH icin: uri: https://domain/path formatinda ara
+                _found=0
+                case "$_dt" in
+                    DoT)
+                        printf '%s' "$_dnsraw" | grep -qF "# ${_gk}@" && _found=1
+                        ;;
+                    DoH)
+                        printf '%s' "$_dnsraw" | grep -qF "uri: https://${_gk}" && _found=1
+                        ;;
+                esac
+                if [ "$_found" = "1" ]; then
                     _items="${_items}${_comma}$(printf '{"key":"%s","type":"%s"}' "${_dk}" "${_dt}")"
                     _comma=","
                 fi
@@ -13653,8 +13686,11 @@ case "$ACTION" in
         fi ;;
     dns_list)
         _dnsraw="$(LD_LIBRARY_PATH= ndmc -c 'show dns-proxy' 2>/dev/null)"
+        _dnsrc="$(LD_LIBRARY_PATH= ndmc -c 'show running-config' 2>/dev/null)"
         _rebind="off"
-        printf '%s' "$_dnsraw" | grep -q "norebind_ctl = on" && _rebind="on"
+        if printf '%s' "$_dnsraw" | grep -q "norebind_ctl = on" && ! printf '%s' "$_dnsrc" | grep -q "no rebind-protect"; then
+            _rebind="on"
+        fi
         _items=""
         _comma=""
         for _dkey in \
@@ -13664,6 +13700,8 @@ case "$ACTION" in
             "1.1.1.1@one.one.one.one|DoT|Filtresiz" \
             "1.0.0.1@one.one.one.one|DoT|Filtresiz" \
             "cloudflare-dns.com/dns-query|DoH|Filtresiz" \
+            "1.1.1.1/dns-query|DoH|Filtresiz" \
+            "1.0.0.1/dns-query|DoH|Filtresiz" \
             "1.1.1.2@security.cloudflare-dns.com|DoT|Aile" \
             "1.0.0.2@security.cloudflare-dns.com|DoT|Aile" \
             "9.9.9.9@dns.quad9.net|DoT|Gizlilik" \
@@ -13671,7 +13709,6 @@ case "$ACTION" in
             "94.140.14.14@dns.adguard-dns.com|DoT|Reklam" \
             "94.140.15.15@dns.adguard-dns.com|DoT|Reklam" \
             "dns.mullvad.net/dns-query|DoH|Gizlilik" \
-            "dns.dns0.eu/dns-query|DoH|Gizlilik" \
             "185.228.168.9@family-filter-dns.cleanbrowsing.org|DoT|Aile" \
             "185.228.169.9@family-filter-dns.cleanbrowsing.org|DoT|Aile"
         do
@@ -13680,7 +13717,16 @@ case "$ACTION" in
             _dt="${_rest%%|*}"
             _dgrp="${_rest##*|}"
             _gk="${_dk%%@*}"
-            if printf '%s' "$_dnsraw" | grep -qF "$_gk"; then
+            _found=0
+            case "$_dt" in
+                DoT)
+                    printf '%s' "$_dnsraw" | grep -qF "# ${_gk}@" && _found=1
+                    ;;
+                DoH)
+                    printf '%s' "$_dnsraw" | grep -qF "uri: https://${_gk}" && _found=1
+                    ;;
+            esac
+            if [ "$_found" = "1" ]; then
                 _items="${_items}${_comma}{\"key\":\"${_dk}\",\"type\":\"${_dt}\",\"group\":\"${_dgrp}\"}"
                 _comma=","
             fi
@@ -13702,7 +13748,6 @@ case "$ACTION" in
             Quad9)         _pkg_keys="9.9.9.9 149.112.112.112" ;;
             AdGuard)       _pkg_keys="94.140.14.14 94.140.15.15" ;;
             Mullvad)       _pkg_keys="dns.mullvad.net" ;;
-            Dns0eu)        _pkg_keys="dns.dns0.eu" ;;
             CleanBrowsing) _pkg_keys="185.228.168.9 185.228.169.9" ;;
         esac
         for _pk in $_pkg_keys; do
@@ -14249,7 +14294,6 @@ function dnsRefresh(){dnsCache=null;setTimeout(dnsLoad,3500);}
 function dnsPresetHtml(){
   var rows=[
     ['Standard','Standard (No Filter)','Standart (Filtresiz)','Google + Cloudflare DoT/DoH'],
-    ['Privacy','Privacy Focused','Gizlilik Odakl&#305;','Quad9 + Mullvad + dns0.eu'],
     ['AdGuard','Ad Blocker','Reklam Engelleyici','AdGuard DoT'],
     ['Family','Family Filter','Aile Filtresi','CF Families + CleanBrowsing DoT']
   ];
