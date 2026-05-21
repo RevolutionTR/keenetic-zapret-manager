@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.20"
+SCRIPT_VERSION="v26.5.21"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -12788,6 +12788,12 @@ kzm_gui_gen_status() {
         _disk_total_mb="$(printf '%s' "$_df_line" | awk '{printf "%.0f", $1/1024}')"
         _disk_used_pct="$(healthmon_disk_used_pct /opt)"
         _disk_used_mb="$(printf '%s' "$_df_line" | awk '{printf "%.0f", $2/1024}')"
+        # Guvenlik filtresi: bozuk df degeri kontrolu
+        [ "${_disk_total_mb:-0}" -gt 0 ] 2>/dev/null && \
+            [ "${_disk_used_mb:-0}" -gt "${_disk_total_mb:-0}" ] 2>/dev/null && \
+            _disk_used_mb="$_disk_total_mb"
+        [ "${_disk_used_pct:-0}" -gt 100 ] 2>/dev/null && _disk_used_pct=100
+        [ "${_disk_used_pct:-0}" -lt 0 ] 2>/dev/null && _disk_used_pct=0
     fi
     # <1 string degerini JSON icin 0 olarak yaz ama web UI disk_used_mb ile gercek degerle gosterir
     [ "$_disk_used_pct" = "<1" ] && _disk_used_pct=0
@@ -12950,6 +12956,10 @@ if [ -d /opt ]; then
     _dumb="$(df -P /opt 2>/dev/null | awk 'NR==2{printf "%.0f",$3/1024}')"
     [ -z "$_dtmb" ] && _dtmb=0
     [ -z "$_dumb" ] && _dumb=0
+    # Guvenlik filtresi: bozuk df degeri kontrolu
+    [ "$_dtmb" -gt 0 ] 2>/dev/null && [ "$_dumb" -gt "$_dtmb" ] 2>/dev/null && _dumb="$_dtmb"
+    [ "$_dpct" -gt 100 ] 2>/dev/null && _dpct=100
+    [ "$_dpct" -lt 0 ] 2>/dev/null && _dpct=0
 fi
 # RAM detay
 _rbuf="$(awk '/^Buffers:/{print $2}' /proc/meminfo 2>/dev/null)"; [ -z "$_rbuf" ] && _rbuf=0
@@ -14792,6 +14802,7 @@ var V={
   }},
   dns:{title:'DNS Y&#246;netimi',titleEn:'DNS Management',sub:'DoT/DoH sunucu y&#246;netimi.',subEn:'DoT/DoH server management.',html:function(){
     var h='<div class="grid">';
+    h+='<div class="security-note" style="margin-bottom:8px;grid-column:1/-1"><b>&#9888; </b>'+(L?'If you use a VPN, assign a dedicated DNS to your VPN interface to prevent DNS leaks.':'VPN kullan&#305;yorsan&#305;z DNS s&#305;z&#305;nt&#305;s&#305;n&#305; &#246;nlemek i&#231;in VPN aray&#252;z&#252;n&#252;ze &#246;zel DNS atay&#305;n&#305;z.')+'</div>';
     // Mevcut sunucular
     h+='<div class="card wide"><h3>'+(L?'Active DNS Servers':'Aktif DNS Sunucular&#305;')+'</h3>'+
       '<div id="dnsListArea"><span class="sub">'+(L?'Loading...':'Y&#252;kleniyor...')+'</span></div>'+
@@ -14806,8 +14817,7 @@ var V={
       '<div class="hint" style="margin-top:8px">'+(L?'Blocks DNS responses returning local IPs (prevents DNS rebinding attacks).':'Yerel IP d&#246;nd&#252;ren DNS yan&#305;tlar&#305;n&#305; engeller.')+'</div>'+
     '</div>'+
     '</div>';
-    h+='<div style="margin-top:16px;background:rgba(217,119,6,.10);border:1px solid var(--warn);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px"><span style="font-size:1.3em">&#9888;</span><span style="color:var(--warn);font-size:14px;font-weight:500">'+(L?'If you use a VPN, assign a dedicated DNS to your VPN interface to prevent DNS leaks.':'VPN kullan&#305;yorsan&#305;z DNS s&#305;z&#305;nt&#305;s&#305;n&#305; &#246;nlemek i&#231;in VPN aray&#252;z&#252;n&#252;ze &#246;zel DNS atay&#305;n&#305;z.')+'</span></div>';
-    setTimeout(function(){dnsLoad();},100);
+        setTimeout(function(){dnsLoad();},100);
     return h;
   }},
   backup:{title:'Yedekle / Geri Y&#252;kle',titleEn:'Backup / Restore',sub:'Zapret ayarlar&#305; yedekleme ve geri y&#252;kleme.',subEn:'Zapret settings backup and restore.',html:function(){
