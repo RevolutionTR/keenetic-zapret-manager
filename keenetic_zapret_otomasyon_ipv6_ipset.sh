@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.21"
+SCRIPT_VERSION="v26.5.24"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -1286,6 +1286,14 @@ TXT_HM_DISK_HEALTH_RO_TR="Salt okunur (read-only)"
 TXT_HM_DISK_HEALTH_RO_EN="Read-only mount"
 TXT_HM_DISK_HEALTH_IO_TR="Kritik I/O hatasi"
 TXT_HM_DISK_HEALTH_IO_EN="Critical I/O error"
+TXT_HM_DISK_HEALTH_JOURNAL_TR="Journal hatasi (e2fsck onerilir)"
+TXT_HM_DISK_HEALTH_JOURNAL_EN="Journal error (e2fsck recommended)"
+TXT_HM_DISK_HEALTH_MOUNTCNT_TR="Mount sayisi doldu (e2fsck onerilir)"
+TXT_HM_DISK_HEALTH_MOUNTCNT_EN="Max mount count reached (e2fsck recommended)"
+TXT_HM_DISK_HEALTH_USBDISCON_TR="USB baglantisi koptu"
+TXT_HM_DISK_HEALTH_USBDISCON_EN="USB disconnected"
+TXT_HM_DISK_HEALTH_USBPROTO_TR="USB protokol hatasi"
+TXT_HM_DISK_HEALTH_USBPROTO_EN="USB protocol error"
 TXT_HM_STATUS_RUNNING_TR="Calisiyor:"
 TXT_HM_STATUS_RUNNING_EN="Running:"
 TXT_HM_RUN_ON_TR="AKTIF"
@@ -1722,6 +1730,14 @@ TXT_HEALTH_DISK_IO_ERR_TR="Kritik I/O hatasi tespit edildi (dmesg)"
 TXT_HEALTH_DISK_IO_ERR_EN="Critical I/O error detected (dmesg)"
 TXT_HEALTH_DISK_OK_TR="Saglikli"
 TXT_HEALTH_DISK_OK_EN="Healthy"
+TXT_HEALTH_DISK_JOURNAL_TR="Journal hatasi - e2fsck onerilir"
+TXT_HEALTH_DISK_JOURNAL_EN="Journal error - e2fsck recommended"
+TXT_HEALTH_DISK_MOUNTCNT_TR="Mount sayisi doldu - e2fsck onerilir"
+TXT_HEALTH_DISK_MOUNTCNT_EN="Max mount count reached - e2fsck recommended"
+TXT_HEALTH_DISK_USBDISCON_TR="USB baglantisi koptu (yeniden baglandi)"
+TXT_HEALTH_DISK_USBDISCON_EN="USB disconnected (reconnected)"
+TXT_HEALTH_DISK_USBPROTO_TR="USB protokol hatasi tespit edildi"
+TXT_HEALTH_DISK_USBPROTO_EN="USB protocol error detected"
 TXT_HEALTH_LAN_IP_TR="LAN IP"
 TXT_HEALTH_LAN_IP_EN="LAN IP"
 TXT_HEALTH_ENTWARE_TR="Entware (/opt)"
@@ -2936,6 +2952,58 @@ ipset_ensure_and_load_clients() {
     done
     return 0
 }
+
+# /opt disk sagligi kontrolu — tum disk_health bloklarinda ortak kullanilir
+# Cikti: _dh_status (PASS/WARN/FAIL), _dh_reason (aciklama kodu)
+zkm_disk_health_check() {
+    _dh_status="PASS"
+    _dh_reason=""
+    # Read-only kontrolu (FAIL)
+    if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
+        _dh_status="FAIL"
+        _dh_reason="ro"
+        return 0
+    fi
+    local _dev_full _dev_base _is_usb
+    _dev_full="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | head -1)"
+    _dev_base="$(printf '%s' "$_dev_full" | sed 's/[0-9]*$//')"
+    _is_usb=0
+    [ -n "$_dev_base" ] && dmesg 2>/dev/null | grep -q "usb-storage.*${_dev_base}" && _is_usb=1
+    if [ -n "$_dev_full" ]; then
+        # Kritik I/O hatasi (FAIL)
+        if dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_dev_base}"; then
+            _dh_status="FAIL"
+            _dh_reason="io_error"
+            return 0
+        fi
+        # EXT4 journal hatasi (WARN)
+        if dmesg 2>/dev/null | grep -q "EXT4-fs (${_dev_full}): error loading journal"; then
+            _dh_status="WARN"
+            _dh_reason="journal_error"
+            return 0
+        fi
+        # Maksimum mount sayisi (WARN)
+        if dmesg 2>/dev/null | grep -q "EXT4-fs (${_dev_full}): warning: maximal mount count"; then
+            _dh_status="WARN"
+            _dh_reason="mount_count"
+            return 0
+        fi
+        # USB baglantisi koptu (WARN)
+        if [ "$_is_usb" = "1" ] && dmesg 2>/dev/null | grep -q "USB disconnect"; then
+            _dh_status="WARN"
+            _dh_reason="usb_disconnect"
+            return 0
+        fi
+        # USB protokol hatasi (WARN)
+        if [ "$_is_usb" = "1" ] && dmesg 2>/dev/null | grep -q "USBDEVFS_CONTROL failed"; then
+            _dh_status="WARN"
+            _dh_reason="usb_proto"
+            return 0
+        fi
+    fi
+    return 0
+}
+
 add_ipset_nfqueue_rules() {
     local WAN="$(get_wan_if)"
     [ -z "$WAN" ] && WAN=""
@@ -4995,14 +5063,13 @@ install_zapret() {
     sync_zapret_iface_wan_config
     restart_zapret
     cleanup_nfqueue_rules_except_selected_wan
-    # HealthMon henuz aktif degilse kurulumda otomatik etkinlestir
+    # HealthMon kurulum sonrasi varsayilan olarak aktif olsun.
+    # Config zaten varsa degerleri koru; HM_ENABLE=1, autostart ve daemon calismasini garanti et.
     healthmon_load_config 2>/dev/null
-    if [ "${HM_ENABLE:-0}" != "1" ]; then
-        HM_ENABLE="1"
-        healthmon_write_config 2>/dev/null
-        healthmon_autostart_install 2>/dev/null
-        healthmon_start 2>/dev/null
-    fi
+    HM_ENABLE="1"
+    healthmon_write_config 2>/dev/null
+    healthmon_autostart_install 2>/dev/null
+    healthmon_is_running 2>/dev/null || healthmon_start 2>/dev/null
     press_enter_to_continue
 	clear 
     return 0 
@@ -7182,24 +7249,19 @@ run_health_check() {
     if [ "$disk_pct" != "<1" ] && [ -n "$disk_pct" ] && [ "$disk_pct" -gt 90 ] 2>/dev/null; then
         disk_ok="WARN"
     fi
-    # /opt disk sagligi: read-only ve kritik I/O hatasi kontrolu
+    # /opt disk sagligi: ortak helper ile kontrol
     local disk_health_ok="PASS" disk_health_msg
-    disk_health_msg="$(T TXT_HEALTH_DISK_OK)"
-    # Read-only kontrolu
-    if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
-        disk_health_ok="FAIL"
-        disk_health_msg="$(T TXT_HEALTH_DISK_RO)"
-    else
-        # /opt'un bagli oldugu cihazi tespit et (ornegin sda, ubi...)
-        local _opt_dev
-        _opt_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
-        if [ -n "$_opt_dev" ]; then
-            if dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_opt_dev}"; then
-                disk_health_ok="FAIL"
-                disk_health_msg="$(T TXT_HEALTH_DISK_IO_ERR) [${_opt_dev}]"
-            fi
-        fi
-    fi
+    zkm_disk_health_check
+    disk_health_ok="$_dh_status"
+    case "$_dh_reason" in
+        ro)             disk_health_msg="$(T TXT_HEALTH_DISK_RO)" ;;
+        io_error)       disk_health_msg="$(T TXT_HEALTH_DISK_IO_ERR)" ;;
+        journal_error)  disk_health_msg="$(T TXT_HEALTH_DISK_JOURNAL)" ;;
+        mount_count)    disk_health_msg="$(T TXT_HEALTH_DISK_MOUNTCNT)" ;;
+        usb_disconnect) disk_health_msg="$(T TXT_HEALTH_DISK_USBDISCON)" ;;
+        usb_proto)      disk_health_msg="$(T TXT_HEALTH_DISK_USBPROTO)" ;;
+        *)              disk_health_msg="$(T TXT_HEALTH_DISK_OK)" ;;
+    esac
     # RAM detay
     local ram_total_kb ram_free_kb ram_used_kb ram_buf_kb
     ram_total_kb="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')"
@@ -9210,17 +9272,16 @@ tgbot_status_text() {
     [ -z "$uptime_val" ] && uptime_val="-"
     # Disk sagligi
     local disk_health_val
-    if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
-        disk_health_val="$(T _ 'Salt okunur!' 'Read-only!')"
-    else
-        local _dh_dev
-        _dh_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
-        if [ -n "$_dh_dev" ] && dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_dh_dev}"; then
-            disk_health_val="$(T _ 'I/O Hatasi!' 'I/O Error!') [${_dh_dev}]"
-        else
-            disk_health_val="OK"
-        fi
-    fi
+    zkm_disk_health_check
+    case "$_dh_reason" in
+        ro)             disk_health_val="$(T _ 'Salt okunur!' 'Read-only!')" ;;
+        io_error)       disk_health_val="$(T _ 'I/O Hatasi!' 'I/O Error!')" ;;
+        journal_error)  disk_health_val="$(T TXT_HM_DISK_HEALTH_JOURNAL)" ;;
+        mount_count)    disk_health_val="$(T TXT_HM_DISK_HEALTH_MOUNTCNT)" ;;
+        usb_disconnect) disk_health_val="$(T TXT_HM_DISK_HEALTH_USBDISCON)" ;;
+        usb_proto)      disk_health_val="$(T TXT_HM_DISK_HEALTH_USBPROTO)" ;;
+        *)              disk_health_val="OK" ;;
+    esac
     # HealthMon
     if [ -f /tmp/healthmon.pid ] && kill -0 "$(cat /tmp/healthmon.pid 2>/dev/null)" 2>/dev/null; then
         hm_st="$(T TXT_TGBOT_STATUS_RUNNING)"
@@ -10556,17 +10617,16 @@ healthmon_updatecheck_do() {
     if ! ver_is_newer "$latest" "$cur"; then
         healthmon_log "$(date +%s 2>/dev/null) | updatecheck | zkm | up_to_date cur=$cur latest=$latest"
         local _dh_val
-        if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
-            _dh_val="$(T _ 'Salt okunur! Disk hatali olabilir.' 'Read-only! Disk may be damaged.')"
-        else
-            local _dh_dev
-            _dh_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
-            if [ -n "$_dh_dev" ] && dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_dh_dev}"; then
-                _dh_val="$(T _ 'Kritik I/O hatasi tespit edildi' 'Critical I/O error detected') [${_dh_dev}]"
-            else
-                _dh_val="$(T _ 'OK ✅' 'OK ✅')"
-            fi
-        fi
+        zkm_disk_health_check
+        case "$_dh_reason" in
+            ro)             _dh_val="$(T _ 'Salt okunur! Disk hatali olabilir.' 'Read-only! Disk may be damaged.')" ;;
+            io_error)       _dh_val="$(T _ 'Kritik I/O hatasi' 'Critical I/O error')" ;;
+            journal_error)  _dh_val="$(T TXT_HM_DISK_HEALTH_JOURNAL)" ;;
+            mount_count)    _dh_val="$(T TXT_HM_DISK_HEALTH_MOUNTCNT)" ;;
+            usb_disconnect) _dh_val="$(T TXT_HM_DISK_HEALTH_USBDISCON)" ;;
+            usb_proto)      _dh_val="$(T TXT_HM_DISK_HEALTH_USBPROTO)" ;;
+            *)              _dh_val="$(T _ 'OK ✅' 'OK ✅')" ;;
+        esac
         telegram_send "$(tpl_render "$(T TXT_UPD_ZKM_UP_TO_DATE)" CUR "$cur" DISK_HEALTH "$_dh_val")" &
         return 0
     fi
@@ -10859,20 +10919,20 @@ healthmon_loop() {
         else
             rm -f "$disk_start" 2>/dev/null
         fi
-        # ---- DISK HEALTH (read-only + I/O error) ----
-        local _dh_down=0 _dh_reason=""
-        if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
-            _dh_down=1; _dh_reason="$(T TXT_HM_DISK_HEALTH_RO)"
-        else
-            local _dh_dev
-            _dh_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
-            if [ -n "$_dh_dev" ] && dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_dh_dev}"; then
-                _dh_down=1; _dh_reason="$(T TXT_HM_DISK_HEALTH_IO) [${_dh_dev}]"
-            fi
-        fi
+        # ---- DISK HEALTH (read-only + I/O error + journal + USB) ----
+        zkm_disk_health_check
+        local _dh_down=0 _dh_msg=""
+        case "$_dh_reason" in
+            ro)             _dh_down=1; _dh_msg="$(T TXT_HM_DISK_HEALTH_RO)" ;;
+            io_error)       _dh_down=1; _dh_msg="$(T TXT_HM_DISK_HEALTH_IO)" ;;
+            journal_error)  _dh_down=1; _dh_msg="$(T TXT_HM_DISK_HEALTH_JOURNAL)" ;;
+            mount_count)    _dh_down=1; _dh_msg="$(T TXT_HM_DISK_HEALTH_MOUNTCNT)" ;;
+            usb_disconnect) _dh_down=1; _dh_msg="$(T TXT_HM_DISK_HEALTH_USBDISCON)" ;;
+            usb_proto)      _dh_down=1; _dh_msg="$(T TXT_HM_DISK_HEALTH_USBPROTO)" ;;
+        esac
         if [ "$_dh_down" = "1" ]; then
             if healthmon_should_alert "disk_health" "$HM_COOLDOWN_SEC"; then
-                telegram_send "$(tpl_render "$(T TXT_HM_DISK_HEALTH_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" REASON "$_dh_reason")" &
+                telegram_send "$(tpl_render "$(T TXT_HM_DISK_HEALTH_DOWN_MSG)" CPU "$cpu" LOAD "$load" RAM "$ram" REASON "$_dh_msg")" &
                 healthmon_log "$now | disk_health_down | reason=$_dh_reason cpu=$cpu load=$load ram=${ram}MB disk=${disk}%"
                 echo "1" >"$disk_health_flag" 2>/dev/null
             fi
@@ -11532,16 +11592,19 @@ DEOF
             _disk_free_mb="$(df -k /opt 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
             if [ "$_disk_pct" != "<1" ] && [ -n "$_disk_pct" ] && [ "$_disk_pct" -gt 90 ] 2>/dev/null; then _add "sys" "$(T TXT_HEALTH_DISK)" "${_disk_pct}% (${_disk_free_mb}MB $(T _ 'bos' 'free'))" "WARN"
             else _add "sys" "$(T TXT_HEALTH_DISK)" "${_disk_pct}% (${_disk_free_mb}MB $(T _ 'bos' 'free'))" "PASS"; fi
-            # Disk sagligi: read-only ve kritik I/O hatasi kontrolu
+            # Disk sagligi: ortak helper ile kontrol
             _dh_ok="PASS"; _dh_msg="$(T TXT_HEALTH_DISK_OK)"
-            if mount 2>/dev/null | grep -q "on /opt .*ro,"; then
-                _dh_ok="FAIL"; _dh_msg="$(T TXT_HEALTH_DISK_RO)"
-            else
-                _opt_dev="$(mount 2>/dev/null | awk '/on \/opt /{print $1}' | sed 's|/dev/||' | sed 's/[0-9]*$//' | head -1)"
-                if [ -n "$_opt_dev" ] && dmesg 2>/dev/null | grep -q "critical medium error.*dev ${_opt_dev}"; then
-                    _dh_ok="FAIL"; _dh_msg="$(T TXT_HEALTH_DISK_IO_ERR) [${_opt_dev}]"
-                fi
-            fi
+            zkm_disk_health_check
+            _dh_ok="$_dh_status"
+            case "$_dh_reason" in
+                ro)             _dh_msg="$(T TXT_HEALTH_DISK_RO)" ;;
+                io_error)       _dh_msg="$(T TXT_HEALTH_DISK_IO_ERR)" ;;
+                journal_error)  _dh_msg="$(T TXT_HEALTH_DISK_JOURNAL)" ;;
+                mount_count)    _dh_msg="$(T TXT_HEALTH_DISK_MOUNTCNT)" ;;
+                usb_disconnect) _dh_msg="$(T TXT_HEALTH_DISK_USBDISCON)" ;;
+                usb_proto)      _dh_msg="$(T TXT_HEALTH_DISK_USBPROTO)" ;;
+                *)              _dh_msg="$(T TXT_HEALTH_DISK_OK)" ;;
+            esac
             _add "sys" "$(T TXT_HEALTH_DISK_HEALTH)" "$_dh_msg" "$_dh_ok"
             # Disk / ve /tmp
             _dr_pct="$(df -k / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
@@ -11754,7 +11817,9 @@ start() {
   wait_for_network
   
   log_init "Starting daemon..."
-  "$SCRIPT" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
+  SH="/opt/bin/sh"
+  [ -x "$SH" ] || SH="sh"
+  "$SH" "$SCRIPT" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
   
   sleep 2
   if [ -f "$PIDFILE" ]; then
@@ -11812,11 +11877,17 @@ healthmon_start() {
     # Clear stale state (safe)
     rm -f "$HM_PID_FILE" 2>/dev/null
     rm -rf "$HM_LOCKDIR" 2>/dev/null
-    # Start as a detached daemon by re-invoking this script
+    # Start as a detached daemon by re-invoking the installed script path.
+    # Do not use $0 here: during update/CGI/manual runs it may point to a temp or old file.
+    local _hm_script _hm_sh
+    _hm_script="$ZKM_SCRIPT_PATH"
+    [ -f "$_hm_script" ] || _hm_script="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
+    _hm_sh="/opt/bin/sh"
+    [ -x "$_hm_sh" ] || _hm_sh="sh"
     if command -v nohup >/dev/null 2>&1; then
-        nohup "$0" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
+        nohup "$_hm_sh" "$_hm_script" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
     else
-        "$0" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
+        "$_hm_sh" "$_hm_script" --healthmon-daemon </dev/null >>/tmp/healthmon.log 2>&1 &
     fi
     # Wait up to 5s for PID to appear and process to be alive (BusyBox-safe)
     # NOTE: Each iteration checks terminal liveness. If the controlling terminal
