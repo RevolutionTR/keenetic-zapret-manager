@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.24"
+SCRIPT_VERSION="v26.5.27"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -2980,12 +2980,6 @@ zkm_disk_health_check() {
         if dmesg 2>/dev/null | grep -q "EXT4-fs (${_dev_full}): error loading journal"; then
             _dh_status="WARN"
             _dh_reason="journal_error"
-            return 0
-        fi
-        # Maksimum mount sayisi (WARN)
-        if dmesg 2>/dev/null | grep -q "EXT4-fs (${_dev_full}): warning: maximal mount count"; then
-            _dh_status="WARN"
-            _dh_reason="mount_count"
             return 0
         fi
         # USB baglantisi koptu (WARN)
