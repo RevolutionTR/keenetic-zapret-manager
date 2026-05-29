@@ -37,7 +37,7 @@
 # -------------------------------------------------------------------
 SCRIPT_NAME="keenetic_zapret_otomasyon_ipv6_ipset.sh"
 # Version scheme: vYY.M.D[.N]  (YY=year, M=month, D=day, N=daily revision)
-SCRIPT_VERSION="v26.5.27"
+SCRIPT_VERSION="v26.5.29"
 SCRIPT_REPO="https://github.com/RevolutionTR/keenetic-zapret-manager"
 ZKM_SCRIPT_PATH="/opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh"
 SCRIPT_AUTHOR="RevolutionTR"
@@ -60,6 +60,9 @@ ZKM_SELF_PID="$$"
 ZKM_SKIP_LOCK="0"
 case "$1" in
     --healthmon-daemon) ZKM_SKIP_LOCK="1" ;;
+    --nozapret-hook)
+        ZKM_SKIP_LOCK="1"
+        ;;
     --telegram-daemon)
         _self_pid="$$"
         # Gercek PID'i hemen yaz — watchdog sleep sirasinda botu olu sanmasin
@@ -429,6 +432,9 @@ zkm_full_uninstall() {
     rm -f /tmp/healthmon_* /tmp/wanmon.* 2>/dev/null
     # Remove helper/wrapper commands created by this script
     rm -f /opt/bin/keenetic /opt/bin/keenetic-zapret /opt/bin/kzm /opt/bin/KZM 2>/dev/null
+    # KZM2 kalintilari temizle
+    rm -f /opt/bin/keenetic-zapret2 /opt/bin/kzm2 /opt/bin/KZM2 2>/dev/null
+    rm -f /opt/lib/opkg/keenetic_zapret2_manager.sh 2>/dev/null
     # Remove KZM backup files (script backups)
     rm -f /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh.bak_* 2>/dev/null
     # Script file is NOT removed (safety)
@@ -3058,6 +3064,8 @@ enforce_client_mode_rules() {
         # all modda ipset hedefli kurallari temizle
         del_ipset_nfqueue_rules >/dev/null 2>&1
     fi
+    # Her modda nozapret muafiyetini yenile
+    nozapret_apply_rules >/dev/null 2>&1
 }
 # Cekirdek modulu yapilandirmasini gunceller
 # TR/EN Dictionary (WAN Interface Selection & Cleanup)
@@ -3336,6 +3344,7 @@ allow_firewall() {
     echo '#!/bin/sh
 [ "$table" != "mangle" ] && [ "$table" != "nat" ] && exit 0
 /opt/zapret/init.d/sysv/zapret restart-fw
+ZKM_SKIP_LOCK=1 sh /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh --nozapret-hook >/dev/null 2>&1
 exit 0' > /opt/etc/ndm/netfilter.d/000-zapret.sh || {
         echo "$(T TXT_FW_WRITE_FAIL)"
         return 1
@@ -4653,6 +4662,13 @@ nozapret_apply_rules() {
 }
 # iptables kurallarini temizler
 nozapret_remove_rules() {
+    local _nrwan
+    _nrwan="$(get_wan_if 2>/dev/null)"
+    # WAN interface ile eklenmis kurali sil
+    [ -n "$_nrwan" ] && while iptables -t mangle -D POSTROUTING -o "$_nrwan" \
+        -m set --match-set "$NOZAPRET_IPSET_NAME" src \
+        -j RETURN 2>/dev/null; do :; done
+    # Interface olmadan eklenmis kurali da sil (fallback)
     while iptables -t mangle -D POSTROUTING \
         -m set --match-set "$NOZAPRET_IPSET_NAME" src \
         -j RETURN 2>/dev/null; do :; done
@@ -6520,7 +6536,7 @@ dns_add_preset_menu() {
         printf " %b 2.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Gizlilik Odakli' 'Privacy Focused')" "Quad9 + Mullvad"
         printf " %b 3.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Reklam Engelleyici' 'Ad Blocker')" "AdGuard DoT"
         printf " %b 4.%b %-28s%s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Aile Filtresi' 'Family Filter')" "CF Families + CleanBrowsing"
-        printf " %b 0.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Geri' 'Back')"
+        printf " 0. %s\n" "$(T _ 'Geri' 'Back')"
         echo ""
         printf '%s ' "$(T _ 'Secim:' 'Choice:')"
         read -r _ch </dev/tty
@@ -12469,11 +12485,11 @@ scheduled_reboot_menu() {
         print_status WARN "$(T TXT_SCHED_TIME_WARN)"
         echo
         print_line "-"
-        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_1)" "${CLR_RESET}"
-        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_2)" "${CLR_RESET}"
-        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_3)" "${CLR_RESET}"
-        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_4)" "${CLR_RESET}"
-        printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_0)" "${CLR_RESET}"
+        printf "  %s\n" "$(T TXT_SCHED_MENU_1)"
+        printf "  %s\n" "$(T TXT_SCHED_MENU_2)"
+        printf "  %s\n" "$(T TXT_SCHED_MENU_3)"
+        printf "  %s\n" "$(T TXT_SCHED_MENU_4)"
+        printf "  %s\n" "$(T TXT_SCHED_MENU_0)"
         print_line "-"
         echo
         printf "%s" "$(T TXT_SCHED_PROMPT)"
@@ -12493,7 +12509,7 @@ scheduled_reboot_menu() {
                 # Gunluk reboot — saat + dakika sor
                 clear
                 print_line "-"
-                printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_2)" "${CLR_RESET}"
+                printf "  %s\n" "$(T TXT_SCHED_MENU_2)"
                 print_line "-"
                 echo
                 local _hour _min
@@ -12519,7 +12535,7 @@ scheduled_reboot_menu() {
                 # Haftalik reboot — saat + dakika + gun sor
                 clear
                 print_line "-"
-                printf "  %b%s%b\n" "${CLR_BOLD}" "$(T TXT_SCHED_MENU_3)" "${CLR_RESET}"
+                printf "  %s\n" "$(T TXT_SCHED_MENU_3)"
                 print_line "-"
                 echo
                 local _hour _min _dow
@@ -15856,13 +15872,13 @@ kzm_gui_menu() {
         printf "%b%s%b\\n" "${CLR_ORANGE}" "$(T TXT_GUI_SECURITY_WARN)" "${CLR_RESET}"
         echo
         print_line "-"
-        printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_1)" "${CLR_RESET}"
-        printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_2)" "${CLR_RESET}"
-        printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_3)" "${CLR_RESET}"
-        printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_4)" "${CLR_RESET}"
-        printf " %b%s%b%s%b\n" "${CLR_BOLD}" "$(T _ '5) Port Degistir (Mevcut: ' '5) Change Port (Current: ')" "${CLR_CYAN}${CLR_BOLD}" "${KZM_GUI_PORT})" "${CLR_RESET}"
-        printf " %b%s%b\n" "${CLR_BOLD}" "$(T TXT_GUI_OPT_6)" "${CLR_RESET}"
-        printf " %b%s%b\n" "${CLR_DIM}"  "$(T TXT_GUI_OPT_0)" "${CLR_RESET}"
+        printf " %s\n" "$(T TXT_GUI_OPT_1)"
+        printf " %s\n" "$(T TXT_GUI_OPT_2)"
+        printf " %s\n" "$(T TXT_GUI_OPT_3)"
+        printf " %s\n" "$(T TXT_GUI_OPT_4)"
+        printf " %s%b%s%b\n" "$(T _ '5) Port Degistir (Mevcut: ' '5) Change Port (Current: ')" "${CLR_CYAN}${CLR_BOLD}" "${KZM_GUI_PORT})" "${CLR_RESET}"
+        printf " %s\n" "$(T TXT_GUI_OPT_6)"
+        printf " %s\n" "$(T TXT_GUI_OPT_0)"
         print_line "-"
         printf "$(T _ 'Seciminiz: ' 'Your choice: ')"
         read -r _gchoice
@@ -15909,9 +15925,9 @@ main_menu_loop() {
                 print_line "="
                 printf " %b%s%b\n" "${CLR_CYAN}" "$(T _ '9. DPI Profili / WAN Arayuzu' '9. DPI Profile / WAN Interface')" "${CLR_RESET}"
                 print_line "="
-                printf " %b 1.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'DPI Profilini Degistir' 'Change DPI Profile')"
-                printf " %b 2.%b %s  %b[$(T _ 'Mevcut' 'Current'): $([ -z "$(get_wan_if)" ] && printf "%b%s%b" "${CLR_CYAN}" "$(T _ 'Tum Arayuzler' 'All Interfaces')" "${CLR_DIM}" || printf "%b%s%b" "${CLR_GREEN}${CLR_BOLD}" "$(get_wan_if)" "${CLR_RESET}${CLR_DIM}")]%b\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'WAN Arayuzunu Degistir' 'Change WAN Interface')" "${CLR_DIM}" "${CLR_RESET}"
-                printf " %b 0.%b %s\n" "${CLR_BOLD}" "${CLR_RESET}" "$(T _ 'Geri' 'Back')"
+                printf " 1. %s\n" "$(T _ 'DPI Profilini Degistir' 'Change DPI Profile')"
+                printf " 2. %s  [$(T _ 'Mevcut' 'Current'): $([ -z "$(get_wan_if)" ] && printf "%b%s%b" "${CLR_CYAN}" "$(T _ 'Tum Arayuzler' 'All Interfaces')" "${CLR_DIM}" || printf "%b%s%b" "${CLR_GREEN}${CLR_BOLD}" "$(get_wan_if)" "${CLR_RESET}${CLR_DIM}")]%b\\n" "$(T _ 'WAN Arayuzunu Degistir' 'Change WAN Interface')" "${CLR_RESET}"
+                printf " 0. %s\\n" "$(T _ 'Geri' 'Back')"
                 print_line "-"
                 printf "%s" "$(T _ 'Secim: ' 'Choice: ')"
                 read -r _m9
@@ -16023,6 +16039,17 @@ if [ "$1" = "--update-gui" ]; then
     fi
     exit 0
 fi
+if [ "$1" = "--nozapret-hook" ]; then
+    [ -f /tmp/.zapret_paused ] && exit 0
+    nozapret_apply_rules 2>/dev/null
+    if [ "$(get_client_mode 2>/dev/null)" = "list" ]; then
+        flush_all_nfqueue_rules >/dev/null 2>&1
+        ipset_ensure_and_load_clients 2>/dev/null
+        add_ipset_nfqueue_rules >/dev/null 2>&1
+        nozapret_apply_rules 2>/dev/null
+    fi
+    exit 0
+fi
 if [ "$1" = "--telegram-daemon" ]; then
     trap '' HUP 2>/dev/null
     telegram_load_config 2>/dev/null
@@ -16064,6 +16091,11 @@ if [ -d "$KZM_GUI_DIR" ]; then
        { ! grep -q '"theme"' "$KZM_GUI_STATUS_SCRIPT" 2>/dev/null || \
          grep -q 'df /opt' "$KZM_GUI_STATUS_SCRIPT" 2>/dev/null; }; then
         kzm_gui_write_status_script 2>/dev/null
+    fi
+    # Hook guncelleme kontrolu: nozapret-hook yoksa yeniden olustur
+    _hook_file="/opt/etc/ndm/netfilter.d/000-zapret.sh"
+    if [ -f "$_hook_file" ] && ! grep -q "nozapret-hook" "$_hook_file" 2>/dev/null; then
+        allow_firewall 2>/dev/null
     fi
 fi
 # rc.unslung patch: /opt/bin/find yerine BusyBox find kullan (Entware binary bozulmasina karsi)
