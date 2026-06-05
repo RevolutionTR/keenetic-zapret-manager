@@ -13,7 +13,7 @@ Keenetic Zapret Manager lets you bypass DPI restrictions with minimal configurat
 Installation is simpler than you think. Connect to your router via SSH and download the script with one of the commands below:
 
 ```bash
-wget -O /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh \
+wget --no-check-certificate -O /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh \
   https://raw.githubusercontent.com/RevolutionTR/keenetic-zapret-manager/main/keenetic_zapret_otomasyon_ipv6_ipset.sh
 chmod +x /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
 /opt/lib/opkg/keenetic_zapret_otomasyon_ipv6_ipset.sh
