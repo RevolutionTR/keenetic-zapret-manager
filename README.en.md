@@ -1,5 +1,14 @@
 # Keenetic Zapret Manager (KZM)
 
+> **[EN] Important Notice**
+> KZM will no longer receive new feature updates. Only critical technical fixes will be provided. This decision follows the end of active development of **Zapret (v1)**, which KZM is based on. Development continues with **[KZM2 / Zapret2](https://github.com/RevolutionTR/keenetic-zapret2-manager)**. We recommend migrating to KZM2 for new installations and up-to-date features.
+
+> **[TR] Önemli Duyuru**
+> KZM artık yeni özellik güncellemesi almayacaktır. Yalnızca kritik teknik sorunlar için bakım güncellemesi sağlanacaktır. Bu karar, KZM'nin temel aldığı **Zapret (v1)** projesinin aktif geliştirmesinin sona ermesinden kaynaklanmaktadır. Geliştirme **[KZM2 / Zapret2](https://github.com/RevolutionTR/keenetic-zapret2-manager)** ile devam etmektedir. Yeni kurulum ve güncel özellikler için KZM2'ye geçmenizi öneririz.
+
+<br>
+<br>
+
 ## 📦 Installation & Download
 
 [![Stars](https://img.shields.io/github/stars/RevolutionTR/keenetic-zapret-manager?style=for-the-badge)](https://github.com/RevolutionTR/keenetic-zapret-manager/stargazers)
