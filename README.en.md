@@ -1,5 +1,22 @@
 # Keenetic Zapret Manager (KZM)
 
+> [!CAUTION]
+> **⛔ YENİ KURULUM YAPIYORSANIZ BURASI DOĞRU YER DEĞİL.**
+> **KZM2'yi kurun:** https://github.com/RevolutionTR/keenetic-zapret2-manager
+> *Bu eski projedir (KZM), bakım modundadır. KZM2'nin adresi `...zapret2-manager` ile biter.*
+>
+> **⛔ IF YOU ARE DOING A NEW INSTALLATION, THIS IS NOT THE RIGHT REPOSITORY.**
+> **Install KZM2:** https://github.com/RevolutionTR/keenetic-zapret2-manager
+> *This is the old project (KZM), in maintenance mode. The KZM2 address ends with `...zapret2-manager`.*
+
+<br>
+
+> **[TR] Önemli Duyuru**
+> KZM artık yeni özellik güncellemesi almayacaktır. ... (mevcut metnin tamamı aynen)
+
+> **[EN] Important Notice**
+> KZM will no longer receive new feature updates. ... (mevcut metnin tamamı aynen)
+
 > **[EN] Important Notice**
 > KZM will no longer receive new feature updates. Only critical technical fixes will be provided. This decision follows the end of active development of **Zapret (v1)**, which KZM is based on. Development continues with **[KZM2 / Zapret2](https://github.com/RevolutionTR/keenetic-zapret2-manager)**. We recommend migrating to KZM2 for new installations and up-to-date features.
 
